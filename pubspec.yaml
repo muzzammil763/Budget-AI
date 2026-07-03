@@ -1,0 +1,60 @@
+name: budget_ai
+description: "Budget AI - Personal Finance & Memory Assistant"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.9
+  dio: ^5.9.2
+  crypto: ^3.0.6
+  flutter_svg: ^2.2.4
+  shared_preferences: ^2.5.5
+  gpt_markdown: ^1.1.6
+  toastification: ^3.2.0
+  image_picker: ^1.2.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  sqflite: ^2.4.2+1
+  package_info_plus: ^10.1.0
+  flutter_cache_manager: ^3.4.1
+  web_socket_channel: ^3.0.3
+  device_info_plus: ^13.1.0
+  video_player: ^2.9.5
+  flutter_local_notifications: ^21.0.0
+  flutter_timezone: ^5.0.2
+  timezone: ^0.11.0
+  app_settings: ^7.0.0
+  permission_handler: ^12.0.0
+  local_auth: ^3.0.1
+  flutter_syntax_view: ^4.1.7
+  lottie: ^3.3.3
+  uuid: ^4.5.3
+  share_plus: ^13.1.0
+  url_launcher: ^6.3.2
+  file_picker: ^12.0.0-beta.2
+  geolocator: ^14.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+dependency_overrides:
+  package_info_plus: ^10.1.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
+    - assets/lotties/
+
+  fonts:
+    - family: Google Sans
+      fonts:
+        - asset: assets/fonts/GoogleSans.ttf

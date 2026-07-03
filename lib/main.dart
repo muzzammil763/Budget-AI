@@ -1,0 +1,72 @@
+import 'dart:async';
+
+import 'package:budget_ai/app/theme/app_theme.dart';
+import 'package:budget_ai/core/utils/vibration_manager.dart';
+import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
+import 'package:budget_ai/features/chat/presentation/screens/unified_chat_screen.dart';
+import 'package:budget_ai/features/settings/data/android_settings_helper.dart';
+import 'package:budget_ai/app/navigation/app_route_observer.dart';
+import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
+import 'package:budget_ai/core/logging/open_gate_log_service.dart';
+import 'package:budget_ai/core/storage/shared_prefs_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+void main() {
+  OpenGateLogService.installDebugPrintHook();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await OpenGateLogService.initialize();
+      WidgetsBinding.instance.addObserver(_ShutdownLogObserver());
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        OpenGateLogService.logError(
+          details.exception,
+          details.stack,
+          area: 'FlutterError',
+        );
+      };
+      PlatformDispatcher.instance.onError = (error, stack) {
+        OpenGateLogService.logError(error, stack, area: 'PlatformError');
+        return false;
+      };
+
+      await SharedPrefsService.init();
+      await ChatSessionRepository.instance.init();
+      await VibrationManager.instance.waitForInitialization();
+
+      await AndroidSettingsHelper.instance.initialize();
+
+      runApp(const MyApp());
+    },
+    (error, stack) {
+      OpenGateLogService.logError(error, stack, area: 'ZoneError');
+    },
+  );
+}
+
+class _ShutdownLogObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      unawaited(OpenGateLogService.markCleanShutdown());
+    }
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Budget AI',
+      theme: AppTheme.light(fontFamily: 'Google Sans'),
+      darkTheme: AppTheme.dark(fontFamily: 'Google Sans'),
+      themeMode: ThemeMode.system,
+      navigatorObservers: [appRouteObserver],
+      home: UnifiedChatScreen(config: ChatModelConfig.deepseek),
+    );
+  }
+}

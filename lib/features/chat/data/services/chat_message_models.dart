@@ -1,0 +1,712 @@
+part of 'chat_provider.dart';
+
+class _ToolCallTracker {
+  _ToolCallTracker({required this.maxRounds, required this.maxTotalCalls});
+
+  final int maxRounds;
+  final int maxTotalCalls;
+
+  int _roundCount = 0;
+  int _totalCallCount = 0;
+  final Map<String, int> _callFingerprintCounts = {};
+  final Map<String, dynamic> _latestResultsByFingerprint = {};
+
+  bool get isBudgetExhausted =>
+      _roundCount >= maxRounds || _totalCallCount >= maxTotalCalls;
+
+  /// Called at the top of each `do { } while (shouldContinue)` iteration.
+  void beginRound() => _roundCount++;
+
+  /// Returns `true` when the same call has been repeated 1+ times (loop).
+  bool isLoop(String name, Map<String, dynamic> arguments) {
+    final fingerprint = _fingerprint(name, arguments);
+    return (_callFingerprintCounts[fingerprint] ?? 0) >= 1;
+  }
+
+  /// Records a call execution. Must be called once per executed tool.
+  void recordCall(String name, Map<String, dynamic> arguments) {
+    final fingerprint = _fingerprint(name, arguments);
+    _callFingerprintCounts[fingerprint] =
+        (_callFingerprintCounts[fingerprint] ?? 0) + 1;
+    _totalCallCount++;
+  }
+
+  void recordResult(
+    String name,
+    Map<String, dynamic> arguments,
+    dynamic result,
+  ) {
+    _latestResultsByFingerprint[_fingerprint(name, arguments)] = result;
+  }
+
+  dynamic latestResult(String name, Map<String, dynamic> arguments) {
+    return _latestResultsByFingerprint[_fingerprint(name, arguments)];
+  }
+
+  String _fingerprint(String name, Map<String, dynamic> arguments) {
+    // Sort keys for stable canonical JSON
+    final canonical = _canonicalize(arguments);
+    return '$name:${jsonEncode(canonical)}';
+  }
+
+  dynamic _canonicalize(dynamic value) {
+    if (value is Map) {
+      final sorted = Map.fromEntries(
+        value.entries.toList()
+          ..sort((a, b) => '${a.key}'.compareTo('${b.key}')),
+      );
+      return sorted.map((k, v) => MapEntry(k, _canonicalize(v)));
+    }
+    if (value is List) {
+      return value.map(_canonicalize).toList();
+    }
+    return value;
+  }
+
+  String get budgetSummary =>
+      'rounds=$_roundCount/$_totalCallCount (limit $maxRounds/$maxTotalCalls)';
+}
+
+/// Represents a tool call in progress during streaming
+class ToolCallChunk {
+  final String id;
+  final String? name;
+  final Map<String, dynamic>? arguments;
+  final String? rawArguments;
+  final ToolCallStatus status;
+  final dynamic result;
+
+  ToolCallChunk({
+    required this.id,
+    this.name,
+    this.arguments,
+    this.rawArguments,
+    this.status = ToolCallStatus.creating,
+    this.result,
+  });
+
+  ToolCallChunk copyWith({
+    String? id,
+    String? name,
+    Map<String, dynamic>? arguments,
+    String? rawArguments,
+    ToolCallStatus? status,
+    dynamic result,
+  }) {
+    return ToolCallChunk(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      arguments: arguments ?? this.arguments,
+      rawArguments: rawArguments ?? this.rawArguments,
+      status: status ?? this.status,
+      result: result ?? this.result,
+    );
+  }
+}
+
+/// Chunk with optional thinking/reasoning content and tool calls
+class ChatStreamChunk {
+  final String content;
+  final String? thinking;
+  final bool isThinkingComplete;
+  final ToolCallChunk? toolCall;
+  final bool isToolCallComplete;
+  final Map<String, dynamic>? responseMetadata;
+
+  ChatStreamChunk({
+    required this.content,
+    this.thinking,
+    this.isThinkingComplete = false,
+    this.toolCall,
+    this.isToolCallComplete = false,
+    this.responseMetadata,
+  });
+}
+
+List<Map<String, dynamic>> _deepCopyConversationState(
+  List<Map<String, dynamic>> items,
+) {
+  return (jsonDecode(jsonEncode(items)) as List<dynamic>)
+      .map((item) => Map<String, dynamic>.from(item as Map))
+      .toList();
+}
+
+Map<String, dynamic> _extractResponseMetadata(
+  Map<String, dynamic> payload, {
+  required String requestedModel,
+  required String providerName,
+}) {
+  final metadata = <String, dynamic>{
+    'requestedModel': requestedModel,
+    'providerName': providerName,
+  };
+
+  void addString(String outputKey, dynamic value) {
+    final text = value?.toString().trim();
+    if (text != null && text.isNotEmpty) {
+      metadata[outputKey] = text;
+    }
+  }
+
+  void addNumber(String outputKey, dynamic value) {
+    if (value is num) {
+      metadata[outputKey] = value;
+    }
+  }
+
+  void addFirstNumber(String outputKey, Iterable<dynamic> values) {
+    for (final value in values) {
+      if (value is num) {
+        metadata[outputKey] = value;
+        return;
+      }
+    }
+  }
+
+  addString('responseId', payload['id']);
+  addString('resolvedModel', payload['model']);
+  addString('systemFingerprint', payload['system_fingerprint']);
+  addNumber('created', payload['created']);
+
+  final provider = payload['provider'] ?? payload['provider_name'];
+  if (provider is Map) {
+    addString('resolvedProvider', provider['name'] ?? provider['id']);
+    metadata['provider'] = Map<String, dynamic>.from(provider);
+  } else {
+    addString('resolvedProvider', provider);
+  }
+
+  final route = payload['route'] ?? payload['routing'] ?? payload['router'];
+  if (route is Map) {
+    metadata['routing'] = Map<String, dynamic>.from(route);
+  } else {
+    addString('routing', route);
+  }
+
+  final usage = payload['usage'];
+  if (usage is Map) {
+    final normalizedUsage = Map<String, dynamic>.from(usage);
+    final promptTokenDetails = normalizedUsage['prompt_tokens_details'];
+    final completionTokenDetails = normalizedUsage['completion_tokens_details'];
+    final inputTokenDetails = normalizedUsage['input_token_details'];
+    final outputTokenDetails = normalizedUsage['output_token_details'];
+    metadata['usage'] = normalizedUsage;
+    addNumber('promptTokens', normalizedUsage['prompt_tokens']);
+    addNumber('completionTokens', normalizedUsage['completion_tokens']);
+    addNumber('totalTokens', normalizedUsage['total_tokens']);
+    addFirstNumber('cacheReadTokens', [
+      normalizedUsage['cache_read_input_tokens'],
+      normalizedUsage['cached_input_tokens'],
+      normalizedUsage['cached_tokens'],
+      normalizedUsage['prompt_cached_tokens'],
+      if (promptTokenDetails is Map) promptTokenDetails['cached_tokens'],
+      if (promptTokenDetails is Map) promptTokenDetails['cache_read_tokens'],
+      if (inputTokenDetails is Map) inputTokenDetails['cache_read_tokens'],
+      if (inputTokenDetails is Map) inputTokenDetails['cached_tokens'],
+    ]);
+    addFirstNumber('cacheWriteTokens', [
+      normalizedUsage['cache_creation_input_tokens'],
+      normalizedUsage['cache_write_input_tokens'],
+      normalizedUsage['cache_creation_tokens'],
+      normalizedUsage['prompt_cache_creation_tokens'],
+      if (promptTokenDetails is Map)
+        promptTokenDetails['cache_creation_tokens'],
+      if (promptTokenDetails is Map) promptTokenDetails['cache_write_tokens'],
+      if (inputTokenDetails is Map) inputTokenDetails['cache_write_tokens'],
+    ]);
+    addFirstNumber('reasoningTokens', [
+      normalizedUsage['reasoning_tokens'],
+      if (completionTokenDetails is Map)
+        completionTokenDetails['reasoning_tokens'],
+      if (outputTokenDetails is Map) outputTokenDetails['reasoning_tokens'],
+    ]);
+  }
+
+  final choice = _firstChoice(payload);
+  addString('finishReason', choice?['finish_reason']);
+  addString('nativeFinishReason', choice?['native_finish_reason']);
+
+  return metadata;
+}
+
+Map<String, dynamic> mergeResponseMetadata(
+  Map<String, dynamic> current,
+  Map<String, dynamic>? next,
+) {
+  if (next == null || next.isEmpty) return current;
+
+  final merged = Map<String, dynamic>.from(current);
+  for (final entry in next.entries) {
+    final value = entry.value;
+    if (value == null) continue;
+    if (value is String && value.trim().isEmpty) continue;
+    merged[entry.key] = value;
+  }
+
+  if (next.containsKey('workflowTotalTokens') ||
+      next.containsKey('usageRounds')) {
+    return merged;
+  }
+
+  final usageRound = _usageRoundFromMetadata(next);
+  if (usageRound == null) return merged;
+
+  final rounds = ((current['usageRounds'] as List?) ?? const [])
+      .whereType<Map>()
+      .map((round) => Map<String, dynamic>.from(round))
+      .toList();
+  final responseId = usageRound['responseId']?.toString();
+  final existingIndex = responseId == null
+      ? -1
+      : rounds.indexWhere(
+          (round) => round['responseId']?.toString() == responseId,
+        );
+  if (existingIndex >= 0) {
+    rounds[existingIndex] = {...rounds[existingIndex], ...usageRound};
+  } else {
+    rounds.add(usageRound);
+  }
+  merged['usageRounds'] = rounds;
+  merged['modelRoundCount'] = rounds.length;
+  merged['workflowPromptTokens'] = _sumRoundNumbers(rounds, 'promptTokens');
+  merged['workflowCompletionTokens'] = _sumRoundNumbers(
+    rounds,
+    'completionTokens',
+  );
+  merged['workflowTotalTokens'] = _sumRoundNumbers(rounds, 'totalTokens');
+  merged['workflowReasoningTokens'] = _sumRoundNumbers(
+    rounds,
+    'reasoningTokens',
+  );
+  merged['workflowCacheReadTokens'] = _sumRoundNumbers(
+    rounds,
+    'cacheReadTokens',
+  );
+  merged['workflowCacheWriteTokens'] = _sumRoundNumbers(
+    rounds,
+    'cacheWriteTokens',
+  );
+  final workflowCost = _sumRoundDoubles(rounds, 'cost');
+  if (workflowCost != null) {
+    merged['workflowCost'] = workflowCost;
+  }
+  return merged;
+}
+
+Map<String, dynamic>? _usageRoundFromMetadata(Map<String, dynamic> metadata) {
+  final prompt = metadata['promptTokens'];
+  final completion = metadata['completionTokens'];
+  final total = metadata['totalTokens'];
+  final reasoning = metadata['reasoningTokens'];
+  final cacheRead = metadata['cacheReadTokens'];
+  final cacheWrite = metadata['cacheWriteTokens'];
+  final cost = metadata['cost'];
+
+  final hasUsage =
+      prompt is num ||
+      completion is num ||
+      total is num ||
+      reasoning is num ||
+      cacheRead is num ||
+      cacheWrite is num ||
+      cost is num;
+  if (!hasUsage) return null;
+
+  return {
+    if (metadata['responseId'] != null) 'responseId': metadata['responseId'],
+    if (metadata['resolvedModel'] != null)
+      'resolvedModel': metadata['resolvedModel'],
+    if (metadata['resolvedProvider'] != null)
+      'resolvedProvider': metadata['resolvedProvider'],
+    if (prompt is num) 'promptTokens': prompt,
+    if (completion is num) 'completionTokens': completion,
+    if (total is num) 'totalTokens': total,
+    if (reasoning is num) 'reasoningTokens': reasoning,
+    if (cacheRead is num) 'cacheReadTokens': cacheRead,
+    if (cacheWrite is num) 'cacheWriteTokens': cacheWrite,
+    if (cost is num) 'cost': cost,
+  };
+}
+
+int _sumRoundNumbers(List<Map<String, dynamic>> rounds, String key) {
+  return rounds.fold<int>(0, (sum, round) {
+    final value = round[key];
+    return value is num ? sum + value.round() : sum;
+  });
+}
+
+double? _sumRoundDoubles(List<Map<String, dynamic>> rounds, String key) {
+  var hasValue = false;
+  final total = rounds.fold<double>(0, (sum, round) {
+    final value = round[key];
+    if (value is num) {
+      hasValue = true;
+      return sum + value.toDouble();
+    }
+    return sum;
+  });
+  return hasValue ? total : null;
+}
+
+
+/// Represents a single chat message in the active conversation.
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  final DateTime timestamp;
+  final bool? isLiked;
+  final String? thinkingText;
+  final bool isThinkingComplete;
+  final List<ToolCall>? toolCalls;
+  final bool isToolCallsComplete;
+  final List<String>? imagePaths;
+  final String? modelUsed;
+  final int? tokensUsed;
+  final double? tokensPerSec;
+  final Duration? responseTime;
+  final Map<String, dynamic>? responseMetadata;
+  final List<ChatMessageBlock>? blocks;
+
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    required this.timestamp,
+    this.isLiked,
+    this.thinkingText,
+    this.isThinkingComplete = false,
+    this.toolCalls,
+    this.isToolCallsComplete = false,
+    this.imagePaths,
+    this.modelUsed,
+    this.tokensUsed,
+    this.tokensPerSec,
+    this.responseTime,
+    this.responseMetadata,
+    this.blocks,
+  });
+
+  ChatMessage copyWith({
+    String? text,
+    bool? isUser,
+    DateTime? timestamp,
+    bool? isLiked,
+    String? thinkingText,
+    bool? isThinkingComplete,
+    List<ToolCall>? toolCalls,
+    bool? isToolCallsComplete,
+    List<String>? imagePaths,
+    String? modelUsed,
+    int? tokensUsed,
+    double? tokensPerSec,
+    Duration? responseTime,
+    Map<String, dynamic>? responseMetadata,
+    List<ChatMessageBlock>? blocks,
+  }) {
+    return ChatMessage(
+      text: text ?? this.text,
+      isUser: isUser ?? this.isUser,
+      timestamp: timestamp ?? this.timestamp,
+      isLiked: isLiked ?? this.isLiked,
+      thinkingText: thinkingText ?? this.thinkingText,
+      isThinkingComplete: isThinkingComplete ?? this.isThinkingComplete,
+      toolCalls: toolCalls ?? this.toolCalls,
+      isToolCallsComplete: isToolCallsComplete ?? this.isToolCallsComplete,
+      imagePaths: imagePaths ?? this.imagePaths,
+      modelUsed: modelUsed ?? this.modelUsed,
+      tokensUsed: tokensUsed ?? this.tokensUsed,
+      tokensPerSec: tokensPerSec ?? this.tokensPerSec,
+      responseTime: responseTime ?? this.responseTime,
+      responseMetadata: responseMetadata ?? this.responseMetadata,
+      blocks: blocks ?? this.blocks,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'text': text,
+      'isUser': isUser,
+      'timestamp': timestamp.toIso8601String(),
+      'isLiked': isLiked,
+      'thinkingText': thinkingText,
+      'isThinkingComplete': isThinkingComplete,
+      'toolCalls': toolCalls?.map((tc) => tc.toJson()).toList(),
+      'isToolCallsComplete': isToolCallsComplete,
+      'imagePaths': imagePaths,
+      'modelUsed': modelUsed,
+      'tokensUsed': tokensUsed,
+      'tokensPerSec': tokensPerSec,
+      'responseTime': responseTime?.inMilliseconds,
+      'responseMetadata': responseMetadata,
+      'blocks': blocks?.map((block) => block.toJson()).toList(),
+    };
+  }
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    final text = json['text'] as String? ?? '';
+    final isUser = json['isUser'] as bool? ?? false;
+    final timestampStr = json['timestamp'] as String?;
+    DateTime timestamp;
+    if (timestampStr != null) {
+      try {
+        timestamp = DateTime.parse(timestampStr);
+      } catch (_) {
+        timestamp = DateTime.now();
+      }
+    } else {
+      timestamp = DateTime.now();
+    }
+
+    final toolCallsJson = json['toolCalls'] as List<dynamic>?;
+    final toolCalls = toolCallsJson
+        ?.map((tc) => ToolCall.fromJson(tc as Map<String, dynamic>))
+        .toList();
+
+    final imagePathsJson = json['imagePaths'] as List<dynamic>?;
+    final imagePaths = imagePathsJson?.cast<String>();
+
+    final responseTimeMs = json['responseTime'] as int?;
+    final responseTime = responseTimeMs != null
+        ? Duration(milliseconds: responseTimeMs)
+        : null;
+
+    final blocksJson = json['blocks'] as List<dynamic>?;
+    final blocks = blocksJson
+        ?.map(
+          (block) => ChatMessageBlock.fromJson(block as Map<String, dynamic>),
+        )
+        .toList();
+
+    return ChatMessage(
+      text: text,
+      isUser: isUser,
+      timestamp: timestamp,
+      isLiked: json['isLiked'] as bool?,
+      thinkingText: json['thinkingText'] as String?,
+      isThinkingComplete: json['isThinkingComplete'] as bool? ?? false,
+      toolCalls: toolCalls,
+      isToolCallsComplete: json['isToolCallsComplete'] as bool? ?? false,
+      imagePaths: imagePaths,
+      modelUsed: json['modelUsed'] as String?,
+      tokensUsed: json['tokensUsed'] as int?,
+      tokensPerSec: (json['tokensPerSec'] as num?)?.toDouble(),
+      responseTime: responseTime,
+      responseMetadata: (json['responseMetadata'] as Map?)?.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+      blocks: blocks,
+    );
+  }
+}
+
+class ChatMessageBlock {
+  final String id;
+  final ChatMessageBlockType type;
+  final String? text;
+  final ToolCall? toolCall;
+  final bool isComplete;
+
+  ChatMessageBlock({
+    required this.id,
+    required this.type,
+    this.text,
+    this.toolCall,
+    this.isComplete = false,
+  });
+
+  ChatMessageBlock copyWith({
+    String? id,
+    ChatMessageBlockType? type,
+    String? text,
+    ToolCall? toolCall,
+    bool? isComplete,
+  }) {
+    return ChatMessageBlock(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      text: text ?? this.text,
+      toolCall: toolCall ?? this.toolCall,
+      isComplete: isComplete ?? this.isComplete,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type.name,
+      'text': text,
+      'toolCall': toolCall?.toJson(),
+      'isComplete': isComplete,
+    };
+  }
+
+  factory ChatMessageBlock.fromJson(Map<String, dynamic> json) {
+    final typeName =
+        json['type'] as String? ?? ChatMessageBlockType.response.name;
+    final type = ChatMessageBlockType.values.firstWhere(
+      (value) => value.name == typeName,
+      orElse: () => ChatMessageBlockType.response,
+    );
+
+    return ChatMessageBlock(
+      id: json['id'] as String? ?? '',
+      type: type,
+      text: json['text'] as String?,
+      toolCall: json['toolCall'] is Map<String, dynamic>
+          ? ToolCall.fromJson(json['toolCall'] as Map<String, dynamic>)
+          : null,
+      isComplete: json['isComplete'] as bool? ?? false,
+    );
+  }
+}
+
+enum ChatMessageBlockType { thinking, toolCall, response }
+
+class ToolCall {
+  final String? id;
+  final String name;
+  final Map<String, dynamic> arguments;
+  final String? rawArguments;
+  final String? result;
+  final bool isComplete;
+  final ToolCallStatus status;
+
+  ToolCall({
+    this.id,
+    required this.name,
+    required this.arguments,
+    this.rawArguments,
+    this.result,
+    this.isComplete = false,
+    this.status = ToolCallStatus.pending,
+  });
+
+  ToolCall copyWith({
+    String? id,
+    String? name,
+    Map<String, dynamic>? arguments,
+    String? rawArguments,
+    String? result,
+    bool? isComplete,
+    ToolCallStatus? status,
+  }) {
+    return ToolCall(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      arguments: arguments ?? this.arguments,
+      rawArguments: rawArguments ?? this.rawArguments,
+      result: result ?? this.result,
+      isComplete: isComplete ?? this.isComplete,
+      status: status ?? this.status,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'arguments': arguments,
+      'rawArguments': rawArguments,
+      'result': result,
+      'isComplete': isComplete,
+      'status': status.toString(),
+    };
+  }
+
+  factory ToolCall.fromJson(Map<String, dynamic> json) {
+    final statusStr = json['status'] as String?;
+    ToolCallStatus status = ToolCallStatus.pending;
+    if (statusStr != null) {
+      try {
+        status = ToolCallStatus.values.firstWhere(
+          (s) => s.toString() == statusStr,
+          orElse: () => ToolCallStatus.pending,
+        );
+      } catch (_) {
+        status = ToolCallStatus.pending;
+      }
+    }
+
+    return ToolCall(
+      id: json['id'] as String?,
+      name: json['name'] as String? ?? '',
+      arguments: json['arguments'] as Map<String, dynamic>? ?? {},
+      rawArguments: json['rawArguments'] as String?,
+      result: json['result'] as String?,
+      isComplete: json['isComplete'] as bool? ?? false,
+      status: status,
+    );
+  }
+}
+
+enum ToolCallStatus {
+  pending,
+  creating,
+  calling,
+  awaitingApproval,
+  completed,
+  failed,
+  cancelled,
+}
+
+String truncateToolPayloadForStorage(dynamic value) {
+  return value is String ? value : jsonEncode(value);
+}
+
+const String _coreAgentBehavior = '''
+You are Budget AI, a personal finance and budget management assistant. Your primary role is to help users track expenses, manage memories/facts, search the web for financial information, and provide budget advice.
+
+Core behaviors:
+- Be concise, helpful, and focused on personal finance topics.
+- When the user asks to add an expense, use finance_add with appropriate category and amount.
+- When the user asks about spending, use finance_list or finance_summary to retrieve data.
+- Use memory_write to save important facts, preferences, or financial goals the user mentions.
+- Use web_search to look up current prices, deals, financial news, or budgeting tips.
+- Always use the Rs currency symbol when displaying amounts (the user's local currency).
+- Respond in a friendly, conversational tone.
+
+For expense categories, use one of: Food, Groceries, Household, Bills, Transportation, Healthcare, Personal Care, Clothing, Shopping, Entertainment, Sports, Mobile, Home, Kitchen, Bike, Vehicle, Baby Supplies, Wife, Family, Gift, Charity, Banking, Savings, Work, Others.
+
+Keep working until the task is actually complete — but stop the moment it is.
+- Continue autonomously after tool results unless the next step requires an explicit user decision.
+- Batch similar calls: use array parameters instead of N sequential calls.
+- Prefer action over exploration: plan the minimum tool calls needed, then execute.
+- Final responses should be informative: include the outcome and the key specifics the user needs.
+- Don't re-explain internal reasoning or intermediate steps in your reply. The user sees the thinking section; your response is the outcome, not the process.
+''';
+
+const String _agentSelfAwarenessRules = '''
+Agentic self-awareness — stop the moment the task is done:
+- BEFORE each tool call, mentally scan your tool history in this turn. If you already called this tool with these arguments and got a result, use that cached result — do NOT call it again.
+- After a tool returns a success result (ok: true, id: ..., etc.), the action is complete. Give the final response immediately — do NOT make another round of tool calls to verify or confirm.
+- NEVER follow a write operation with a read operation just to verify. Trust the tool result.
+- After each round of tool calls, ask yourself: "Is there genuinely new work to do that the user requested, or have I already completed everything?" If done, respond now.
+- Never emit a partial acknowledgment before calling a tool and then another after — give only ONE final response after all tool work is complete.
+- When you receive a result that says the operation already succeeded or was already recorded, stop immediately and confirm to the user. Do not call more tools.
+''';
+
+const String _financeGuidance = '''
+For finance operations specifically:
+- Do NOT emit any text before calling finance tools. Call the tool first, then give one confirmation after.
+- finance_add: call once with all required fields. After ok: true → respond immediately. Do NOT call finance_list.
+- Use finance_list or finance_summary only when the user explicitly asks to see their expenses or a summary.
+- Infer missing fields from context (category from item name, date = today if not specified, no time unless user mentions a time).
+''';
+
+const String _memoryGuidance = '''
+For memory operations specifically:
+- Do NOT emit any text before calling memory tools. Call the tool first, then give one confirmation.
+- Batch all related facts from one user message into a single memory_write call.
+- Before writing, check the memories already shown in context. If the fact already exists, skip the write.
+- After memory_write or memory_delete returns ok: true → respond immediately. Do NOT call memory_list.
+- Give exactly one brief confirmation after all memory operations.
+''';
+
+const String _agentWebPrompt = '''
+For web research:
+- Use web_search to look up prices, deals, financial news, budgeting tips, or product information.
+- Batch related searches in a single call with queries[].
+- After web_search, use web_page_fetch to read the most relevant result pages for detailed information.
+- Set max_chars based on expected content size: 2000 for short docs, 4000 for medium articles, 8000+ for long reference pages.
+- Prefer official and reliable financial sources.
+- Do not search for information you already have from recent tool results or the conversation history.
+''';
