@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/features/memory/data/memory_service.dart';
+import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,17 +12,23 @@ class AppBackupService {
   AppBackupService._();
   static final AppBackupService instance = AppBackupService._();
 
-  static const _backupVersion = 1;
+  static const _backupVersion = 2;
   static const _backupFileName = 'BudgetAI_Backup.json';
 
   Future<Map<String, dynamic>> createBackup() async {
     final finances = await FinanceService.instance.getAll();
     final memories = await MemoryService.instance.getAll();
+    final deepseekKey = await ApiKeyStorageService.getDeepSeekApiKey() ?? '';
+    final searchKey = await ApiKeyStorageService.getSearchApiKey() ?? '';
 
     final backup = {
       'version': _backupVersion,
       'exported_at': DateTime.now().toIso8601String(),
       'app': 'Budget AI',
+      'api_keys': {
+        'deepseek': deepseekKey,
+        'searchapi': searchKey,
+      },
       'data': {
         'finances': finances.map((e) => e.toJson()).toList(),
         'memories': memories.map((m) => m.toJson()).toList(),
@@ -59,6 +66,19 @@ class AppBackupService {
           'ok': false,
           'error': 'Backup was created with a newer version of Budget AI.',
         };
+      }
+
+      // Restore API keys
+      final apiKeys = backup['api_keys'] as Map<String, dynamic>?;
+      if (apiKeys != null) {
+        final deepseekKey = apiKeys['deepseek']?.toString() ?? '';
+        final searchKey = apiKeys['searchapi']?.toString() ?? '';
+        if (deepseekKey.isNotEmpty) {
+          await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
+        }
+        if (searchKey.isNotEmpty) {
+          await ApiKeyStorageService.saveSearchApiKey(searchKey);
+        }
       }
 
       final data = backup['data'] as Map<String, dynamic>? ?? {};

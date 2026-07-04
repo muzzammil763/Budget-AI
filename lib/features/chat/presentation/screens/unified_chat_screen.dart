@@ -4309,27 +4309,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   PreferredSizeWidget _buildAppBar() {
     final theme = Theme.of(context);
-    final currentModel = AIModels.getModelById(
-      widget.config.modelName,
-      _selectedModel,
-    );
-    final modelName = currentModel?.name ?? _selectedModel;
-
-    final List<String> capabilities = [];
-    if (currentModel?.supportsThinking ?? false) {
-      capabilities.add('Thinking');
-    }
-    if (currentModel?.supportsToolCall ?? false) {
-      capabilities.add('Tools');
-    }
-    final capabilityText = capabilities.join(' · ');
-
-    final String subtitleText;
-    if (capabilityText.isNotEmpty) {
-      subtitleText = '$modelName · $capabilityText';
-    } else {
-      subtitleText = modelName;
-    }
 
     return AppBar(
       leading: Navigator.of(context).canPop()
@@ -4340,30 +4319,26 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             )
           : null,
       titleSpacing: 0,
-      title: Material(
-        color: Colors.transparent,
-        child: GestureDetector(
-          onTap: _isStreaming ? null : _navigateToModelSelection,
-
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Budget AI',
-                style: AppTheme.headingSmall.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 16,
-                ),
+      title: Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Budget AI',
+              style: AppTheme.headingSmall.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontSize: 16,
               ),
-              Text(
-                subtitleText,
-                style: AppTheme.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                ),
+            ),
+            Text(
+              'DeepSeek V4 Flash',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       actions: [
@@ -4791,8 +4766,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                       decoration: InputDecoration(
                         hoverColor: Colors.transparent,
                         hintText: _isContextLimitBlocked
-                            ? 'Context limit reached - change model'
-                            : "Ask ${widget.config.displayName}",
+                            ? 'Context limit reached'
+                            : "Ask about your budget...",
                         hintStyle: TextStyle(
                           color: hintColor,
                           fontSize: 15,
@@ -4844,17 +4819,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final bool supportsToolCall = currentModel?.supportsToolCall ?? false;
     final bool supportsImages = currentModel?.supportsInput('image') ?? false;
     return ChatInputActions(
-      supportsToolCall: supportsToolCall,
-      supportsImages: supportsImages,
       isStreaming: _isResponseInProgress,
       canSubmit: _canSubmitCurrentMessage,
       isReady: isReady,
-      isFastMode: _currentChatMode.mode == ChatMode.fastChat,
-      githubModeButton: _buildGithubModeToggleButton(),
-      imageAttachmentButton: _buildImageAttachmentButton(),
-      contextUsageButton: _buildContextUsageButton(),
-      chatModeButton: _buildChatModeButton(),
-      whatsappSendFileButton: _buildWhatsAppSendFileButton(),
       onCancelRequest: _confirmAndCancelRequest,
       onSendMessage: _handleComposerSubmit,
     );

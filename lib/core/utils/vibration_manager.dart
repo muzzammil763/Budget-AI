@@ -19,8 +19,7 @@ class VibrationManager with WidgetsBindingObserver {
 
   bool get isAppInForeground => _isAppInForeground;
 
-  bool get shouldVibrate =>
-      _isAppInForeground && SharedPrefsService.getHapticsEnabled();
+  bool get shouldVibrate => _isAppInForeground;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

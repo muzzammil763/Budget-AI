@@ -151,7 +151,6 @@ class ToolSettings {
           name: 'finance_delete',
           title: 'Delete Expense',
           description: 'Delete one or more expense entries',
-          defaultAccessMode: ToolAccessMode.approvalRequired,
         ),
       ],
     ),
@@ -175,7 +174,6 @@ class ToolSettings {
           name: 'memory_delete',
           title: 'Delete Memory',
           description: 'Delete a memory',
-          defaultAccessMode: ToolAccessMode.approvalRequired,
         ),
         ToolItemDefinition(
           name: 'memory_list',

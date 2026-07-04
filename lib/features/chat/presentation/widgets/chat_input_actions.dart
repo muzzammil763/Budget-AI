@@ -2,33 +2,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class ChatInputActions extends StatelessWidget {
-  final bool supportsToolCall;
-  final bool supportsImages;
   final bool isStreaming;
   final bool canSubmit;
   final bool isReady;
-  final bool isFastMode;
-  final Widget githubModeButton;
-  final Widget imageAttachmentButton;
-  final Widget contextUsageButton;
-  final Widget chatModeButton;
-  final Widget whatsappSendFileButton;
   final VoidCallback onCancelRequest;
   final VoidCallback onSendMessage;
 
   const ChatInputActions({
     super.key,
-    required this.supportsToolCall,
-    required this.supportsImages,
     required this.isStreaming,
     required this.canSubmit,
     required this.isReady,
-    required this.isFastMode,
-    required this.githubModeButton,
-    required this.imageAttachmentButton,
-    required this.contextUsageButton,
-    required this.chatModeButton,
-    required this.whatsappSendFileButton,
     required this.onCancelRequest,
     required this.onSendMessage,
   });
@@ -38,19 +22,6 @@ class ChatInputActions extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        if (!isFastMode) githubModeButton,
-        if (supportsImages) ...[
-          const SizedBox(width: 6),
-          imageAttachmentButton,
-        ],
-        const SizedBox(width: 6),
-        contextUsageButton,
-        const SizedBox(width: 6),
-        chatModeButton,
-        if (!isFastMode) ...[
-          const SizedBox(width: 6),
-          whatsappSendFileButton,
-        ],
         const Spacer(),
         if (isStreaming && !canSubmit)
           IconButton(

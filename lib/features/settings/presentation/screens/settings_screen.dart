@@ -5,22 +5,16 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_response_markdown.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
 import 'package:budget_ai/features/memory/presentation/screens/memories_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/notification_settings_screen.dart';
-import 'package:budget_ai/features/settings/presentation/screens/permissions_screen.dart';
-import 'package:budget_ai/features/settings/presentation/screens/cache_manager_screen.dart';
-import 'package:budget_ai/features/settings/presentation/screens/shared_preferences_screen.dart';
-import 'package:budget_ai/features/settings/presentation/screens/tool_manager_screen.dart';
 
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/features/memory/data/memory_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
-import 'package:budget_ai/tools/settings/tool_settings.dart';
 
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,12 +30,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   PackageInfo? _packageInfo;
-  late bool _hapticsEnabled;
 
   @override
   void initState() {
     super.initState();
-    _hapticsEnabled = SharedPrefsService.getHapticsEnabled();
     _loadPackageInfo();
   }
 
@@ -103,30 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
-          _buildSectionHeader(theme, 'Tools'),
-          _buildNavTile(
-            theme,
-            icon: Icons.build_outlined,
-            title: 'Tool Manager',
-            subtitle: 'Enable/disable tools and set access modes',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ToolManagerScreen()),
-            ),
-          ),
-          const SizedBox(height: 16),
-
           _buildSectionHeader(theme, 'Preferences'),
-          _buildSwitchTile(
-            theme,
-            icon: CupertinoIcons.hand_raised,
-            title: 'Haptic Feedback',
-            value: _hapticsEnabled,
-            onChanged: (val) {
-              setState(() => _hapticsEnabled = val);
-              SharedPrefsService.setHapticsEnabled(val);
-            },
-          ),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.bell,
@@ -141,54 +110,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
-          _buildSectionHeader(theme, 'System'),
-          _buildNavTile(
-            theme,
-            icon: CupertinoIcons.lock,
-            title: 'Permissions',
-            subtitle: 'Check app permissions',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PermissionsScreen()),
-            ),
-          ),
-          _buildNavTile(
-            theme,
-            icon: CupertinoIcons.delete,
-            title: 'Cache Manager',
-            subtitle: 'Manage cached files',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CacheManagerScreen()),
-            ),
-          ),
-          _buildNavTile(
-            theme,
-            icon: CupertinoIcons.settings,
-            title: 'Shared Preferences',
-            subtitle: 'Inspect stored preferences',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const SharedPreferencesScreen(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
           _buildSectionHeader(theme, 'Backup & Restore'),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.cloud_upload,
             title: 'Export Backup',
-            subtitle: 'Save settings and data to file',
+            subtitle: 'Save finances, memories & API keys',
             onTap: _exportBackup,
           ),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.cloud_download,
             title: 'Restore Backup',
-            subtitle: 'Load settings and data from file',
+            subtitle: 'Restore from a backup file',
             onTap: _restoreBackup,
           ),
           const SizedBox(height: 16),
@@ -287,48 +221,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSwitchTile(
-    ThemeData theme, {
-    required IconData icon,
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.4),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 22, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: AppTheme.bodyMedium.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            Switch(
-              value: value,
-              onChanged: onChanged,
-              activeColor: theme.colorScheme.primary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _exportBackup() async {
     try {
       final allMemories = await MemoryService.instance.getAll();
@@ -372,7 +264,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _restoreBackup() async {
-    // Simplified restore - would need file picker implementation
     showAppToast(
       context,
       message: 'Use the file picker to select a backup JSON file',

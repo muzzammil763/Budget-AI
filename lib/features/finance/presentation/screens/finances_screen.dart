@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
-import 'package:budget_ai/core/utils/authenticated_delete_helper.dart';
 import 'package:budget_ai/core/widgets/pill_nav_bar.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
@@ -361,15 +360,31 @@ class _FinancesScreenState extends State<FinancesScreen> {
   }
 
   Future<bool> _confirmAndDeleteEntry(FinanceEntry entry) async {
-    final authenticated = await confirmAuthenticatedDeletion(
+    final theme = Theme.of(context);
+    final confirmed = await showDialog<bool>(
       context: context,
-      title: 'Delete Finance Entry?',
-      message:
-          'This will permanently delete "${entry.description}" (${entry.displayAmount}). This action cannot be undone.',
-      localizedReason: 'Authenticate to delete this finance entry',
-      failedMessage: 'Authentication failed. Finance entry was not deleted.',
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Entry?'),
+        content: Text(
+          'Delete "${entry.description}" (${entry.displayAmount})?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
-    if (!authenticated) return false;
+    if (confirmed != true) return false;
 
     final deleted = await FinanceService.instance.delete(entry.id);
     if (!mounted) return false;
