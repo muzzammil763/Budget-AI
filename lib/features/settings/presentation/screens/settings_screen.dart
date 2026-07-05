@@ -268,8 +268,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final allMemories = await MemoryService.instance.getAll();
       final allFinances = await FinanceService.instance.getAll();
-      final memories = MemoryService.instance.buildExportJson(allMemories);
-      final finances = FinanceService.instance.buildExportJson(allFinances);
       final deepseekKey = await ApiKeyStorageService.getDeepSeekApiKey() ?? '';
       final searchKey = await ApiKeyStorageService.getSearchApiKey() ?? '';
 
@@ -282,8 +280,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'searchapi': searchKey,
         },
         'data': {
-          'finances': jsonDecode(finances),
-          'memories': jsonDecode(memories),
+          'finances': allFinances.map((e) => e.toJson()).toList(),
+          'memories': allMemories.map((m) => m.toJson()).toList(),
         },
       };
 

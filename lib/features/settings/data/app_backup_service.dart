@@ -144,8 +144,15 @@ class AppBackupService {
 
       final data = backup['data'] as Map<String, dynamic>? ?? {};
 
-      // Restore finances
-      final financesList = data['finances'] as List<dynamic>? ?? [];
+      // Restore finances - handle both list and object formats
+      var financesList = <dynamic>[];
+      final rawFinances = data['finances'];
+      if (rawFinances is List) {
+        financesList = rawFinances;
+      } else if (rawFinances is Map && rawFinances['finances'] is List) {
+        // Old format where buildExportJson wrapped in object
+        financesList = rawFinances['finances'] as List<dynamic>;
+      }
       var financeCount = 0;
       for (final item in financesList) {
         if (item is Map<String, dynamic>) {
@@ -160,8 +167,15 @@ class AppBackupService {
         restoredItems.add('$financeCount finances');
       }
 
-      // Restore memories
-      final memoriesList = data['memories'] as List<dynamic>? ?? [];
+      // Restore memories - handle both list and object formats
+      var memoriesList = <dynamic>[];
+      final rawMemories = data['memories'];
+      if (rawMemories is List) {
+        memoriesList = rawMemories;
+      } else if (rawMemories is Map && rawMemories['memories'] is List) {
+        // Old format where buildExportJson wrapped in object
+        memoriesList = rawMemories['memories'] as List<dynamic>;
+      }
       var memoryCount = 0;
       for (final item in memoriesList) {
         if (item is Map<String, dynamic>) {
