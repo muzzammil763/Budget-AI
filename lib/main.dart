@@ -4,6 +4,7 @@ import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/utils/vibration_manager.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
 import 'package:budget_ai/features/chat/presentation/screens/unified_chat_screen.dart';
+import 'package:budget_ai/features/splash/presentation/screens/splash_screen.dart';
 import 'package:budget_ai/features/settings/data/android_settings_helper.dart';
 import 'package:budget_ai/app/navigation/app_route_observer.dart';
 import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
@@ -66,7 +67,9 @@ class MyApp extends StatelessWidget {
       darkTheme: AppTheme.dark(fontFamily: 'Google Sans'),
       themeMode: ThemeMode.system,
       navigatorObservers: [appRouteObserver],
-      home: UnifiedChatScreen(config: ChatModelConfig.deepseek),
+      home: SplashScreen(
+        child: UnifiedChatScreen(config: ChatModelConfig.deepseek),
+      ),
     );
   }
 }

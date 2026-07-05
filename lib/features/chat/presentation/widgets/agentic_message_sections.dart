@@ -490,8 +490,8 @@ class _CompactToolCallBatchSectionState
         ? 'CSV files'
         : 'files';
 
-    return SizedBox(
-      width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1042,8 +1042,8 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
       return _buildToolResultContent(context);
     }
 
-    return SizedBox(
-      width: double.infinity,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1058,7 +1058,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 spacing: 6,
                 children: [

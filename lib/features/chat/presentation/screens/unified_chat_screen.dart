@@ -150,7 +150,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     false,
   );
   bool _shouldFollowChatScroll = true;
-  bool _allowImmediatePop = false;
   bool _isShowingLeaveConfirmation = false;
   bool _isShowingStopConfirmation = false;
   List<String> _attachedImages = [];
@@ -3156,6 +3155,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   bool get _isBusyBlockingNavigation => _isResponseInProgress;
 
+  bool get _hasChatStateToClear {
+    return _activeSession != null ||
+        _messages.isNotEmpty ||
+        _timelineItems.isNotEmpty ||
+        _messageController.text.trim().isNotEmpty ||
+        _attachedImages.isNotEmpty ||
+        _attachedVideos.isNotEmpty ||
+        _attachedPdfs.isNotEmpty ||
+        _pendingWhatsAppFilePath != null;
+  }
+
   Future<bool> _showLeaveWhileStreamingSheet() async {
     if (!_isBusyBlockingNavigation) {
       return true;
@@ -3248,11 +3258,93 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
 
       _cancelRequest();
-      _allowImmediatePop = true;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isStreaming = false;
+          _isWaitingForNetwork = false;
+        });
+      }
     }
 
     if (!mounted) return;
-    Navigator.of(context).pop(result);
+    if (_hasChatStateToClear) {
+      await _resetToFreshDraft();
+      return;
+    }
+
+    final shouldClose = await _showExitAppSheet();
+    if (!mounted || shouldClose != true) return;
+    await SystemNavigator.pop();
+  }
+
+  Future<bool> _showExitAppSheet() async {
+    final theme = Theme.of(context);
+    final result = await ResponsiveInfoSheet.show<bool>(
+      context,
+      title: 'Close Budget AI?',
+      headerIcon: Icon(
+        CupertinoIcons.square_arrow_left,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+        size: 28,
+      ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Text(
+          'You are already on a new chat.',
+          style: AppTheme.bodyMedium.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Do you want to close the app?',
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.onSurface,
+                  side: BorderSide(color: theme.colorScheme.outline),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    return result ?? false;
   }
 
   String? _formatToolResult(dynamic result) {
@@ -4309,17 +4401,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   @override
   Widget build(BuildContext context) {
     return PopScope<Object?>(
-      canPop: _allowImmediatePop || !_isBusyBlockingNavigation,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         await _attemptBackNavigation(result);
       },
       child: Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: _buildAppBar(),
         body: Stack(
           children: [
             Positioned.fill(child: _buildBody()),
+            _buildTopChrome(),
             Positioned(
               left: 0,
               right: 0,
@@ -4333,62 +4424,68 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  Widget _buildTopChrome() {
     final theme = Theme.of(context);
-    return AppBar(
-      toolbarHeight: 72,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: Colors.transparent,
-      surfaceTintColor: Colors.transparent,
-      leadingWidth: 84,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 20),
-        child: _buildFloatingAppBarButton(
-          theme,
-          icon: Navigator.of(context).canPop()
-              ? Icons.arrow_back_ios_new
-              : Icons.menu_rounded,
-          tooltip: Navigator.of(context).canPop() ? 'Back' : 'Chats',
-          onPressed: Navigator.of(context).canPop()
-              ? _attemptBackNavigation
-              : _openHistoryScreen,
-        ),
-      ),
-      title: const SizedBox.shrink(),
-      flexibleSpace: IgnorePointer(child: _buildAppBarFade(theme)),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 20),
-          child: _buildAppBarControlSurface(
-            theme,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildPillAppBarButton(
-                  theme,
-                  icon: CupertinoIcons.square_pencil,
-                  tooltip: 'New Chat',
-                  onPressed: _resetToFreshDraft,
-                ),
-                _buildPillAppBarButton(
-                  theme,
-                  icon: CupertinoIcons.slider_horizontal_3,
-                  tooltip: 'Model',
-                  onPressed: _navigateToModelSelection,
-                ),
-                _buildPillAppBarButton(
-                  theme,
-                  icon: CupertinoIcons.ellipsis_vertical,
-                  tooltip: 'Settings',
-                  onPressed: _openSettingsScreen,
-                ),
-              ],
+    final connectedProjects = _buildConnectedProjectAppBarBottom(theme);
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Stack(
+        children: [
+          IgnorePointer(child: _buildAppBarFade(theme)),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFloatingAppBarButton(
+                        theme,
+                        icon: CupertinoIcons.line_horizontal_3,
+                        tooltip: 'Chats',
+                        onPressed: _openHistoryScreen,
+                      ),
+                      const Spacer(),
+                      _buildAppBarControlSurface(
+                        theme,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildPillAppBarButton(
+                              theme,
+                              icon: CupertinoIcons.square_pencil,
+                              tooltip: 'New Chat',
+                              onPressed: _resetToFreshDraft,
+                            ),
+                            _buildPillAppBarButton(
+                              theme,
+                              icon: CupertinoIcons.slider_horizontal_3,
+                              tooltip: 'Model',
+                              onPressed: _navigateToModelSelection,
+                            ),
+                            _buildPillAppBarButton(
+                              theme,
+                              icon: CupertinoIcons.ellipsis_vertical,
+                              tooltip: 'Settings',
+                              onPressed: _openSettingsScreen,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (connectedProjects != null) connectedProjects,
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-      bottom: _buildConnectedProjectAppBarBottom(theme),
+        ],
+      ),
     );
   }
 
