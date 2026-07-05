@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/widgets/pill_nav_bar.dart';
+import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:toastification/toastification.dart';
@@ -111,7 +112,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
           PillNavBar(
             items: months.map((m) => _monthLabel(m)).toList(),
             selectedIndex: months.indexWhere(
-              (m) => m.year == _selectedMonth.year && m.month == _selectedMonth.month,
+              (m) =>
+                  m.year == _selectedMonth.year &&
+                  m.month == _selectedMonth.month,
             ),
             onSelected: (index) => _selectMonth(months[index]),
           ),
@@ -382,28 +385,75 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   Future<bool> _confirmAndDeleteEntry(FinanceEntry entry) async {
     final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Entry?'),
-        content: Text(
-          'Delete "${entry.description}" (${entry.displayAmount})?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+    final confirmed = await ResponsiveInfoSheet.show<bool>(
+      context,
+      title: 'Delete Finance Entry?',
+      headerIcon: Icon(
+        CupertinoIcons.trash,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.error),
       ),
+      gradientColors: [
+        theme.colorScheme.error,
+        theme.colorScheme.error.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Text(
+          'Delete "${entry.description}" (${entry.displayAmount})?',
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          spacing: 12,
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 50,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.surface,
+                    foregroundColor: theme.colorScheme.onSurface,
+                    elevation: 0,
+                    side: BorderSide(color: theme.colorScheme.outline),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.error,
+                    foregroundColor: theme.colorScheme.onError,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
     if (confirmed != true) return false;
 

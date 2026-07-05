@@ -191,10 +191,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     // Process any notification actions that arrived while the screen was
     // not mounted, and subscribe to new ones.
     _processPendingNotificationActions();
-    _notificationActionSubscription =
-        NotificationService.instance.onPendingActions.listen((_) {
-      if (mounted) _processPendingNotificationActions();
-    });
+    _notificationActionSubscription = NotificationService
+        .instance
+        .onPendingActions
+        .listen((_) {
+          if (mounted) _processPendingNotificationActions();
+        });
   }
 
   Future<void> _initialize() async {
@@ -276,9 +278,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final savedModel = prefs.getString(
       '${widget.config.modelName}_selected_model',
     );
+    final globalModel = widget.config.modelName == 'deepseek'
+        ? SharedPrefsService.getSelectedDeepSeekModel()
+        : null;
     setState(() {
       _selectedModel =
-          savedModel ?? AIModels.getDefaultModel(widget.config.modelName);
+          globalModel ??
+          savedModel ??
+          AIModels.getDefaultModel(widget.config.modelName);
     });
   }
 
@@ -367,6 +374,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       '${widget.config.modelName}_selected_model',
       newModel,
     );
+    if (widget.config.modelName == 'deepseek') {
+      await SharedPrefsService.setSelectedDeepSeekModel(newModel);
+    }
 
     final modelInfo = AIModels.getModelById(widget.config.modelName, newModel);
 
@@ -1434,10 +1444,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final nextRequest = next['request'] as Map<String, dynamic>;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _showCommandApprovalDialog(
-        toolCall: nextToolCall,
-        request: nextRequest,
-      );
+      _showCommandApprovalDialog(toolCall: nextToolCall, request: nextRequest);
     });
   }
 
@@ -1636,10 +1643,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final workingDirectory = request['working_directory']?.toString();
 
     final response = await MacCompanionService.instance
-        .respondToCommandApproval(
-          requestId: requestId,
-          approved: approved,
-        );
+        .respondToCommandApproval(requestId: requestId, approved: approved);
     if (response['ok'] != true) {
       return response;
     }
@@ -2477,14 +2481,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   if (_sentApprovalNotificationIds.add(tcId)) {
                     final toolCall = chunk.toolCall!;
                     final args = toolCall.arguments ?? {};
-                    final command = args['command']?.toString() ??
+                    final command =
+                        args['command']?.toString() ??
                         args['to']?.toString() ??
                         args['file_path']?.toString() ??
                         args['url']?.toString() ??
                         toolCall.name ??
                         'unknown command';
-                    final riskLevel = args['command']?.toString().contains('rm') == true ||
-                        args['command']?.toString().contains('sudo') == true
+                    final riskLevel =
+                        args['command']?.toString().contains('rm') == true ||
+                            args['command']?.toString().contains('sudo') == true
                         ? 'destructive'
                         : 'caution';
                     final affectedPaths = <String>[];
@@ -2743,7 +2749,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           final toolCallCount = _countToolCallsInMessage(finalAssistantMessage);
           final responseText = finalAssistantMessage?.text ?? '';
           final summary = responseText.isNotEmpty
-              ? (responseText.length > 200 ? '${responseText.substring(0, 200)}...' : responseText)
+              ? (responseText.length > 200
+                    ? '${responseText.substring(0, 200)}...'
+                    : responseText)
               : 'Response complete. ${toolCallCount > 0 ? '$toolCallCount tool call(s) executed.' : ''}';
           final responsePayload = ResponseReadyPayload(
             chatId: _activeSession?.id ?? '',
@@ -3611,10 +3619,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final lastAssistantMessage = _messages.isNotEmpty
         ? _messages.lastWhere(
             (m) => !m.isUser,
-            orElse: () => ChatMessage(text: '', isUser: false, timestamp: DateTime.now()),
+            orElse: () =>
+                ChatMessage(text: '', isUser: false, timestamp: DateTime.now()),
           )
         : null;
-    final hasOtherPendingApprovals = lastAssistantMessage != null &&
+    final hasOtherPendingApprovals =
+        lastAssistantMessage != null &&
         _hasPendingCommandApproval(_getMessageBlocks(lastAssistantMessage));
 
     if (mounted && !hasOtherPendingApprovals) {
@@ -3654,10 +3664,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       final payload = action['payload'] ?? '';
       if (payload.isEmpty) continue;
 
-      final payloadType = NotificationService.instance.parsePayloadType(payload);
+      final payloadType = NotificationService.instance.parsePayloadType(
+        payload,
+      );
       if (payloadType == NotificationPayloadType.approval) {
-        final approvalPayload =
-            NotificationService.instance.parseApprovalPayload(payload);
+        final approvalPayload = NotificationService.instance
+            .parseApprovalPayload(payload);
         if (approvalPayload == null) continue;
         _resolveApprovalNotificationAction(
           actionId: actionId,
@@ -3690,7 +3702,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       for (final block in blocks) {
         if (block.type != ChatMessageBlockType.toolCall) continue;
         final toolCall = block.toolCall;
-        if (toolCall == null || toolCall.status != ToolCallStatus.awaitingApproval) {
+        if (toolCall == null ||
+            toolCall.status != ToolCallStatus.awaitingApproval) {
           continue;
         }
         final decoded = _decodeToolResult(toolCall.result);
@@ -4316,7 +4329,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   PreferredSizeWidget _buildAppBar() {
     final theme = Theme.of(context);
-    final modelInfo = AIModels.getModelById(widget.config.modelName, _selectedModel);
+    final modelInfo = AIModels.getModelById(
+      widget.config.modelName,
+      _selectedModel,
+    );
     final modelName = modelInfo?.name ?? 'DeepSeek V4 Flash';
 
     return AppBar(
@@ -4327,26 +4343,51 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               onPressed: _attemptBackNavigation,
             )
           : null,
-      title: Padding(
-        padding: const EdgeInsets.only(left: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Budget AI',
-              style: AppTheme.headingSmall.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontSize: 16,
-              ),
+      title: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _navigateToModelSelection,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Budget AI',
+                        style: AppTheme.headingSmall.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        modelName,
+                        style: AppTheme.bodySmall.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
             ),
-            Text(
-              modelName,
-              style: AppTheme.bodySmall.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
       actions: [
@@ -4359,10 +4400,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           onPressed: _openHistoryScreen,
         ),
         IconButton(
-          icon: Icon(
-            CupertinoIcons.settings,
-            color: theme.colorScheme.primary,
-          ),
+          icon: Icon(CupertinoIcons.settings, color: theme.colorScheme.primary),
           tooltip: 'Settings',
           onPressed: _openSettingsScreen,
         ),
@@ -4693,6 +4731,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
+    if (!mounted) return;
+    await _refreshChatConfiguration();
   }
 
   Widget _buildInputArea() {
@@ -6048,9 +6088,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
 
       // Show all entries inline (thinking + tool calls + response)
-      children.add(
-        buildEntries(mergedEntries, responseAsProcess: false),
-      );
+      children.add(buildEntries(mergedEntries, responseAsProcess: false));
     } else {
       int index = 0;
       while (index < mergedEntries.length) {

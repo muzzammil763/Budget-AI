@@ -1,17 +1,21 @@
-# open_gate
+# Budget AI
 
-A new Flutter project.
+Budget AI is a Flutter personal finance assistant with DeepSeek chat, local expense tracking, saved memories, web-search support, and JSON backup/restore.
 
-## Getting Started
+## Current App Flow
 
-This project is a starting point for a Flutter application.
+- The main screen opens directly to chat.
+- Tap the chat app bar title area showing `Budget AI` and the current model name to open the model selector.
+- Settings contains four options: API Keys, Finances, Memories, and Backup & Restore.
+- API Keys supports multiple saved DeepSeek and SearchAPI keys.
+- Backup & Restore exports and imports API keys, finances, memories, and the selected DeepSeek model.
+- Backup files use a dated name like `Backup Budget AI 12-12-2026 12 35 PM.json`.
 
-A few resources to get you started if this is your first Flutter project:
+## Development
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```sh
+flutter pub get
+flutter analyze --no-fatal-warnings --no-fatal-infos
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+There is currently no `test/` directory in this app.

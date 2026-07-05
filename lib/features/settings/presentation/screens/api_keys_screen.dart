@@ -61,7 +61,7 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     if (key.isEmpty) return;
 
     setState(() => _deepseekSaving = true);
-    await ApiKeyStorageService.saveDeepSeekApiKey(key);
+    await ApiKeyStorageService.addApiKey('deepseek', key);
     _deepseekApiController.clear();
     await _loadApiKeys();
     if (mounted) {
@@ -79,7 +79,7 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     if (key.isEmpty) return;
 
     setState(() => _searchApiSaving = true);
-    await ApiKeyStorageService.saveSearchApiKey(key);
+    await ApiKeyStorageService.addApiKey('searchapi', key);
     _searchApiController.clear();
     await _loadApiKeys();
     if (mounted) {
@@ -297,11 +297,7 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
                   ),
                 )
               else
-                Icon(
-                  Icons.search,
-                  size: 24,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.search, size: 24, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -334,7 +330,9 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          obscure ? '${'*' * 20}${key.substring(key.length - 4)}' : key,
+                          obscure
+                              ? '${'*' * 20}${key.substring(key.length - 4)}'
+                              : key,
                           style: TextStyle(
                             fontFamily: 'monospace',
                             fontSize: 13,
@@ -398,17 +396,13 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(
-                          alpha: 0.4,
-                        ),
+                        color: theme.colorScheme.outline.withValues(alpha: 0.4),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(
-                          alpha: 0.4,
-                        ),
+                        color: theme.colorScheme.outline.withValues(alpha: 0.4),
                       ),
                     ),
                   ),

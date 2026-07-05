@@ -13,21 +13,37 @@ class AppBackupService {
   static final AppBackupService instance = AppBackupService._();
 
   static const _backupVersion = 2;
-  static const _backupFileName = 'BudgetAI_Backup.json';
+
+  String _backupFileName(DateTime exportedAt) {
+    final hour = exportedAt.hour == 0
+        ? 12
+        : exportedAt.hour > 12
+        ? exportedAt.hour - 12
+        : exportedAt.hour;
+    final minute = exportedAt.minute.toString().padLeft(2, '0');
+    final period = exportedAt.hour >= 12 ? 'PM' : 'AM';
+    final date =
+        '${exportedAt.month.toString().padLeft(2, '0')}-${exportedAt.day.toString().padLeft(2, '0')}-${exportedAt.year}';
+    return 'Backup Budget AI $date $hour $minute $period.json';
+  }
 
   Future<Map<String, dynamic>> createBackup() async {
     final finances = await FinanceService.instance.getAll();
     final memories = await MemoryService.instance.getAll();
-    final deepseekKey = await ApiKeyStorageService.getDeepSeekApiKey() ?? '';
-    final searchKey = await ApiKeyStorageService.getSearchApiKey() ?? '';
+    final deepseekKeys = await ApiKeyStorageService.getDeepSeekApiKeys();
+    final searchKeys = await ApiKeyStorageService.getSearchApiKeys();
+    final selectedModel =
+        SharedPrefsService.getSelectedDeepSeekModel() ??
+        SharedPrefsService.instance.getString('deepseek_selected_model');
 
     final backup = {
       'version': _backupVersion,
       'exported_at': DateTime.now().toIso8601String(),
       'app': 'Budget AI',
-      'api_keys': {
-        'deepseek': deepseekKey,
-        'searchapi': searchKey,
+      'api_keys': {'deepseek': deepseekKeys, 'searchapi': searchKeys},
+      'settings': {
+        if (selectedModel != null && selectedModel.isNotEmpty)
+          'selected_deepseek_model': selectedModel,
       },
       'data': {
         'finances': finances.map((e) => e.toJson()).toList(),
@@ -39,19 +55,22 @@ class AppBackupService {
   }
 
   Future<File> saveBackupToFile() async {
+    final now = DateTime.now();
     final backup = await createBackup();
     final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);
 
     final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/$_backupFileName');
+    final file = File('${dir.path}/${_backupFileName(now)}');
     return file.writeAsString(jsonStr);
   }
 
   Future<void> shareBackup() async {
     final file = await saveBackupToFile();
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'Budget AI Backup',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'application/json')],
+        subject: 'Budget AI Backup',
+      ),
     );
   }
 
@@ -87,6 +106,20 @@ class AppBackupService {
     return value.toString().trim();
   }
 
+  List<String> _extractKeys(dynamic value) {
+    if (value == null) return const [];
+    if (value is List) {
+      return value
+          .map(_extractKey)
+          .whereType<String>()
+          .where((key) => key.isNotEmpty)
+          .toSet()
+          .toList();
+    }
+    final key = _extractKey(value);
+    return key == null || key.isEmpty ? const [] : [key];
+  }
+
   Future<Map<String, dynamic>> restoreFromFile(File file) async {
     try {
       final content = await file.readAsString();
@@ -97,49 +130,67 @@ class AppBackupService {
 
       // Restore API keys - handle both Budget AI and OpenGate formats
       final apiKeys = backup['api_keys'] as Map<String, dynamic>?;
-      
+
       if (apiKeys != null) {
         // Budget AI format
-        final deepseekKey = _extractKey(apiKeys['deepseek']);
-        final searchKey = _extractKey(apiKeys['searchapi']);
-        
-        if (deepseekKey != null && deepseekKey.isNotEmpty) {
-          // Clear existing keys first, then save the new one
-          await ApiKeyStorageService.deleteDeepSeekApiKey();
-          await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
-          restoredItems.add('DeepSeek key');
+        final deepseekKeys = _extractKeys(apiKeys['deepseek']);
+        final searchKeys = _extractKeys(apiKeys['searchapi']);
+
+        if (deepseekKeys.isNotEmpty) {
+          await ApiKeyStorageService.saveApiKeys('deepseek', deepseekKeys);
+          restoredItems.add(
+            deepseekKeys.length == 1
+                ? 'DeepSeek key'
+                : '${deepseekKeys.length} DeepSeek keys',
+          );
         }
-        if (searchKey != null && searchKey.isNotEmpty) {
-          await ApiKeyStorageService.deleteSearchApiKey();
-          await ApiKeyStorageService.saveSearchApiKey(searchKey);
-          restoredItems.add('SearchAPI key');
+        if (searchKeys.isNotEmpty) {
+          await ApiKeyStorageService.saveApiKeys('searchapi', searchKeys);
+          restoredItems.add(
+            searchKeys.length == 1
+                ? 'SearchAPI key'
+                : '${searchKeys.length} SearchAPI keys',
+          );
         }
       } else if (app == 'OpenGate') {
         // OpenGate format - try different possible locations
         final data = backup['data'] as Map<String, dynamic>?;
         final settings = data?['settings'] as Map<String, dynamic>?;
-        
+
         // Try to find keys in various locations
-        dynamic deepseekValue = backup['deepseek_api_key'] ?? 
-                                settings?['deepseek_api_key'] ??
-                                settings?['api_keys']?['deepseek'];
-        dynamic searchValue = backup['searchapi_api_key'] ?? 
-                              settings?['searchapi_api_key'] ??
-                              settings?['api_keys']?['searchapi'];
-        
+        dynamic deepseekValue =
+            backup['deepseek_api_key'] ??
+            settings?['deepseek_api_key'] ??
+            settings?['api_keys']?['deepseek'];
+        dynamic searchValue =
+            backup['searchapi_api_key'] ??
+            settings?['searchapi_api_key'] ??
+            settings?['api_keys']?['searchapi'];
+
         final deepseekKey = _extractKey(deepseekValue);
         final searchKey = _extractKey(searchValue);
-        
+
         if (deepseekKey != null && deepseekKey.isNotEmpty) {
-          await ApiKeyStorageService.deleteDeepSeekApiKey();
-          await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
+          await ApiKeyStorageService.saveApiKeys('deepseek', [deepseekKey]);
           restoredItems.add('DeepSeek key');
         }
         if (searchKey != null && searchKey.isNotEmpty) {
-          await ApiKeyStorageService.deleteSearchApiKey();
-          await ApiKeyStorageService.saveSearchApiKey(searchKey);
+          await ApiKeyStorageService.saveApiKeys('searchapi', [searchKey]);
           restoredItems.add('SearchAPI key');
         }
+      }
+
+      final settings = backup['settings'] as Map<String, dynamic>?;
+      final selectedModel =
+          settings?['selected_deepseek_model']?.toString() ??
+          backup['selected_deepseek_model']?.toString();
+      if (selectedModel != null && selectedModel.isNotEmpty) {
+        await SharedPrefsService.setSelectedDeepSeekModel(selectedModel);
+        await SharedPrefsService.instance.setString(
+          'deepseek_selected_model',
+          selectedModel,
+        );
+        restoredItems.add('selected model');
       }
 
       final data = backup['data'] as Map<String, dynamic>? ?? {};
