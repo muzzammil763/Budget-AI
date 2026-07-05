@@ -11,12 +11,12 @@ DOCUMENTS_DIR := $(HOME)/Documents/$(APP_NAME)
 help:
 	@printf "Available commands:\n"
 	@printf "\n"
-	@printf "  apk    Build a release APK and copy it to ~/Documents/$(APP_NAME)/\n"
+	@printf "  apk    Build an arm64 release APK and copy it to ~/Documents/$(APP_NAME)/\n"
 	@printf "  clean  Run flutter clean\n"
 	@printf "\n"
 
 apk:
-	@flutter build apk --release
+	@flutter build apk --release --target-platform android-arm64
 	@version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; \
 	mkdir -p "$$dest"; \
@@ -25,4 +25,3 @@ apk:
 
 clean:
 	@flutter clean
-
