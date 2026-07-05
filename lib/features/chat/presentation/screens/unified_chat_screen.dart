@@ -4318,9 +4318,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               onPressed: _attemptBackNavigation,
             )
           : null,
-      titleSpacing: 0,
       title: Padding(
-        padding: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.only(left: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
