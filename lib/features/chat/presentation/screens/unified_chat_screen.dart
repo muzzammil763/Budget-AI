@@ -6102,79 +6102,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       (entry) => entry.type == ChatMessageBlockType.thinking,
     );
     if (hasVisibleToolCalls || hasVisibleThinking) {
-      final lastActivityIndex = mergedEntries.lastIndexWhere(
-        (entry) => entry.type != ChatMessageBlockType.response,
-      );
-      // Only count a COMPLETE (non-streaming) response as the final response.
-      // A still-streaming response block is intermediate text in the agentic
-      // flow and must not trigger premature collapse of the "worked for" section.
-      final finalResponseIndex = lastActivityIndex >= 0
-          ? mergedEntries.indexWhere(
-              (entry) =>
-                  entry.type == ChatMessageBlockType.response &&
-                  !entry.isStreaming,
-              lastActivityIndex + 1,
-            )
-          : -1;
-      final activityEntries = finalResponseIndex >= 0
-          ? mergedEntries.sublist(0, finalResponseIndex)
-          : <
-              ({
-                String? text,
-                bool isStreaming,
-                ToolCall? toolCall,
-                ChatMessageBlockType type,
-                bool isComplete,
-              })
-            >[...mergedEntries];
-      final finalEntries = finalResponseIndex >= 0
-          ? mergedEntries.sublist(finalResponseIndex)
-          : <
-              ({
-                String? text,
-                bool isStreaming,
-                ToolCall? toolCall,
-                ChatMessageBlockType type,
-                bool isComplete,
-              })
-            >[];
-
-      final turnInProgress = _isTurnInProgress(messageIndex);
-      final Duration duration;
-      if (turnInProgress && _turnWallClockStart != null) {
-        duration = DateTime.now().difference(_turnWallClockStart!);
-      } else if (_turnWallClockDurations.containsKey(messageIndex)) {
-        duration = _turnWallClockDurations[messageIndex]!;
-      } else {
-        duration = _getTurnDuration(messageIndex);
-      }
-
-      // Schedule approval dialogs independently of whether the "worked for"
-      // section is expanded, so they appear instantly even if collapsed.
-      for (final entry in activityEntries) {
+      // Schedule approval dialogs
+      for (final entry in mergedEntries) {
         if (entry.toolCall?.status == ToolCallStatus.awaitingApproval) {
           _scheduleCommandApprovalDialog(entry.toolCall!);
         }
       }
 
+      // Show all entries inline (thinking + tool calls + response)
       children.add(
-        AgenticActivitySection(
-          durationLabel: _formatWorkedDuration(
-            duration,
-            isInProgress: turnInProgress,
-          ),
-          initiallyExpanded: turnInProgress,
-          isInProgress: turnInProgress,
-          forceCollapsed: false,
-          detailsBuilder: (context) =>
-              buildEntries(activityEntries, responseAsProcess: true),
-        ),
+        buildEntries(mergedEntries, responseAsProcess: false),
       );
-
-      if (finalEntries.isNotEmpty) {
-        children.add(const SizedBox(height: blockSpacing));
-        children.add(buildEntries(finalEntries, responseAsProcess: false));
-      }
     } else {
       int index = 0;
       while (index < mergedEntries.length) {

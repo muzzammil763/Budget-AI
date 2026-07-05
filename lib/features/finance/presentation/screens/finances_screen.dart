@@ -82,6 +82,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
           '${e.date.year}-${e.date.month.toString().padLeft(2, '0')}-${e.date.day.toString().padLeft(2, '0')}';
       (groups[key] ??= []).add(e);
     }
+    // Sort entries within each group by time (latest first)
+    for (final group in groups.values) {
+      group.sort((a, b) => b.date.compareTo(a.date));
+    }
     return groups;
   }
 
@@ -279,6 +283,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
   }
 
   Widget _buildEntryTile(ThemeData theme, FinanceEntry entry) {
+    final timeStr = entry.hasTime
+        ? '${entry.date.hour.toString().padLeft(2, '0')}:${entry.date.minute.toString().padLeft(2, '0')} ${entry.date.hour >= 12 ? 'PM' : 'AM'}'
+        : null;
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -322,13 +329,27 @@ class _FinancesScreenState extends State<FinancesScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  entry.category,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      entry.category,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (timeStr != null) ...[
+                      Text(
+                        ' · $timeStr',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

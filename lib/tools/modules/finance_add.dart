@@ -59,13 +59,12 @@ mixin FinanceAddToolHandler {
 
     try {
       DateTime date;
-      bool hasTime = false;
+      bool hasTime = true; // Always include time
 
       if (dateStr.isNotEmpty) {
         date = DateTime.tryParse(dateStr) ?? DateTime.now();
       } else {
-        final now = DateTime.now();
-        date = DateTime(now.year, now.month, now.day);
+        date = DateTime.now();
       }
 
       if (timeStr.isNotEmpty) {
@@ -74,8 +73,11 @@ mixin FinanceAddToolHandler {
           final hour = int.tryParse(parts[0]) ?? 0;
           final minute = int.tryParse(parts[1]) ?? 0;
           date = DateTime(date.year, date.month, date.day, hour, minute);
-          hasTime = true;
         }
+      } else {
+        // Use current time if not specified
+        final now = DateTime.now();
+        date = DateTime(date.year, date.month, date.day, now.hour, now.minute);
       }
 
       final entry = FinanceEntry.create(

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import 'package:budget_ai/features/finance/presentation/screens/finances_screen.
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
 import 'package:budget_ai/features/memory/presentation/screens/memories_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/notification_settings_screen.dart';
+import 'package:budget_ai/features/settings/data/app_backup_service.dart';
 
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
@@ -264,10 +266,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _restoreBackup() async {
-    showAppToast(
-      context,
-      message: 'Use the file picker to select a backup JSON file',
-      type: ToastificationType.info,
-    );
+    try {
+      final result = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null) return;
+
+      final file = File(result.path!);
+      if (!await file.exists()) {
+        if (!mounted) return;
+        showAppToast(
+          context,
+          message: 'File not found',
+          type: ToastificationType.error,
+        );
+        return;
+      }
+
+      final restoreResult = await AppBackupService.instance.restoreFromFile(file);
+
+      if (!mounted) return;
+      if (restoreResult['ok'] == true) {
+        showAppToast(
+          context,
+          message: 'Backup restored successfully!',
+          type: ToastificationType.success,
+        );
+      } else {
+        showAppToast(
+          context,
+          message: restoreResult['error']?.toString() ?? 'Restore failed',
+          type: ToastificationType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(
+        context,
+        message: 'Restore failed: $e',
+        type: ToastificationType.error,
+      );
+    }
   }
 }
