@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 
 /// Service for storing API keys in [SharedPreferences] via
@@ -40,7 +41,26 @@ class ApiKeyStorageService {
   /// Get API key for a specific service
   static Future<String?> getApiKey(String service) async {
     final keys = await getApiKeys(service);
-    return keys.isEmpty ? null : keys.first;
+    if (keys.isEmpty) return null;
+    // Clean up the key - remove brackets, quotes, etc.
+    var key = keys.first.trim();
+    if (key.startsWith('[') && key.endsWith(']')) {
+      try {
+        final parsed = jsonDecode(key);
+        if (parsed is List && parsed.isNotEmpty) {
+          key = parsed.first.toString().trim();
+        }
+      } catch (_) {
+        key = key.substring(1, key.length - 1).trim();
+      }
+    }
+    if (key.startsWith('"') && key.endsWith('"')) {
+      key = key.substring(1, key.length - 1).trim();
+    }
+    if (key.startsWith("'") && key.endsWith("'")) {
+      key = key.substring(1, key.length - 1).trim();
+    }
+    return key.isEmpty ? null : key;
   }
 
   /// Get ordered API keys for a specific service.

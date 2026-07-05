@@ -55,41 +55,90 @@ class AppBackupService {
     );
   }
 
+  String? _extractKey(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      // Clean up the key - remove brackets, quotes, etc.
+      var cleaned = value.trim();
+      // Handle case where key is stored as JSON array string like '["key"]'
+      if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+        try {
+          final parsed = jsonDecode(cleaned);
+          if (parsed is List && parsed.isNotEmpty) {
+            cleaned = parsed.first.toString().trim();
+          }
+        } catch (_) {
+          // Just remove the brackets
+          cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+        }
+      }
+      // Remove surrounding quotes if present
+      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+        cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+      }
+      if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+        cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+      }
+      return cleaned.isEmpty ? null : cleaned;
+    }
+    if (value is List && value.isNotEmpty) {
+      return _extractKey(value.first);
+    }
+    return value.toString().trim();
+  }
+
   Future<Map<String, dynamic>> restoreFromFile(File file) async {
     try {
       final content = await file.readAsString();
       final backup = jsonDecode(content) as Map<String, dynamic>;
 
-      final version = backup['version'] as int? ?? 0;
       final app = backup['app']?.toString() ?? '';
+      final restoredItems = <String>[];
 
       // Restore API keys - handle both Budget AI and OpenGate formats
       final apiKeys = backup['api_keys'] as Map<String, dynamic>?;
+      
       if (apiKeys != null) {
         // Budget AI format
-        final deepseekKey = apiKeys['deepseek']?.toString() ?? '';
-        final searchKey = apiKeys['searchapi']?.toString() ?? '';
-        if (deepseekKey.isNotEmpty) {
+        final deepseekKey = _extractKey(apiKeys['deepseek']);
+        final searchKey = _extractKey(apiKeys['searchapi']);
+        
+        if (deepseekKey != null && deepseekKey.isNotEmpty) {
+          // Clear existing keys first, then save the new one
+          await ApiKeyStorageService.deleteDeepSeekApiKey();
           await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
+          restoredItems.add('DeepSeek key');
         }
-        if (searchKey.isNotEmpty) {
+        if (searchKey != null && searchKey.isNotEmpty) {
+          await ApiKeyStorageService.deleteSearchApiKey();
           await ApiKeyStorageService.saveSearchApiKey(searchKey);
+          restoredItems.add('SearchAPI key');
         }
       } else if (app == 'OpenGate') {
-        // OpenGate format - API keys are in settings.mac_remote or directly in backup
-        final settings = backup['data']?['settings'] as Map<String, dynamic>?;
-        if (settings != null) {
-          // OpenGate stores keys in SharedPreferences, not in backup
-          // But we can try to get them from the backup if they were included
-        }
-        // Also check top-level keys
-        final deepseekKey = backup['deepseek_api_key']?.toString() ?? '';
-        final searchKey = backup['searchapi_api_key']?.toString() ?? '';
-        if (deepseekKey.isNotEmpty) {
+        // OpenGate format - try different possible locations
+        final data = backup['data'] as Map<String, dynamic>?;
+        final settings = data?['settings'] as Map<String, dynamic>?;
+        
+        // Try to find keys in various locations
+        dynamic deepseekValue = backup['deepseek_api_key'] ?? 
+                                settings?['deepseek_api_key'] ??
+                                settings?['api_keys']?['deepseek'];
+        dynamic searchValue = backup['searchapi_api_key'] ?? 
+                              settings?['searchapi_api_key'] ??
+                              settings?['api_keys']?['searchapi'];
+        
+        final deepseekKey = _extractKey(deepseekValue);
+        final searchKey = _extractKey(searchValue);
+        
+        if (deepseekKey != null && deepseekKey.isNotEmpty) {
+          await ApiKeyStorageService.deleteDeepSeekApiKey();
           await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
+          restoredItems.add('DeepSeek key');
         }
-        if (searchKey.isNotEmpty) {
+        if (searchKey != null && searchKey.isNotEmpty) {
+          await ApiKeyStorageService.deleteSearchApiKey();
           await ApiKeyStorageService.saveSearchApiKey(searchKey);
+          restoredItems.add('SearchAPI key');
         }
       }
 
@@ -97,17 +146,23 @@ class AppBackupService {
 
       // Restore finances
       final financesList = data['finances'] as List<dynamic>? ?? [];
+      var financeCount = 0;
       for (final item in financesList) {
         if (item is Map<String, dynamic>) {
           try {
             final entry = FinanceEntry.fromJson(item);
             await FinanceService.instance.add(entry);
+            financeCount++;
           } catch (_) {}
         }
+      }
+      if (financeCount > 0) {
+        restoredItems.add('$financeCount finances');
       }
 
       // Restore memories
       final memoriesList = data['memories'] as List<dynamic>? ?? [];
+      var memoryCount = 0;
       for (final item in memoriesList) {
         if (item is Map<String, dynamic>) {
           try {
@@ -122,21 +177,20 @@ class AppBackupService {
                 content: content,
                 type: type,
               );
+              memoryCount++;
             }
           } catch (_) {}
         }
       }
+      if (memoryCount > 0) {
+        restoredItems.add('$memoryCount memories');
+      }
 
-      // Check if any API keys were restored
-      final hasDeepSeek = await ApiKeyStorageService.hasApiKey('deepseek');
-      final restoredKeys = <String>[];
-      if (hasDeepSeek) restoredKeys.add('DeepSeek');
+      if (restoredItems.isEmpty) {
+        return {'ok': true, 'message': 'Backup loaded but nothing to restore.'};
+      }
 
-      final message = restoredKeys.isNotEmpty
-          ? 'Restored: ${restoredKeys.join(", ")} keys, $financesList.length finances, $memoriesList.length memories'
-          : 'Restored: $financesList.length finances, $memoriesList.length memories (no API keys found in backup)';
-
-      return {'ok': true, 'message': message};
+      return {'ok': true, 'message': 'Restored: ${restoredItems.join(", ")}'};
     } catch (e) {
       return {'ok': false, 'error': 'Failed to restore backup: $e'};
     }
