@@ -61,18 +61,30 @@ class AppBackupService {
       final backup = jsonDecode(content) as Map<String, dynamic>;
 
       final version = backup['version'] as int? ?? 0;
-      if (version > _backupVersion) {
-        return {
-          'ok': false,
-          'error': 'Backup was created with a newer version of Budget AI.',
-        };
-      }
+      final app = backup['app']?.toString() ?? '';
 
-      // Restore API keys
+      // Restore API keys - handle both Budget AI and OpenGate formats
       final apiKeys = backup['api_keys'] as Map<String, dynamic>?;
       if (apiKeys != null) {
+        // Budget AI format
         final deepseekKey = apiKeys['deepseek']?.toString() ?? '';
         final searchKey = apiKeys['searchapi']?.toString() ?? '';
+        if (deepseekKey.isNotEmpty) {
+          await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
+        }
+        if (searchKey.isNotEmpty) {
+          await ApiKeyStorageService.saveSearchApiKey(searchKey);
+        }
+      } else if (app == 'OpenGate') {
+        // OpenGate format - API keys are in settings.mac_remote or directly in backup
+        final settings = backup['data']?['settings'] as Map<String, dynamic>?;
+        if (settings != null) {
+          // OpenGate stores keys in SharedPreferences, not in backup
+          // But we can try to get them from the backup if they were included
+        }
+        // Also check top-level keys
+        final deepseekKey = backup['deepseek_api_key']?.toString() ?? '';
+        final searchKey = backup['searchapi_api_key']?.toString() ?? '';
         if (deepseekKey.isNotEmpty) {
           await ApiKeyStorageService.saveDeepSeekApiKey(deepseekKey);
         }
@@ -115,7 +127,16 @@ class AppBackupService {
         }
       }
 
-      return {'ok': true, 'message': 'Backup restored successfully.'};
+      // Check if any API keys were restored
+      final hasDeepSeek = await ApiKeyStorageService.hasApiKey('deepseek');
+      final restoredKeys = <String>[];
+      if (hasDeepSeek) restoredKeys.add('DeepSeek');
+
+      final message = restoredKeys.isNotEmpty
+          ? 'Restored: ${restoredKeys.join(", ")} keys, $financesList.length finances, $memoriesList.length memories'
+          : 'Restored: $financesList.length finances, $memoriesList.length memories (no API keys found in backup)';
+
+      return {'ok': true, 'message': message};
     } catch (e) {
       return {'ok': false, 'error': 'Failed to restore backup: $e'};
     }

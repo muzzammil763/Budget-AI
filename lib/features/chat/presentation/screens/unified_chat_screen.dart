@@ -6021,12 +6021,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
         if (entry.type == ChatMessageBlockType.thinking) {
           entryChildren.add(
-            RepaintBoundary(
-              child: AgenticThinkingSection(
-                text: entry.text ?? '',
-                themeColor: Theme.of(context).colorScheme.primary,
-                isComplete: entry.isComplete,
-              ),
+            _buildResponseMarkdown(
+              entry.text ?? '',
+              isStreaming: entry.isStreaming,
             ),
           );
           index++;

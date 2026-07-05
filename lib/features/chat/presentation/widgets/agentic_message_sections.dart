@@ -165,18 +165,11 @@ class AgenticThinkingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
     final style = AppTheme.bodyMedium.copyWith(
-      color: baseColor,
-      fontStyle: FontStyle.italic,
+      color: theme.colorScheme.onSurface,
     );
 
-    if (isComplete) {
-      // Show completed thinking as plain text so it remains visible
-      return Text(text, style: style);
-    }
-
-    // While streaming, show the actual reasoning text live
     return Text(text, style: style);
   }
 }

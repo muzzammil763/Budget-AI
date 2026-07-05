@@ -291,7 +291,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (restoreResult['ok'] == true) {
         showAppToast(
           context,
-          message: 'Backup restored successfully!',
+          message: restoreResult['message']?.toString() ?? 'Backup restored successfully!',
           type: ToastificationType.success,
         );
       } else {
