@@ -6,17 +6,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
+import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
+import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
 import 'package:budget_ai/features/memory/presentation/screens/memories_screen.dart';
-import 'package:budget_ai/features/settings/presentation/screens/notification_settings_screen.dart';
 import 'package:budget_ai/features/settings/data/app_backup_service.dart';
 
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/features/memory/data/memory_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
-import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -32,10 +32,12 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   PackageInfo? _packageInfo;
+  late String _selectedModel;
 
   @override
   void initState() {
     super.initState();
+    _selectedModel = SharedPrefsService.getSelectedDeepSeekModel() ?? 'deepseek-v4-flash';
     _loadPackageInfo();
   }
 
@@ -44,6 +46,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() => _packageInfo = info);
     }
+  }
+
+  void _onModelChanged(String? modelId) {
+    if (modelId == null || modelId == _selectedModel) return;
+    setState(() => _selectedModel = modelId);
+    SharedPrefsService.setSelectedDeepSeekModel(modelId);
+    showAppToast(
+      context,
+      message: 'Model changed to ${AIModels.getModelById("deepseek", modelId)?.name ?? modelId}',
+      type: ToastificationType.success,
+    );
   }
 
   @override
@@ -61,7 +74,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         children: [
-          _buildSectionHeader(theme, 'API Keys'),
           _buildNavTile(
             theme,
             icon: Icons.key_outlined,
@@ -72,9 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const APIKeysScreen()),
             ),
           ),
-          const SizedBox(height: 16),
-
-          _buildSectionHeader(theme, 'Data'),
+          _buildModelSelector(theme),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.money_dollar_circle,
@@ -95,24 +105,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const MemoriesScreen()),
             ),
           ),
-          const SizedBox(height: 16),
-
-          _buildSectionHeader(theme, 'Preferences'),
-          _buildNavTile(
-            theme,
-            icon: CupertinoIcons.bell,
-            title: 'Notifications',
-            subtitle: 'Approval and response notifications',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationSettingsScreen(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          _buildSectionHeader(theme, 'Backup & Restore'),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.cloud_upload,
@@ -127,9 +119,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Restore from a backup file',
             onTap: _restoreBackup,
           ),
-          const SizedBox(height: 16),
-
           if (_packageInfo != null) ...[
+            const SizedBox(height: 16),
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 24),
@@ -148,15 +139,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(ThemeData theme, String title) {
+  Widget _buildModelSelector(ThemeData theme) {
+    final models = AIModels.deepseekModels;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-      child: Text(
-        title,
-        style: AppTheme.headingSmall.copyWith(
-          color: theme.colorScheme.primary,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.smart_toy_outlined, size: 22, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Model',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedModel,
+                      isExpanded: true,
+                      underline: const SizedBox.shrink(),
+                      icon: Icon(Icons.keyboard_arrow_down, color: theme.colorScheme.primary),
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 13,
+                      ),
+                      items: models.map((model) {
+                        return DropdownMenuItem<String>(
+                          value: model.id,
+                          child: Text(model.name),
+                        );
+                      }).toList(),
+                      onChanged: _onModelChanged,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -233,15 +274,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final searchKey = await ApiKeyStorageService.getSearchApiKey() ?? '';
 
       final backup = {
-        'version': 1,
+        'version': 2,
         'app': 'Budget AI',
         'timestamp': DateTime.now().toIso8601String(),
         'api_keys': {
           'deepseek': deepseekKey,
           'searchapi': searchKey,
         },
-        'memories': jsonDecode(memories),
-        'finances': jsonDecode(finances),
+        'data': {
+          'finances': jsonDecode(finances),
+          'memories': jsonDecode(memories),
+        },
       };
 
       final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);

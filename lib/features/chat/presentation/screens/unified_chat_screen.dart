@@ -204,10 +204,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final savedModel = SharedPrefsService.instance.getString(
       '${widget.config.modelName}_selected_model',
     );
+    // Also check the global selected model from settings
+    final globalModel = SharedPrefsService.getSelectedDeepSeekModel();
+    final saved = globalModel ?? savedModel;
     if (!mounted) return;
     setState(() {
       _selectedModel =
-          savedModel ?? AIModels.getDefaultModel(widget.config.modelName);
+          saved ?? AIModels.getDefaultModel(widget.config.modelName);
       _currentChatMode = ChatModes.current();
     });
     await _clearTransientWorkspaceSelection();
@@ -2738,12 +2741,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _stopStreamingDurationTimer();
         if (_isAppInBackground || !_isOnChatScreen) {
           final toolCallCount = _countToolCallsInMessage(finalAssistantMessage);
+          final responseText = finalAssistantMessage?.text ?? '';
+          final summary = responseText.isNotEmpty
+              ? (responseText.length > 200 ? '${responseText.substring(0, 200)}...' : responseText)
+              : 'Response complete. ${toolCallCount > 0 ? '$toolCallCount tool call(s) executed.' : ''}';
           final responsePayload = ResponseReadyPayload(
             chatId: _activeSession?.id ?? '',
             modelUsed: _selectedModel.isNotEmpty ? _selectedModel : null,
             toolCallCount: toolCallCount,
             status: hasPendingApproval ? 'pending' : 'success',
-            summary: 'Response complete. ${toolCallCount > 0 ? '$toolCallCount tool call(s) executed.' : ''}',
+            summary: summary,
             timestamp: DateTime.now(),
             hasError: false,
           );
@@ -4309,6 +4316,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   PreferredSizeWidget _buildAppBar() {
     final theme = Theme.of(context);
+    final modelInfo = AIModels.getModelById(widget.config.modelName, _selectedModel);
+    final modelName = modelInfo?.name ?? 'DeepSeek V4 Flash';
 
     return AppBar(
       leading: Navigator.of(context).canPop()
@@ -4331,7 +4340,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               ),
             ),
             Text(
-              'DeepSeek V4 Flash',
+              modelName,
               style: AppTheme.bodySmall.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontSize: 12,
@@ -4341,27 +4350,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       ),
       actions: [
-        ValueListenableBuilder<bool>(
-          valueListenable: _showScrollToBottomButton,
-          builder: (context, show, _) {
-            return AnimatedOpacity(
-              opacity: show ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: IgnorePointer(
-                ignoring: !show,
-                child: IconButton(
-                  icon: Icon(
-                    Icons.keyboard_arrow_down,
-                    color: theme.colorScheme.primary,
-                  ),
-                  tooltip: 'Jump to latest',
-                  onPressed: () => _scrollToBottom(force: true),
-                ),
-              ),
-            );
-          },
-        ),
         IconButton(
           icon: Icon(
             CupertinoIcons.chat_bubble_text,
@@ -5493,52 +5481,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                     resolvedMessageIndex,
                     isCurrentlyStreaming,
                   ),
-                  if (!isCurrentlyStreaming && !isFollowedByAssistant) ...[
-                    Builder(
-                      builder: (_) {
-                        final fileChanges = _extractFileChanges(message);
-                        if (fileChanges.isEmpty) return const SizedBox.shrink();
-                        return _buildChangesButton(fileChanges);
-                      },
-                    ),
-                  ],
-                  if (!isCurrentlyStreaming &&
-                      !hasPendingApproval &&
-                      !isFollowedByAssistant) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        spacing: 6,
-                        children: [
-                          _buildMessageTimeLabel(message.timestamp),
-                          if (cacheUsageLabel != null) ...[
-                            _buildMessageMetadataLabel(cacheUsageLabel),
-                          ],
-                          if (canRetryContinue) ...[
-                            _buildRetryContinueButton(resolvedMessageIndex),
-                          ] else if (shareableText.isNotEmpty) ...[
-                            _buildActionButton(
-                              icon: CupertinoIcons.delete,
-                              onTap: () => _confirmDeleteAssistantMessage(
-                                resolvedMessageIndex,
-                              ),
-                            ),
-                            _buildActionButton(
-                              icon: Icons.account_tree_outlined,
-                              onTap: () => _showAgentFlowForResponse(
-                                message,
-                                resolvedMessageIndex,
-                              ),
-                            ),
-                            _buildActionButton(
-                              icon: CupertinoIcons.square_arrow_up,
-                              onTap: () => _shareMessage(shareableText),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

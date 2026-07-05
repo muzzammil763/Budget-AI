@@ -289,9 +289,9 @@ class _AgenticToolCallGroupSectionState
         InkWell(
           radius: 48,
           onTap: () => setState(() => _isExpanded = !_isExpanded),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
               children: [
                 Icon(
                   hasFailure

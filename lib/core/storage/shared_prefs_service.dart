@@ -24,6 +24,7 @@ class SharedPrefsService {
   static const _chatModeKey = 'chat_mode';
   static const _webSearchProviderKey = 'web_search_provider';
   static const _hapticsEnabledKey = 'haptics_enabled';
+  static const _selectedDeepSeekModelKey = 'selected_deepseek_model';
 
   static Future<void> init() async {
     _instance ??= await SharedPreferences.getInstance();
@@ -364,6 +365,14 @@ class SharedPrefsService {
 
   static Future<void> setHapticsEnabled(bool value) async {
     await instance.setBool(_hapticsEnabledKey, value);
+  }
+
+  static String? getSelectedDeepSeekModel() {
+    return instance.getString(_selectedDeepSeekModelKey);
+  }
+
+  static Future<void> setSelectedDeepSeekModel(String modelId) async {
+    await instance.setString(_selectedDeepSeekModelKey, modelId);
   }
 
   static const defaultRemoteAgentHomePath = r'$HOME/.remoteAgent';
