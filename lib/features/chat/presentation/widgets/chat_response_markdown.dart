@@ -226,16 +226,6 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
       height: 1.5,
     );
 
-    // While streaming, skip GptMarkdown entirely — it re-tokenizes the full
-    // string on every chunk. Render raw text as plain SelectableText and let
-    // the final rebuild (isStreaming==false) parse markdown once.
-    if (isStreaming) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _horizontalInset),
-        child: SelectableText(text, style: style),
-      );
-    }
-
     final segments = _splitMarkdownTables(text);
 
     Widget buildMarkdown(String source) {
@@ -284,26 +274,33 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
       );
     }
 
-    if (segments.length == 1 && !segments.first.isTable) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _horizontalInset),
-        child: buildMarkdown(segments.first.text),
-      );
-    }
+    final content = segments.length == 1 && !segments.first.isTable
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _horizontalInset),
+            child: buildMarkdown(segments.first.text),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final segment in segments)
+                if (segment.isTable)
+                  buildMarkdown(segment.text)
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: _horizontalInset,
+                    ),
+                    child: buildMarkdown(segment.text),
+                  ),
+            ],
+          );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final segment in segments)
-          if (segment.isTable)
-            buildMarkdown(segment.text)
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _horizontalInset),
-              child: buildMarkdown(segment.text),
-            ),
-      ],
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topLeft,
+      child: content,
     );
   }
 

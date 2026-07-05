@@ -4960,13 +4960,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         width: 44,
         height: 44,
         child: Material(
-          color: theme.colorScheme.error,
+          color: theme.colorScheme.primary.withValues(alpha: 0.16),
           shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: _confirmAndCancelRequest,
-            child: Icon(Icons.stop_rounded, color: theme.colorScheme.onError),
+            child: Icon(
+              Icons.stop_rounded,
+              color: theme.colorScheme.primary.withValues(alpha: 0.72),
+            ),
           ),
         ),
       );

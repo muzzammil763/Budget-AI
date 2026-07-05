@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
+import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
@@ -172,63 +173,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showBackupRestoreSheet() async {
     final theme = Theme.of(context);
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    await ResponsiveInfoSheet.show<void>(
+      context,
+      title: 'Backup & Restore',
+      headerIcon: Icon(
+        CupertinoIcons.archivebox,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
       ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Backup & Restore',
-                  style: AppTheme.headingSmall.copyWith(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Choose what you want to do with your Budget AI data.',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildSheetAction(
-                  theme,
-                  icon: CupertinoIcons.cloud_upload,
-                  title: 'Backup',
-                  subtitle: 'Create a dated JSON backup file',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _exportBackup();
-                  },
-                ),
-                const SizedBox(height: 8),
-                _buildSheetAction(
-                  theme,
-                  icon: CupertinoIcons.cloud_download,
-                  title: 'Restore',
-                  subtitle: 'Pick a JSON backup file to restore',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _restoreBackup();
-                  },
-                ),
-              ],
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Choose what you want to do with your Budget AI data.',
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 13,
             ),
+            textAlign: TextAlign.center,
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 16),
+        _buildSheetAction(
+          theme,
+          icon: CupertinoIcons.cloud_upload,
+          title: 'Backup',
+          subtitle: 'Create a dated JSON backup file',
+          onTap: () {
+            Navigator.pop(context);
+            _exportBackup();
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildSheetAction(
+          theme,
+          icon: CupertinoIcons.cloud_download,
+          title: 'Restore',
+          subtitle: 'Pick a JSON backup file to restore',
+          onTap: () {
+            Navigator.pop(context);
+            _restoreBackup();
+          },
+        ),
+      ],
     );
   }
 

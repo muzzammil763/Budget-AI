@@ -286,9 +286,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
   }
 
   Widget _buildEntryTile(ThemeData theme, FinanceEntry entry) {
-    final timeStr = entry.hasTime
-        ? '${entry.date.hour.toString().padLeft(2, '0')}:${entry.date.minute.toString().padLeft(2, '0')} ${entry.date.hour >= 12 ? 'PM' : 'AM'}'
-        : null;
+    final timeStr = entry.hasTime ? _formatClockTime(entry.date) : null;
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -507,5 +505,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
     if (entryDay == today) return 'Today';
     if (entryDay == yesterday) return 'Yesterday';
     return '${days[date.weekday - 1]}, ${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]}';
+  }
+
+  String _formatClockTime(DateTime date) {
+    final hour = date.hour == 0
+        ? 12
+        : date.hour > 12
+        ? date.hour - 12
+        : date.hour;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 }
