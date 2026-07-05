@@ -34,7 +34,6 @@ import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:budget_ai/features/chat/domain/chat_mode.dart';
 import 'package:budget_ai/features/chat/presentation/screens/chat_history_screen.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/chat_image_attachments.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_input_actions.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/chat_input_action_buttons.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/chat_response_audio_recordings.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/chat_response_file.dart';
@@ -4316,11 +4315,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         await _attemptBackNavigation(result);
       },
       child: Scaffold(
+        extendBodyBehindAppBar: false,
         appBar: _buildAppBar(),
-        body: Column(
+        body: Stack(
           children: [
-            Expanded(child: _buildBody()),
-            _buildInputArea(),
+            Positioned.fill(child: _buildBody()),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(child: _buildComposerFade()),
+            ),
+            Align(alignment: Alignment.bottomCenter, child: _buildInputArea()),
           ],
         ),
       ),
@@ -4329,83 +4335,115 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   PreferredSizeWidget _buildAppBar() {
     final theme = Theme.of(context);
-    final modelInfo = AIModels.getModelById(
-      widget.config.modelName,
-      _selectedModel,
-    );
-    final modelName = modelInfo?.name ?? 'DeepSeek V4 Flash';
-
     return AppBar(
-      leading: Navigator.of(context).canPop()
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-              tooltip: 'Back',
-              onPressed: _attemptBackNavigation,
-            )
-          : null,
-      title: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _navigateToModelSelection,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      toolbarHeight: 72,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
+      leadingWidth: 76,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 20),
+        child: _buildFloatingAppBarButton(
+          theme,
+          icon: Navigator.of(context).canPop()
+              ? Icons.arrow_back_ios_new
+              : Icons.menu_rounded,
+          tooltip: Navigator.of(context).canPop() ? 'Back' : 'Chats',
+          onPressed: Navigator.of(context).canPop()
+              ? _attemptBackNavigation
+              : _openHistoryScreen,
+        ),
+      ),
+      title: const SizedBox.shrink(),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 20),
+          child: Container(
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Budget AI',
-                        style: AppTheme.headingSmall.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontSize: 16,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        modelName,
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                _buildPillAppBarButton(
+                  theme,
+                  icon: CupertinoIcons.square_pencil,
+                  tooltip: 'New Chat',
+                  onPressed: _resetToFreshDraft,
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  CupertinoIcons.chevron_down,
-                  size: 14,
-                  color: theme.colorScheme.onSurfaceVariant,
+                _buildPillAppBarButton(
+                  theme,
+                  icon: CupertinoIcons.slider_horizontal_3,
+                  tooltip: 'Model',
+                  onPressed: _navigateToModelSelection,
+                ),
+                _buildPillAppBarButton(
+                  theme,
+                  icon: CupertinoIcons.ellipsis_vertical,
+                  tooltip: 'Settings',
+                  onPressed: _openSettingsScreen,
                 ),
               ],
             ),
           ),
         ),
-      ),
-      actions: [
-        IconButton(
-          icon: Icon(
-            CupertinoIcons.chat_bubble_text,
-            color: theme.colorScheme.primary,
-          ),
-          tooltip: 'History',
-          onPressed: _openHistoryScreen,
-        ),
-        IconButton(
-          icon: Icon(CupertinoIcons.settings, color: theme.colorScheme.primary),
-          tooltip: 'Settings',
-          onPressed: _openSettingsScreen,
-        ),
       ],
       bottom: _buildConnectedProjectAppBarBottom(theme),
+    );
+  }
+
+  Widget _buildFloatingAppBarButton(
+    ThemeData theme, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Center(
+      child: Material(
+        color: theme.colorScheme.surface,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: Tooltip(
+            message: tooltip,
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: Icon(icon, color: theme.colorScheme.onSurface, size: 28),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillAppBarButton(
+    ThemeData theme, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: theme.colorScheme.onSurface, size: 25),
+        splashRadius: 24,
+      ),
     );
   }
 
@@ -4528,7 +4566,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         NotificationListener<ScrollNotification>(
           onNotification: _handleChatScrollNotification,
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 8, bottom: 132),
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
@@ -4654,7 +4692,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         final historyWidth = screenWidth < 600 ? screenWidth : 500.0;
 
         return Align(
-          alignment: Alignment.centerRight,
+          alignment: Alignment.centerLeft,
           child: SizedBox(
             width: historyWidth,
             height: double.infinity,
@@ -4700,7 +4738,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         );
         return SlideTransition(
           position: Tween<Offset>(
-            begin: const Offset(1, 0),
+            begin: const Offset(-1, 0),
             end: Offset.zero,
           ).animate(curved),
           child: child,
@@ -4739,26 +4777,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final theme = Theme.of(context);
     final textColor = theme.colorScheme.onSurface;
     final hintColor = theme.colorScheme.onSurfaceVariant;
+    final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          topRight: Radius.circular(12),
-        ),
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.25),
-          ),
-        ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 8,
-          right: 8,
-          bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 4 : 8,
-        ),
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.only(bottom: isKeyboardVisible ? 8 : 16),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(horizontal: isKeyboardVisible ? 8 : 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -4777,58 +4804,91 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               ),
             if (_pendingWhatsAppFilePath != null)
               _buildWhatsAppPendingFilePreview(_pendingWhatsAppFilePath!),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 40),
-                    padding: const EdgeInsets.only(top: 12),
-                    child: TextField(
-                      focusNode: _messageFocusNode,
-                      scrollController: _messageInputScrollController,
-                      cursorColor: theme.colorScheme.primary,
-                      controller: _messageController,
-                      enabled: !_isContextLimitBlocked,
-                      autofocus: false,
-                      decoration: InputDecoration(
-                        hoverColor: Colors.transparent,
-                        hintText: _isContextLimitBlocked
-                            ? 'Context limit reached'
-                            : "Ask about your budget...",
-                        hintStyle: TextStyle(
-                          color: hintColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        fillColor: Colors.transparent,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              constraints: const BoxConstraints(minHeight: 56, maxHeight: 148),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: IconButton(
+                      tooltip: 'Add',
+                      onPressed: () {},
+                      icon: Icon(
+                        CupertinoIcons.plus,
+                        size: 28,
+                        color: theme.colorScheme.onSurface,
                       ),
-                      maxLines: 3,
-                      minLines: 1,
-                      textInputAction: TextInputAction.newline,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: (_) {
-                        if (_shouldShowWorkspaceMentionSuggestions &&
-                            _selectActiveWorkspaceMentionSuggestion()) {
-                          return;
-                        }
-                        if (_canSubmitCurrentMessage) {
-                          _handleComposerSubmit();
-                        }
-                      },
-                      style: TextStyle(fontSize: 15, color: textColor),
                     ),
                   ),
-                ),
-              ],
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: _canSendNotifier,
-              builder: (context, canSend, child) => _buildInputActions(),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        focusNode: _messageFocusNode,
+                        scrollController: _messageInputScrollController,
+                        cursorColor: theme.colorScheme.primary,
+                        controller: _messageController,
+                        enabled: !_isContextLimitBlocked,
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          hoverColor: Colors.transparent,
+                          hintText: _isContextLimitBlocked
+                              ? 'Context limit reached'
+                              : 'Reply to Budget AI',
+                          hintStyle: TextStyle(
+                            color: hintColor.withValues(alpha: 0.72),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          fillColor: Colors.transparent,
+                        ),
+                        maxLines: 4,
+                        minLines: 1,
+                        textInputAction: TextInputAction.newline,
+                        textCapitalization: TextCapitalization.sentences,
+                        onSubmitted: (_) {
+                          if (_shouldShowWorkspaceMentionSuggestions &&
+                              _selectActiveWorkspaceMentionSuggestion()) {
+                            return;
+                          }
+                          if (_canSubmitCurrentMessage) {
+                            _handleComposerSubmit();
+                          }
+                        },
+                        style: TextStyle(fontSize: 16, color: textColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _canSendNotifier,
+                    builder: (context, canSend, child) =>
+                        _buildComposerSendButton(theme),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -4836,21 +4896,67 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Widget _buildInputActions() {
-    final bool isReady = !_isContextLimitBlocked;
-
-    final currentModel = AIModels.getModelById(
-      widget.config.modelName,
-      _selectedModel,
+  Widget _buildComposerFade() {
+    final theme = Theme.of(context);
+    return Container(
+      height: 150,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.scaffoldBackgroundColor.withValues(alpha: 0),
+            theme.scaffoldBackgroundColor.withValues(alpha: 0.82),
+            theme.scaffoldBackgroundColor,
+          ],
+          stops: const [0, 0.55, 1],
+        ),
+      ),
     );
-    final bool supportsToolCall = currentModel?.supportsToolCall ?? false;
-    final bool supportsImages = currentModel?.supportsInput('image') ?? false;
-    return ChatInputActions(
-      isStreaming: _isResponseInProgress,
-      canSubmit: _canSubmitCurrentMessage,
-      isReady: isReady,
-      onCancelRequest: _confirmAndCancelRequest,
-      onSendMessage: _handleComposerSubmit,
+  }
+
+  Widget _buildComposerSendButton(ThemeData theme) {
+    if (_isResponseInProgress && !_canSubmitCurrentMessage) {
+      return SizedBox(
+        width: 44,
+        height: 44,
+        child: Material(
+          color: theme.colorScheme.error,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: _confirmAndCancelRequest,
+            child: Icon(Icons.stop_rounded, color: theme.colorScheme.onError),
+          ),
+        ),
+      );
+    }
+
+    final canSend = _canSubmitCurrentMessage && !_isContextLimitBlocked;
+    final activeColor = theme.colorScheme.primary;
+    final disabledColor = theme.colorScheme.primary.withValues(alpha: 0.16);
+    final iconColor = canSend
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.primary.withValues(alpha: 0.56);
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: canSend ? 1 : 0.65,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Material(
+          color: canSend ? activeColor : disabledColor,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: canSend ? _handleComposerSubmit : null,
+            child: Icon(CupertinoIcons.arrow_up, color: iconColor, size: 24),
+          ),
+        ),
+      ),
     );
   }
 
