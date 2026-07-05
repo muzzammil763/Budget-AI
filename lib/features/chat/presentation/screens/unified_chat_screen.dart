@@ -4315,7 +4315,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         await _attemptBackNavigation(result);
       },
       child: Scaffold(
-        extendBodyBehindAppBar: false,
+        extendBodyBehindAppBar: true,
         appBar: _buildAppBar(),
         body: Stack(
           children: [
@@ -4339,9 +4339,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       toolbarHeight: 72,
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      leadingWidth: 76,
+      leadingWidth: 84,
       leading: Padding(
         padding: const EdgeInsets.only(left: 20),
         child: _buildFloatingAppBarButton(
@@ -4356,23 +4356,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       ),
       title: const SizedBox.shrink(),
+      flexibleSpace: IgnorePointer(child: _buildAppBarFade(theme)),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 20),
-          child: Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+          child: _buildAppBarControlSurface(
+            theme,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -4410,24 +4399,74 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     required VoidCallback onPressed,
   }) {
     return Center(
-      child: Material(
-        color: theme.colorScheme.surface,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        elevation: 0,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: Tooltip(
-            message: tooltip,
-            child: SizedBox(
-              width: 56,
-              height: 56,
-              child: Icon(icon, color: theme.colorScheme.onSurface, size: 28),
+      child: Container(
+        width: 64,
+        height: 56,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(28),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: onPressed,
+            child: Tooltip(
+              message: tooltip,
+              child: SizedBox(
+                width: 64,
+                height: 56,
+                child: Icon(icon, color: theme.colorScheme.onSurface, size: 28),
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAppBarFade(ThemeData theme) {
+    return Container(
+      height: 116,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.scaffoldBackgroundColor,
+            theme.scaffoldBackgroundColor.withValues(alpha: 0.88),
+            theme.scaffoldBackgroundColor.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.58, 1],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBarControlSurface(ThemeData theme, {required Widget child}) {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 
@@ -4566,7 +4605,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         NotificationListener<ScrollNotification>(
           onNotification: _handleChatScrollNotification,
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 8, bottom: 132),
+            padding: const EdgeInsets.only(top: 104, bottom: 132),
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
@@ -5537,6 +5576,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (message.isUser) {
       final hasImages =
           message.imagePaths != null && message.imagePaths!.isNotEmpty;
+      final userBubbleColor = theme.colorScheme.primary.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.26 : 0.16,
+      );
+      final userTextColor = theme.colorScheme.onSurface;
 
       Widget buildContent() {
         return Column(
@@ -5551,7 +5594,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               ExpandableUserMessageText(
                 text: message.text,
                 style: AppTheme.bodyMedium.copyWith(
-                  color: theme.colorScheme.onPrimary,
+                  color: userTextColor,
                   fontSize: 15,
                 ),
               ),
@@ -5571,7 +5614,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             margin: const EdgeInsets.only(left: 8, right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
+              color: userBubbleColor,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(12),
                 topRight: const Radius.circular(12),

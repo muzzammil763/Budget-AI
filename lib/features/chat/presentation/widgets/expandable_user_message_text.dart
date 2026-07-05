@@ -68,7 +68,9 @@ class _ExpandableUserMessageTextState extends State<ExpandableUserMessageText> {
                     child: Text(
                       _isExpanded ? 'Show less' : 'Show more',
                       style: AppTheme.bodySmall.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color:
+                            widget.style.color ??
+                            Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
