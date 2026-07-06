@@ -39,6 +39,9 @@ class FinanceInsightsScreen extends StatelessWidget {
               children: [
                 _buildHeroCard(theme, insights),
                 const SizedBox(height: 12),
+                _buildIncomeExpenseCard(theme, insights),
+                const SizedBox(height: 12),
+                _buildLoansCard(theme),
                 _buildMetricGrid(theme, insights),
                 const SizedBox(height: 12),
                 _buildProgressPanel(theme, insights),
@@ -50,7 +53,18 @@ class FinanceInsightsScreen extends StatelessWidget {
                 _buildHighlights(theme, insights),
                 if (insights.topCategories.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  _buildCategoryBreakdown(theme, insights),
+                  _buildCategoryBreakdown(
+                    theme,
+                    insights,
+                    title: 'Top Categories',
+                    limit: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCategoryBreakdown(
+                    theme,
+                    insights,
+                    title: 'Category Breakdown',
+                  ),
                 ],
                 const SizedBox(height: 12),
                 _buildLastSevenDays(theme, insights),
@@ -173,7 +187,7 @@ class FinanceInsightsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Total until today',
+            'Total spent until today',
             style: AppTheme.bodySmall.copyWith(
               color: onCard.withValues(alpha: 0.72),
               fontSize: 12,
@@ -237,6 +251,220 @@ class FinanceInsightsScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildIncomeExpenseCard(ThemeData theme, _FinanceInsights insights) {
+    final monthNet = insights.currentMonthIncome - insights.currentMonthTotal;
+    final overallNet = insights.totalIncome - insights.total;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(theme, 'Income vs Expenses'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildIncomeExpenseColumn(
+                  theme,
+                  label: 'THIS MONTH',
+                  income: insights.currentMonthIncome,
+                  expense: insights.currentMonthTotal,
+                  net: monthNet,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 92,
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                color: theme.dividerColor.withValues(alpha: 0.18),
+              ),
+              Expanded(
+                child: _buildIncomeExpenseColumn(
+                  theme,
+                  label: 'ALL TIME',
+                  income: insights.totalIncome,
+                  expense: insights.total,
+                  net: overallNet,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncomeExpenseColumn(
+    ThemeData theme, {
+    required String label,
+    required double income,
+    required double expense,
+    required double net,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildIncomeExpenseRow(
+          theme,
+          'Income',
+          '+${_money(income)}',
+          Colors.green,
+        ),
+        const SizedBox(height: 6),
+        _buildIncomeExpenseRow(
+          theme,
+          'Expenses',
+          '-${_money(expense)}',
+          Colors.red,
+        ),
+        const SizedBox(height: 6),
+        _buildIncomeExpenseRow(
+          theme,
+          'Net',
+          _signedMoney(net),
+          net >= 0 ? Colors.green : Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIncomeExpenseRow(
+    ThemeData theme,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.bodySmall.copyWith(
+            color: color,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoansCard(ThemeData theme) {
+    return FutureBuilder<List<LoanRecord>>(
+      future: LoanService.instance.getAll(),
+      builder: (context, snapshot) {
+        final loans = snapshot.data ?? const <LoanRecord>[];
+        if (loans.isEmpty) return const SizedBox.shrink();
+
+        final borrowedRemaining = LoanService.instance.totalRemaining(
+          loans,
+          LoanDirection.borrowed,
+        );
+        final lentRemaining = LoanService.instance.totalRemaining(
+          loans,
+          LoanDirection.lent,
+        );
+        final openLoans = loans
+            .where((loan) => loan.remainingAmount > 0)
+            .toList();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: _cardDecoration(theme),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _sectionTitle(theme, 'Loans')),
+                    Text(
+                      openLoans.length == 1
+                          ? '1 OPEN'
+                          : '${openLoans.length} OPEN',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildIncomeExpenseRow(
+                  theme,
+                  'To pay back (borrowed)',
+                  '-${_money(borrowedRemaining)}',
+                  Colors.red,
+                ),
+                const SizedBox(height: 6),
+                _buildIncomeExpenseRow(
+                  theme,
+                  'To receive (lent)',
+                  '+${_money(lentRemaining)}',
+                  Colors.green,
+                ),
+                if (openLoans.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    height: 1,
+                    color: theme.dividerColor.withValues(alpha: 0.18),
+                  ),
+                  const SizedBox(height: 10),
+                  ...openLoans
+                      .take(5)
+                      .map(
+                        (loan) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: _buildIncomeExpenseRow(
+                            theme,
+                            loan.direction == LoanDirection.borrowed
+                                ? 'Owed to ${loan.person}'
+                                : '${loan.person} owes you',
+                            '${loan.direction == LoanDirection.borrowed ? '-' : '+'}'
+                            '${_money(loan.remainingAmount)}',
+                            loan.direction == LoanDirection.borrowed
+                                ? Colors.red
+                                : Colors.green,
+                          ),
+                        ),
+                      ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -876,17 +1104,25 @@ class FinanceInsightsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryBreakdown(ThemeData theme, _FinanceInsights insights) {
+  Widget _buildCategoryBreakdown(
+    ThemeData theme,
+    _FinanceInsights insights, {
+    required String title,
+    int? limit,
+  }) {
     final maxTotal = insights.topCategories.first.value;
+    final categories = limit == null
+        ? insights.topCategories
+        : insights.topCategories.take(limit).toList();
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(theme, 'Top Categories'),
+          _sectionTitle(theme, title),
           const SizedBox(height: 12),
-          ...insights.topCategories.take(6).map((entry) {
+          ...categories.map((entry) {
             final percent = insights.total == 0
                 ? 0.0
                 : entry.value / insights.total;
@@ -1243,6 +1479,9 @@ class _FinanceInsights {
   final List<_DatedTotal> lastSevenDays;
   final List<_DatedTotal> yearlyActivity;
   final double yearlyMaxDailyTotal;
+  final double totalIncome;
+  final double currentMonthIncome;
+  final double selectedMonthIncome;
 
   const _FinanceInsights({
     required this.isEmpty,
@@ -1271,6 +1510,9 @@ class _FinanceInsights {
     required this.lastSevenDays,
     required this.yearlyActivity,
     required this.yearlyMaxDailyTotal,
+    required this.totalIncome,
+    required this.currentMonthIncome,
+    required this.selectedMonthIncome,
   });
 
   factory _FinanceInsights.fromEntries(
@@ -1279,11 +1521,17 @@ class _FinanceInsights {
     required DateTime now,
   }) {
     final today = _dateOnly(now);
-    final usableEntries =
+    final allUsableEntries =
         entries.where((entry) => !_dateOnly(entry.date).isAfter(today)).toList()
           ..sort((a, b) => a.date.compareTo(b.date));
+    final usableEntries = allUsableEntries
+        .where((entry) => entry.type == FinanceEntryType.expense)
+        .toList();
+    final incomeEntries = allUsableEntries
+        .where((entry) => entry.type == FinanceEntryType.income)
+        .toList();
 
-    if (usableEntries.isEmpty) {
+    if (allUsableEntries.isEmpty) {
       return const _FinanceInsights(
         isEmpty: true,
         total: 0,
@@ -1311,6 +1559,9 @@ class _FinanceInsights {
         lastSevenDays: [],
         yearlyActivity: [],
         yearlyMaxDailyTotal: 0,
+        totalIncome: 0,
+        currentMonthIncome: 0,
+        selectedMonthIncome: 0,
       );
     }
 
@@ -1364,7 +1615,18 @@ class _FinanceInsights {
       }
     }
 
-    final firstDate = _dateOnly(usableEntries.first.date);
+    var totalIncome = 0.0;
+    var currentMonthIncome = 0.0;
+    var selectedMonthIncome = 0.0;
+    for (final entry in incomeEntries) {
+      final day = _dateOnly(entry.date);
+      final month = DateTime(day.year, day.month);
+      totalIncome += entry.amount;
+      if (month == currentMonthStart) currentMonthIncome += entry.amount;
+      if (month == selectedMonthStart) selectedMonthIncome += entry.amount;
+    }
+
+    final firstDate = _dateOnly(allUsableEntries.first.date);
     final trackedDays = today.difference(firstDate).inDays + 1;
     final activeDays = totalsByDay.length;
     final selectedMonthDayTotals = Map.fromEntries(
@@ -1426,7 +1688,7 @@ class _FinanceInsights {
       activeDays: activeDays,
       currentMonthElapsedDays: currentMonthElapsedDays,
       currentMonthNoSpendDays: currentMonthNoSpendDays,
-      entryCount: usableEntries.length,
+      entryCount: allUsableEntries.length,
       firstDate: firstDate,
       mostSpentDayOverall: _maxDatedTotal(totalsByDay),
       mostSpentDaySelectedMonth: _maxDatedTotal(selectedMonthDayTotals),
@@ -1437,6 +1699,9 @@ class _FinanceInsights {
       lastSevenDays: lastSevenDays,
       yearlyActivity: yearlyActivity,
       yearlyMaxDailyTotal: yearlyMaxDailyTotal,
+      totalIncome: totalIncome,
+      currentMonthIncome: currentMonthIncome,
+      selectedMonthIncome: selectedMonthIncome,
     );
   }
 

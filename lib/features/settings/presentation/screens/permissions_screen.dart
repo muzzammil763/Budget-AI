@@ -186,7 +186,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(100),
         border: Border.all(
           color: granted
               ? Colors.green.withValues(alpha: 0.5)
@@ -197,7 +197,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             : theme.colorScheme.primary.withValues(alpha: 0.06),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             Container(
@@ -239,7 +239,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     foregroundColor: theme.colorScheme.onPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(  100),
                     ),
                   ),
                   child: _isRequestingRequired
@@ -272,7 +272,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(100),
         border: Border.all(
           color: isGranted
               ? Colors.green.withValues(alpha: 0.5)
@@ -283,7 +283,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             : theme.colorScheme.surface,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

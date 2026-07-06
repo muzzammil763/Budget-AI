@@ -6,6 +6,7 @@ import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finance_insights_screen.dart';
+import 'package:budget_ai/features/finance/presentation/screens/loans_screen.dart';
 import 'package:toastification/toastification.dart';
 
 class FinancesScreen extends StatefulWidget {
@@ -33,16 +34,13 @@ class _FinancesScreenState extends State<FinancesScreen> {
     setState(() => _isLoading = true);
     FinanceService.instance.invalidateCache();
     final allEntries = await FinanceService.instance.getAll();
-    final all = allEntries
-        .where((entry) => entry.type == FinanceEntryType.expense)
-        .toList();
-    final month = await FinanceService.instance.getExpensesByMonth(
+    final month = await FinanceService.instance.getByMonth(
       _selectedMonth.year,
       _selectedMonth.month,
     );
     if (mounted) {
       setState(() {
-        _allEntries = List.from(all);
+        _allEntries = List.from(allEntries);
         _monthEntries = List.from(month);
         _isLoading = false;
       });
@@ -58,7 +56,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       _selectedMonth = month;
       _isLoading = true;
     });
-    final entries = await FinanceService.instance.getExpensesByMonth(
+    final entries = await FinanceService.instance.getByMonth(
       month.year,
       month.month,
     );
@@ -98,7 +96,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final months = _availableMonths();
-    final total = FinanceService.instance.totalAmount(_monthEntries);
+    final totalExpense = FinanceService.instance.totalAmount(
+      _monthEntries,
+      type: FinanceEntryType.expense,
+    );
+    final totalIncome = FinanceService.instance.totalAmount(
+      _monthEntries,
+      type: FinanceEntryType.income,
+    );
     final byCat = FinanceService.instance.categorySummary(_monthEntries);
     final topCats = byCat.entries.take(8).toList();
 
@@ -110,6 +115,15 @@ class _FinancesScreenState extends State<FinancesScreen> {
         ),
         title: const Text('Finances'),
         actions: [
+          IconButton(
+            tooltip: 'Loans',
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const LoansScreen()));
+            },
+            icon: const Icon(Icons.handshake_outlined),
+          ),
           IconButton(
             tooltip: 'Finance insights',
             onPressed: () {
@@ -139,7 +153,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
             onSelected: (index) => _selectMonth(months[index]),
           ),
           if (!_isLoading && _monthEntries.isNotEmpty)
-            _buildSummaryCard(theme, total, topCats),
+            _buildSummaryCard(theme, totalExpense, totalIncome, topCats),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -154,7 +168,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   Widget _buildSummaryCard(
     ThemeData theme,
-    double total,
+    double totalExpense,
+    double totalIncome,
     List<MapEntry<String, double>> topCats,
   ) {
     final cardColor = theme.colorScheme.primary;
@@ -201,10 +216,19 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${FinanceEntry.formatAmount(total)} Rs',
+                  '-${FinanceEntry.formatAmount(totalExpense)} Rs',
                   style: AppTheme.headingLarge.copyWith(
-                    color: onCard,
+                    color: Colors.red,
                     fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '+${FinanceEntry.formatAmount(totalIncome)} Rs',
+                  style: AppTheme.headingLarge.copyWith(
+                    color: Colors.green,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -315,7 +339,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
       itemBuilder: (ctx, i) {
         final key = keys[i];
         final entries = grouped[key]!;
-        final dayTotal = FinanceService.instance.totalAmount(entries);
+        final dayExpense = FinanceService.instance.totalAmount(
+          entries,
+          type: FinanceEntryType.expense,
+        );
+        final dayIncome = FinanceService.instance.totalAmount(
+          entries,
+          type: FinanceEntryType.income,
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -341,14 +372,25 @@ class _FinancesScreenState extends State<FinancesScreen> {
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
                     ),
                   ),
-                  Text(
-                    '${FinanceEntry.formatAmount(dayTotal)} Rs',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                  if (dayIncome > 0) ...[
+                    Text(
+                      '+${FinanceEntry.formatAmount(dayIncome)} Rs',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
+                  ],
+                  if (dayExpense > 0 || dayIncome == 0)
+                    Text(
+                      '-${FinanceEntry.formatAmount(dayExpense)} Rs',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -444,9 +486,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
           ),
           const SizedBox(width: 8),
           Text(
-            entry.displayAmount,
+            entry.displaySignedAmount,
             style: AppTheme.headingSmall.copyWith(
-              color: onSurface,
+              color: entry.type == FinanceEntryType.income
+                  ? Colors.green
+                  : Colors.red,
               fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
