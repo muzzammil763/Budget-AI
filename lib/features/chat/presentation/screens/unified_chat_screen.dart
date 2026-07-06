@@ -3220,117 +3220,117 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _refreshChatConfiguration();
   }
 
-Widget _buildInputArea() {
-  final theme = Theme.of(context);
-  final textColor = theme.colorScheme.onSurface;
-  final hintColor = theme.colorScheme.onSurfaceVariant;
+  Widget _buildInputArea() {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface;
+    final hintColor = theme.colorScheme.onSurfaceVariant;
 
-  final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-  final isKeyboardVisible = bottomInset > 0;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final isKeyboardVisible = bottomInset > 0;
 
-  // Keyboard ki approx height ko threshold bana kar 0->1 factor nikalein.
-  // Isse padding keyboard ke actual movement ke sath frame-by-frame sync hoti hai,
-  // instead of a separate delayed 300ms AnimatedPadding tween.
-  const double kKeyboardHeightApprox = 280.0;
-  final double t = (bottomInset / kKeyboardHeightApprox).clamp(0.0, 1.0);
+    // Keyboard ki approx height ko threshold bana kar 0->1 factor nikalein.
+    // Isse padding keyboard ke actual movement ke sath frame-by-frame sync hoti hai,
+    // instead of a separate delayed 300ms AnimatedPadding tween.
+    const double kKeyboardHeightApprox = 280.0;
+    final double t = (bottomInset / kKeyboardHeightApprox).clamp(0.0, 1.0);
 
-  final double horizontalPadding = 32 - (32 - 8) * t;
-  final double safeAreaBottom = 32 - (32 - 12) * t;
+    final double horizontalPadding = 32 - (32 - 8) * t;
+    final double safeAreaBottom = 32 - (32 - 12) * t;
 
-  return SafeArea(
-    top: false,
-    minimum: EdgeInsets.only(bottom: safeAreaBottom),
-    child: Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            constraints: const BoxConstraints(minHeight: 56, maxHeight: 148),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: theme.brightness == Brightness.dark
-                    ? theme.colorScheme.outline.withValues(alpha: 0.2)
-                    : theme.colorScheme.outline.withValues(alpha: 0.06),
-                width: 1,
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.only(bottom: safeAreaBottom),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              constraints: const BoxConstraints(minHeight: 56, maxHeight: 148),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: theme.brightness == Brightness.dark
+                      ? theme.colorScheme.outline.withValues(alpha: 0.2)
+                      : theme.colorScheme.outline.withValues(alpha: 0.06),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    tooltip: 'Add',
-                    onPressed: () {},
-                    icon: Icon(
-                      CupertinoIcons.plus,
-                      size: 28,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TextField(
-                      focusNode: _messageFocusNode,
-                      scrollController: _messageInputScrollController,
-                      cursorColor: theme.colorScheme.primary,
-                      controller: _messageController,
-                      enabled: !_isContextLimitBlocked,
-                      autofocus: false,
-                      decoration: InputDecoration(
-                        hoverColor: Colors.transparent,
-                        hintText: 'Ask Budget AI',
-                        hintStyle: TextStyle(
-                          color: hintColor.withValues(alpha: 0.72),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        fillColor: Colors.transparent,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: IconButton(
+                      tooltip: 'Add',
+                      onPressed: () {},
+                      icon: Icon(
+                        CupertinoIcons.plus,
+                        size: 28,
+                        color: theme.colorScheme.onSurface,
                       ),
-                      maxLines: 1,
-                      minLines: 1,
-                      textInputAction: TextInputAction.newline,
-                      textCapitalization: TextCapitalization.sentences,
-                      style: TextStyle(fontSize: 16, color: textColor),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                ValueListenableBuilder<bool>(
-                  valueListenable: _canSendNotifier,
-                  builder: (context, canSend, child) =>
-                      _buildComposerSendButton(theme),
-                ),
-              ],
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        focusNode: _messageFocusNode,
+                        scrollController: _messageInputScrollController,
+                        cursorColor: theme.colorScheme.primary,
+                        controller: _messageController,
+                        enabled: !_isContextLimitBlocked,
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          hoverColor: Colors.transparent,
+                          hintText: 'Ask Budget AI',
+                          hintStyle: TextStyle(
+                            color: hintColor.withValues(alpha: 0.72),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          fillColor: Colors.transparent,
+                        ),
+                        maxLines: 1,
+                        minLines: 1,
+                        textInputAction: TextInputAction.newline,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: TextStyle(fontSize: 16, color: textColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _canSendNotifier,
+                    builder: (context, canSend, child) =>
+                        _buildComposerSendButton(theme),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildComposerFade() {
     final theme = Theme.of(context);
@@ -3800,7 +3800,7 @@ Widget _buildInputArea() {
         if (isReconnecting) {
           children
             ..add(const SizedBox(height: blockSpacing))
-            ..add(const ChatLoadingLottie(size: 48, reverse: true));
+            ..add(const ChatBudgetLoadingIndicator(size: 48, reverse: true));
         } else {
           children
             ..add(const SizedBox(height: blockSpacing))
@@ -3824,7 +3824,7 @@ Widget _buildInputArea() {
           if (isReconnecting ||
               (isCurrentlyStreaming && message.text.trim().isEmpty)) ...[
             if (message.text.trim().isNotEmpty) const SizedBox(height: 6),
-            const ChatLoadingLottie(size: 48, reverse: true),
+            const ChatBudgetLoadingIndicator(size: 48, reverse: true),
           ],
         ],
       );
@@ -4114,7 +4114,7 @@ Widget _buildInputArea() {
       if (children.isNotEmpty) {
         children.add(const SizedBox(height: blockSpacing));
       }
-      children.add(const ChatLoadingLottie(size: 48, reverse: true));
+      children.add(const ChatBudgetLoadingIndicator(size: 48, reverse: true));
     } else if (isCurrentlyStreaming && !lastVisibleEntryIsStreamingResponse) {
       if (children.isNotEmpty) {
         children.add(const SizedBox(height: blockSpacing));

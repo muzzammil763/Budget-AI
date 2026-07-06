@@ -104,7 +104,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     final onCard = AppTheme.readableOn(cardColor);
     final range = insights.firstDate == null
         ? 'Until today'
-        : '${_compactDate(insights.firstDate!)} - Today';
+        : 'FROM ${_compactDate(insights.firstDate!)} TO TODAY';
 
     return Container(
       width: double.infinity,
@@ -209,7 +209,7 @@ class FinanceInsightsScreen extends StatelessWidget {
 
   Widget _buildHeroStat(Color onCard, String label, String value) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           value,
@@ -559,9 +559,7 @@ class FinanceInsightsScreen extends StatelessWidget {
       height: 116,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.42,
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -806,41 +804,41 @@ class FinanceInsightsScreen extends StatelessWidget {
 
   String _compactDate(DateTime date) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
   String _shortDayLabel(DateTime date) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     return '${days[date.weekday - 1]}\n${date.day.toString().padLeft(2, '0')}';
   }
 
   String _monthLabel(DateTime dt) {
     const names = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
     ];
     return '${names[dt.month - 1]} ${dt.year}';
   }
