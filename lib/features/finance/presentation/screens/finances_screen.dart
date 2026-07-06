@@ -32,8 +32,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     FinanceService.instance.invalidateCache();
-    final all = await FinanceService.instance.getAll();
-    final month = await FinanceService.instance.getByMonth(
+    final allEntries = await FinanceService.instance.getAll();
+    final all = allEntries
+        .where((entry) => entry.type == FinanceEntryType.expense)
+        .toList();
+    final month = await FinanceService.instance.getExpensesByMonth(
       _selectedMonth.year,
       _selectedMonth.month,
     );
@@ -55,7 +58,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       _selectedMonth = month;
       _isLoading = true;
     });
-    final entries = await FinanceService.instance.getByMonth(
+    final entries = await FinanceService.instance.getExpensesByMonth(
       month.year,
       month.month,
     );

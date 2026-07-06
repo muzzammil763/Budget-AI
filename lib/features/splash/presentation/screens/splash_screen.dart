@@ -62,8 +62,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_done) return widget.child;
-
     final theme = Theme.of(context);
     final fontFamily = theme.textTheme.bodyLarge?.fontFamily;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -72,42 +70,45 @@ class _SplashScreenState extends State<SplashScreen>
       fit: StackFit.expand,
       children: [
         if (_appMounted) widget.child,
-        Positioned.fill(
-          child: IgnorePointer(
-            ignoring: _appMounted,
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_intro, _reveal]),
-              builder: (context, _) {
-                final revealT = Curves.easeInOutQuart.transform(_reveal.value);
-                final time =
-                    _intro.value * _introDuration.inMilliseconds / 1000 +
-                    _reveal.value * _revealDuration.inMilliseconds / 1000;
-                return ClipPath(
-                  clipper: _CircleRevealClipper(progress: revealT),
-                  child: Transform.scale(
-                    scale: 1 + 0.05 * revealT,
-                    child: CustomPaint(
-                      isComplex: true,
-                      painter: _SplashPainter(
-                        t: _intro.value,
-                        time: time,
-                        revealT: revealT,
-                        particles: _particles,
-                        surface: theme.scaffoldBackgroundColor,
-                        primary: theme.colorScheme.primary,
-                        onSurface: theme.colorScheme.onSurface,
-                        accent: AppTheme.highlight,
-                        isDark: theme.brightness == Brightness.dark,
-                        fontFamily: fontFamily,
-                        bottomInset: bottomInset,
+        if (!_done)
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: _appMounted,
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_intro, _reveal]),
+                builder: (context, _) {
+                  final revealT = Curves.easeInOutQuart.transform(
+                    _reveal.value,
+                  );
+                  final time =
+                      _intro.value * _introDuration.inMilliseconds / 1000 +
+                      _reveal.value * _revealDuration.inMilliseconds / 1000;
+                  return ClipPath(
+                    clipper: _CircleRevealClipper(progress: revealT),
+                    child: Transform.scale(
+                      scale: 1 + 0.05 * revealT,
+                      child: CustomPaint(
+                        isComplex: true,
+                        painter: _SplashPainter(
+                          t: _intro.value,
+                          time: time,
+                          revealT: revealT,
+                          particles: _particles,
+                          surface: theme.scaffoldBackgroundColor,
+                          primary: theme.colorScheme.primary,
+                          onSurface: theme.colorScheme.onSurface,
+                          accent: AppTheme.highlight,
+                          isDark: theme.brightness == Brightness.dark,
+                          fontFamily: fontFamily,
+                          bottomInset: bottomInset,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -121,15 +122,14 @@ class _CircleRevealClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = 0.5 * math.sqrt(size.width * size.width +
-        size.height * size.height);
+    final maxRadius =
+        0.5 * math.sqrt(size.width * size.width + size.height * size.height);
     return Path.combine(
       PathOperation.difference,
       Path()..addRect(Offset.zero & size),
-      Path()
-        ..addOval(
-          Rect.fromCircle(center: center, radius: maxRadius * progress),
-        ),
+      Path()..addOval(
+        Rect.fromCircle(center: center, radius: maxRadius * progress),
+      ),
     );
   }
 
@@ -175,11 +175,10 @@ class _Particle {
       return _Particle(
         startAngle: rnd.nextDouble() * math.pi * 2,
         startRadius: 0.6 + rnd.nextDouble() * 0.55,
-        orbitAngle:
-            (i / count) * math.pi * 2 + (rnd.nextDouble() - 0.5) * 0.5,
+        orbitAngle: (i / count) * math.pi * 2 + (rnd.nextDouble() - 0.5) * 0.5,
         orbitRadius: 0.27 + ring * 0.055 + rnd.nextDouble() * 0.03,
-        orbitSpeed: (0.08 + rnd.nextDouble() * 0.16) *
-            (rnd.nextBool() ? 1 : -1),
+        orbitSpeed:
+            (0.08 + rnd.nextDouble() * 0.16) * (rnd.nextBool() ? 1 : -1),
         size: 0.9 + rnd.nextDouble() * 1.7,
         delay: rnd.nextDouble() * 0.45,
         zeta: 0.5 + rnd.nextDouble() * 0.3,
@@ -220,11 +219,24 @@ class _SplashPainter extends CustomPainter {
   final double bottomInset;
 
   static const _chartValues = <double>[
-    0.18, 0.32, 0.26, 0.48, 0.40, 0.62, 0.55, 0.80, 0.72, 0.96,
+    0.18,
+    0.32,
+    0.26,
+    0.48,
+    0.40,
+    0.62,
+    0.55,
+    0.80,
+    0.72,
+    0.96,
   ];
 
   // Analytic under-damped harmonic oscillator, normalized to settle at 1.
-  static double _spring(double seconds, {double zeta = 0.55, double omega = 10}) {
+  static double _spring(
+    double seconds, {
+    double zeta = 0.55,
+    double omega = 10,
+  }) {
     if (seconds <= 0) return 0;
     final wd = omega * math.sqrt(1 - zeta * zeta);
     final decay = math.exp(-zeta * omega * seconds);
@@ -284,10 +296,12 @@ class _SplashPainter extends CustomPainter {
 
       final angle = p.orbitAngle + time * p.orbitSpeed;
       final wobble = 1 + 0.04 * math.sin(time * 1.8 + p.wobblePhase);
-      final target = center +
+      final target =
+          center +
           Offset(math.cos(angle), math.sin(angle)) *
               (p.orbitRadius * shortest * wobble);
-      final start = center +
+      final start =
+          center +
           Offset(math.cos(p.startAngle), math.sin(p.startAngle)) *
               (p.startRadius * shortest);
       final pos = Offset.lerp(start, target, s)!;
@@ -334,9 +348,7 @@ class _SplashPainter extends CustomPainter {
     final metric = path.computeMetrics().first;
     final trimmed = metric.extractPath(0, metric.length * drawT);
 
-    final tip = metric
-        .getTangentForOffset(metric.length * drawT)!
-        .position;
+    final tip = metric.getTangentForOffset(metric.length * drawT)!.position;
 
     final areaPath = Path.from(trimmed)
       ..lineTo(tip.dx, baseY)
@@ -348,10 +360,7 @@ class _SplashPainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           Offset(0, baseY - amplitude),
           Offset(0, baseY),
-          [
-            accent.withValues(alpha: 0.07 * drawT),
-            accent.withValues(alpha: 0),
-          ],
+          [accent.withValues(alpha: 0.07 * drawT), accent.withValues(alpha: 0)],
         ),
     );
 
@@ -456,8 +465,7 @@ class _SplashPainter extends CustomPainter {
 
     for (var i = 0; i < 3; i++) {
       final barSeconds = math.max(0.0, time - (0.55 + i * 0.10));
-      final growth =
-          _spring(barSeconds, zeta: 0.5, omega: 9).clamp(0.0, 1.3);
+      final growth = _spring(barSeconds, zeta: 0.5, omega: 9).clamp(0.0, 1.3);
       final height = maxHeights[i] * growth;
       if (height <= 0) continue;
       canvas.drawRRect(
@@ -484,8 +492,9 @@ class _SplashPainter extends CustomPainter {
         Offset(coinX, coinY),
         cardSize * 0.052,
         Paint()
-          ..color = accent
-              .withValues(alpha: (coinSeconds * 4).clamp(0.0, 1.0) * fadeIn),
+          ..color = accent.withValues(
+            alpha: (coinSeconds * 4).clamp(0.0, 1.0) * fadeIn,
+          ),
       );
     }
 
@@ -610,10 +619,7 @@ class _SplashPainter extends CustomPainter {
       Rect.fromLTWH(left, y, trackWidth, 3),
       const Radius.circular(1.5),
     );
-    canvas.drawRRect(
-      track,
-      Paint()..color = onSurface.withValues(alpha: 0.08),
-    );
+    canvas.drawRRect(track, Paint()..color = onSurface.withValues(alpha: 0.08));
     final fill = trackWidth * Curves.easeInOutCubic.transform(t);
     if (fill > 3) {
       canvas.drawRRect(
@@ -628,8 +634,8 @@ class _SplashPainter extends CustomPainter {
 
   void _paintRevealRing(Canvas canvas, Size size, Offset center) {
     if (revealT <= 0 || revealT >= 1) return;
-    final maxRadius = 0.5 *
-        math.sqrt(size.width * size.width + size.height * size.height);
+    final maxRadius =
+        0.5 * math.sqrt(size.width * size.width + size.height * size.height);
     final radius = maxRadius * revealT;
     final fade = 1 - revealT;
     canvas.drawCircle(

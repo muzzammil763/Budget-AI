@@ -8,10 +8,12 @@ import 'package:budget_ai/tools/modules/tool_modules.dart';
 class ToolRegistry
     with
         FinanceAddToolHandler,
+        FinanceIncomeAddToolHandler,
         FinanceListToolHandler,
         FinanceSummaryToolHandler,
         FinanceUpdateToolHandler,
-        FinanceDeleteToolHandler {
+        FinanceDeleteToolHandler,
+        LoanToolHandler {
   List<ToolDefinition>? _toolsCache;
 
   ToolRegistry({Object? dio});
@@ -49,6 +51,10 @@ class ToolRegistry
         context: ToolDefinitionContext.standard,
         handler: handleFinanceListRequest,
       ),
+      buildFinanceIncomeAddTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleFinanceIncomeAddRequest,
+      ),
       buildFinanceSummaryTool(
         context: ToolDefinitionContext.standard,
         handler: handleFinanceSummaryRequest,
@@ -60,6 +66,18 @@ class ToolRegistry
       buildFinanceDeleteTool(
         context: ToolDefinitionContext.standard,
         handler: handleFinanceDeleteRequest,
+      ),
+      buildLoanAddTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanAddRequest,
+      ),
+      buildLoanPaymentAddTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanPaymentAddRequest,
+      ),
+      buildLoanListTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanListRequest,
       ),
     ]);
   }

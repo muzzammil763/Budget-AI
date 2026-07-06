@@ -8,7 +8,7 @@ ToolDefinition buildFinanceSummaryTool({
 }) => ToolDefinition(
   name: 'finance_summary',
   description:
-      'Get a spending summary (total + breakdown by category) for a date range. Use for questions like "how much did I spend this month?", "what are my top expenses?", or "show me a summary for April".',
+      'Get an expense/spending summary (total + breakdown by category) for a date range. Use for questions like "how much did I spend this month?", "what are my top expenses?", or "show me a summary for April". Income and loans are intentionally excluded.',
   parameters: {
     'type': 'object',
     'properties': {

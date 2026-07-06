@@ -3172,14 +3172,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Widget _buildHistoryDrawer() {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final drawerWidth = math.min(screenWidth * 0.86, 400.0);
 
     return Drawer(
-      width: drawerWidth,
+      width: screenWidth,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
-      ),
+      shape: const RoundedRectangleBorder(),
       child: FutureBuilder<List<ChatSessionSummary>>(
         future: _ensureHistorySessionsFuture(),
         initialData: _cachedSessionSummaries,
@@ -3473,7 +3470,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               _confirmDeleteUserMessage(message, resolvedMessageIndex),
           child: Container(
             margin: const EdgeInsets.only(left: 12, right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.82,
             ),

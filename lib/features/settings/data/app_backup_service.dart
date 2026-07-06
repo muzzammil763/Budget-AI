@@ -28,6 +28,7 @@ class AppBackupService {
 
   Future<Map<String, dynamic>> createBackup() async {
     final finances = await FinanceService.instance.getAll();
+    final loans = await LoanService.instance.getAll();
     final deepseekKeys = await ApiKeyStorageService.getDeepSeekApiKeys();
     final selectedModel =
         SharedPrefsService.getSelectedDeepSeekModel() ??
@@ -42,7 +43,10 @@ class AppBackupService {
         if (selectedModel != null && selectedModel.isNotEmpty)
           'selected_deepseek_model': selectedModel,
       },
-      'data': {'finances': finances.map((e) => e.toJson()).toList()},
+      'data': {
+        'finances': finances.map((e) => e.toJson()).toList(),
+        'loans': loans.map((loan) => loan.toJson()).toList(),
+      },
     };
 
     return backup;
@@ -200,6 +204,17 @@ class AppBackupService {
       }
       if (financeCount > 0) {
         restoredItems.add('$financeCount finances');
+      }
+
+      final loansList = _extractBackupList(backup, 'loans', data: data);
+      var loanCount = 0;
+      if (loansList.isNotEmpty) {
+        loanCount = await LoanService.instance.importFromJson(
+          jsonEncode({'loans': loansList}),
+        );
+      }
+      if (loanCount > 0) {
+        restoredItems.add('$loanCount loans');
       }
 
       if (restoredItems.isEmpty) {

@@ -32,8 +32,23 @@ const List<String> kFinanceCategories = [
   'Others',
 ];
 
+enum FinanceEntryType {
+  expense,
+  income;
+
+  String get storageValue => name;
+
+  static FinanceEntryType fromJson(String? value) {
+    return switch ((value ?? '').toLowerCase().trim()) {
+      'income' => FinanceEntryType.income,
+      _ => FinanceEntryType.expense,
+    };
+  }
+}
+
 class FinanceEntry {
   final String id;
+  final FinanceEntryType type;
   final DateTime date;
   final bool hasTime;
   final String description;
@@ -43,6 +58,7 @@ class FinanceEntry {
 
   const FinanceEntry({
     required this.id,
+    this.type = FinanceEntryType.expense,
     required this.date,
     required this.hasTime,
     required this.description,
@@ -52,6 +68,7 @@ class FinanceEntry {
   });
 
   factory FinanceEntry.create({
+    FinanceEntryType type = FinanceEntryType.expense,
     required DateTime date,
     required bool hasTime,
     required String description,
@@ -59,6 +76,7 @@ class FinanceEntry {
     required String category,
   }) => FinanceEntry(
     id: _generateId(),
+    type: type,
     date: date,
     hasTime: hasTime,
     description: description,
@@ -69,6 +87,7 @@ class FinanceEntry {
 
   factory FinanceEntry.fromJson(Map<String, dynamic> json) => FinanceEntry(
     id: json['id'] as String? ?? _generateId(),
+    type: FinanceEntryType.fromJson(json['type'] as String?),
     date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
     hasTime: json['has_time'] as bool? ?? false,
     description: json['description'] as String? ?? '',
@@ -81,6 +100,7 @@ class FinanceEntry {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'type': type.storageValue,
     'date': date.toIso8601String(),
     'has_time': hasTime,
     'description': description,
@@ -90,6 +110,7 @@ class FinanceEntry {
   };
 
   FinanceEntry copyWith({
+    FinanceEntryType? type,
     DateTime? date,
     bool? hasTime,
     String? description,
@@ -97,6 +118,7 @@ class FinanceEntry {
     String? category,
   }) => FinanceEntry(
     id: id,
+    type: type ?? this.type,
     date: date ?? this.date,
     hasTime: hasTime ?? this.hasTime,
     description: description ?? this.description,
@@ -136,6 +158,8 @@ class FinanceEntry {
   }
 
   String get displayAmount => '${formatAmount(amount)} Rs';
+  String get displaySignedAmount =>
+      '${type == FinanceEntryType.income ? '+' : '-'}${formatAmount(amount)} Rs';
 
   static String formatAmount(double amount) {
     final intPart = amount.toInt();
@@ -152,6 +176,160 @@ class FinanceEntry {
   static String _generateId() {
     return 'fin_${DateTime.now().microsecondsSinceEpoch}';
   }
+}
+
+enum LoanDirection {
+  borrowed,
+  lent;
+
+  String get storageValue => name;
+
+  static LoanDirection fromJson(String? value) {
+    return switch ((value ?? '').toLowerCase().trim()) {
+      'lent' => LoanDirection.lent,
+      _ => LoanDirection.borrowed,
+    };
+  }
+}
+
+class LoanPayment {
+  final String id;
+  final DateTime date;
+  final double amount;
+  final String note;
+  final DateTime createdAt;
+
+  const LoanPayment({
+    required this.id,
+    required this.date,
+    required this.amount,
+    required this.note,
+    required this.createdAt,
+  });
+
+  factory LoanPayment.create({
+    required DateTime date,
+    required double amount,
+    String note = '',
+  }) => LoanPayment(
+    id: 'loan_pay_${DateTime.now().microsecondsSinceEpoch}',
+    date: date,
+    amount: amount,
+    note: note,
+    createdAt: DateTime.now(),
+  );
+
+  factory LoanPayment.fromJson(Map<String, dynamic> json) => LoanPayment(
+    id:
+        json['id'] as String? ??
+        'loan_pay_${DateTime.now().microsecondsSinceEpoch}',
+    date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+    amount: (json['amount'] as num?)?.toDouble() ?? 0,
+    note: json['note'] as String? ?? '',
+    createdAt:
+        DateTime.tryParse(json['created_at'] as String? ?? '') ??
+        DateTime.now(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'date': date.toIso8601String(),
+    'amount': amount,
+    'note': note,
+    'created_at': createdAt.toIso8601String(),
+  };
+}
+
+class LoanRecord {
+  final String id;
+  final LoanDirection direction;
+  final String person;
+  final String description;
+  final double principal;
+  final DateTime date;
+  final bool hasTime;
+  final DateTime createdAt;
+  final List<LoanPayment> payments;
+
+  const LoanRecord({
+    required this.id,
+    required this.direction,
+    required this.person,
+    required this.description,
+    required this.principal,
+    required this.date,
+    required this.hasTime,
+    required this.createdAt,
+    this.payments = const [],
+  });
+
+  factory LoanRecord.create({
+    required LoanDirection direction,
+    required String person,
+    required String description,
+    required double principal,
+    required DateTime date,
+    required bool hasTime,
+  }) => LoanRecord(
+    id: 'loan_${DateTime.now().microsecondsSinceEpoch}',
+    direction: direction,
+    person: person,
+    description: description,
+    principal: principal,
+    date: date,
+    hasTime: hasTime,
+    createdAt: DateTime.now(),
+  );
+
+  factory LoanRecord.fromJson(Map<String, dynamic> json) => LoanRecord(
+    id:
+        json['id'] as String? ??
+        'loan_${DateTime.now().microsecondsSinceEpoch}',
+    direction: LoanDirection.fromJson(json['direction'] as String?),
+    person: json['person'] as String? ?? '',
+    description: json['description'] as String? ?? '',
+    principal: (json['principal'] as num?)?.toDouble() ?? 0,
+    date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+    hasTime: json['has_time'] as bool? ?? false,
+    createdAt:
+        DateTime.tryParse(json['created_at'] as String? ?? '') ??
+        DateTime.now(),
+    payments: (json['payments'] as List<dynamic>? ?? const [])
+        .map((e) => LoanPayment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+
+  double get paidAmount =>
+      payments.fold(0.0, (sum, payment) => sum + payment.amount);
+  double get remainingAmount => (principal - paidAmount).clamp(0.0, principal);
+  String get displayPrincipal => '${FinanceEntry.formatAmount(principal)} Rs';
+  String get displayPaid => '${FinanceEntry.formatAmount(paidAmount)} Rs';
+  String get displayRemaining =>
+      '${FinanceEntry.formatAmount(remainingAmount)} Rs';
+
+  LoanRecord copyWith({List<LoanPayment>? payments}) => LoanRecord(
+    id: id,
+    direction: direction,
+    person: person,
+    description: description,
+    principal: principal,
+    date: date,
+    hasTime: hasTime,
+    createdAt: createdAt,
+    payments: payments ?? this.payments,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'direction': direction.storageValue,
+    'person': person,
+    'description': description,
+    'principal': principal,
+    'date': date.toIso8601String(),
+    'has_time': hasTime,
+    'created_at': createdAt.toIso8601String(),
+    'payments': payments.map((payment) => payment.toJson()).toList(),
+  };
 }
 
 class FinanceService {
@@ -204,6 +382,16 @@ class FinanceService {
         .toList();
   }
 
+  Future<List<FinanceEntry>> getExpensesByDateRange(
+    DateTime from,
+    DateTime to,
+  ) async {
+    final entries = await getByDateRange(from, to);
+    return entries
+        .where((entry) => entry.type == FinanceEntryType.expense)
+        .toList();
+  }
+
   Future<List<FinanceEntry>> getByMonth(int year, int month) async {
     final from = DateTime(year, month, 1);
     final to = DateTime(
@@ -212,6 +400,20 @@ class FinanceService {
       1,
     ).subtract(const Duration(seconds: 1));
     return getByDateRange(from, to);
+  }
+
+  Future<List<FinanceEntry>> getExpensesByMonth(int year, int month) async {
+    final entries = await getByMonth(year, month);
+    return entries
+        .where((entry) => entry.type == FinanceEntryType.expense)
+        .toList();
+  }
+
+  Future<List<FinanceEntry>> getIncomeByMonth(int year, int month) async {
+    final entries = await getByMonth(year, month);
+    return entries
+        .where((entry) => entry.type == FinanceEntryType.income)
+        .toList();
   }
 
   // ── Write ─────────────────────────────────────────────────────
@@ -507,12 +709,17 @@ class FinanceService {
 
   // ── Analytics ─────────────────────────────────────────────────
 
-  double totalAmount(List<FinanceEntry> entries) =>
-      entries.fold(0.0, (sum, e) => sum + e.amount);
+  double totalAmount(List<FinanceEntry> entries, {FinanceEntryType? type}) =>
+      entries
+          .where((entry) => type == null || entry.type == type)
+          .fold(0.0, (sum, e) => sum + e.amount);
 
-  Map<String, double> categorySummary(List<FinanceEntry> entries) {
+  Map<String, double> categorySummary(
+    List<FinanceEntry> entries, {
+    FinanceEntryType type = FinanceEntryType.expense,
+  }) {
     final map = <String, double>{};
-    for (final e in entries) {
+    for (final e in entries.where((entry) => entry.type == type)) {
       map[e.category] = (map[e.category] ?? 0) + e.amount;
     }
     return Map.fromEntries(
@@ -528,15 +735,40 @@ class FinanceService {
     final lines = <String>[];
 
     if (todayEntries.isNotEmpty) {
-      final todayTotal = totalAmount(todayEntries);
-      lines.add(
-        'Today spent: ${FinanceEntry.formatAmount(todayTotal)} Rs '
-        '(${todayEntries.length} item${todayEntries.length == 1 ? '' : 's'})',
+      final todayExpenseEntries = todayEntries
+          .where((entry) => entry.type == FinanceEntryType.expense)
+          .toList();
+      final todayTotal = totalAmount(
+        todayEntries,
+        type: FinanceEntryType.expense,
       );
+      final todayIncome = totalAmount(
+        todayEntries,
+        type: FinanceEntryType.income,
+      );
+      if (todayExpenseEntries.isNotEmpty) {
+        lines.add(
+          'Today spent: ${FinanceEntry.formatAmount(todayTotal)} Rs '
+          '(${todayExpenseEntries.length} item${todayExpenseEntries.length == 1 ? '' : 's'})',
+        );
+      }
+      if (todayIncome > 0) {
+        lines.add('Today income: ${FinanceEntry.formatAmount(todayIncome)} Rs');
+      }
     }
 
     if (monthEntries.isNotEmpty) {
-      final monthTotal = totalAmount(monthEntries);
+      final monthExpenseEntries = monthEntries
+          .where((entry) => entry.type == FinanceEntryType.expense)
+          .toList();
+      final monthTotal = totalAmount(
+        monthEntries,
+        type: FinanceEntryType.expense,
+      );
+      final monthIncome = totalAmount(
+        monthEntries,
+        type: FinanceEntryType.income,
+      );
       final now = DateTime.now();
       const monthNames = [
         'January',
@@ -552,15 +784,22 @@ class FinanceService {
         'November',
         'December',
       ];
-      lines.add(
-        'Current month (${monthNames[now.month - 1]} ${now.year}) total: '
-        '${FinanceEntry.formatAmount(monthTotal)} Rs '
-        '(${monthEntries.length} entries)',
-      );
+      if (monthExpenseEntries.isNotEmpty) {
+        lines.add(
+          'Current month (${monthNames[now.month - 1]} ${now.year}) total: '
+          '${FinanceEntry.formatAmount(monthTotal)} Rs '
+          '(${monthExpenseEntries.length} expense entries)',
+        );
+      }
+      if (monthIncome > 0) {
+        lines.add(
+          'Current month income: ${FinanceEntry.formatAmount(monthIncome)} Rs',
+        );
+      }
       final byCat = categorySummary(monthEntries);
       if (byCat.isNotEmpty) {
         final countsByCat = <String, int>{};
-        for (final e in monthEntries) {
+        for (final e in monthExpenseEntries) {
           countsByCat[e.category] = (countsByCat[e.category] ?? 0) + 1;
         }
         lines.add('Current month category breakdown:');
@@ -634,5 +873,156 @@ class FinanceService {
         subject: 'OpenGate Finances Export',
       ),
     );
+  }
+}
+
+class LoanService {
+  LoanService._();
+  static final LoanService instance = LoanService._();
+
+  static const _storageFileName = 'loans.json';
+
+  List<LoanRecord>? _cache;
+
+  Future<File> _storageFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}/$_storageFileName');
+  }
+
+  Future<List<LoanRecord>> getAll() async {
+    if (_cache != null) return List.unmodifiable(_cache!);
+    try {
+      final file = await _storageFile();
+      if (!await file.exists()) {
+        _cache = [];
+        return const [];
+      }
+      final raw = await file.readAsString();
+      if (raw.trim().isEmpty) {
+        _cache = [];
+        return const [];
+      }
+      final list = jsonDecode(raw) as List<dynamic>;
+      _cache = list
+          .map((entry) => LoanRecord.fromJson(entry as Map<String, dynamic>))
+          .toList();
+      _cache!.sort((a, b) => b.date.compareTo(a.date));
+      return List.unmodifiable(_cache!);
+    } catch (e) {
+      debugPrint('[LoanService] Failed to read loans: $e');
+      _cache = [];
+      return const [];
+    }
+  }
+
+  Future<LoanRecord> add(LoanRecord loan) async {
+    await getAll();
+    _cache!.add(loan);
+    _cache!.sort((a, b) => b.date.compareTo(a.date));
+    await _persist();
+    return loan;
+  }
+
+  Future<LoanRecord?> addPayment({
+    required String loanId,
+    required LoanPayment payment,
+  }) async {
+    final loans = List<LoanRecord>.from(await getAll());
+    final index = loans.indexWhere((loan) => loan.id == loanId);
+    if (index < 0) return null;
+    final loan = loans[index];
+    final updatedPayments = [...loan.payments, payment]
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final updated = loan.copyWith(payments: updatedPayments);
+    loans[index] = updated;
+    loans.sort((a, b) => b.date.compareTo(a.date));
+    _cache = loans;
+    await _persist();
+    return updated;
+  }
+
+  Future<bool> delete(String id) async {
+    final loans = List<LoanRecord>.from(await getAll());
+    final before = loans.length;
+    loans.removeWhere((loan) => loan.id == id);
+    if (loans.length == before) return false;
+    _cache = loans;
+    await _persist();
+    return true;
+  }
+
+  void invalidateCache() => _cache = null;
+
+  Future<void> _persist() async {
+    try {
+      final file = await _storageFile();
+      final json = jsonEncode(_cache!.map((loan) => loan.toJson()).toList());
+      await file.writeAsString(json);
+    } catch (e) {
+      debugPrint('[LoanService] Failed to persist loans: $e');
+    }
+  }
+
+  double totalRemaining(List<LoanRecord> loans, LoanDirection direction) {
+    return loans
+        .where((loan) => loan.direction == direction)
+        .fold(0.0, (sum, loan) => sum + loan.remainingAmount);
+  }
+
+  String buildContextText(List<LoanRecord> loans) {
+    if (loans.isEmpty) return '';
+    final borrowed = totalRemaining(loans, LoanDirection.borrowed);
+    final lent = totalRemaining(loans, LoanDirection.lent);
+    final openLoans = loans.where((loan) => loan.remainingAmount > 0).length;
+    final lines = <String>[
+      'Loans ledger: $openLoans open loan${openLoans == 1 ? '' : 's'}.',
+      '  - Borrowed remaining: ${FinanceEntry.formatAmount(borrowed)} Rs',
+      '  - Lent remaining: ${FinanceEntry.formatAmount(lent)} Rs',
+    ];
+    for (final loan
+        in loans.where((loan) => loan.remainingAmount > 0).take(5)) {
+      final direction = loan.direction == LoanDirection.borrowed
+          ? 'borrowed from'
+          : 'lent to';
+      lines.add(
+        '  - ${loan.displayRemaining} remaining, $direction ${loan.person}'
+        '${loan.description.isEmpty ? '' : ' (${loan.description})'}',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  Future<int> importFromJson(String rawJson) async {
+    await getAll();
+    final decoded = jsonDecode(rawJson);
+    final List<dynamic> rawList;
+    if (decoded is Map && decoded['loans'] is List) {
+      rawList = decoded['loans'] as List<dynamic>;
+    } else if (decoded is List) {
+      rawList = decoded;
+    } else {
+      throw const FormatException('Invalid loan bundle format');
+    }
+
+    final incoming = rawList
+        .map((entry) => LoanRecord.fromJson(entry as Map<String, dynamic>))
+        .toList();
+
+    var affected = 0;
+    for (final loan in incoming) {
+      final existingIndex = _cache!.indexWhere((item) => item.id == loan.id);
+      if (existingIndex >= 0) {
+        _cache![existingIndex] = loan;
+      } else {
+        _cache!.add(loan);
+      }
+      affected++;
+    }
+
+    if (affected > 0) {
+      _cache!.sort((a, b) => b.date.compareTo(a.date));
+      await _persist();
+    }
+    return affected;
   }
 }

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
+import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/tools/tools.dart';
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';

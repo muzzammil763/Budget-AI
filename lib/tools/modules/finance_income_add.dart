@@ -1,44 +1,37 @@
+import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/tools/core/tool_context.dart';
 import 'package:budget_ai/tools/core/tool_models.dart';
-import 'package:budget_ai/features/finance/data/finance_service.dart';
 
-ToolDefinition buildFinanceAddTool({
+ToolDefinition buildFinanceIncomeAddTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,
   required ToolHandler handler,
 }) => ToolDefinition(
-  name: 'finance_add',
+  name: 'finance_income_add',
   description:
-      'Add a new expense entry. Use this by default for short entries like "200 fuel", and when the user mentions spending money, buying something, paying a bill, or asks to log an expense. '
-      'Do not use for salary/income, borrowed/lent money, or loan repayments. Use income or loan tools for those. '
-      'Infer the category from the description when not specified. '
-      'Date defaults to today if not provided. Amount is in Pakistani Rupees (Rs).',
+      'Add an income entry. Use this only when the user clearly says they received money, salary, freelance income, refund, gift money, or other income. If unclear, ask whether it is income or expense.',
   parameters: {
     'type': 'object',
     'properties': {
       'description': {
         'type': 'string',
-        'description':
-            'What was purchased or spent on (e.g. "Lunch", "Petrol", "Electricity bill").',
+        'description': 'Income source, e.g. "Salary", "Freelance project".',
       },
       'amount': {
         'type': 'number',
-        'description':
-            'Amount spent in Pakistani Rupees (numeric only, no currency symbol).',
+        'description': 'Income amount in Pakistani Rupees.',
       },
       'category': {
         'type': 'string',
         'description':
-            'Expense category. One of: Food, Groceries, Household, Bills, Transportation, Healthcare, Personal Care, Clothing, Shopping, Entertainment, Sports, Mobile, Home, Kitchen, Bike, Vehicle, Baby Supplies, Wife, Family, Gift, Charity, Banking, Savings. Infer from description if not specified.',
+            'Income category/source. Examples: Salary, Freelance, Business, Refund, Gift, Bonus, Other.',
       },
       'date': {
         'type': 'string',
-        'description':
-            'Date in ISO 8601 format (YYYY-MM-DD). Omit to use today\'s date.',
+        'description': 'Date in ISO 8601 format (YYYY-MM-DD).',
       },
       'time': {
         'type': 'string',
-        'description':
-            'Time in HH:MM 24-hour format (e.g. "14:30"). Include only when the user specifies a time.',
+        'description': 'Time in HH:MM 24-hour format if specified.',
       },
     },
     'required': ['description', 'amount', 'category'],
@@ -46,8 +39,10 @@ ToolDefinition buildFinanceAddTool({
   handler: handler,
 );
 
-mixin FinanceAddToolHandler {
-  Future<dynamic> handleFinanceAddRequest(Map<String, dynamic> args) async {
+mixin FinanceIncomeAddToolHandler {
+  Future<dynamic> handleFinanceIncomeAddRequest(
+    Map<String, dynamic> args,
+  ) async {
     final description = (args['description'] as String? ?? '').trim();
     final amount = (args['amount'] as num?)?.toDouble() ?? 0.0;
     final category = (args['category'] as String? ?? '').trim();
@@ -59,15 +54,10 @@ mixin FinanceAddToolHandler {
     if (category.isEmpty) return {'error': 'category is required'};
 
     try {
-      DateTime date;
-      bool hasTime = true; // Always include time
-
-      if (dateStr.isNotEmpty) {
-        date = DateTime.tryParse(dateStr) ?? DateTime.now();
-      } else {
-        date = DateTime.now();
-      }
-
+      var date = dateStr.isNotEmpty
+          ? DateTime.tryParse(dateStr) ?? DateTime.now()
+          : DateTime.now();
+      var hasTime = true;
       if (timeStr.isNotEmpty) {
         final parts = timeStr.split(':');
         if (parts.length == 2) {
@@ -76,12 +66,12 @@ mixin FinanceAddToolHandler {
           date = DateTime(date.year, date.month, date.day, hour, minute);
         }
       } else {
-        // Use current time if not specified
         final now = DateTime.now();
         date = DateTime(date.year, date.month, date.day, now.hour, now.minute);
       }
 
       final entry = FinanceEntry.create(
+        type: FinanceEntryType.income,
         date: date,
         hasTime: hasTime,
         description: description,
@@ -93,9 +83,10 @@ mixin FinanceAddToolHandler {
       return {
         'ok': true,
         'id': entry.id,
+        'type': entry.type.storageValue,
         'description': entry.description,
         'amount': entry.amount,
-        'display_amount': entry.displayAmount,
+        'display_amount': entry.displaySignedAmount,
         'category': entry.category,
         'date': entry.displayDate,
       };

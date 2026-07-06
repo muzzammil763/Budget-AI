@@ -26,6 +26,11 @@ ToolDefinition buildFinanceListTool({
         'description':
             'Filter by category name (case-insensitive). Omit to include all categories.',
       },
+      'type': {
+        'type': 'string',
+        'description':
+            'Optional entry type filter: expense or income. Defaults to expense for spending questions.',
+      },
       'limit': {
         'type': 'integer',
         'description': 'Maximum number of entries to return. Defaults to 50.',
@@ -41,6 +46,7 @@ mixin FinanceListToolHandler {
     final fromStr = (args['from_date'] as String? ?? '').trim();
     final toStr = (args['to_date'] as String? ?? '').trim();
     final category = (args['category'] as String? ?? '').trim().toLowerCase();
+    final type = FinanceEntryType.fromJson(args['type'] as String?);
     final limit = (args['limit'] as int?) ?? 50;
 
     try {
@@ -61,6 +67,7 @@ mixin FinanceListToolHandler {
             .where((e) => e.category.toLowerCase() == category)
             .toList();
       }
+      entries = entries.where((e) => e.type == type).toList();
 
       final limited = entries.take(limit).toList();
       final total = FinanceService.instance.totalAmount(limited);
@@ -73,9 +80,10 @@ mixin FinanceListToolHandler {
             .map(
               (e) => {
                 'id': e.id,
+                'type': e.type.storageValue,
                 'date': e.displayDate,
                 'description': e.description,
-                'amount': e.displayAmount,
+                'amount': e.displaySignedAmount,
                 'category': e.category,
               },
             )

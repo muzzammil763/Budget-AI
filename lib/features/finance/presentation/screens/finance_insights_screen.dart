@@ -367,7 +367,7 @@ class FinanceInsightsScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _buildProgressSlider(
             theme,
-            label: '${_monthLabel(selectedMonth)} vs previous month',
+            label: '${_monthLabel(selectedMonth)} VS PREVIOUS MONTH',
             value: insights.previousMonthTotal == 0
                 ? 1
                 : (insights.selectedMonthTotal / insights.previousMonthTotal)

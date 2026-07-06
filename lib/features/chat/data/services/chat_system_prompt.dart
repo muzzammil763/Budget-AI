@@ -122,7 +122,36 @@ Future<String> buildAgenticSystemPromptSnapshotForDiagnostics() {
 }
 
 Future<List<String>> _buildSystemContextSections() async {
-  return const [];
+  final sections = <String>[];
+  try {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monthStart = DateTime(now.year, now.month);
+    final todayEntries = await FinanceService.instance.getByDateRange(
+      today,
+      now,
+    );
+    final monthEntries = await FinanceService.instance.getByDateRange(
+      monthStart,
+      now,
+    );
+    final financeContext = FinanceService.instance.buildContextText(
+      todayEntries,
+      monthEntries,
+    );
+    if (financeContext.trim().isNotEmpty) {
+      sections.add('Current finance snapshot:\n$financeContext');
+    }
+
+    final loans = await LoanService.instance.getAll();
+    final loanContext = LoanService.instance.buildContextText(loans);
+    if (loanContext.trim().isNotEmpty) {
+      sections.add('Current loan snapshot:\n$loanContext');
+    }
+  } catch (e) {
+    debugPrint('[ChatProvider] Failed to build finance context: $e');
+  }
+  return sections;
 }
 
 Future<List<Map<String, dynamic>>> _buildMessagesWithContext(
