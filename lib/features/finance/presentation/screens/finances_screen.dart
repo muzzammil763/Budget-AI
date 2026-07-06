@@ -5,6 +5,7 @@ import 'package:budget_ai/core/widgets/pill_nav_bar.dart';
 import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
+import 'package:budget_ai/features/finance/presentation/screens/finance_insights_screen.dart';
 import 'package:toastification/toastification.dart';
 
 class FinancesScreen extends StatefulWidget {
@@ -105,6 +106,22 @@ class _FinancesScreenState extends State<FinancesScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
         title: const Text('Finances'),
+        actions: [
+          IconButton(
+            tooltip: 'Finance insights',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => FinanceInsightsScreen(
+                    entries: _allEntries,
+                    selectedMonth: _selectedMonth,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.insights_rounded),
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +162,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
       margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-       
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -319,9 +335,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                     child: Container(
                       width: double.infinity,
                       height: 1,
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.1,
-                      ),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
                     ),
                   ),
                   Text(
@@ -391,13 +405,12 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 Text(
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  
+
                   entry.description,
                   style: TextStyle(
                     color: onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                   
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -445,9 +458,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       alignment: Alignment.centerRight,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(right: 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
       child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
     );
   }

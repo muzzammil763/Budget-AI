@@ -116,7 +116,7 @@ class _ContextOverviewSummary extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width:12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,9 +148,7 @@ class _ContextOverviewSummary extends StatelessWidget {
           minHeight: 6,
           borderRadius: BorderRadius.circular(32),
           stopIndicatorRadius: 32,
-          backgroundColor: progressColor.withValues(
-            alpha: 0.1,
-          ),
+          backgroundColor: progressColor.withValues(alpha: 0.1),
           valueColor: AlwaysStoppedAnimation<Color>(progressColor),
         ),
         const SizedBox(height: 12),
@@ -169,10 +167,7 @@ class _ContextOverviewSummary extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 12),
             ),
             Expanded(
-              child: _ContextMetric(
-                label: 'Remaining',
-                value: remainingLabel,
-              ),
+              child: _ContextMetric(label: 'Remaining', value: remainingLabel),
             ),
             Container(
               width: 1,
@@ -230,7 +225,6 @@ class _ContextMetric extends StatelessWidget {
     );
   }
 }
-
 
 class _MarkdownActionTile extends StatelessWidget {
   const _MarkdownActionTile({
@@ -300,38 +294,6 @@ class _MarkdownActionTile extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-class _ApprovalDetailsBox extends StatelessWidget {
-  const _ApprovalDetailsBox({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(maxHeight: 180),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
-      child: SingleChildScrollView(
-        child: Text(
-          text,
-          style: AppTheme.bodySmall.copyWith(
-            fontFamily: 'monospace',
-            color: theme.colorScheme.onSurface,
-            height: 1.45,
           ),
         ),
       ),

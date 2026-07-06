@@ -7,19 +7,12 @@ import 'package:budget_ai/tools/modules/tool_modules.dart';
 
 class ToolRegistry
     with
-        MemoryWriteToolHandler,
-        MemoryEditToolHandler,
-        MemoryDeleteToolHandler,
-        MemoryListToolHandler,
-        MemorySearchToolHandler,
         FinanceAddToolHandler,
         FinanceListToolHandler,
         FinanceSummaryToolHandler,
         FinanceUpdateToolHandler,
         FinanceDeleteToolHandler {
   List<ToolDefinition>? _toolsCache;
-
-  bool get githubModeActive => false;
 
   ToolRegistry({Object? dio});
 
@@ -37,10 +30,7 @@ class ToolRegistry
     // No cancellable local tool requests are currently active.
   }
 
-  List<ToolDefinition> getAvailableTools({
-    bool includeWorkspaceTools = true,
-    bool includeGithubModeTools = false,
-  }) {
+  List<ToolDefinition> getAvailableTools() {
     _toolsCache ??= _buildTools();
     return _filterEnabledTools(_toolsCache!);
   }
@@ -51,26 +41,6 @@ class ToolRegistry
 
   List<ToolDefinition> _buildTools() {
     return List.unmodifiable([
-      buildMemoryWriteTool(
-        context: ToolDefinitionContext.standard,
-        handler: handleMemoryWriteRequest,
-      ),
-      buildMemoryEditTool(
-        context: ToolDefinitionContext.standard,
-        handler: handleMemoryEditRequest,
-      ),
-      buildMemoryDeleteTool(
-        context: ToolDefinitionContext.standard,
-        handler: handleMemoryDeleteRequest,
-      ),
-      buildMemoryListTool(
-        context: ToolDefinitionContext.standard,
-        handler: handleMemoryListRequest,
-      ),
-      buildMemorySearchTool(
-        context: ToolDefinitionContext.standard,
-        handler: handleMemorySearchRequest,
-      ),
       buildFinanceAddTool(
         context: ToolDefinitionContext.standard,
         handler: handleFinanceAddRequest,
@@ -96,9 +66,8 @@ class ToolRegistry
 
   Future<dynamic> executeTool(
     String name,
-    Map<String, dynamic> arguments, {
-    bool bypassToolManagerApproval = false,
-  }) async {
+    Map<String, dynamic> arguments,
+  ) async {
     debugPrint('[ToolRegistry] Executing tool: $name with args: $arguments');
 
     final disabledResult = _disabledToolResult(name);
@@ -126,14 +95,9 @@ class ToolRegistry
 
   Stream<ToolExecutionEvent> executeToolStream(
     String name,
-    Map<String, dynamic> arguments, {
-    bool bypassToolManagerApproval = false,
-  }) async* {
-    final result = await executeTool(
-      name,
-      arguments,
-      bypassToolManagerApproval: bypassToolManagerApproval,
-    );
+    Map<String, dynamic> arguments,
+  ) async* {
+    final result = await executeTool(name, arguments);
     yield ToolExecutionEvent(
       result: result,
       isComplete: true,

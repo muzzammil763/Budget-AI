@@ -92,13 +92,6 @@ class TimelineStatusCard extends StatelessWidget {
           description:
               'The active model is now ${data['model_name'] ?? data['model_id'] ?? 'the selected model'}.',
         );
-      case kChatStatusWorkspaceUnavailable:
-        return _TimelineStatusContent(
-          icon: CupertinoIcons.folder_badge_minus,
-          title: 'Workspace unavailable',
-          description:
-              'The saved workspace ${data['label'] ?? data['path'] ?? ''} could not be restored automatically.',
-        );
       default:
         return const _TimelineStatusContent(
           icon: CupertinoIcons.info_circle,

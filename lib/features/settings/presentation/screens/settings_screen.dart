@@ -8,8 +8,8 @@ import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
-import 'package:budget_ai/features/memory/presentation/screens/memories_screen.dart';
 import 'package:budget_ai/features/settings/data/app_backup_service.dart';
+import 'package:budget_ai/features/settings/presentation/screens/permissions_screen.dart';
 
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:toastification/toastification.dart';
@@ -86,19 +86,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _buildNavTile(
             theme,
-            icon: CupertinoIcons.book,
-            title: 'Memories',
-            subtitle: 'View and manage saved memories',
+            icon: CupertinoIcons.checkmark_shield,
+            title: 'Permissions',
+            subtitle: 'Notifications and background mode',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const MemoriesScreen()),
+              MaterialPageRoute(builder: (_) => const PermissionsScreen()),
             ),
           ),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.archivebox,
             title: 'Backup & Restore',
-            subtitle: 'Backup & Restore finances, memories data',
+            subtitle: 'Backup & Restore finances data',
             onTap: _showBackupRestoreSheet,
           ),
         ],

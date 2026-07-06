@@ -637,28 +637,19 @@ class ToolCall {
   }
 }
 
-enum ToolCallStatus {
-  pending,
-  creating,
-  calling,
-  awaitingApproval,
-  completed,
-  failed,
-  cancelled,
-}
+enum ToolCallStatus { pending, creating, calling, completed, failed, cancelled }
 
 String truncateToolPayloadForStorage(dynamic value) {
   return value is String ? value : jsonEncode(value);
 }
 
 const String _coreAgentBehavior = '''
-You are Budget AI, a personal finance and budget management assistant. Your primary role is to help users track expenses, manage memories/facts, and provide budget advice.
+You are Budget AI, a personal finance and budget management assistant. Your primary role is to help users track expenses and provide budget advice.
 
 Core behaviors:
 - Be concise, helpful, and focused on personal finance topics.
 - When the user asks to add an expense, use finance_add with appropriate category and amount. Always include the current time.
 - When the user asks about spending, use finance_list or finance_summary to retrieve data.
-- Use memory_write to save important facts, preferences, or financial goals the user mentions.
 - Always use the Rs currency symbol when displaying amounts (the user's local currency).
 - Respond in a friendly, conversational tone.
 
@@ -678,13 +669,4 @@ For finance operations specifically:
 - finance_add: call once with all required fields. After ok: true → respond immediately. Do NOT call finance_list.
 - Use finance_list or finance_summary only when the user explicitly asks to see their expenses or a summary.
 - Infer missing fields from context (category from item name, date = today if not specified, no time unless user mentions a time).
-''';
-
-const String _memoryGuidance = '''
-For memory operations specifically:
-- Do NOT emit any text before calling memory tools. Call the tool first, then give one confirmation.
-- Batch all related facts from one user message into a single memory_write call.
-- Before writing, check the memories already shown in context. If the fact already exists, skip the write.
-- After memory_write or memory_delete returns ok: true → respond immediately. Do NOT call memory_list.
-- Give exactly one brief confirmation after all memory operations.
 ''';

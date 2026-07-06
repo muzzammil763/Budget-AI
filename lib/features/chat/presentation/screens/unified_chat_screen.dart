@@ -11,16 +11,12 @@ import 'package:budget_ai/features/settings/presentation/screens/settings_screen
 import 'package:budget_ai/app/navigation/app_route_observer.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
 import 'package:budget_ai/features/chat/data/services/chat_provider.dart';
-import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/core/models/notification_payload.dart';
+import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/core/services/notification_service.dart';
 import 'package:budget_ai/core/utils/vibration_manager.dart';
-import 'package:budget_ai/features/chat/domain/workspace_mentions.dart';
 import 'package:budget_ai/features/chat/presentation/screens/model_selector_screen.dart';
 import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
-import 'package:budget_ai/features/github/data/local_github_service.dart';
-import 'package:budget_ai/features/finance/data/finance_service.dart';
-import 'package:budget_ai/features/memory/data/memory_service.dart';
 import 'package:budget_ai/features/skills/data/agent_skill_service.dart';
 import 'package:budget_ai/core/network/network_reachability_service.dart';
 import 'package:budget_ai/core/platform/android_background_agent_service.dart';
@@ -37,7 +33,6 @@ import 'package:budget_ai/features/chat/presentation/widgets/expandable_user_mes
 
 import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/timeline_status_card.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/workspace_mention_suggestions_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/streaming_text_reveal.dart';
@@ -60,7 +55,6 @@ class UnifiedChatScreen extends StatefulWidget {
 
 class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     with RouteAware, WidgetsBindingObserver {
-  static const String _workspaceSourceLocalGithub = 'local_github';
   static const String _continueInterruptedResponsePrompt =
       'Continue from the previous assistant turn. Use the completed tool results already in this conversation. Do not repeat successful tool calls unless required. Finish the original request.';
   static const int _maxAutomaticToolContinuations = 3;
@@ -80,12 +74,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final List<ChatMessage> _messages = [];
   final List<_TimelineViewItem> _timelineItems = [];
   final ScrollController _scrollController = ScrollController();
-  final ScrollController _workspaceMentionSuggestionsScrollController =
-      ScrollController();
   bool _isLoading = false;
   bool _isAppInBackground = false;
   bool _isOnChatScreen = true;
-  final Set<String> _sentApprovalNotificationIds = {};
   late ChatProvider _provider;
   int? _streamingMessageIndex;
   bool _isStreaming = false;
@@ -99,27 +90,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   bool _isModelReady = false;
   String _selectedModel = '';
   ChatSessionRecord? _activeSession;
-  String? _workspaceRoot;
-  String? _workspaceLabel;
-  List<_ConnectedWorkspace> _connectedWorkspaces = const [];
-
-  // Bumped whenever workspace-mention suggestion state changes.
-  // Lets the suggestion overlay rebuild without going through setState, which
-  // would otherwise rebuild the entire 9k-line screen on every keystroke that
-  // matches a `/` or `@` query.
-  final ValueNotifier<int> _suggestionVersion = ValueNotifier<int>(0);
-
-  void _bumpSuggestionVersion() {
-    if (!mounted) return;
-    _suggestionVersion.value = _suggestionVersion.value + 1;
-  }
-
-  String? _workspaceMentionIndexedRoot;
-  List<WorkspaceMentionEntry> _workspaceMentionEntries = const [];
-  List<WorkspaceMentionEntry> _workspaceMentionSuggestions = const [];
-  WorkspaceMentionQuery? _activeWorkspaceMentionQuery;
-  int _activeWorkspaceMentionSuggestionIndex = -1;
-  bool _githubModeActive = false;
   final ValueNotifier<bool> _showScrollToBottomButton = ValueNotifier<bool>(
     false,
   );
@@ -130,10 +100,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final List<String> _attachedVideos = [];
   final List<String> _attachedPdfs = [];
   String? _pendingWhatsAppFilePath;
-  final Set<String> _shownApprovalDialogRequestIds = {};
   final ValueNotifier<int> _tokenUiRevision = ValueNotifier(0);
-  bool _isCommandApprovalDialogOpen = false;
-  final List<Map<String, dynamic>> _pendingApprovalDialogQueue = [];
   List<ChatSessionSummary>? _cachedSessionSummaries;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Future<List<ChatSessionSummary>>? _historySessionsFuture;
@@ -184,7 +151,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _selectedModel =
           saved ?? AIModels.getDefaultModel(widget.config.modelName);
     });
-    await _clearTransientWorkspaceSelection();
     await _refreshProviderState();
   }
 
@@ -205,12 +171,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Future<void> _refreshChatConfiguration() async {
     await _loadSelectedModel();
     await _refreshProviderState();
-  }
-
-  Future<void> _clearTransientWorkspaceSelection() async {
-    _connectedWorkspaces = const [];
-    _workspaceRoot = null;
-    _workspaceLabel = null;
   }
 
   Future<void> _refreshProviderState() async {
@@ -245,33 +205,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     });
   }
 
-  Future<void> _clearWorkspaceSelection() async {
-    if (!mounted) return;
-    setState(() {
-      _connectedWorkspaces = const [];
-      _workspaceRoot = null;
-      _workspaceLabel = null;
-    });
-  }
-
-  void _syncPrimaryWorkspaceFromConnected() {
-    final activeSource = _activeWorkspaceSource;
-    final primary = _firstConnectedWorkspaceForSource(activeSource);
-    _workspaceRoot = primary?.path;
-    _workspaceLabel = primary?.label;
-  }
-
-  _ConnectedWorkspace? _firstConnectedWorkspaceForSource(String source) {
-    for (final workspace in _connectedWorkspaces) {
-      if (workspace.source == source) return workspace;
-    }
-    return null;
-  }
-
-  Future<void> _persistConnectedWorkspaces() async {
-    _syncPrimaryWorkspaceFromConnected();
-  }
-
   Future<void> _changeModel(String newModel) async {
     final prefs = SharedPrefsService.instance;
     await prefs.setString(
@@ -304,26 +237,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  bool get _isGithubMode => _githubModeActive;
-
-  String get _activeWorkspaceSource => _workspaceSourceLocalGithub;
-
-  List<_ConnectedWorkspace> get _visibleConnectedWorkspaces =>
-      _connectedWorkspaces
-          .where((item) => item.source == _activeWorkspaceSource)
-          .toList(growable: false);
-
-  bool get _shouldShowWorkspaceUi => _isGithubMode;
-
   ChatSessionRepository get _chatSessions => ChatSessionRepository.instance;
 
   AIModel? get _currentModelInfo =>
       AIModels.getModelById(widget.config.modelName, _selectedModel);
 
   int? get _currentContextLimit => _currentModelInfo?.contextLength;
-
-  ChatWorkspaceSnapshot get _emptyWorkspaceSnapshot =>
-      const ChatWorkspaceSnapshot(path: '', label: '', source: '');
 
   bool get _isContextLimitBlocked =>
       _activeSession?.flags.isContextLimitBlocked ?? false;
@@ -409,9 +328,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _attachedVideos.clear();
     _attachedPdfs.clear();
     _pendingWhatsAppFilePath = null;
-    _workspaceMentionSuggestions = const [];
-    _activeWorkspaceMentionQuery = null;
-    _activeWorkspaceMentionSuggestionIndex = -1;
   }
 
   Future<void> _resetToFreshDraft() async {
@@ -430,12 +346,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isReconnectingStream = false;
       _reconnectAttempt = 0;
       _isWaitingForNetwork = false;
-      _githubModeActive = false;
       _resetComposerAndAttachments();
     });
 
     _provider.clearHistory();
-    await _clearWorkspaceSelection();
   }
 
   String _sanitizeChatTitle(String value) {
@@ -458,7 +372,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       titleSource: 'first_message',
       providerKey: widget.config.modelName,
       modelId: _selectedModel,
-      workspaceSnapshot: _emptyWorkspaceSnapshot,
     );
 
     if (!mounted) return session;
@@ -484,7 +397,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       lifecycleState: lifecycleState ?? session.lifecycleState,
       activeContextTokens: 0,
       lastKnownContextLimit: contextLimit ?? _currentContextLimit,
-      workspaceSnapshot: _emptyWorkspaceSnapshot,
       flags: flags ?? session.flags,
     );
 
@@ -496,7 +408,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       providerKey: widget.config.modelName,
       modelId: _selectedModel,
       lifecycleState: nextSession.lifecycleState,
-      workspaceSnapshot: _emptyWorkspaceSnapshot,
       flags: nextSession.flags,
       lastKnownContextLimit: nextSession.lastKnownContextLimit,
     );
@@ -568,7 +479,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       lastProviderKey: widget.config.modelName,
       lastModelId: _selectedModel,
       lastKnownContextLimit: _currentContextLimit,
-      workspaceSnapshot: _emptyWorkspaceSnapshot,
     );
     await _chatSessions.saveSession(nextSession);
 
@@ -584,8 +494,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     String sessionId, {
     Future<LoadedChatSession?>? preloadFuture,
   }) async {
-    // Run the DB load and workspace clear concurrently — they're independent.
-    unawaited(_clearWorkspaceSelection());
     final loaded =
         await (preloadFuture ?? _chatSessions.loadSession(sessionId));
     if (loaded == null || !mounted) return;
@@ -630,8 +538,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isReconnectingStream = false;
       _reconnectAttempt = 0;
       _isWaitingForNetwork = false;
-      _githubModeActive = false;
-      _syncPrimaryWorkspaceFromConnected();
       _resetComposerAndAttachments();
     });
     _scrollToBottom(force: true);
@@ -733,7 +639,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       lastProviderKey: widget.config.modelName,
       lastModelId: _selectedModel,
       lastKnownContextLimit: _currentContextLimit,
-      workspaceSnapshot: _emptyWorkspaceSnapshot,
     );
     await _chatSessions.saveSession(nextSession);
     if (!mounted) return;
@@ -806,47 +711,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _navigateToModelSelection(fromContextLimitCard: true);
   }
 
-  void _handleComposerTextChanged() {
-    _updateWorkspaceMentionSuggestions();
-    _syncGithubCloneSelectionWithComposer();
-  }
+  void _handleComposerTextChanged() {}
 
   void _updateCanSend() {
     final next = _canSubmitCurrentMessage;
     if (_canSendNotifier.value != next) _canSendNotifier.value = next;
   }
 
-  void _syncGithubCloneSelectionWithComposer() {
-    final nextPrimary = _firstConnectedWorkspaceForSource(
-      _activeWorkspaceSource,
-    );
-    if (_workspaceRoot == nextPrimary?.path &&
-        _workspaceLabel == nextPrimary?.label) {
-      return;
-    }
-    setState(() {
-      _syncPrimaryWorkspaceFromConnected();
-    });
-    unawaited(_persistConnectedWorkspaces());
-    unawaited(_refreshWorkspaceMentionIndex());
-  }
-
-  void _handleComposerFocusChanged() {
-    if (_messageFocusNode.hasFocus) {
-      _updateWorkspaceMentionSuggestions();
-      return;
-    }
-
-    if (_workspaceMentionSuggestions.isEmpty &&
-        _activeWorkspaceMentionQuery == null) {
-      return;
-    }
-
-    _workspaceMentionSuggestions = const [];
-    _activeWorkspaceMentionQuery = null;
-    _activeWorkspaceMentionSuggestionIndex = -1;
-    _bumpSuggestionVersion();
-  }
+  void _handleComposerFocusChanged() {}
 
   void _unfocusComposer() {
     if (_messageFocusNode.hasFocus) {
@@ -855,296 +727,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
-  Future<void> _refreshWorkspaceMentionIndex({bool force = false}) async {
-    final workspaces = _visibleConnectedWorkspaces
-        .where((item) => !item.isConnecting && item.path.trim().isNotEmpty)
-        .toList(growable: false);
-    final indexedKey = workspaces.map((item) => item.key).join('|');
-    if (workspaces.isEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _workspaceMentionIndexedRoot = null;
-        _workspaceMentionEntries = const [];
-        _workspaceMentionSuggestions = const [];
-        _activeWorkspaceMentionQuery = null;
-        _activeWorkspaceMentionSuggestionIndex = -1;
-      });
-      return;
-    }
-
-    if (!force &&
-        _workspaceMentionIndexedRoot == indexedKey &&
-        _workspaceMentionEntries.isNotEmpty) {
-      return;
-    }
-
-    final includeWorkspaceInMention = workspaces.length > 1;
-    try {
-      final refreshedEntries = <WorkspaceMentionEntry>[];
-      for (final workspace in workspaces) {
-        final result = await _listWorkspaceMentionFiles(
-          workspaceRoot: workspace.path,
-          workspaceSource: workspace.source,
-        );
-
-        if (!mounted) return;
-
-        final error = result['error']?.toString();
-        if (error != null && error.isNotEmpty) {
-          continue;
-        }
-
-        final rawResults = (result['results'] as List<dynamic>? ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .toList();
-        refreshedEntries.addAll(
-          _parseRawWorkspaceMentionResults(
-            rawResults,
-            workspace: workspace,
-            includeWorkspaceInMention: includeWorkspaceInMention,
-          ),
-        );
-      }
-
-      if (!mounted) return;
-      if (refreshedEntries.isEmpty) {
-        setState(() {
-          _workspaceMentionIndexedRoot = indexedKey;
-          _workspaceMentionEntries = const [];
-          _workspaceMentionSuggestions = const [];
-          _activeWorkspaceMentionQuery = null;
-          _activeWorkspaceMentionSuggestionIndex = -1;
-        });
-        return;
-      }
-
-      refreshedEntries.sort(compareWorkspaceMentionEntries);
-      setState(() {
-        _workspaceMentionIndexedRoot = indexedKey;
-        _workspaceMentionEntries = refreshedEntries;
-      });
-      _updateWorkspaceMentionSuggestions();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _workspaceMentionIndexedRoot = indexedKey;
-        _workspaceMentionEntries = const [];
-        _workspaceMentionSuggestions = const [];
-        _activeWorkspaceMentionQuery = null;
-        _activeWorkspaceMentionSuggestionIndex = -1;
-      });
-    }
-  }
-
-  List<WorkspaceMentionEntry> _parseRawWorkspaceMentionResults(
-    List<Map<String, dynamic>> rawResults, {
-    _ConnectedWorkspace? workspace,
-    bool includeWorkspaceInMention = false,
-  }) {
-    final entries = <WorkspaceMentionEntry>[];
-    final seenPaths = <String>{};
-    for (final item in rawResults) {
-      final rawPath = item['path']?.toString().trim() ?? '';
-      final type = item['type']?.toString().trim() ?? 'file';
-      if (rawPath.isEmpty || rawPath == '.') continue;
-      if (shouldIgnoreWorkspaceMentionPath(rawPath)) continue;
-      final normalizedPath = rawPath.replaceAll('\\', '/');
-      if (!seenPaths.add('${type.toLowerCase()}::$normalizedPath')) continue;
-      entries.add(
-        WorkspaceMentionEntry.fromRelativePath(
-          normalizedPath,
-          isDirectory: type == 'directory',
-          workspaceRoot: workspace?.path ?? '',
-          workspaceLabel: workspace?.label ?? '',
-          workspaceSource: workspace?.source ?? '',
-          includeWorkspaceInMention: includeWorkspaceInMention,
-        ),
-      );
-    }
-    entries.sort(compareWorkspaceMentionEntries);
-    return entries;
-  }
-
-  Future<Map<String, dynamic>> _listWorkspaceMentionFiles({
-    required String workspaceRoot,
-    required String workspaceSource,
-  }) async {
-    if (workspaceSource == _workspaceSourceLocalGithub) {
-      return _listGithubCloneMentionFiles(workspaceRoot: workspaceRoot);
-    }
-
-    final result = {'ok': false, 'error': 'Remote workspace is unavailable.'};
-    if (result['ok'] == false) {
-      return {
-        'error':
-            result['error']?.toString() ??
-            'Could not index files from the remote backend workspace.',
-      };
-    }
-    final files = result['files'];
-    if (files is Map) {
-      return Map<String, dynamic>.from(files);
-    }
-    return {'error': 'No remote workspace files were returned.'};
-  }
-
-  Future<Map<String, dynamic>> _listGithubCloneMentionFiles({
-    required String workspaceRoot,
-  }) async {
-    final clones = await LocalGithubService.instance.listClones();
-    Map<String, dynamic>? selected;
-    for (final clone in clones) {
-      if ((clone['path']?.toString().trim() ?? '') == workspaceRoot) {
-        selected = clone;
-        break;
-      }
-    }
-    if (selected == null) {
-      return {'error': 'Selected GitHub clone was not found.'};
-    }
-
-    final files = selected['files'];
-    if (files is! Map) {
-      return {'error': 'Selected GitHub clone has no file metadata.'};
-    }
-
-    final results = <Map<String, dynamic>>[];
-    final directories = <String>{};
-    for (final rawPath in files.keys) {
-      final path = rawPath.toString().trim().replaceAll('\\', '/');
-      if (path.isEmpty || shouldIgnoreWorkspaceMentionPath(path)) continue;
-      results.add({'path': path, 'type': 'file'});
-
-      final parts = path.split('/').where((part) => part.isNotEmpty).toList();
-      for (var i = 1; i < parts.length; i++) {
-        final directory = parts.take(i).join('/');
-        if (!shouldIgnoreWorkspaceMentionPath(directory)) {
-          directories.add(directory);
-        }
-      }
-    }
-
-    for (final directory in directories) {
-      results.add({'path': directory, 'type': 'directory'});
-    }
-
-    return {'results': results};
-  }
-
-  void _updateWorkspaceMentionSuggestions() {
-    final query = currentWorkspaceMentionQuery(_messageController.value);
-    if (!_messageFocusNode.hasFocus ||
-        !_shouldShowWorkspaceUi ||
-        !_hasActiveWorkspaceContext ||
-        _workspaceMentionEntries.isEmpty ||
-        query == null) {
-      if (_workspaceMentionSuggestions.isEmpty &&
-          _activeWorkspaceMentionQuery == null) {
-        return;
-      }
-      if (!mounted) return;
-      _workspaceMentionSuggestions = const [];
-      _activeWorkspaceMentionQuery = null;
-      _activeWorkspaceMentionSuggestionIndex = -1;
-      _bumpSuggestionVersion();
-      return;
-    }
-
-    final suggestions = findWorkspaceMentionSuggestions(
-      entries: _workspaceMentionEntries,
-      query: query.query,
-    );
-    final queryChanged =
-        _activeWorkspaceMentionQuery?.start != query.start ||
-        _activeWorkspaceMentionQuery?.end != query.end ||
-        _activeWorkspaceMentionQuery?.query != query.query;
-    final hasChanged =
-        !sameWorkspaceSuggestionList(
-          _workspaceMentionSuggestions,
-          suggestions,
-        ) ||
-        queryChanged;
-
-    if (!hasChanged || !mounted) {
-      return;
-    }
-
-    _activeWorkspaceMentionQuery = query;
-    _workspaceMentionSuggestions = suggestions;
-    _activeWorkspaceMentionSuggestionIndex = suggestions.isEmpty
-        ? -1
-        : (queryChanged
-              ? -1
-              : _activeWorkspaceMentionSuggestionIndex.clamp(
-                  -1,
-                  suggestions.length - 1,
-                ));
-    _bumpSuggestionVersion();
-
-    if (suggestions.isEmpty) {
-      _jumpWorkspaceMentionSuggestionsToTop();
-      return;
-    }
-
-    if (queryChanged) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _jumpWorkspaceMentionSuggestionsToTop();
-      });
-    } else {
-      _scheduleActiveWorkspaceMentionVisibility();
-    }
-  }
-
-  void _scheduleActiveWorkspaceMentionVisibility() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          !_workspaceMentionSuggestionsScrollController.hasClients) {
-        return;
-      }
-
-      const itemExtent = WorkspaceMentionSuggestionsCard.itemExtent;
-      final position = _workspaceMentionSuggestionsScrollController.position;
-      final targetOffset = _activeWorkspaceMentionSuggestionIndex * itemExtent;
-      final minVisible = position.pixels;
-      final maxVisible =
-          position.pixels + position.viewportDimension - itemExtent;
-
-      if (targetOffset < minVisible) {
-        _workspaceMentionSuggestionsScrollController.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOut,
-        );
-        return;
-      }
-
-      if (targetOffset > maxVisible) {
-        _workspaceMentionSuggestionsScrollController.animateTo(
-          targetOffset - position.viewportDimension + itemExtent,
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  void _jumpWorkspaceMentionSuggestionsToTop() {
-    if (!_workspaceMentionSuggestionsScrollController.hasClients) {
-      return;
-    }
-    _workspaceMentionSuggestionsScrollController.jumpTo(0);
-  }
-
   String _prepareMessageForProvider(String message) {
     final normalized = message.trim().toLowerCase();
     if (normalized == 'retry & continue' || normalized == 'continue') {
       return _continueInterruptedResponsePrompt;
     }
 
-    return prepareWorkspaceMentionsForProvider(
-      message: message,
-      entries: _workspaceMentionEntries,
-    );
+    return message;
   }
 
   String _prepareProviderOverrideMessage(String message) => message;
@@ -1157,14 +746,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   @override
   void dispose() {
-    unawaited(_clearTransientWorkspaceSelection());
     appRouteObserver.unsubscribe(this);
     _messageController.removeListener(_handleComposerTextChanged);
     _messageController.removeListener(_updateCanSend);
     _messageFocusNode.removeListener(_handleComposerFocusChanged);
     _scrollController.removeListener(_handleChatScroll);
     _showScrollToBottomButton.dispose();
-    _suggestionVersion.dispose();
     _canSendNotifier.dispose();
     _tokenUiRevision.dispose();
     NetworkReachabilityService.instance.status.removeListener(
@@ -1174,7 +761,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _messageFocusNode.dispose();
     _messageInputScrollController.dispose();
     _scrollController.dispose();
-    _workspaceMentionSuggestionsScrollController.dispose();
     _streamingDurationTimer?.cancel();
     _stopStreamingThrottleTimer();
     _streamingBubble.dispose();
@@ -1182,394 +768,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  void _scheduleCommandApprovalDialog(ToolCall toolCall) {
-    final request = _approvalRequestFromToolCall(toolCall);
-    if (request == null) return;
-
-    final requestId = request['id']?.toString() ?? '';
-    if (requestId.isEmpty ||
-        _shownApprovalDialogRequestIds.contains(requestId)) {
-      return;
-    }
-
-    _shownApprovalDialogRequestIds.add(requestId);
-
-    // If a dialog is already open, queue this one so it is shown next.
-    if (_isCommandApprovalDialogOpen) {
-      _pendingApprovalDialogQueue.add({
-        'toolCall': toolCall,
-        'request': request,
-      });
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _isCommandApprovalDialogOpen) {
-        // Another dialog opened between the schedule and the frame callback,
-        // queue this one instead.
-        _pendingApprovalDialogQueue.add({
-          'toolCall': toolCall,
-          'request': request,
-        });
-        return;
-      }
-      _showCommandApprovalDialog(toolCall: toolCall, request: request);
-    });
-  }
-
-  void _showNextPendingApprovalDialog() {
-    if (_pendingApprovalDialogQueue.isEmpty || !mounted) return;
-    final next = _pendingApprovalDialogQueue.removeAt(0);
-    final nextToolCall = next['toolCall'] as ToolCall;
-    final nextRequest = next['request'] as Map<String, dynamic>;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _showCommandApprovalDialog(toolCall: nextToolCall, request: nextRequest);
-    });
-  }
-
-  Map<String, dynamic>? _approvalRequestFromToolCall(ToolCall toolCall) {
-    if (toolCall.status != ToolCallStatus.awaitingApproval) return null;
-    final decoded = _decodeToolResult(toolCall.result);
-    if (decoded is! Map) return null;
-    if (decoded['approval_required'] != true ||
-        decoded['approval_request'] is! Map) {
-      return null;
-    }
-    return Map<String, dynamic>.from(decoded['approval_request'] as Map);
-  }
-
-  Future<void> _showCommandApprovalDialog({
-    required ToolCall toolCall,
-    required Map<String, dynamic> request,
-  }) async {
-    _isCommandApprovalDialogOpen = true;
-    try {
-      final theme = Theme.of(context);
-
-      void resolve({required bool approved, bool addToSession = false}) {
-        Navigator.of(context).pop();
-        unawaited(
-          _resolveCommandApproval(
-            sourceToolCall: toolCall,
-            request: request,
-            approved: approved,
-            addToSession: addToSession,
-          ),
-        );
-      }
-
-      final command = request['command']?.toString() ?? '';
-      final isLocalGithubDelete =
-          request['kind'] == 'local_github_branch_delete';
-      final isLocalToolApproval = request['kind'] == 'local_tool';
-      final isSensitiveCommand =
-          request['sensitive'] == true ||
-          request['command_type'] == 'destructive' ||
-          _isDestructiveShellCommand(command);
-      final canAddToSession =
-          request['can_add_to_session'] == true && !isSensitiveCommand;
-      final requestTitle = request['title']?.toString().trim() ?? '';
-      final title = requestTitle.isNotEmpty
-          ? '$requestTitle Approval'
-          : isLocalGithubDelete
-          ? 'Delete Branch Approval'
-          : 'Command Approval';
-      final description = isLocalToolApproval
-          ? 'Review this local app operation before it runs.'
-          : isLocalGithubDelete
-          ? 'Review this local GitHub operation before it runs.'
-          : 'Review this command before it runs.';
-      final consequence = request['consequence']?.toString() ?? '';
-      final displayText = [
-        command,
-        if (consequence.isNotEmpty) consequence,
-      ].where((line) => line.trim().isNotEmpty).join('\n\n');
-
-      await ResponsiveInfoSheet.show<void>(
-        context,
-        title: title,
-        headerIcon: Icon(
-          Icons.pending_outlined,
-          color: AppTheme.readableOn(theme.colorScheme.primary),
-          size: 28,
-        ),
-        gradientColors: [
-          theme.colorScheme.primary,
-          theme.colorScheme.primary.withValues(alpha: 0.78),
-        ],
-        isDismissible: false,
-        enableDrag: false,
-        showCloseButton: false,
-        contentWidgets: [
-          Text(
-            description,
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _ApprovalDetailsBox(text: displayText),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      resolve(approved: true);
-                    },
-                    icon: const Icon(
-                      CupertinoIcons.check_mark_circled,
-                      size: 18,
-                    ),
-                    label: const Text('Approve'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      resolve(approved: false);
-                    },
-                    icon: const Icon(CupertinoIcons.xmark_circle, size: 18),
-                    label: const Text('Deny'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: BorderSide(
-                        color: Colors.red.withValues(alpha: 0.45),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (canAddToSession) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  resolve(approved: true, addToSession: true);
-                },
-                icon: const Icon(CupertinoIcons.plus_circle, size: 18),
-                label: const Text('Approve + Add to Session'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
-                  side: BorderSide(color: theme.colorScheme.outline),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      );
-    } finally {
-      _isCommandApprovalDialogOpen = false;
-      // If there are other queued approvals, show the next one.
-      _showNextPendingApprovalDialog();
-    }
-  }
-
-  bool _isDestructiveShellCommand(String command) {
-    final normalized = command.trim().toLowerCase();
-    if (normalized.isEmpty) return false;
-    return RegExp(r'(^|[;&|]+\s*)rm\b').hasMatch(normalized);
-  }
-
-  Future<Map<String, dynamic>> _resolveCommandApproval({
-    required ToolCall sourceToolCall,
-    required Map<String, dynamic> request,
-    required bool approved,
-    bool addToSession = false,
-  }) async {
-    if (request['kind'] == 'local_github_branch_delete') {
-      return _resolveLocalGithubBranchDeleteApproval(
-        sourceToolCall: sourceToolCall,
-        request: request,
-        approved: approved,
-      );
-    }
-    if (request['kind'] == 'local_tool') {
-      return _resolveLocalToolApproval(
-        sourceToolCall: sourceToolCall,
-        request: request,
-        approved: approved,
-      );
-    }
-
-    final command = request['command']?.toString() ?? '';
-    final workingDirectory = request['working_directory']?.toString();
-
-    if (!approved) {
-      await _handleCommandApprovalResolved(sourceToolCall, {
-        'approval_required': true,
-        'approval_request': request,
-        'approval_decision': 'denied',
-        'content': 'User denied this command.',
-      });
-      return {'ok': true};
-    }
-    await _handleCommandApprovalResolved(sourceToolCall, {
-      'approval_required': true,
-      'approval_request': request,
-      'approval_decision': 'approved',
-      'added_to_session': false,
-      'command_result': {
-        'success': false,
-        'command': command,
-        'working_directory': workingDirectory,
-        'error': 'Remote commands are no longer available.',
-      },
-      'content': 'Remote commands are no longer available.',
-    });
-    return {'ok': true};
-  }
-
-  Future<Map<String, dynamic>> _resolveLocalToolApproval({
-    required ToolCall sourceToolCall,
-    required Map<String, dynamic> request,
-    required bool approved,
-  }) async {
-    final tool = request['tool']?.toString() ?? '';
-    final args = request['arguments'] is Map
-        ? Map<String, dynamic>.from(request['arguments'] as Map)
-        : <String, dynamic>{};
-
-    if (!approved) {
-      await _handleCommandApprovalResolved(sourceToolCall, {
-        'approval_required': true,
-        'approval_request': request,
-        'approval_decision': 'denied',
-        'content': 'User denied this operation.',
-      });
-      return {'ok': true};
-    }
-
-    await _updateToolCallResultInTimeline(sourceToolCall, {
-      'approval_required': true,
-      'approval_request': request,
-      'approval_decision': 'approved',
-      'content': 'Running approved operation ...',
-    }, markComplete: false);
-
-    late final Map<String, dynamic> result;
-    try {
-      switch (tool) {
-        case 'memory_delete':
-          final id = args['id']?.toString() ?? '';
-          final deleted = await MemoryService.instance.delete(id);
-          result = {'ok': deleted, 'id': id};
-        case 'finance_delete':
-          final singleId = args['id']?.toString().trim() ?? '';
-          final rawIds = args['ids'];
-          final ids = singleId.isNotEmpty
-              ? [singleId]
-              : (rawIds is List ? rawIds : [])
-                    .map((e) => e.toString().trim())
-                    .where((e) => e.isNotEmpty)
-                    .toList();
-          if (ids.length == 1) {
-            final deleted = await FinanceService.instance.delete(ids.first);
-            result = {'ok': deleted, 'id': ids.first};
-          } else {
-            final removed = await FinanceService.instance.deleteMany(ids);
-            result = {'ok': true, 'removed': removed, 'requested': ids.length};
-          }
-        default:
-          if (request['approval_scope'] == 'tool_manager') {
-            result = await _provider.executeApprovedTool(tool, args);
-          } else {
-            result = {
-              'ok': false,
-              'error': 'No approval resolver is registered for $tool.',
-            };
-          }
-      }
-    } catch (e) {
-      result = {'ok': false, 'error': e.toString()};
-    }
-
-    await _handleCommandApprovalResolved(sourceToolCall, {
-      'approval_required': true,
-      'approval_request': request,
-      'approval_decision': 'approved',
-      'command_result': result,
-      'content':
-          result['error']?.toString() ??
-          (result['ok'] == true
-              ? 'Approved operation completed.'
-              : 'Operation was not completed.'),
-    });
-    return {'ok': true};
-  }
-
-  Future<Map<String, dynamic>> _resolveLocalGithubBranchDeleteApproval({
-    required ToolCall sourceToolCall,
-    required Map<String, dynamic> request,
-    required bool approved,
-  }) async {
-    if (!approved) {
-      await _handleCommandApprovalResolved(sourceToolCall, {
-        'approval_required': true,
-        'approval_request': request,
-        'approval_decision': 'denied',
-        'content': 'User denied this branch delete operation.',
-      });
-      return {'ok': true};
-    }
-
-    await _updateToolCallResultInTimeline(sourceToolCall, {
-      'approval_required': true,
-      'approval_request': request,
-      'approval_decision': 'approved',
-      'content': 'Deleting branch...',
-    }, markComplete: false);
-
-    final repoPath = request['repo_path']?.toString() ?? '';
-    final branch = request['branch']?.toString() ?? '';
-    late final Map<String, dynamic> result;
-    try {
-      result = await LocalGithubService.instance.deleteRemoteBranch(
-        repoPath,
-        branch,
-      );
-    } catch (e) {
-      result = {'success': false, 'error': 'Delete branch failed: $e'};
-    }
-    await _handleCommandApprovalResolved(sourceToolCall, {
-      'approval_required': true,
-      'approval_request': request,
-      'approval_decision': 'approved',
-      'command_result': result,
-      'content':
-          result['message']?.toString() ??
-          result['error']?.toString() ??
-          'Branch delete approval resolved.',
-    });
-    return {'ok': true};
   }
 
   void _startStreamingDurationTimer(DateTime startedAt) {
@@ -2094,8 +1292,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   chunk.isToolCallComplete ||
                   (chunk.toolCall != null &&
                       (chunk.toolCall!.status == ToolCallStatus.calling ||
-                          chunk.toolCall!.status ==
-                              ToolCallStatus.awaitingApproval ||
                           chunk.toolCall!.status == ToolCallStatus.completed ||
                           chunk.toolCall!.status == ToolCallStatus.failed));
 
@@ -2113,17 +1309,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 // ValueListenableBuilder on _streamingBubble rebuilds only
                 // the active streaming bubble, not the whole screen.
                 _replaceTimelineMessageAt(aiTimelineIndex!, checkpointMessage);
-                // Tool-state transitions (approval, complete, failed, etc.) must
-                // reach the UI immediately. Regular text/thinking chunks are
-                // throttled: buffered here and flushed by the timer at most
-                // every 100 ms, capping markdown re-parses to ~10/s.
+                // Tool-state transitions must reach the UI immediately.
+                // Regular text/thinking chunks are throttled: buffered here
+                // and flushed by the timer at most every 100 ms, capping
+                // markdown re-parses to ~10/s.
                 final isImmediateEvent =
                     chunk.isThinkingComplete ||
                     chunk.isToolCallComplete ||
                     (chunk.toolCall != null &&
                         (chunk.toolCall!.status == ToolCallStatus.calling ||
-                            chunk.toolCall!.status ==
-                                ToolCallStatus.awaitingApproval ||
                             chunk.toolCall!.status ==
                                 ToolCallStatus.completed ||
                             chunk.toolCall!.status == ToolCallStatus.failed));
@@ -2144,65 +1338,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                       }
                     },
                   );
-                }
-                // Runs in the streaming callback (background-safe) — send
-                // approval notification the moment awaitingApproval is first
-                // detected, before any frame is rendered.
-                if (chunk.toolCall?.status == ToolCallStatus.awaitingApproval) {
-                  final tcId = chunk.toolCall!.id;
-                  if (_sentApprovalNotificationIds.add(tcId)) {
-                    final toolCall = chunk.toolCall!;
-                    final args = toolCall.arguments ?? {};
-                    final command =
-                        args['command']?.toString() ??
-                        args['to']?.toString() ??
-                        args['file_path']?.toString() ??
-                        args['url']?.toString() ??
-                        toolCall.name ??
-                        'unknown command';
-                    final riskLevel =
-                        args['command']?.toString().contains('rm') == true ||
-                            args['command']?.toString().contains('sudo') == true
-                        ? 'destructive'
-                        : 'caution';
-                    final affectedPaths = <String>[];
-                    if (args['file_path'] != null) {
-                      affectedPaths.add(args['file_path'].toString());
-                    }
-                    if (args['path'] != null) {
-                      affectedPaths.add(args['path'].toString());
-                    }
-                    // Extract the actual approval request ID and kind from the tool call result.
-                    String? approvalRequestId;
-                    String? kind;
-                    final decodedResult = _decodeToolResult(toolCall.result);
-                    if (decodedResult is Map) {
-                      final request = decodedResult['approval_request'];
-                      if (request is Map) {
-                        approvalRequestId = request['id']?.toString();
-                        kind = request['kind']?.toString();
-                      }
-                    }
-                    final payload = ApprovalNotificationPayload(
-                      requestId: tcId,
-                      toolName: toolCall.name ?? 'unknown',
-                      command: command,
-                      arguments: Map<String, dynamic>.from(args),
-                      riskLevel: riskLevel,
-                      affectedPaths: affectedPaths,
-                      sessionId: _activeSession?.id,
-                      timestamp: DateTime.now(),
-                      chatId: _activeSession?.id,
-                      approvalRequestId: approvalRequestId,
-                      kind: kind,
-                    );
-                    unawaited(
-                      NotificationService.instance.showApprovalNotification(
-                        payload,
-                        appInBackground: _isAppInBackground,
-                      ),
-                    );
-                  }
                 }
                 if (activeAssistantEntryId != null &&
                     (chunk.isToolCallComplete ||
@@ -2352,7 +1487,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       final willAutoContinueToolTurn =
           mounted &&
           automaticToolContinuationDepth < _maxAutomaticToolContinuations &&
-          !_hasPendingCommandApproval(messageBlocks) &&
           _shouldAutoContinueAfterToolBlocks(messageBlocks);
       final postToolFallback = willAutoContinueToolTurn
           ? null
@@ -2371,8 +1505,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         responseTime: Duration(milliseconds: responseTimeMs),
         responseMetadata: responseMetadata.isEmpty ? null : responseMetadata,
       );
-      final hasPendingApproval = _hasPendingCommandApproval(messageBlocks);
-
       // Stop the throttle timer so no buffered chunk overwrites the final
       // message after we push it below.
       _stopStreamingThrottleTimer();
@@ -2382,7 +1514,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _streamingBubble.value = finalAssistantMessage;
       setState(() {
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
-        if (!hasPendingApproval && !willAutoContinueToolTurn) {
+        if (!willAutoContinueToolTurn) {
           _isStreaming = false;
           _streamingMessageIndex = null;
         }
@@ -2394,7 +1526,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _streamingBubble.value = null;
       });
-      if (!hasPendingApproval && !willAutoContinueToolTurn) {
+      if (!willAutoContinueToolTurn) {
         if (_turnWallClockStart != null) {
           _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
             _turnWallClockStart!,
@@ -2413,7 +1545,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             chatId: _activeSession?.id ?? '',
             modelUsed: _selectedModel.isNotEmpty ? _selectedModel : null,
             toolCallCount: toolCallCount,
-            status: hasPendingApproval ? 'pending' : 'success',
+            status: 'success',
             summary: summary,
             timestamp: DateTime.now(),
             hasError: false,
@@ -2608,9 +1740,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         responseMetadata: responseMetadata.isEmpty ? null : responseMetadata,
       );
 
-      final streamingEndsNow =
-          !shouldSilentlyContinueAfterToolError &&
-          !_hasPendingCommandApproval(_getMessageBlocks(finalAssistantMessage));
+      final streamingEndsNow = !shouldSilentlyContinueAfterToolError;
       if (streamingEndsNow) {
         _stopStreamingThrottleTimer();
         _streamingBubble.value = finalAssistantMessage;
@@ -2642,10 +1772,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           if (mounted) _streamingBubble.value = null;
         });
       }
-      if (!shouldSilentlyContinueAfterToolError &&
-          !_hasPendingCommandApproval(
-            _getMessageBlocks(finalAssistantMessage),
-          )) {
+      if (!shouldSilentlyContinueAfterToolError) {
         if (aiMessageIndex != null && _turnWallClockStart != null) {
           _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
             _turnWallClockStart!,
@@ -3108,12 +2235,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  bool _hasPendingCommandApproval(List<ChatMessageBlock> blocks) {
+  bool _hasOpenToolCall(List<ChatMessageBlock> blocks) {
     return blocks.any(
       (block) =>
           block.type == ChatMessageBlockType.toolCall &&
-          block.toolCall != null &&
-          !block.toolCall!.isComplete,
+          !(block.toolCall?.isComplete ?? block.isComplete),
     );
   }
 
@@ -3209,138 +2335,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Future<void> _updateToolCallResultInTimeline(
-    ToolCall sourceToolCall,
-    Map<String, dynamic> result, {
-    required bool markComplete,
-  }) async {
-    final sourceId = sourceToolCall.id;
-    if (sourceId == null || sourceId.isEmpty) return;
-
-    for (
-      var timelineIndex = _timelineItems.length - 1;
-      timelineIndex >= 0;
-      timelineIndex--
-    ) {
-      final item = _timelineItems[timelineIndex];
-      if (item is! _TimelineMessageItem) continue;
-
-      final blocks = _cloneBlocks(_getMessageBlocks(item.message));
-      final blockIndex = blocks.indexWhere(
-        (block) =>
-            block.type == ChatMessageBlockType.toolCall &&
-            block.toolCall?.id == sourceId,
-      );
-      if (blockIndex < 0) continue;
-
-      final currentBlock = blocks[blockIndex];
-      final currentTool = currentBlock.toolCall;
-      if (currentTool == null) return;
-
-      final commandResult = result['command_result'];
-      final success = result['approval_decision'] == 'denied'
-          ? false
-          : commandResult is Map
-          ? commandResult['success'] == true ||
-                commandResult['ok'] == true ||
-                (commandResult['success'] != false &&
-                    commandResult['error'] == null)
-          : true;
-      final updatedTool = currentTool.copyWith(
-        result: _formatToolResult(result),
-        status: markComplete
-            ? (success ? ToolCallStatus.completed : ToolCallStatus.failed)
-            : result['approval_decision'] == 'approved'
-            ? ToolCallStatus.calling
-            : currentTool.status,
-        isComplete: markComplete,
-      );
-      blocks[blockIndex] = currentBlock.copyWith(
-        toolCall: updatedTool,
-        isComplete: markComplete,
-      );
-      final updatedMessage = item.message.copyWith(
-        blocks: blocks,
-        toolCalls: _toolCallsFromBlocks(blocks),
-        isToolCallsComplete: !blocks.any(
-          (block) =>
-              block.type == ChatMessageBlockType.toolCall &&
-              !(block.toolCall?.isComplete ?? block.isComplete),
-        ),
-      );
-
-      setState(() {
-        _replaceTimelineMessageAt(timelineIndex, updatedMessage);
-      });
-
-      if (item.entryId != null) {
-        await _chatSessions.updateMessageEntry(
-          entryId: item.entryId!,
-          message: updatedMessage,
-        );
-      }
-      return;
-    }
-  }
-
-  Future<void> _handleCommandApprovalResolved(
-    ToolCall sourceToolCall,
-    Map<String, dynamic> result,
-  ) async {
-    await _updateToolCallResultInTimeline(
-      sourceToolCall,
-      result,
-      markComplete: true,
-    );
-    final sourceId = sourceToolCall.id;
-    if (sourceId == null || sourceId.isEmpty) return;
-
-    _recordApprovalResolutionInProviderHistory(
-      toolCallId: sourceId,
-      result: result,
-    );
-
-    // Check if there are still other pending approvals in the last assistant
-    // message. If so, wait until ALL are resolved before resuming.
-    final lastAssistantMessage = _messages.isNotEmpty
-        ? _messages.lastWhere(
-            (m) => !m.isUser,
-            orElse: () =>
-                ChatMessage(text: '', isUser: false, timestamp: DateTime.now()),
-          )
-        : null;
-    final hasOtherPendingApprovals =
-        lastAssistantMessage != null &&
-        _hasPendingCommandApproval(_getMessageBlocks(lastAssistantMessage));
-
-    if (mounted && !hasOtherPendingApprovals) {
-      unawaited(
-        _resumeAfterCommandApproval(
-          wasApproved: result['approval_decision'] == 'approved',
-        ),
-      );
-    }
-  }
-
-  void _recordApprovalResolutionInProviderHistory({
-    required String toolCallId,
-    required Map<String, dynamic> result,
-  }) {
-    final nextState = _provider.exportConversationState();
-    final commandResult = result['command_result'];
-    final toolContent = _formatToolResult(
-      commandResult is Map ? commandResult : result,
-    );
-    for (var i = nextState.length - 1; i >= 0; i--) {
-      final item = nextState[i];
-      if (item['role'] == 'tool' && item['tool_call_id'] == toolCallId) {
-        item['content'] = toolContent ?? '';
-        break;
-      }
-    }
-    _provider.loadConversationState(nextState);
-  }
-
   /// Process pending notification actions that arrived while the app was in
   /// the background or another screen.
   void _processPendingNotificationActions() {
@@ -3353,106 +2347,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       final payloadType = NotificationService.instance.parsePayloadType(
         payload,
       );
-      if (payloadType == NotificationPayloadType.approval) {
-        final approvalPayload = NotificationService.instance
-            .parseApprovalPayload(payload);
-        if (approvalPayload == null) continue;
-        _resolveApprovalNotificationAction(
-          actionId: actionId,
-          payload: approvalPayload,
-        );
-      } else if (actionId == NotificationActions.openApp ||
+      if (payloadType == NotificationPayloadType.responseReady ||
+          actionId == NotificationActions.openApp ||
           actionId == NotificationActions.dismiss) {
         // Nothing to do; opening the app already navigates here.
       }
     }
-  }
-
-  /// Resolve an approval that was triggered from a notification action.
-  void _resolveApprovalNotificationAction({
-    required String actionId,
-    required ApprovalNotificationPayload payload,
-  }) {
-    if (actionId != NotificationActions.approve &&
-        actionId != NotificationActions.deny) {
-      return;
-    }
-    final approved = actionId == NotificationActions.approve;
-
-    // Find the most recent assistant message with a pending approval that
-    // matches the payload request ID.
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      final message = _messages[i];
-      if (message.isUser) continue;
-      final blocks = _getMessageBlocks(message);
-      for (final block in blocks) {
-        if (block.type != ChatMessageBlockType.toolCall) continue;
-        final toolCall = block.toolCall;
-        if (toolCall == null ||
-            toolCall.status != ToolCallStatus.awaitingApproval) {
-          continue;
-        }
-        final decoded = _decodeToolResult(toolCall.result);
-        if (decoded is! Map) continue;
-        final request = decoded['approval_request'];
-        if (request is! Map) continue;
-        final requestId = request['id']?.toString() ?? '';
-        if (requestId.isEmpty) continue;
-        // Match using the actual approval request ID if available, otherwise fall back to tool call ID.
-        final matchId = payload.approvalRequestId ?? payload.requestId;
-        if (requestId != matchId) continue;
-
-        unawaited(
-          _resolveApprovalFromToolCall(
-            toolCall: toolCall,
-            request: Map<String, dynamic>.from(request),
-            approved: approved,
-          ),
-        );
-        return;
-      }
-    }
-  }
-
-  /// Resolve an approval given the source tool call and its decoded request.
-  Future<void> _resolveApprovalFromToolCall({
-    required ToolCall toolCall,
-    required Map<String, dynamic> request,
-    required bool approved,
-  }) async {
-    final kind = request['kind']?.toString() ?? '';
-    if (kind == 'local_github_branch_delete') {
-      await _resolveLocalGithubBranchDeleteApproval(
-        sourceToolCall: toolCall,
-        request: request,
-        approved: approved,
-      );
-    } else if (kind == 'local_tool') {
-      await _resolveLocalToolApproval(
-        sourceToolCall: toolCall,
-        request: request,
-        approved: approved,
-      );
-    } else {
-      await _resolveCommandApproval(
-        sourceToolCall: toolCall,
-        request: request,
-        approved: approved,
-      );
-    }
-  }
-
-  Future<void> _resumeAfterCommandApproval({bool wasApproved = true}) async {
-    if (_isContextLimitBlocked || _wouldExceedContextLimit || !_isModelReady) {
-      return;
-    }
-    _messageController.text = wasApproved
-        ? 'Continue after the approved command. Analyze the command result and answer my original request concisely.'
-        : 'The user denied the command. Please respond to the user explaining what the command was for and suggest alternative approaches or ask for clarification.';
-    _messageController.selection = TextSelection.collapsed(
-      offset: _messageController.text.length,
-    );
-    await _sendMessage(appendUserMessage: false, preserveTurnWallClock: true);
   }
 
   String _responseTextFromBlocks(List<ChatMessageBlock> blocks) {
@@ -3738,7 +2638,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     Object error,
     List<ChatMessageBlock> blocks,
   ) {
-    if (blocks.isEmpty || _hasPendingCommandApproval(blocks)) {
+    if (blocks.isEmpty || _hasOpenToolCall(blocks)) {
       return false;
     }
 
@@ -4235,21 +3135,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  String get _workspaceDisplayName {
-    if (_workspaceLabel != null && _workspaceLabel!.isNotEmpty) {
-      return _workspaceLabel!;
-    }
-    final root = _workspaceRoot;
-    if (root == null || root.isEmpty) {
-      return '';
-    }
-    return _folderNameFromPath(root);
-  }
-
-  String _folderNameFromPath(String path) {
-    return path.split(RegExp(r'[\\/]')).where((part) => part.isNotEmpty).last;
-  }
-
   Widget _buildTimelineItem(_TimelineViewItem item) {
     switch (item) {
       case _TimelineMessageItem():
@@ -4618,7 +3503,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (isFollowedByAssistant) {
         return const SizedBox.shrink();
       }
-      _hasPendingCommandApproval(_getMessageBlocks(message));
       _shouldShowRetryContinue(message, resolvedMessageIndex);
       _shareableAssistantText(message, resolvedMessageIndex);
       _cacheUsageLabel(message.responseMetadata);
@@ -4717,7 +3601,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   bool _shouldAutoContinueAfterToolBlocks(List<ChatMessageBlock> blocks) {
-    if (blocks.isEmpty || _hasPendingCommandApproval(blocks)) {
+    if (blocks.isEmpty || _hasOpenToolCall(blocks)) {
       return false;
     }
 
@@ -5088,9 +3972,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           }
 
           Widget buildToolSection(ToolCall toolCall) {
-            if (toolCall.status == ToolCallStatus.awaitingApproval) {
-              _scheduleCommandApprovalDialog(toolCall);
-            }
             final toolSection = AgenticToolCallSection(
               key: ValueKey('tool_${toolCall.id}'),
               toolCall: toolCall,
@@ -5098,7 +3979,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               isInProgress: !toolCall.isComplete,
               markdownNormalizer: _prepareMarkdownForDisplay,
               onLinkTap: _handleMarkdownLinkTap,
-              onCommandApprovalResolved: _handleCommandApprovalResolved,
               linkBuilder: (context, linkText, url, style) =>
                   _buildStyledMarkdownLink(
                     context,
@@ -5145,13 +4025,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       (entry) => entry.type == ChatMessageBlockType.thinking,
     );
     if (hasVisibleToolCalls || hasVisibleThinking) {
-      // Schedule approval dialogs
-      for (final entry in mergedEntries) {
-        if (entry.toolCall?.status == ToolCallStatus.awaitingApproval) {
-          _scheduleCommandApprovalDialog(entry.toolCall!);
-        }
-      }
-
       // Show all entries inline (thinking + tool calls + response)
       children.add(buildEntries(mergedEntries, responseAsProcess: false));
     } else {
@@ -5196,7 +4069,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               isInProgress: !toolCall.isComplete,
               markdownNormalizer: _prepareMarkdownForDisplay,
               onLinkTap: _handleMarkdownLinkTap,
-              onCommandApprovalResolved: _handleCommandApprovalResolved,
               linkBuilder: (context, linkText, url, style) =>
                   _buildStyledMarkdownLink(
                     context,
@@ -5590,12 +4462,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Future<void> _showMarkdownTokenActions(String token) async {
     final theme = Theme.of(context);
-    final fileCandidate = _looksLikeWorkspacePath(token);
     await ResponsiveInfoSheet.show<void>(
       context,
       title: token,
       headerIcon: Icon(
-        fileCandidate ? CupertinoIcons.doc_text_search : CupertinoIcons.scope,
+        CupertinoIcons.scope,
         color: AppTheme.readableOn(theme.colorScheme.primary),
       ),
       gradientColors: [
@@ -5603,16 +4474,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         theme.colorScheme.primary.withValues(alpha: 0.78),
       ],
       contentWidgets: [
-        if (_hasWorkspaceForMarkdownActions && fileCandidate)
-          if (_hasWorkspaceForMarkdownActions)
-            _MarkdownActionTile(
-              icon: CupertinoIcons.search,
-              title: 'Find Definition And Uses',
-              subtitle: _workspaceDisplayName,
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
         _MarkdownActionTile(
           icon: CupertinoIcons.doc_on_doc,
           title: 'Copy',
@@ -5627,22 +4488,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             );
           },
         ),
-        if (!_hasWorkspaceForMarkdownActions)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Text(
-              'Connect a workspace to search definitions and usages.',
-              style: AppTheme.bodySmall.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
       ],
     );
   }
-
-  bool get _hasWorkspaceForMarkdownActions =>
-      (_workspaceRoot ?? '').trim().isNotEmpty;
 
   String _cleanMarkdownActionToken(String token) {
     var value = token.trim();
@@ -5667,15 +4515,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       value = value.substring(0, value.length - 1);
     }
     return value.trim();
-  }
-
-  bool _looksLikeWorkspacePath(String token) {
-    final clean = _cleanMarkdownActionToken(token);
-    if (clean.contains('/') || clean.contains('\\')) return true;
-    return RegExp(
-      r'\.(dart|py|js|ts|tsx|jsx|java|kt|swift|go|rs|json|ya?ml|md|txt|html|css|scss|xml|sql|sh)$',
-      caseSensitive: false,
-    ).hasMatch(clean);
   }
 
   String? _cacheUsageLabel(Map<String, dynamic>? metadata) {
@@ -5987,10 +4826,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     return false;
-  }
-
-  bool get _hasActiveWorkspaceContext {
-    return _visibleConnectedWorkspaces.isNotEmpty;
   }
 
   Widget _buildLoadingMessage() {

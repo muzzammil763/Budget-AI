@@ -13,8 +13,6 @@ import 'package:budget_ai/features/chat/presentation/widgets/streaming_text_reve
 import 'package:budget_ai/core/widgets/themed_code_block.dart';
 
 typedef MarkdownLinkTap = Future<void> Function(String url, String title);
-typedef CommandApprovalResolved =
-    Future<void> Function(ToolCall toolCall, Map<String, dynamic> result);
 
 class AgenticActivitySection extends StatefulWidget {
   final String durationLabel;
@@ -199,8 +197,6 @@ class AgenticToolCallSection extends StatelessWidget {
   final String Function(String text)? markdownNormalizer;
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
-  final CommandApprovalResolved? onCommandApprovalResolved;
-  final bool approvalOnly;
 
   const AgenticToolCallSection({
     super.key,
@@ -210,8 +206,6 @@ class AgenticToolCallSection extends StatelessWidget {
     this.markdownNormalizer,
     this.onLinkTap,
     this.linkBuilder,
-    this.onCommandApprovalResolved,
-    this.approvalOnly = false,
   });
 
   @override
@@ -223,8 +217,6 @@ class AgenticToolCallSection extends StatelessWidget {
       markdownNormalizer: markdownNormalizer,
       onLinkTap: onLinkTap,
       linkBuilder: linkBuilder,
-      onCommandApprovalResolved: onCommandApprovalResolved,
-      approvalOnly: approvalOnly,
     );
   }
 }
@@ -236,8 +228,6 @@ class AgenticToolCallGroupSection extends StatefulWidget {
   final String Function(String text)? markdownNormalizer;
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
-  final CommandApprovalResolved? onCommandApprovalResolved;
-  final bool approvalOnly;
 
   const AgenticToolCallGroupSection({
     super.key,
@@ -247,8 +237,6 @@ class AgenticToolCallGroupSection extends StatefulWidget {
     this.markdownNormalizer,
     this.onLinkTap,
     this.linkBuilder,
-    this.onCommandApprovalResolved,
-    this.approvalOnly = false,
   });
 
   @override
@@ -358,8 +346,6 @@ class _AgenticToolCallGroupSectionState
                       markdownNormalizer: widget.markdownNormalizer,
                       onLinkTap: widget.onLinkTap,
                       linkBuilder: widget.linkBuilder,
-                      onCommandApprovalResolved:
-                          widget.onCommandApprovalResolved,
                     ),
               ],
             ),
@@ -986,8 +972,6 @@ class _SingleToolCallSection extends StatefulWidget {
   final String Function(String text)? markdownNormalizer;
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
-  final CommandApprovalResolved? onCommandApprovalResolved;
-  final bool approvalOnly;
 
   const _SingleToolCallSection({
     required this.toolCall,
@@ -996,8 +980,6 @@ class _SingleToolCallSection extends StatefulWidget {
     this.markdownNormalizer,
     this.onLinkTap,
     this.linkBuilder,
-    this.onCommandApprovalResolved,
-    this.approvalOnly = false,
   });
 
   @override
@@ -1006,14 +988,6 @@ class _SingleToolCallSection extends StatefulWidget {
 
 class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   bool _isExpanded = false;
-
-  bool get _isAwaitingApproval =>
-      widget.toolCall.status == ToolCallStatus.awaitingApproval;
-
-  bool get _isWorkspaceMutationTool {
-    final name = widget.toolCall.name.trim().toLowerCase();
-    return name == 'write' || name == 'edit';
-  }
 
   @override
   void initState() {
@@ -1024,8 +998,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   @override
   void didUpdateWidget(covariant _SingleToolCallSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Approval state is reflected by the row icon/status. Keep expansion under
-    // direct user control so approval sheets do not reshape the timeline.
   }
 
   @override
@@ -1033,13 +1005,9 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     final theme = Theme.of(context);
     final isSuccess = widget.toolCall.status == ToolCallStatus.completed;
     final isFailed = widget.toolCall.status == ToolCallStatus.failed;
-    final isAwaitingApproval = _isAwaitingApproval;
-    final isRunning = widget.isInProgress && !isAwaitingApproval;
+    final isRunning = widget.isInProgress;
     final shouldRenderResult = _shouldRenderInlineResult();
     final shouldRenderArguments = _shouldRenderArguments();
-    if (widget.approvalOnly) {
-      return _buildToolResultContent(context);
-    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1066,8 +1034,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                         ? CupertinoIcons.check_mark_circled
                         : isFailed
                         ? CupertinoIcons.xmark_circle
-                        : isAwaitingApproval
-                        ? Icons.pending_outlined
                         : isRunning
                         ? Icons.pending_outlined
                         : CupertinoIcons.info_circle,
@@ -1076,8 +1042,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                         ? Colors.green
                         : isFailed
                         ? Colors.red
-                        : isAwaitingApproval
-                        ? Colors.orange
                         : isRunning
                         ? widget.themeColor
                         : widget.themeColor,
@@ -1093,7 +1057,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                     ),
                   ),
 
-                  if (widget.isInProgress && !isAwaitingApproval) ...[
+                  if (widget.isInProgress) ...[
                     SizedBox(
                       width: 12,
                       height: 12,
@@ -1158,22 +1122,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   Widget _buildToolResultContent(BuildContext context) {
     final parsedResult = _tryDecodeJson(widget.toolCall.result);
     if (parsedResult is Map<String, dynamic>) {
-      if (parsedResult['approval_required'] == true &&
-          parsedResult['approval_request'] is Map) {
-        final hasDecision =
-            parsedResult['approval_decision'] == 'approved' ||
-            parsedResult['approval_decision'] == 'denied';
-        if (!widget.approvalOnly && !hasDecision) {
-          return const SizedBox.shrink();
-        }
-        if (widget.approvalOnly && hasDecision) {
-          return const SizedBox.shrink();
-        }
-        return _buildApprovalRequiredResult(context, parsedResult);
-      }
-      if (parsedResult['status'] == 'awaiting_preflight_approval') {
-        return _buildAgentPreflightApproval(context, parsedResult);
-      }
       return _buildStructuredResult(context, parsedResult);
     }
 
@@ -1195,16 +1143,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
 
   bool _shouldRenderInlineResult() {
     if (widget.toolCall.result == null) return false;
-    if (widget.approvalOnly) return true;
-
-    final parsedResult = _tryDecodeJson(widget.toolCall.result);
-    if (parsedResult is Map<String, dynamic> &&
-        parsedResult['approval_required'] == true &&
-        parsedResult['approval_request'] is Map) {
-      final decision = parsedResult['approval_decision']?.toString();
-      return decision == 'approved' || decision == 'denied';
-    }
-
     return true;
   }
 
@@ -1215,121 +1153,11 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
 
   Widget _buildToolArgumentsContent(BuildContext context) {
     final arguments = _displayArguments(widget.toolCall.arguments);
-    final content = arguments['content'];
-    final newText = arguments['new_text'];
-    final oldText = arguments['old_text'];
-    final contextText = arguments['context_text'];
-    final anchorText = arguments['anchor_text'];
-    final edits = arguments['edits'];
     final rawArguments = widget.toolCall.rawArguments;
-    final hasWritableContent = content is String && content.isNotEmpty;
-    final hasNewText = newText is String && newText.isNotEmpty;
-    final hasOldText = oldText is String && oldText.isNotEmpty;
-    final hasContextText = contextText is String && contextText.isNotEmpty;
-    final hasAnchorText = anchorText is String && anchorText.isNotEmpty;
-    final hasStructuredEdits = edits is List && edits.isNotEmpty;
-
-    if (_isWorkspaceMutationTool &&
-        (hasWritableContent ||
-            hasNewText ||
-            hasOldText ||
-            hasContextText ||
-            hasAnchorText ||
-            hasStructuredEdits)) {
-      final metadata = Map<String, dynamic>.from(arguments)
-        ..remove('content')
-        ..remove('new_text')
-        ..remove('old_text')
-        ..remove('context_text')
-        ..remove('anchor_text')
-        ..remove('edits');
-      final children = <Widget>[];
-
-      if (metadata.isNotEmpty) {
-        children.add(
-          _buildJsonCodeBlock(
-            context,
-            metadata,
-            title: 'Arguments',
-            fontSize: 12,
-          ),
-        );
-      }
-
-      if (hasWritableContent) {
-        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-        children.add(
-          _buildCodeTextBlock(
-            context,
-            title: 'Content Being Written',
-            text: _capIfCalling(content),
-          ),
-        );
-      }
-
-      if (hasOldText) {
-        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-        children.add(
-          _buildCodeTextBlock(
-            context,
-            title: 'Text Being Replaced',
-            text: _capIfCalling(oldText),
-          ),
-        );
-      }
-
-      if (hasNewText) {
-        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-        children.add(
-          _buildCodeTextBlock(
-            context,
-            title: 'Text Being Written',
-            text: _capIfCalling(newText),
-          ),
-        );
-      }
-
-      if (hasContextText) {
-        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-        children.add(
-          _buildCodeTextBlock(context, title: 'Context', text: contextText),
-        );
-      }
-
-      if (hasAnchorText) {
-        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-        children.add(
-          _buildCodeTextBlock(context, title: 'Anchor Text', text: anchorText),
-        );
-      }
-
-      if (hasStructuredEdits) {
-        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-        children.add(_buildEditOperationsBlock(context, edits));
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      );
-    }
 
     if (arguments.isEmpty &&
         rawArguments != null &&
         _hasNonEmptyRawArguments(rawArguments)) {
-      final partialContent = _partialStringValueFromJsonArguments(
-        rawArguments,
-        'content',
-      );
-      if (_isWorkspaceMutationTool &&
-          partialContent != null &&
-          partialContent.isNotEmpty) {
-        return _buildCodeTextBlock(
-          context,
-          title: 'Content Being Written',
-          text: _capIfCalling(partialContent),
-        );
-      }
       return _buildStreamingArgumentsText(context, _capIfCalling(rawArguments));
     }
 
@@ -1440,42 +1268,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     return 30000;
   }
 
-  String? _partialStringValueFromJsonArguments(String raw, String key) {
-    final keyPattern = RegExp('"${RegExp.escape(key)}"\\s*:\\s*"');
-    final match = keyPattern.firstMatch(raw);
-    if (match == null) return null;
-
-    final buffer = StringBuffer();
-    var escaped = false;
-    for (var index = match.end; index < raw.length; index++) {
-      final char = raw[index];
-      if (escaped) {
-        buffer.write(_decodeJsonEscapedChar(char));
-        escaped = false;
-        continue;
-      }
-      if (char == '\\') {
-        escaped = true;
-        continue;
-      }
-      if (char == '"') break;
-      buffer.write(char);
-    }
-    return buffer.toString();
-  }
-
-  String _decodeJsonEscapedChar(String char) {
-    return switch (char) {
-      'n' => '\n',
-      'r' => '\r',
-      't' => '\t',
-      '"' => '"',
-      '\\' => '\\',
-      '/' => '/',
-      _ => char,
-    };
-  }
-
   bool _looksLikeCodeOrStructuredText(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return false;
@@ -1492,17 +1284,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     BuildContext context,
     Map<String, dynamic> result,
   ) {
-    if ((result['tool'] == 'github_clone_repo' ||
-            result['tool'] == 'github_switch_branch' ||
-            result['tool'] == 'github_create_branch' ||
-            result['tool'] == 'github_commit_push' ||
-            ((result['tool'] == 'github_create_pull_request' ||
-                    result['tool'] == 'github_repo_status') &&
-                result['in_progress'] == true)) &&
-        (result['progress'] is num || result['total_files'] is num)) {
-      return _buildGithubCloneProgressResult(context, result);
-    }
-
     final normalizedResult = _normalizeStructuredResult(result);
     final content = normalizedResult['content'];
     final diff = result['diff'];
@@ -1542,312 +1323,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     );
   }
 
-  Widget _buildGithubCloneProgressResult(
-    BuildContext context,
-    Map<String, dynamic> result,
-  ) {
-    final theme = Theme.of(context);
-    final progress = ((result['progress'] as num?)?.toDouble() ?? 0).clamp(
-      0.0,
-      1.0,
-    );
-    final message = result['message']?.toString().trim();
-    final currentFile = result['current_file']?.toString().trim();
-    final path = result['path']?.toString().trim();
-    final downloadedFiles = (result['downloaded_files'] as num?)?.toInt();
-    final totalFiles = (result['total_files'] as num?)?.toInt();
-    final uploadedFiles = (result['uploaded_files'] as num?)?.toInt();
-    final totalChangedFiles = (result['total_changed_files'] as num?)?.toInt();
-    final downloadedBytes = (result['downloaded_bytes'] as num?)?.toInt();
-    final activeDownloads = (result['active_downloads'] as num?)?.toInt();
-    final maxConcurrency = (result['max_concurrency'] as num?)?.toInt();
-    final activeFiles = _cloneActiveFiles(result['current_files']);
-    final inProgress = result['in_progress'] == true;
-    final toolName = result['tool']?.toString() ?? '';
-    final defaultProgressMessage = switch (toolName) {
-      'github_commit_push' => 'Uploading changes ...',
-      'github_switch_branch' => 'Switching branch ...',
-      'github_create_branch' => 'Creating branch ...',
-      'github_create_pull_request' => 'Creating pull request ...',
-      'github_repo_status' => 'Checking repository status ...',
-      _ => 'Cloning repository ...',
-    };
-    final defaultDoneMessage = switch (toolName) {
-      'github_commit_push' => 'Commit pushed',
-      'github_switch_branch' => 'Branch switched',
-      'github_create_branch' => 'Branch ready',
-      'github_create_pull_request' => 'Pull request created',
-      'github_repo_status' => 'Repository status checked',
-      _ => 'Clone complete',
-    };
-
-    String fileCountLabel() {
-      if (uploadedFiles != null && totalChangedFiles != null) {
-        return '$uploadedFiles / $totalChangedFiles files uploaded';
-      }
-      if (downloadedFiles == null || totalFiles == null) return '';
-      return '$downloadedFiles / $totalFiles files';
-    }
-
-    if (!inProgress) {
-      final doneMessage = message?.isNotEmpty == true
-          ? message!
-          : defaultDoneMessage;
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.check_circle_rounded, size: 18, color: widget.themeColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  doneMessage,
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (path != null && path.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    path,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-                if (result['tree_truncated'] == true) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'GitHub marked this repository tree as truncated; very large repos may need a narrower checkout later.',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: Colors.orange,
-                      fontSize: 11,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    final rows = <Widget>[
-      TweenAnimationBuilder<double>(
-        tween: Tween<double>(end: progress),
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOutCubic,
-        builder: (context, animatedProgress, _) {
-          final visibleProgress = animatedProgress.clamp(0.0, progress);
-          final percentLabel = _formatCloneProgressPercent(visibleProgress);
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      message?.isNotEmpty == true
-                          ? message!
-                          : defaultProgressMessage,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    percentLabel,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(100),
-                child: LinearProgressIndicator(
-                  minHeight: 4,
-                  borderRadius: BorderRadius.circular(100),
-                  value: visibleProgress == 0 ? null : visibleProgress,
-                  backgroundColor: theme.dividerColor.withValues(alpha: 0.1),
-                  valueColor: AlwaysStoppedAnimation(widget.themeColor),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    ];
-
-    if (activeFiles.isNotEmpty) {
-      rows.add(const SizedBox(height: 10));
-      rows.add(_buildCloneActiveFileGrid(context, activeFiles));
-    }
-
-    final details = <String>[
-      fileCountLabel(),
-      if (downloadedBytes != null) _formatBytes(downloadedBytes),
-      if (activeDownloads != null &&
-          activeDownloads > 1 &&
-          maxConcurrency != null &&
-          maxConcurrency > 1)
-        '$activeDownloads active, concurrency $maxConcurrency',
-      if (currentFile != null && currentFile.isNotEmpty) currentFile,
-    ].where((item) => item.trim().isNotEmpty).toList();
-
-    if (details.isNotEmpty) {
-      rows.add(const SizedBox(height: 8));
-      rows.add(
-        Text(
-          details.join('  |  '),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 11,
-            height: 1.25,
-          ),
-        ),
-      );
-    }
-
-    if (result['tree_truncated'] == true) {
-      rows.add(const SizedBox(height: 6));
-      rows.add(
-        Text(
-          'GitHub marked this repository tree as truncated; very large repos may need a narrower checkout later.',
-          style: AppTheme.bodySmall.copyWith(
-            color: Colors.orange,
-            fontSize: 11,
-            height: 1.25,
-          ),
-        ),
-      );
-    }
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows);
-  }
-
-  List<Map<String, dynamic>> _cloneActiveFiles(dynamic raw) {
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .where((item) => (item['path']?.toString().trim() ?? '').isNotEmpty)
-        .take(12)
-        .toList();
-  }
-
-  Widget _buildCloneActiveFileGrid(
-    BuildContext context,
-    List<Map<String, dynamic>> activeFiles,
-  ) {
-    final rows = <Widget>[];
-    for (var index = 0; index < activeFiles.length; index += 2) {
-      final rowFiles = activeFiles.skip(index).take(2).toList();
-      rows.add(
-        Row(
-          children: [
-            Expanded(child: _buildCloneActiveFileTile(context, rowFiles[0])),
-            if (rowFiles.length == 2) ...[
-              const SizedBox(width: 8),
-              Expanded(child: _buildCloneActiveFileTile(context, rowFiles[1])),
-            ],
-          ],
-        ),
-      );
-      if (index + 2 < activeFiles.length) {
-        rows.add(const SizedBox(height: 8));
-      }
-    }
-    return Column(children: rows);
-  }
-
-  Widget _buildCloneActiveFileTile(
-    BuildContext context,
-    Map<String, dynamic> file,
-  ) {
-    final theme = Theme.of(context);
-    final filePath = file['path']?.toString().trim() ?? '';
-    final progress = ((file['progress'] as num?)?.toDouble() ?? 0).clamp(
-      0.0,
-      1.0,
-    );
-    final fileName = _basename(filePath);
-
-    return TweenAnimationBuilder<double>(
-      key: ValueKey('clone-active-file-$filePath'),
-      tween: Tween<double>(begin: 0, end: progress),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      builder: (context, animatedProgress, _) {
-        final visibleProgress = animatedProgress.clamp(0.0, progress);
-        return Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: theme.dividerColor.withValues(alpha: 0.14),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                fileName.isEmpty ? filePath : fileName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTheme.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(100),
-                child: LinearProgressIndicator(
-                  minHeight: 4,
-                  borderRadius: BorderRadius.circular(100),
-                  value: visibleProgress == 0 ? null : visibleProgress,
-                  backgroundColor: theme.dividerColor.withValues(alpha: 0.12),
-                  valueColor: AlwaysStoppedAnimation(widget.themeColor),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  String _formatCloneProgressPercent(double progress) {
-    final percent = (progress * 100).clamp(0.0, 100.0);
-    if (percent >= 99.995) return '100%';
-    return '${percent.toStringAsFixed(2)}%';
-  }
-
-  String _basename(String filePath) {
-    final normalized = filePath.replaceAll('\\', '/');
-    final index = normalized.lastIndexOf('/');
-    return index < 0 ? normalized : normalized.substring(index + 1);
-  }
-
   Map<String, dynamic> _normalizeStructuredResult(Map<String, dynamic> result) {
     final normalized = Map<String, dynamic>.from(result);
     final file = result['file'];
@@ -1879,265 +1354,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     }
 
     return normalized;
-  }
-
-  Widget _buildApprovalRequiredResult(
-    BuildContext context,
-    Map<String, dynamic> result,
-  ) {
-    final decision = result['approval_decision']?.toString();
-    final hasDecision = decision == 'approved' || decision == 'denied';
-    final commandResult = result['command_result'];
-    if (!hasDecision) {
-      return const SizedBox.shrink();
-    }
-
-    final responseText = (result['content'] ?? '').toString().trim();
-    final commandOutput = commandResult is Map
-        ? _commandResultOutput(commandResult)
-        : '';
-    final children = <Widget>[];
-
-    if (responseText.isNotEmpty && responseText != commandOutput) {
-      children.add(
-        _buildPlainTextContent(context, responseText, title: 'Response'),
-      );
-    }
-    if (commandOutput.isNotEmpty) {
-      if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-      children.add(
-        _buildPlainTextContent(context, commandOutput, title: 'Command Output'),
-      );
-    }
-
-    if (children.isEmpty) {
-      return _buildPlainTextContent(
-        context,
-        decision == 'approved' ? 'Command approved.' : 'Command denied.',
-        title: 'Response',
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
-    );
-  }
-
-  String _commandResultOutput(Map<dynamic, dynamic> commandResult) {
-    for (final key in const [
-      'content',
-      'stdout',
-      'stderr',
-      'stdout_tail',
-      'stderr_tail',
-      'output_sample',
-    ]) {
-      final value = commandResult[key]?.toString().trim() ?? '';
-      if (value.isNotEmpty) return value;
-    }
-    return '';
-  }
-
-  Widget _buildAgentPreflightApproval(
-    BuildContext context,
-    Map<String, dynamic> result,
-  ) {
-    final theme = Theme.of(context);
-    final agent = result['agent']?.toString() ?? 'agent';
-    return Row(
-      children: [
-        SizedBox(
-          width: 12,
-          height: 12,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Waiting for approval to run $agent agent…',
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCodeTextBlock(
-    BuildContext context, {
-    required String title,
-    required String text,
-  }) {
-    return _buildCodeContent(context, text, title: title);
-  }
-
-  Widget _buildJsonDetailBlock(
-    BuildContext context, {
-    required String title,
-    required Object? jsonValue,
-    double fontSize = 12,
-    double? maxHeight,
-  }) {
-    return _buildJsonCodeBlock(
-      context,
-      jsonValue,
-      title: title,
-      fontSize: fontSize,
-      maxHeight: maxHeight,
-    );
-  }
-
-  Widget _buildEditOperationsBlock(BuildContext context, List<dynamic> edits) {
-    final operations = edits
-        .map(_editOperationFromValue)
-        .whereType<_EditOperationPreview>()
-        .toList(growable: false);
-
-    if (operations.isEmpty) {
-      return _buildJsonDetailBlock(
-        context,
-        title: 'Edit Operations',
-        jsonValue: edits,
-        maxHeight: 280,
-      );
-    }
-
-    final theme = Theme.of(context);
-    final foreground = theme.colorScheme.onSurface;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Edit Operations',
-          style: AppTheme.bodySmall.copyWith(
-            fontWeight: FontWeight.w600,
-            color: foreground,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: foreground.withValues(alpha: 0.08)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.edit_note_rounded,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${operations.length} replacement${operations.length == 1 ? '' : 's'}',
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              for (var index = 0; index < operations.length; index++) ...[
-                if (index > 0)
-                  Divider(height: 1, color: foreground.withValues(alpha: 0.08)),
-                _buildEditOperationTile(context, index, operations[index]),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEditOperationTile(
-    BuildContext context,
-    int index,
-    _EditOperationPreview operation,
-  ) {
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        splashColor: Colors.transparent,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-        visualDensity: VisualDensity.compact,
-        title: Text(
-          'Replacement ${index + 1}',
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        subtitle: Text(
-          operation.preview,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontFamily: 'monospace',
-            fontSize: 11,
-            height: 1.35,
-          ),
-        ),
-        children: [
-          _buildEditOperationText(
-            context,
-            label: 'Text Being Replaced',
-            text: operation.oldText,
-          ),
-          const SizedBox(height: 8),
-          _buildEditOperationText(
-            context,
-            label: 'Text Being Written',
-            text: operation.newText,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEditOperationText(
-    BuildContext context, {
-    required String label,
-    required String text,
-  }) {
-    return _buildCodeContent(context, text, title: label);
-  }
-
-  _EditOperationPreview? _editOperationFromValue(Object? value) {
-    if (value is! Map) return null;
-    final oldText = (value['oldText'] ?? value['old_text'])?.toString() ?? '';
-    final newText = (value['newText'] ?? value['new_text'])?.toString() ?? '';
-    if (oldText.trim().isEmpty && newText.trim().isEmpty) return null;
-    return _EditOperationPreview(
-      oldText: oldText,
-      newText: newText,
-      preview: _compactEditPreview(newText.trim().isEmpty ? oldText : newText),
-    );
-  }
-
-  String _compactEditPreview(String text) {
-    final preview = text
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .join(' ');
-    if (preview.length <= 180) return preview;
-    return '${preview.substring(0, 180).trimRight()}...';
   }
 
   String _stripMarkdownImages(String text) {
@@ -2547,18 +1763,6 @@ class _DiffFileSummary {
   final List<String> lines;
 }
 
-class _EditOperationPreview {
-  const _EditOperationPreview({
-    required this.oldText,
-    required this.newText,
-    required this.preview,
-  });
-
-  final String oldText;
-  final String newText;
-  final String preview;
-}
-
 class _SplitDiffRow {
   const _SplitDiffRow({required this.left, required this.right});
 
@@ -2703,154 +1907,4 @@ List<_SplitDiffRow> _splitDiffRows(List<String> lines) {
     }
   }
   return rows;
-}
-
-class AgenticFileChange {
-  final String filePath;
-  final String diff;
-  final String toolName;
-  final String? oldString;
-  final String? newString;
-  final String? preContent;
-  final String workspaceRoot;
-
-  const AgenticFileChange({
-    required this.filePath,
-    required this.diff,
-    required this.toolName,
-    this.oldString,
-    this.newString,
-    this.preContent,
-    required this.workspaceRoot,
-  });
-}
-
-class AgenticFileChangesSummary extends StatefulWidget {
-  final List<AgenticFileChange> changes;
-
-  const AgenticFileChangesSummary({super.key, required this.changes});
-
-  @override
-  State<AgenticFileChangesSummary> createState() =>
-      _AgenticFileChangesSummaryState();
-}
-
-class _AgenticFileChangesSummaryState extends State<AgenticFileChangesSummary> {
-  bool _isExpanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final allDiffs = widget.changes.map((c) => c.diff).join('\n');
-    final parsedFiles = _parseUnifiedDiff(allDiffs);
-    final files = parsedFiles.isEmpty
-        ? [
-            _DiffFileSummary(
-              path: 'Changes',
-              added: _countAddedLines(allDiffs),
-              removed: _countRemovedLines(allDiffs),
-              lines: allDiffs.split('\n'),
-            ),
-          ]
-        : parsedFiles;
-    final added = _countAddedLines(allDiffs);
-    final removed = _countRemovedLines(allDiffs);
-    final fileCount = files.length;
-    final fileLabel = fileCount == 1 ? 'file changed' : 'files changed';
-
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            radius: 48,
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '$fileCount $fileLabel',
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '+$added',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: Colors.green.shade400,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '-$removed',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: Colors.red.shade400,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  AnimatedRotation(
-                    turns: _isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 180),
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: Column(
-              children: [
-                for (var index = 0; index < files.length; index++) ...[
-                  if (index > 0)
-                    Divider(
-                      height: 1,
-                      color: theme.dividerColor.withValues(alpha: 0.16),
-                    ),
-                  _DiffFileSection(file: files[index], splitView: false),
-                ],
-              ],
-            ),
-            crossFadeState: _isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 180),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _formatBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  final kb = bytes / 1024;
-  if (kb < 1024) return '${kb.toStringAsFixed(kb >= 10 ? 0 : 1)} KB';
-  final mb = kb / 1024;
-  if (mb < 1024) return '${mb.toStringAsFixed(mb >= 10 ? 0 : 1)} MB';
-  final gb = mb / 1024;
-  return '${gb.toStringAsFixed(gb >= 10 ? 0 : 1)} GB';
 }

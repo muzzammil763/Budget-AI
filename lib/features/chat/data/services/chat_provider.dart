@@ -6,7 +6,6 @@ import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
 import 'package:budget_ai/tools/tools.dart';
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
-import 'package:budget_ai/features/memory/data/memory_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:budget_ai/tools/settings/tool_settings.dart';
 import 'package:dio/dio.dart';

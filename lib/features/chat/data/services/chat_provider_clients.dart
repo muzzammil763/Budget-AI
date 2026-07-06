@@ -18,7 +18,6 @@ abstract class ChatProvider {
     String message, {
     List<String>? imagePaths,
     bool enableToolCalls = true,
-    
   });
 
   Future<String> generateTitle(List<ChatMessage> messages);
@@ -28,11 +27,6 @@ abstract class ChatProvider {
     int maxTokens = 400,
     double temperature = 0.2,
   });
-
-  Future<Map<String, dynamic>> executeApprovedTool(
-    String name,
-    Map<String, dynamic> arguments,
-  );
 
   /// Cancel the current in-flight request
   void cancelRequest();
@@ -165,34 +159,6 @@ abstract class BaseChatProvider extends ChatProvider {
   }
 
   @override
-  Future<Map<String, dynamic>> executeApprovedTool(
-    String name,
-    Map<String, dynamic> arguments,
-  ) async {
-    dynamic latestResult;
-    var sawEvent = false;
-    await for (final event in _toolRegistry.executeToolStream(
-      name,
-      arguments,
-      bypassToolManagerApproval: true,
-    )) {
-      latestResult = event.result;
-      sawEvent = true;
-      if (event.isComplete) break;
-    }
-    if (!sawEvent) {
-      return {'ok': false, 'error': 'Approved tool produced no result.'};
-    }
-    if (latestResult is Map<String, dynamic>) {
-      return latestResult;
-    }
-    if (latestResult is Map) {
-      return Map<String, dynamic>.from(latestResult);
-    }
-    return {'ok': true, 'result': latestResult};
-  }
-
-  @override
   Future<String> generateTitle(List<ChatMessage> messages) async {
     try {
       if (_apiKey == null || _apiKey!.isEmpty) {
@@ -320,7 +286,7 @@ class ChatCompletionsProvider extends BaseChatProvider {
         providerName: _providerName,
         data: {
           'model': _selectedModel,
-          'messages': await _buildMessagesWithMemoryContext(
+          'messages': await _buildMessagesWithContext(
             _chatHistory,
             preserveReasoningContent: _preserveReasoningContentForHistory,
           ),
@@ -369,8 +335,6 @@ class ChatCompletionsProvider extends BaseChatProvider {
           }
         }
       }
-
-
 
       // Add assistant response to history
       _chatHistory.add({'role': 'assistant', 'content': fullResponse});
@@ -464,7 +428,6 @@ class ChatCompletionsProvider extends BaseChatProvider {
     String message, {
     List<String>? imagePaths,
     bool enableToolCalls = true,
-    
   }) async* {
     if (_apiKey == null || _apiKey!.isEmpty) {
       throw _providerException(
@@ -488,10 +451,7 @@ class ChatCompletionsProvider extends BaseChatProvider {
     );
     _toolRegistry.setActiveMessageImagePaths(imagePaths);
     final tools = enableToolCalls && !hasImages
-        ? _toolRegistry.getAvailableTools(
-            includeWorkspaceTools: true,
-            includeGithubModeTools: false,
-          )
+        ? _toolRegistry.getAvailableTools()
         : [];
     final hasTools = tools.isNotEmpty;
 
@@ -751,19 +711,14 @@ class ChatCompletionsProvider extends BaseChatProvider {
                       });
                     }
 
-                    final approvalPending = _isApprovalRequiredResult(result);
                     yield ChatStreamChunk(
                       content: '',
                       toolCall: toolCall.copyWith(
                         result: result,
                         status: _toolStatusForResult(result),
                       ),
-                      isToolCallComplete: !approvalPending,
+                      isToolCallComplete: true,
                     );
-                    if (approvalPending) {
-                      shouldContinue = false;
-                      continue; // Process remaining tool calls instead of breaking
-                    }
                     final failureResponse = _terminalToolFailureResponse(
                       toolCall.name,
                       result,
@@ -841,8 +796,6 @@ class ChatCompletionsProvider extends BaseChatProvider {
           }
         }
       } while (shouldContinue);
-
-
 
       _chatHistory.add({
         'role': 'assistant',
@@ -982,7 +935,7 @@ class FireworksChatProvider extends BaseChatProvider {
         providerName: _providerName,
         data: {
           'model': _selectedModel,
-          'messages': await _buildMessagesWithMemoryContext(
+          'messages': await _buildMessagesWithContext(
             _chatHistory,
             preserveReasoningContent: _preserveReasoningContentForHistory,
           ),
@@ -1061,7 +1014,6 @@ class FireworksChatProvider extends BaseChatProvider {
     String message, {
     List<String>? imagePaths,
     bool enableToolCalls = true,
-    
   }) async* {
     if (_apiKey == null || _apiKey!.isEmpty) {
       throw _providerException(
@@ -1085,10 +1037,7 @@ class FireworksChatProvider extends BaseChatProvider {
     );
     _toolRegistry.setActiveMessageImagePaths(imagePaths);
     final tools = enableToolCalls && !hasImages
-        ? _toolRegistry.getAvailableTools(
-            includeWorkspaceTools: true,
-            includeGithubModeTools: false,
-          )
+        ? _toolRegistry.getAvailableTools()
         : [];
     final hasTools = tools.isNotEmpty;
 
@@ -1354,19 +1303,14 @@ class FireworksChatProvider extends BaseChatProvider {
                       });
                     }
 
-                    final approvalPending = _isApprovalRequiredResult(result);
                     yield ChatStreamChunk(
                       content: '',
                       toolCall: toolCall.copyWith(
                         result: result,
                         status: _toolStatusForResult(result),
                       ),
-                      isToolCallComplete: !approvalPending,
+                      isToolCallComplete: true,
                     );
-                    if (approvalPending) {
-                      shouldContinue = false;
-                      continue; // Process remaining tool calls instead of breaking
-                    }
                     final failureResponse = _terminalToolFailureResponse(
                       toolCall.name,
                       result,

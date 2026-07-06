@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:budget_ai/features/finance/data/finance_service.dart';
-import 'package:budget_ai/features/memory/data/memory_service.dart';
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,7 +28,6 @@ class AppBackupService {
 
   Future<Map<String, dynamic>> createBackup() async {
     final finances = await FinanceService.instance.getAll();
-    final memories = await MemoryService.instance.getAll();
     final deepseekKeys = await ApiKeyStorageService.getDeepSeekApiKeys();
     final selectedModel =
         SharedPrefsService.getSelectedDeepSeekModel() ??
@@ -44,10 +42,7 @@ class AppBackupService {
         if (selectedModel != null && selectedModel.isNotEmpty)
           'selected_deepseek_model': selectedModel,
       },
-      'data': {
-        'finances': finances.map((e) => e.toJson()).toList(),
-        'memories': memories.map((m) => m.toJson()).toList(),
-      },
+      'data': {'finances': finances.map((e) => e.toJson()).toList()},
     };
 
     return backup;
@@ -205,32 +200,6 @@ class AppBackupService {
       }
       if (financeCount > 0) {
         restoredItems.add('$financeCount finances');
-      }
-
-      // Restore memories - handle both list and object formats
-      final memoriesList = _extractBackupList(backup, 'memories', data: data);
-      var memoryCount = 0;
-      for (final item in memoriesList) {
-        if (item is Map<String, dynamic>) {
-          try {
-            final key = item['key']?.toString() ?? '';
-            final title = item['title']?.toString() ?? '';
-            final content = item['content']?.toString() ?? '';
-            final type = item['type']?.toString() ?? 'fact';
-            if (key.isNotEmpty) {
-              await MemoryService.instance.write(
-                key: key,
-                title: title,
-                content: content,
-                type: type,
-              );
-              memoryCount++;
-            }
-          } catch (_) {}
-        }
-      }
-      if (memoryCount > 0) {
-        restoredItems.add('$memoryCount memories');
       }
 
       if (restoredItems.isEmpty) {

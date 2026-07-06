@@ -32,7 +32,6 @@ class ToolSettings {
   const ToolSettings._();
 
   static const finance = 'finance';
-  static const memory = 'memory';
 
   static const collections = <ToolCollectionDefinition>[
     ToolCollectionDefinition(
@@ -64,39 +63,6 @@ class ToolSettings {
           name: 'finance_delete',
           title: 'Delete Expense',
           description: 'Delete one or more expense entries',
-        ),
-      ],
-    ),
-    ToolCollectionDefinition(
-      id: memory,
-      title: 'Memory Tools',
-      description: 'Save, list, and remove assistant memories',
-      tools: [
-        ToolItemDefinition(
-          name: 'memory_write',
-          title: 'Write Memory',
-          description: 'Save or update a memory',
-        ),
-        ToolItemDefinition(
-          name: 'memory_edit',
-          title: 'Edit Memory',
-          description: 'Edit an existing memory by ID',
-        ),
-        ToolItemDefinition(
-          name: 'memory_delete',
-          title: 'Delete Memory',
-          description: 'Delete a memory',
-        ),
-        ToolItemDefinition(
-          name: 'memory_list',
-          title: 'List Memories',
-          description: 'List saved memories',
-        ),
-        ToolItemDefinition(
-          name: 'memory_search',
-          title: 'Search Memories',
-          description:
-              'Search memories by keyword in title, content, key, or type',
         ),
       ],
     ),

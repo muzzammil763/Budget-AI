@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart' as geo;
 import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/platform/android_background_agent_service.dart';
 import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
@@ -19,11 +18,17 @@ class PermissionsScreen extends StatefulWidget {
 class _PermissionsScreenState extends State<PermissionsScreen>
     with WidgetsBindingObserver {
   bool? _notificationGranted;
-  bool? _locationGranted;
-  bool? _locationServiceEnabled;
-  bool? _installPackagesGranted;
   bool? _backgroundBatteryGranted;
   bool _isLoading = true;
+  bool _isRequestingRequired = false;
+
+  bool get _requiredAgentPermissionsGranted {
+    if (!(_notificationGranted ?? false)) return false;
+    if (Platform.isAndroid && !(_backgroundBatteryGranted ?? false)) {
+      return false;
+    }
+    return true;
+  }
 
   @override
   void initState() {
@@ -55,19 +60,6 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       '[Permissions] Notification status: ${notificationStatus.isGranted}',
     );
 
-    final locationStatus = await Permission.locationWhenInUse.status;
-    final locationServiceEnabled =
-        await geo.Geolocator.isLocationServiceEnabled();
-    debugPrint(
-      '[Permissions] Location status: ${locationStatus.isGranted}, service: $locationServiceEnabled',
-    );
-
-    bool? installPackagesGranted;
-    if (Platform.isAndroid) {
-      final installStatus = await Permission.requestInstallPackages.status;
-      installPackagesGranted = installStatus.isGranted;
-    }
-
     bool? backgroundBatteryGranted;
     if (Platform.isAndroid) {
       backgroundBatteryGranted =
@@ -80,9 +72,6 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     if (mounted) {
       setState(() {
         _notificationGranted = notificationStatus.isGranted;
-        _locationGranted = locationStatus.isGranted;
-        _locationServiceEnabled = locationServiceEnabled;
-        _installPackagesGranted = installPackagesGranted;
         _backgroundBatteryGranted = backgroundBatteryGranted;
         _isLoading = false;
       });
@@ -99,38 +88,6 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     }
   }
 
-  Future<void> _requestLocationPermission() async {
-    final serviceEnabled = await geo.Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      await geo.Geolocator.openLocationSettings();
-      if (mounted) {
-        setState(() => _locationServiceEnabled = false);
-      }
-      return;
-    }
-
-    final status = await Permission.locationWhenInUse.request();
-    if (mounted) {
-      setState(() {
-        _locationGranted = status.isGranted;
-        _locationServiceEnabled = serviceEnabled;
-      });
-      if (!status.isGranted) {
-        _showPermissionDeniedDialog('Location');
-      }
-    }
-  }
-
-  Future<void> _requestInstallPackagesPermission() async {
-    final status = await Permission.requestInstallPackages.request();
-    if (mounted) {
-      setState(() => _installPackagesGranted = status.isGranted);
-      if (!status.isGranted) {
-        _showPermissionDeniedDialog('Install from Unknown Sources');
-      }
-    }
-  }
-
   Future<void> _requestBackgroundBatteryPermission() async {
     if (!(_notificationGranted ?? false)) {
       await _requestNotificationPermission();
@@ -143,13 +100,29 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     }
   }
 
-  Future<void> _openNotificationSettings() async {
-    await AppSettings.openAppSettings(type: AppSettingsType.notification);
+  Future<void> _requestRequiredAgentPermissions() async {
+    if (_isRequestingRequired) return;
+    setState(() => _isRequestingRequired = true);
+
+    try {
+      if (!(_notificationGranted ?? false)) {
+        await _requestNotificationPermission();
+      }
+
+      if (Platform.isAndroid) {
+        await AndroidBackgroundAgentService.requestBatteryOptimizationExemption();
+      }
+
+      await _checkPermissions();
+    } finally {
+      if (mounted) {
+        setState(() => _isRequestingRequired = false);
+      }
+    }
   }
 
-  Future<void> _openLocationSettings() async {
-    await geo.Geolocator.openLocationSettings();
-    await AppSettings.openAppSettings();
+  Future<void> _openNotificationSettings() async {
+    await AppSettings.openAppSettings(type: AppSettingsType.notification);
   }
 
   Future<void> _showPermissionDeniedDialog(String permissionName) async {
@@ -181,22 +154,14 @@ class _PermissionsScreenState extends State<PermissionsScreen>
           : ListView(
               padding: const EdgeInsets.all(8),
               children: [
+                _buildRequiredPermissionsCard(),
+                const SizedBox(height: 8),
                 _buildPermissionCard(
                   icon: CupertinoIcons.bell,
                   title: 'Notifications',
                   isGranted: _notificationGranted ?? false,
                   onRequest: _requestNotificationPermission,
                   onOpenSettings: _openNotificationSettings,
-                ),
-                const SizedBox(height: 8),
-                _buildPermissionCard(
-                  icon: CupertinoIcons.location,
-                  title: 'Location',
-                  isGranted:
-                      (_locationGranted ?? false) &&
-                      (_locationServiceEnabled ?? true),
-                  onRequest: _requestLocationPermission,
-                  onOpenSettings: _openLocationSettings,
                 ),
                 if (Platform.isAndroid) ...[
                   const SizedBox(height: 8),
@@ -209,17 +174,89 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     onRequest: _requestBackgroundBatteryPermission,
                     onOpenSettings: () => AppSettings.openAppSettings(),
                   ),
-                  const SizedBox(height: 8),
-                  _buildPermissionCard(
-                    icon: CupertinoIcons.cloud_download,
-                    title: 'Install from Unknown Sources',
-                    isGranted: _installPackagesGranted ?? false,
-                    onRequest: _requestInstallPackagesPermission,
-                    onOpenSettings: () => AppSettings.openAppSettings(),
-                  ),
                 ],
               ],
             ),
+    );
+  }
+
+  Widget _buildRequiredPermissionsCard() {
+    final theme = Theme.of(context);
+    final granted = _requiredAgentPermissionsGranted;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: granted
+              ? Colors.green.withValues(alpha: 0.5)
+              : theme.colorScheme.primary.withValues(alpha: 0.5),
+        ),
+        color: granted
+            ? Colors.green.withValues(alpha: 0.05)
+            : theme.colorScheme.primary.withValues(alpha: 0.06),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: granted
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : theme.colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                granted
+                    ? CupertinoIcons.check_mark_circled
+                    : CupertinoIcons.bolt_horizontal_circle,
+                color: granted ? Colors.green : theme.colorScheme.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                granted ? 'Agent permissions ready' : 'Agent permissions',
+                style: AppTheme.headingSmall.copyWith(
+                  fontSize: 16,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            if (!granted)
+              SizedBox(
+                height: 40,
+                child: ElevatedButton(
+                  onPressed: _isRequestingRequired
+                      ? null
+                      : _requestRequiredAgentPermissions,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: _isRequestingRequired
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.colorScheme.onPrimary,
+                          ),
+                        )
+                      : const Text('Allow'),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

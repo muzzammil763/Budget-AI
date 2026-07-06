@@ -7,7 +7,6 @@ import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 class ApiKeyStorageService {
   static const String _firepassKey = 'firepass_api_key';
   static const String _deepseekKey = 'deepseek_api_key';
-  static const String _githubKey = 'github_api_key';
   static const String _xiaomiKey = 'xiaomi_api_key';
 
   static final _prefs = SharedPrefsService.instance;
@@ -83,7 +82,6 @@ class ApiKeyStorageService {
     await Future.wait([
       _prefs.remove(_firepassKey),
       _prefs.remove(_deepseekKey),
-      _prefs.remove(_githubKey),
       _prefs.remove(_xiaomiKey),
     ]);
   }
@@ -94,8 +92,6 @@ class ApiKeyStorageService {
         return _firepassKey;
       case 'deepseek':
         return _deepseekKey;
-      case 'github':
-        return _githubKey;
       case 'xiaomi':
       case 'xiaomimimo':
         return _xiaomiKey;
@@ -116,11 +112,6 @@ class ApiKeyStorageService {
   static Future<String?> getDeepSeekApiKey() => getApiKey('deepseek');
   static Future<List<String>> getDeepSeekApiKeys() => getApiKeys('deepseek');
   static Future<void> deleteDeepSeekApiKey() => deleteApiKey('deepseek');
-
-  static Future<void> saveGithubApiKey(String key) => saveApiKey('github', key);
-  static Future<String?> getGithubApiKey() => getApiKey('github');
-  static Future<List<String>> getGithubApiKeys() => getApiKeys('github');
-  static Future<void> deleteGithubApiKey() => deleteApiKey('github');
 
   static Future<void> saveXiaomiApiKey(String key) => saveApiKey('xiaomi', key);
   static Future<String?> getXiaomiApiKey() => getApiKey('xiaomi');

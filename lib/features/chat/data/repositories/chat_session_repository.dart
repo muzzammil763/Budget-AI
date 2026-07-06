@@ -9,42 +9,10 @@ import 'package:sqflite/sqflite.dart';
 
 const String kChatStatusContextLimitReached = 'context_limit_reached';
 const String kChatStatusModelChanged = 'model_changed';
-const String kChatStatusWorkspaceUnavailable = 'workspace_unavailable';
 
 enum ChatSessionLifecycleState { idle, blockedContextLimit }
 
 enum ChatTimelineEntryType { userMessage, assistantMessage, statusCard }
-
-class ChatWorkspaceSnapshot {
-  final String path;
-  final String label;
-  final String source;
-
-  const ChatWorkspaceSnapshot({
-    required this.path,
-    required this.label,
-    required this.source,
-  });
-
-  bool get isEmpty => path.trim().isEmpty;
-
-  Map<String, dynamic> toJson() => {
-    'path': path,
-    'label': label,
-    'source': source,
-  };
-
-  factory ChatWorkspaceSnapshot.fromJson(Map<String, dynamic>? json) {
-    if (json == null) {
-      return const ChatWorkspaceSnapshot(path: '', label: '', source: '');
-    }
-    return ChatWorkspaceSnapshot(
-      path: json['path']?.toString() ?? '',
-      label: json['label']?.toString() ?? '',
-      source: json['source']?.toString() ?? '',
-    );
-  }
-}
 
 class ChatSessionFlags {
   final int? activeContextLimitEntryId;
@@ -98,7 +66,6 @@ class ChatSessionRecord {
   final ChatSessionLifecycleState lifecycleState;
   final int activeContextTokens;
   final int? lastKnownContextLimit;
-  final ChatWorkspaceSnapshot workspaceSnapshot;
   final ChatSessionFlags flags;
 
   const ChatSessionRecord({
@@ -114,7 +81,6 @@ class ChatSessionRecord {
     required this.lifecycleState,
     required this.activeContextTokens,
     required this.lastKnownContextLimit,
-    required this.workspaceSnapshot,
     required this.flags,
   });
 
@@ -128,7 +94,6 @@ class ChatSessionRecord {
     ChatSessionLifecycleState? lifecycleState,
     int? activeContextTokens,
     int? lastKnownContextLimit,
-    ChatWorkspaceSnapshot? workspaceSnapshot,
     ChatSessionFlags? flags,
   }) {
     return ChatSessionRecord(
@@ -145,7 +110,6 @@ class ChatSessionRecord {
       activeContextTokens: activeContextTokens ?? this.activeContextTokens,
       lastKnownContextLimit:
           lastKnownContextLimit ?? this.lastKnownContextLimit,
-      workspaceSnapshot: workspaceSnapshot ?? this.workspaceSnapshot,
       flags: flags ?? this.flags,
     );
   }
@@ -163,7 +127,6 @@ class ChatSessionRecord {
     'session_state': lifecycleState.name,
     'active_context_tokens': activeContextTokens,
     'last_known_context_limit': lastKnownContextLimit,
-    'workspace_snapshot_json': jsonEncode(workspaceSnapshot.toJson()),
     'flags_json': jsonEncode(flags.toJson()),
   };
 
@@ -184,9 +147,6 @@ class ChatSessionRecord {
       ),
       activeContextTokens: map['active_context_tokens'] as int? ?? 0,
       lastKnownContextLimit: map['last_known_context_limit'] as int?,
-      workspaceSnapshot: ChatWorkspaceSnapshot.fromJson(
-        _decodeJsonMap(map['workspace_snapshot_json']?.toString()),
-      ),
       flags: ChatSessionFlags.fromJson(
         _decodeJsonMap(map['flags_json']?.toString()),
       ),
@@ -324,7 +284,7 @@ class ChatHistoryDatabase {
   ChatHistoryDatabase._();
 
   static final ChatHistoryDatabase instance = ChatHistoryDatabase._();
-  static const _databaseName = 'opengatechathistory.db';
+  static const _databaseName = 'budget_ai_chat_history.db';
   static const _databaseVersion = 1;
 
   Database? _database;
@@ -351,7 +311,6 @@ class ChatHistoryDatabase {
             session_state TEXT NOT NULL,
             active_context_tokens INTEGER NOT NULL DEFAULT 0,
             last_known_context_limit INTEGER,
-            workspace_snapshot_json TEXT NOT NULL,
             flags_json TEXT NOT NULL
           )
         ''');
@@ -425,7 +384,6 @@ class ChatSessionRepository {
     required String titleSource,
     required String providerKey,
     required String modelId,
-    required ChatWorkspaceSnapshot workspaceSnapshot,
   }) async {
     final db = await ChatHistoryDatabase.instance.database;
     final now = DateTime.now();
@@ -442,7 +400,6 @@ class ChatSessionRepository {
       lifecycleState: ChatSessionLifecycleState.idle,
       activeContextTokens: 0,
       lastKnownContextLimit: null,
-      workspaceSnapshot: workspaceSnapshot,
       flags: const ChatSessionFlags(),
     );
     await db.insert('chat_sessions', record.toDatabaseMap());
@@ -673,7 +630,6 @@ class ChatSessionRepository {
     required String providerKey,
     required String modelId,
     required ChatSessionLifecycleState lifecycleState,
-    required ChatWorkspaceSnapshot workspaceSnapshot,
     required ChatSessionFlags flags,
     required int? lastKnownContextLimit,
   }) async {
@@ -706,7 +662,6 @@ class ChatSessionRepository {
           'session_state': lifecycleState.name,
           'active_context_tokens': activeContextTokens,
           'last_known_context_limit': lastKnownContextLimit,
-          'workspace_snapshot_json': jsonEncode(workspaceSnapshot.toJson()),
           'flags_json': jsonEncode(flags.toJson()),
         },
         where: 'id = ?',
@@ -764,18 +719,8 @@ String _guessMimeType(String filePath) {
   }
 }
 
-String renderConversationStateForSummary(
-  List<Map<String, dynamic>> items, {
-  ChatWorkspaceSnapshot? workspaceSnapshot,
-}) {
+String renderConversationStateForSummary(List<Map<String, dynamic>> items) {
   final buffer = StringBuffer();
-  if (workspaceSnapshot != null && !workspaceSnapshot.isEmpty) {
-    buffer.writeln(
-      'Workspace: ${workspaceSnapshot.label.isEmpty ? workspaceSnapshot.path : workspaceSnapshot.label} (${workspaceSnapshot.source})',
-    );
-    buffer.writeln('Workspace path: ${workspaceSnapshot.path}');
-    buffer.writeln();
-  }
   for (final item in items) {
     final role = item['role']?.toString() ?? 'unknown';
     buffer.writeln('${role.toUpperCase()}:');

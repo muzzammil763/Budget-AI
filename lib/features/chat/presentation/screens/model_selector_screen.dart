@@ -64,10 +64,10 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
   void _enterSearch() => setState(() => _isSearchMode = true);
 
   void _exitSearch() => setState(() {
-        _isSearchMode = false;
-        _searchController.clear();
-        _searchQuery = '';
-      });
+    _isSearchMode = false;
+    _searchController.clear();
+    _searchQuery = '';
+  });
 
   String _getProviderDisplayName() {
     switch (widget.modelType) {
@@ -117,7 +117,9 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
-        title: _isSearchMode ? _buildAppBarSearchField() : Text(_getProviderDisplayName()),
+        title: _isSearchMode
+            ? _buildAppBarSearchField()
+            : Text(_getProviderDisplayName()),
         actions: _isSearchMode
             ? [
                 IconButton(
@@ -143,9 +145,7 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
                 height: 50,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: theme.dividerColor),
-                  ),
+                  border: Border(bottom: BorderSide(color: theme.dividerColor)),
                 ),
                 child: ListView(
                   scrollDirection: Axis.horizontal,
@@ -290,8 +290,9 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
                     Text(
                       model.name,
                       style: AppTheme.bodyMedium.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: theme.colorScheme.onSurface,
                         fontSize: 14,
                       ),
@@ -323,10 +324,8 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        if (model.supportsThinking)
-                          _buildBadge('Thinking'),
+                        if (model.supportsThinking) _buildBadge('Thinking'),
                         if (model.supportsToolCall) _buildBadge('Tools'),
-
                       ],
                     ),
                     if (model.contextLength != null) ...[
@@ -356,10 +355,19 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
           ),
         ),
         const SizedBox(width: 4),
-        _buildModalityIcon(Icons.text_fields_rounded, model.supportsInput('text')),
+        _buildModalityIcon(
+          Icons.text_fields_rounded,
+          model.supportsInput('text'),
+        ),
         _buildModalityIcon(Icons.image_outlined, model.supportsInput('image')),
-        _buildModalityIcon(Icons.videocam_outlined, model.supportsInput('video')),
-        _buildModalityIcon(Icons.picture_as_pdf_outlined, model.supportsInput('pdf')),
+        _buildModalityIcon(
+          Icons.videocam_outlined,
+          model.supportsInput('video'),
+        ),
+        _buildModalityIcon(
+          Icons.picture_as_pdf_outlined,
+          model.supportsInput('pdf'),
+        ),
         _buildModalityIcon(Icons.mic_outlined, model.supportsInput('audio')),
       ],
     );
@@ -378,7 +386,10 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
           ),
         ),
         const SizedBox(width: 4),
-        _buildModalityIcon(Icons.text_fields_rounded, model.supportsOutput('text')),
+        _buildModalityIcon(
+          Icons.text_fields_rounded,
+          model.supportsOutput('text'),
+        ),
         _buildModalityIcon(Icons.image_outlined, model.supportsOutput('image')),
         _buildModalityIcon(Icons.mic_outlined, model.supportsOutput('audio')),
       ],
@@ -398,7 +409,7 @@ class _ModelSelectorScreenState extends State<ModelSelectorScreen>
     return Row(
       children: [
         Icon(
-          Icons.memory_outlined,
+          Icons.data_object_outlined,
           size: 14,
           color: theme.colorScheme.onSurfaceVariant,
         ),

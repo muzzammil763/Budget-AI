@@ -51,57 +51,6 @@ class ChatToggleIconButton extends StatelessWidget {
   }
 }
 
-class GithubModeToggleButton extends StatelessWidget {
-  final bool isEnabled;
-  final VoidCallback onPressed;
-
-  const GithubModeToggleButton({
-    super.key,
-    required this.isEnabled,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-    final onPrimary = theme.colorScheme.onPrimary;
-    final hintColor = theme.colorScheme.onSurfaceVariant;
-    final borderColor = theme.colorScheme.outline;
-
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: IconButton(
-        icon: SvgPicture.asset(
-          'assets/icons/github.svg',
-          width: 17,
-          height: 17,
-          colorFilter: ColorFilter.mode(
-            isEnabled ? onPrimary : hintColor,
-            BlendMode.srcIn,
-          ),
-        ),
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          backgroundColor: isEnabled ? primary : Colors.transparent,
-          shape: const CircleBorder(),
-          side: isEnabled
-              ? null
-              : BorderSide(color: borderColor.withValues(alpha: 0.5), width: 1),
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        iconSize: 17,
-        tooltip: isEnabled
-            ? 'GitHub mode: On — Tap to disable'
-            : 'GitHub mode: Off — Tap to enable',
-      ),
-    );
-  }
-}
-
 class ImageAttachmentActionButton extends StatelessWidget {
   final int imageCount;
   final VoidCallback onPressed;
@@ -230,7 +179,7 @@ class ContextUsageActionButton extends StatelessWidget {
                 valueColor: AlwaysStoppedAnimation<Color>(progressColor),
               ),
             ),
-            Icon(Icons.memory_rounded, size: 15, color: progressColor),
+            Icon(Icons.data_usage_rounded, size: 15, color: progressColor),
           ],
         ),
       ),

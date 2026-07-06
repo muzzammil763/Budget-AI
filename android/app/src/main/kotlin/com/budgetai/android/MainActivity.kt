@@ -91,7 +91,7 @@ class MainActivity : FlutterFragmentActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "start" -> {
-                    val title = call.argument<String>("title") ?: "OpenGate agent running"
+                    val title = call.argument<String>("title") ?: "Budget AI agent running"
                     val text = call.argument<String>("text")
                         ?: "Keeping the active agent response connected."
                     try {

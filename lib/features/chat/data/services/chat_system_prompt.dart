@@ -57,12 +57,10 @@ Future<String> _buildMessageTextWithSvgAttachments(
 
 String _buildBehaviorPrompt() {
   final financeEnabled = ToolSettings.isToolEnabled('finance_add');
-  final memoryEnabled = ToolSettings.isToolEnabled('memory_write');
 
   return [
     _coreAgentBehavior,
     if (financeEnabled) _financeGuidance,
-    if (memoryEnabled) _memoryGuidance,
   ].map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n\n');
 }
 
@@ -124,34 +122,10 @@ Future<String> buildAgenticSystemPromptSnapshotForDiagnostics() {
 }
 
 Future<List<String>> _buildSystemContextSections() async {
-  var memoriesText = '';
-  var totalMemoryCount = 0;
-  if (ToolSettings.isToolEnabled('memory_list')) {
-    final memories = await MemoryService.instance.getAll();
-    totalMemoryCount = memories.length;
-    if (memories.isNotEmpty) {
-      final sorted = List<MemoryItem>.from(memories)
-        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      final limited = sorted.take(25).toList(growable: false);
-      memoriesText = MemoryService.instance.buildContextText(limited);
-      if (totalMemoryCount > 25) {
-        memoriesText =
-            '($totalMemoryCount memories total; showing the 25 most recent)\n\n$memoriesText';
-      }
-    }
-  }
-
-  final sections = <String>[
-    if (memoriesText.trim().isNotEmpty)
-      '## User Preferences & Saved Facts\n'
-          '_Apply these when relevant. Use memory_write to save new facts or update existing ones, memory_delete to remove by ID, memory_list to see all._\n\n'
-          '${memoriesText.trim()}',
-  ];
-
-  return sections;
+  return const [];
 }
 
-Future<List<Map<String, dynamic>>> _buildMessagesWithMemoryContext(
+Future<List<Map<String, dynamic>>> _buildMessagesWithContext(
   List<Map<String, dynamic>> chatHistory, {
   bool preserveReasoningContent = false,
 }) async {
@@ -189,12 +163,6 @@ bool _isToolFailure(dynamic result) {
   return result is Map && result['error'] != null;
 }
 
-bool _isApprovalRequiredResult(dynamic result) {
-  return result is Map &&
-      result['approval_required'] == true &&
-      result['approval_request'] is Map;
-}
-
 String? _terminalToolFailureResponse(String? toolName, dynamic result) {
   if (!_isToolFailure(result)) return null;
   final name = (toolName ?? '').trim();
@@ -227,9 +195,6 @@ String formatToolNameForUiFallback(String rawName) {
 }
 
 ToolCallStatus _toolStatusForResult(dynamic result) {
-  if (_isApprovalRequiredResult(result)) {
-    return ToolCallStatus.awaitingApproval;
-  }
   return _isToolFailure(result)
       ? ToolCallStatus.failed
       : ToolCallStatus.completed;
@@ -362,13 +327,12 @@ Stream<ChatStreamChunk> _executeToolAndStreamChunks({
       toolCall: toolCall.copyWith(
         result: event.result,
         status: event.isComplete
-            ? (event.isError && !_isApprovalRequiredResult(event.result)
+            ? (event.isError
                   ? ToolCallStatus.failed
                   : _toolStatusForResult(event.result))
             : ToolCallStatus.calling,
       ),
-      isToolCallComplete:
-          event.isComplete && !_isApprovalRequiredResult(event.result),
+      isToolCallComplete: event.isComplete,
     );
   }
 }

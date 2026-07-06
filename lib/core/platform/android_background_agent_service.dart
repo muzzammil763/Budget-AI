@@ -10,7 +10,7 @@ class AndroidBackgroundAgentService {
   );
 
   static Future<bool> start({
-    String title = 'OpenGate agent running',
+    String title = 'Budget AI agent running',
     String text = 'Keeping the active agent response connected.',
   }) async {
     if (!Platform.isAndroid) return false;

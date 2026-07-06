@@ -20,7 +20,7 @@ class BackgroundAgentService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "OpenGate agent running"
+        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Budget AI agent running"
         val text = intent?.getStringExtra(EXTRA_TEXT)
             ?: "Keeping the active agent response connected."
         val notification = buildNotification(title, text)
@@ -72,7 +72,7 @@ class BackgroundAgentService : Service() {
             "Active agent",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps active OpenGate agent responses running in the background."
+            description = "Keeps active Budget AI agent responses running in the background."
             setShowBadge(false)
         }
         manager.createNotificationChannel(channel)

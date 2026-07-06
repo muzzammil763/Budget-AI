@@ -140,9 +140,7 @@ class _ThemedCodeBlockState extends State<ThemedCodeBlock> {
     final displayCode = _trimTrailingCodeWhitespace(widget.code);
     final syntax = _syntaxFor(widget.name);
     final isJson = _isJsonLanguage(widget.name);
-    final syntaxTheme = isDark
-        ? githubDarkSyntaxTheme()
-        : githubLightSyntaxTheme();
+    final syntaxTheme = isDark ? codeDarkSyntaxTheme() : codeLightSyntaxTheme();
 
     final codeFg = isDark
         ? const Color(0xFFe6edf3)
@@ -905,7 +903,7 @@ class _InlineJsonCodeViewState extends State<_InlineJsonCodeView> {
 
 // ── Shared syntax themes ─────────────────────────────────────────────────────
 
-SyntaxTheme githubDarkSyntaxTheme() => SyntaxTheme(
+SyntaxTheme codeDarkSyntaxTheme() => SyntaxTheme(
   linesCountColor: const Color(0xFF6e7681),
   backgroundColor: Colors.transparent,
   baseStyle: const TextStyle(color: Color(0xFFe6edf3)),
@@ -922,7 +920,7 @@ SyntaxTheme githubDarkSyntaxTheme() => SyntaxTheme(
   zoomIconColor: const Color(0xFF6e7681),
 );
 
-SyntaxTheme githubLightSyntaxTheme() => SyntaxTheme(
+SyntaxTheme codeLightSyntaxTheme() => SyntaxTheme(
   linesCountColor: const Color(0xFF6e7781),
   backgroundColor: Colors.transparent,
   baseStyle: const TextStyle(color: Color(0xFF1f2328)),
