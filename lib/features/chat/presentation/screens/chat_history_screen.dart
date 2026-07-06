@@ -251,12 +251,6 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            CupertinoIcons.chat_bubble_text,
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-          ),
-          const SizedBox(height: 16),
           Text(
             isSearching ? 'No chats found' : 'No chat history yet',
             style: AppTheme.headingSmall.copyWith(
@@ -315,32 +309,18 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.red,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Delete',
-              style: AppTheme.bodyMedium.copyWith(
-                color: theme.colorScheme.onError,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(CupertinoIcons.trash, color: theme.colorScheme.onError),
-          ],
-        ),
+        child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
       ),
       child: RepaintBoundary(
         child: InkWell(
           onTap: () => widget.onSessionSelected(session.id),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(100),
           child: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: isActive
                     ? theme.colorScheme.primary
@@ -349,13 +329,6 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  CupertinoIcons.chat_bubble_text,
-                  color: isActive
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,11 +355,6 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                       ),
                     ],
                   ),
-                ),
-                Icon(
-                  CupertinoIcons.chevron_right,
-                  color: theme.colorScheme.onSurfaceVariant,
-                  size: 16,
                 ),
               ],
             ),

@@ -4,9 +4,7 @@
 /// normal package imports instead of Dart `part` files.
 library;
 
-export 'core/tool_approval.dart';
 export 'core/tool_context.dart';
 export 'core/tool_models.dart';
 export 'modules/tool_modules.dart';
-export 'catalog/tool_catalog.dart';
 export 'registry/tool_registry.dart';

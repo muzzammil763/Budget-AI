@@ -58,15 +58,11 @@ Future<String> _buildMessageTextWithSvgAttachments(
 String _buildBehaviorPrompt() {
   final financeEnabled = ToolSettings.isToolEnabled('finance_add');
   final memoryEnabled = ToolSettings.isToolEnabled('memory_write');
-  final webEnabled =
-      ToolSettings.isToolEnabled('web_search') ||
-      ToolSettings.isToolEnabled('web_page_fetch');
 
   return [
     _coreAgentBehavior,
     if (financeEnabled) _financeGuidance,
     if (memoryEnabled) _memoryGuidance,
-    if (webEnabled) _agentWebPrompt,
   ].map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n\n');
 }
 
@@ -107,52 +103,10 @@ String _buildDateTimeContextPrompt() {
       'Current date and time: $weekday, ${now.day} $month ${now.year} at $hour:$min (${now.timeZoneName}, UTC$sign$oh:$om).';
 }
 
-String _buildToolAvailabilityPrompt() {
-  final disabledIndividualTools = ToolSettings.disabledToolsForPrompt();
-
-  if (disabledIndividualTools.isEmpty) {
-    return '';
-  }
-
-  final parts = <String>[
-    '# Tool Manager Restrictions',
-    'The user has disabled some tool access in Settings > Tool Manager. Treat disabled tools as unavailable.',
-    'If the request needs disabled access, answer without tool calls using existing knowledge.',
-  ];
-
-  if (disabledIndividualTools.isNotEmpty) {
-    parts.add(
-      'Disabled tools: ${disabledIndividualTools.map((tool) => '${tool.title} (${tool.name})').join(', ')}.',
-    );
-  }
-
-  return parts.join('\n');
-}
-
-String _buildToolAccessModePrompt() {
-  final approvalTools = <ToolItemDefinition>[
-    for (final tool in ToolSettings.tools)
-      if (ToolSettings.isToolEnabled(tool.name) &&
-          ToolSettings.accessModeForTool(tool.name) ==
-              ToolAccessMode.approvalRequired)
-        tool,
-  ];
-
-  if (approvalTools.isEmpty) return '';
-
-  return [
-    '# Tool Approval Modes',
-    'Some enabled tools are set to Approval Required. The app will show an approval dialog before execution.',
-    'Approval-required tools: ${approvalTools.map((tool) => '${tool.title} (${tool.name})').join(', ')}.',
-  ].join('\n');
-}
-
 String _buildAgenticBaseSystemPrompt() {
   final segments = <String>[
     _buildBehaviorPrompt(),
     _buildDateTimeContextPrompt(),
-    _buildToolAvailabilityPrompt(),
-    _buildToolAccessModePrompt(),
   ];
 
   return segments.map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n\n');

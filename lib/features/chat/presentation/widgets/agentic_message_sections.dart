@@ -1087,13 +1087,11 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                       formatToolNameForUi(widget.toolCall.name),
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13.5
-                        ,
+                        fontSize: 13.5,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
-                  
 
                   if (widget.isInProgress && !isAwaitingApproval) ...[
                     SizedBox(
@@ -1859,7 +1857,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
       if (fileContent is String && fileContent.isNotEmpty) {
         normalized['content'] = fileContent;
         for (final key in const [
-          'workspace_root',
           'path',
           'absolute_path',
           'start_line',
@@ -2527,8 +2524,7 @@ String _toolCallReadSignature(ToolCall toolCall) {
   final path = (_toolCallPath(toolCall) ?? '').trim();
   final offset = arguments['offset']?.toString().trim() ?? '';
   final limit = arguments['limit']?.toString().trim() ?? '';
-  final workspaceRoot = arguments['workspace_root']?.toString().trim() ?? '';
-  return '$workspaceRoot|$path|$offset|$limit';
+  return '$path|$offset|$limit';
 }
 
 String _basename(String path) {

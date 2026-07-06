@@ -31,7 +31,6 @@ class AppBackupService {
     final finances = await FinanceService.instance.getAll();
     final memories = await MemoryService.instance.getAll();
     final deepseekKeys = await ApiKeyStorageService.getDeepSeekApiKeys();
-    final searchKeys = await ApiKeyStorageService.getSearchApiKeys();
     final selectedModel =
         SharedPrefsService.getSelectedDeepSeekModel() ??
         SharedPrefsService.instance.getString('deepseek_selected_model');
@@ -40,7 +39,7 @@ class AppBackupService {
       'version': _backupVersion,
       'exported_at': DateTime.now().toIso8601String(),
       'app': 'Budget AI',
-      'api_keys': {'deepseek': deepseekKeys, 'searchapi': searchKeys},
+      'api_keys': {'deepseek': deepseekKeys},
       'settings': {
         if (selectedModel != null && selectedModel.isNotEmpty)
           'selected_deepseek_model': selectedModel,
@@ -151,7 +150,6 @@ class AppBackupService {
       if (apiKeys != null) {
         // Budget AI format
         final deepseekKeys = _extractKeys(apiKeys['deepseek']);
-        final searchKeys = _extractKeys(apiKeys['searchapi']);
 
         if (deepseekKeys.isNotEmpty) {
           await ApiKeyStorageService.saveApiKeys('deepseek', deepseekKeys);
@@ -159,14 +157,6 @@ class AppBackupService {
             deepseekKeys.length == 1
                 ? 'DeepSeek key'
                 : '${deepseekKeys.length} DeepSeek keys',
-          );
-        }
-        if (searchKeys.isNotEmpty) {
-          await ApiKeyStorageService.saveApiKeys('searchapi', searchKeys);
-          restoredItems.add(
-            searchKeys.length == 1
-                ? 'SearchAPI key'
-                : '${searchKeys.length} SearchAPI keys',
           );
         }
       } else if (app == 'OpenGate') {
@@ -179,21 +169,12 @@ class AppBackupService {
             backup['deepseek_api_key'] ??
             settings?['deepseek_api_key'] ??
             settings?['api_keys']?['deepseek'];
-        dynamic searchValue =
-            backup['searchapi_api_key'] ??
-            settings?['searchapi_api_key'] ??
-            settings?['api_keys']?['searchapi'];
 
         final deepseekKey = _extractKey(deepseekValue);
-        final searchKey = _extractKey(searchValue);
 
         if (deepseekKey != null && deepseekKey.isNotEmpty) {
           await ApiKeyStorageService.saveApiKeys('deepseek', [deepseekKey]);
           restoredItems.add('DeepSeek key');
-        }
-        if (searchKey != null && searchKey.isNotEmpty) {
-          await ApiKeyStorageService.saveApiKeys('searchapi', [searchKey]);
-          restoredItems.add('SearchAPI key');
         }
       }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
-import 'package:budget_ai/tools/settings/tool_settings.dart';
 
 enum ChatMode { defaultMode, fastChat }
 
@@ -68,16 +67,7 @@ class ChatModes {
   /// Apply [preset]: persist the mode and update individual tool enabled states.
   /// All SharedPrefs writes run in parallel for instant UI response.
   static Future<void> applyMode(ChatModePreset preset) async {
-    final toolsEnabled = preset.toolsEnabled;
-    final futures = <Future>[
-      SharedPrefsService.setChatMode(preset.id),
-      for (final tool in ToolSettings.tools)
-        if (toolsEnabled == null)
-          SharedPrefsService.clearToolEnabled(tool.name)
-        else
-          SharedPrefsService.setToolEnabled(tool.name, toolsEnabled),
-    ];
-    await Future.wait(futures);
+    await SharedPrefsService.setChatMode(preset.id);
   }
 
   // ── Natural-language detection ─────────────────────────────────────────────

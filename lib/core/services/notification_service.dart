@@ -8,7 +8,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart'
     hide PendingNotificationRequest;
 import 'package:budget_ai/core/models/notification_payload.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
-import 'package:budget_ai/features/mac_companion/data/mac_companion_service.dart';
 
 export 'package:flutter_local_notifications/flutter_local_notifications.dart'
     show PendingNotificationRequest;
@@ -165,54 +164,14 @@ class NotificationService {
   /// Stream that fires when a new action is enqueued.
   Stream<void> get onPendingActions => _pendingActionController.stream;
 
-  /// Handle a notification action for remote command approvals directly.
-  /// Returns true if handled remotely, false if it should be processed by UI.
-  Future<bool> handleRemoteApprovalAction({
-    required String actionId,
-    required String payload,
-  }) async {
-    if (actionId != NotificationActions.approve &&
-        actionId != NotificationActions.deny) {
-      return false;
-    }
-    final approvalPayload = parseApprovalPayload(payload);
-    if (approvalPayload == null) return false;
-
-    // Only handle remote commands (bash, edit, write, etc.) directly.
-    // Local tools and local GitHub ops need the UI context.
-    final kind = approvalPayload.kind;
-    if (kind == 'local_tool' || kind == 'local_github_branch_delete') {
-      return false;
-    }
-
-    final requestId = approvalPayload.approvalRequestId;
-    if (requestId == null || requestId.isEmpty) return false;
-
-    final approved = actionId == NotificationActions.approve;
-    try {
-      await MacCompanionService.instance
-          .respondToCommandApproval(
-            requestId: requestId,
-            approved: approved,
-          );
-      dismissApprovalNotification(approvalPayload.requestId);
-      debugPrint(
-        '[NotificationService] Remote approval handled: ${approved ? 'approved' : 'denied'} for $requestId',
-      );
-      return true;
-    } catch (e) {
-      debugPrint('[NotificationService] Remote approval failed: $e');
-    }
-    return false;
-  }
-
   /// Initialize the notification service.
   /// Must be called before using any notification methods.
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    final androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     final iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -238,9 +197,10 @@ class NotificationService {
   }
 
   Future<void> _createAndroidNotificationChannels() async {
-    final androidPlugin =
-        _notifications.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _notifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidPlugin == null) return;
 
     await androidPlugin.createNotificationChannel(
@@ -304,8 +264,10 @@ class NotificationService {
   /// Request notification permission (iOS only; Android handled at install).
   Future<bool> requestPermission() async {
     if (Platform.isIOS) {
-      final iosPlugin = _notifications.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
+      final iosPlugin = _notifications
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
       return await iosPlugin?.requestPermissions(
             alert: true,
             badge: true,
@@ -388,7 +350,8 @@ class NotificationService {
   }
 
   bool get dndDestructiveBypass {
-    return SharedPrefsService.instance.getBool(_dndDestructiveBypassKey) ?? true;
+    return SharedPrefsService.instance.getBool(_dndDestructiveBypassKey) ??
+        true;
   }
 
   Future<void> setDndDestructiveBypass(bool value) async {
@@ -430,7 +393,9 @@ class NotificationService {
     bool appInBackground = true,
   }) async {
     if (!isInitialized) {
-      debugPrint('[NotificationService] Not initialized, skipping approval notification');
+      debugPrint(
+        '[NotificationService] Not initialized, skipping approval notification',
+      );
       return null;
     }
 
@@ -502,7 +467,8 @@ class NotificationService {
       presentBadge: true,
       presentSound: approvalSoundEnabled,
       sound: approvalSoundEnabled ? 'default' : null,
-      interruptionLevel: riskLevel == RiskLevel.destructive ||
+      interruptionLevel:
+          riskLevel == RiskLevel.destructive ||
               riskLevel == RiskLevel.irreversible
           ? InterruptionLevel.timeSensitive
           : InterruptionLevel.active,
@@ -588,7 +554,9 @@ class NotificationService {
     await _notifications.show(
       id: summaryId,
       title: '🔒 $count approvals pending',
-      body: count > 1 ? '$count commands need your approval' : '1 command needs approval',
+      body: count > 1
+          ? '$count commands need your approval'
+          : '1 command needs approval',
       notificationDetails: NotificationDetails(android: androidDetails),
     );
   }
@@ -605,7 +573,9 @@ class NotificationService {
     bool appInBackground = true,
   }) async {
     if (!isInitialized) {
-      debugPrint('[NotificationService] Not initialized, skipping response notification');
+      debugPrint(
+        '[NotificationService] Not initialized, skipping response notification',
+      );
       return null;
     }
 
@@ -639,10 +609,7 @@ class NotificationService {
           'Open',
           showsUserInterface: true,
         ),
-        const AndroidNotificationAction(
-          NotificationActions.dismiss,
-          'Dismiss',
-        ),
+        const AndroidNotificationAction(NotificationActions.dismiss, 'Dismiss'),
       ],
     );
 
@@ -711,7 +678,10 @@ class NotificationService {
       id: title.hashCode.abs(),
       title: title,
       body: body,
-      notificationDetails: NotificationDetails(android: androidDetails, iOS: iosDetails),
+      notificationDetails: NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      ),
       payload: payload,
     );
   }
@@ -736,7 +706,9 @@ class NotificationService {
   NotificationPayloadType parsePayloadType(String payload) {
     try {
       final json = jsonDecode(payload) as Map<String, dynamic>;
-      if (json.containsKey('requestId')) return NotificationPayloadType.approval;
+      if (json.containsKey('requestId')) {
+        return NotificationPayloadType.approval;
+      }
       if (json.containsKey('chatId') && json.containsKey('toolCallCount')) {
         return NotificationPayloadType.responseReady;
       }

@@ -8,7 +8,6 @@ class ApiKeyStorageService {
   static const String _firepassKey = 'firepass_api_key';
   static const String _deepseekKey = 'deepseek_api_key';
   static const String _githubKey = 'github_api_key';
-  static const String _searchApiKey = 'searchapi_api_key';
   static const String _xiaomiKey = 'xiaomi_api_key';
 
   static final _prefs = SharedPrefsService.instance;
@@ -85,7 +84,6 @@ class ApiKeyStorageService {
       _prefs.remove(_firepassKey),
       _prefs.remove(_deepseekKey),
       _prefs.remove(_githubKey),
-      _prefs.remove(_searchApiKey),
       _prefs.remove(_xiaomiKey),
     ]);
   }
@@ -98,8 +96,6 @@ class ApiKeyStorageService {
         return _deepseekKey;
       case 'github':
         return _githubKey;
-      case 'searchapi':
-        return _searchApiKey;
       case 'xiaomi':
       case 'xiaomimimo':
         return _xiaomiKey;
@@ -126,16 +122,8 @@ class ApiKeyStorageService {
   static Future<List<String>> getGithubApiKeys() => getApiKeys('github');
   static Future<void> deleteGithubApiKey() => deleteApiKey('github');
 
-  static Future<void> saveSearchApiKey(String key) =>
-      saveApiKey('searchapi', key);
-  static Future<String?> getSearchApiKey() => getApiKey('searchapi');
-  static Future<List<String>> getSearchApiKeys() => getApiKeys('searchapi');
-  static Future<void> deleteSearchApiKey() => deleteApiKey('searchapi');
-
-  static Future<void> saveXiaomiApiKey(String key) =>
-      saveApiKey('xiaomi', key);
+  static Future<void> saveXiaomiApiKey(String key) => saveApiKey('xiaomi', key);
   static Future<String?> getXiaomiApiKey() => getApiKey('xiaomi');
-  static Future<List<String>> getXiaomiApiKeys() =>
-      getApiKeys('xiaomi');
+  static Future<List<String>> getXiaomiApiKeys() => getApiKeys('xiaomi');
   static Future<void> deleteXiaomiApiKey() => deleteApiKey('xiaomi');
 }

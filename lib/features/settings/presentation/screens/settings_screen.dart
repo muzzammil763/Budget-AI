@@ -49,7 +49,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           if (_packageInfo != null) ...[
-            
             Text(
               '${_packageInfo!.version} (${_packageInfo!.buildNumber})',
               style: AppTheme.bodySmall.copyWith(
@@ -57,7 +56,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 fontSize: 12,
               ),
             ),
-            
           ],
           const SizedBox(width: 8),
         ],
@@ -70,7 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             theme,
             icon: Icons.key_outlined,
             title: 'API Keys',
-            subtitle: 'DeepSeek & SearchAPI keys',
+            subtitle: 'DeepSeek keys',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const APIKeysScreen()),
@@ -100,8 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             theme,
             icon: CupertinoIcons.archivebox,
             title: 'Backup & Restore',
-            subtitle:
-                'Backup & Restore finances, memories data',
+            subtitle: 'Backup & Restore finances, memories data',
             onTap: _showBackupRestoreSheet,
           ),
         ],

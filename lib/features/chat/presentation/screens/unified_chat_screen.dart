@@ -8,7 +8,6 @@ import 'package:flutter/rendering.dart';
 import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/features/settings/presentation/screens/settings_screen.dart';
-import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/app/navigation/app_route_observer.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
 import 'package:budget_ai/features/chat/data/services/chat_provider.dart';
@@ -20,7 +19,6 @@ import 'package:budget_ai/features/chat/domain/workspace_mentions.dart';
 import 'package:budget_ai/features/chat/presentation/screens/model_selector_screen.dart';
 import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
 import 'package:budget_ai/features/github/data/local_github_service.dart';
-import 'package:budget_ai/features/mac_companion/data/mac_companion_service.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/features/memory/data/memory_service.dart';
 import 'package:budget_ai/features/skills/data/agent_skill_service.dart';
@@ -62,14 +60,9 @@ class UnifiedChatScreen extends StatefulWidget {
 
 class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     with RouteAware, WidgetsBindingObserver {
-  static const String _workspaceSourceRemoteMac = 'remote_mac';
   static const String _workspaceSourceLocalGithub = 'local_github';
   static const String _continueInterruptedResponsePrompt =
-      'Continue from the previous assistant turn. Use the completed tool results already in this conversation, especially any read results. Do not repeat successful read/tool calls unless a specific missing line range or query is required. Finish the original request.';
-  static const String _continueAfterRecoverableEditFailurePrompt =
-      'Continue from the previous assistant turn. The last edit tool call failed because its oldText did not match the current file. Use the failed tool result and its suggestions as retry guidance. Read the current target file again if needed, then retry with exact current text or a smaller unique replacement. Do not ask the user to continue manually.';
-  static const String _continueAfterRecoverableFileAccessFailurePrompt =
-      'Continue from the previous assistant turn. The last workspace file tool failed because the backend could not read the target path. Retry internally: verify the exact file path/workspace root, prefer a relative path from the connected workspace when possible, and use another available file access route such as bash if the file API still fails. Do not ask the user to continue manually.';
+      'Continue from the previous assistant turn. Use the completed tool results already in this conversation. Do not repeat successful tool calls unless required. Finish the original request.';
   static const int _maxAutomaticToolContinuations = 3;
   static const int _maxSilentPostToolErrorContinuations = 1;
 
@@ -104,7 +97,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   DateTime? _turnWallClockStart;
   final Map<int, Duration> _turnWallClockDurations = {};
   bool _isModelReady = false;
-  String? _token;
   String _selectedModel = '';
   ChatSessionRecord? _activeSession;
   String? _workspaceRoot;
@@ -179,7 +171,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _initialize() async {
-    await _loadToken();
     // Batch synchronous prefs reads into one setState instead of two separate
     // rebuilds — each setState on this large screen is expensive.
     final savedModel = SharedPrefsService.instance.getString(
@@ -197,8 +188,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _refreshProviderState();
   }
 
-  void _loadChatMode() {
-  }
+  void _loadChatMode() {}
 
   Future<void> _applyModeAndRefresh(ChatModePreset preset) async {
     // Optimistic update — button and toast appear instantly.
@@ -212,18 +202,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (mounted) _loadChatMode();
   }
 
-
   Future<void> _refreshChatConfiguration() async {
-    await _loadToken();
     await _loadSelectedModel();
     await _refreshProviderState();
   }
 
   Future<void> _clearTransientWorkspaceSelection() async {
-    await SharedPrefsService.clearWorkspaceRoot();
-    await SharedPrefsService.clearWorkspaceSource();
-    await SharedPrefsService.clearConnectedWorkspaceProjects();
-    await MacCompanionService.instance.clearSelectedRemoteWorkspace();
+    _connectedWorkspaces = const [];
+    _workspaceRoot = null;
+    _workspaceLabel = null;
   }
 
   Future<void> _refreshProviderState() async {
@@ -259,20 +246,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _clearWorkspaceSelection() async {
-    await SharedPrefsService.clearWorkspaceRoot();
-    await SharedPrefsService.clearWorkspaceSource();
-    await SharedPrefsService.clearConnectedWorkspaceProjects();
-    await MacCompanionService.instance.clearSelectedRemoteWorkspace();
     if (!mounted) return;
     setState(() {
       _connectedWorkspaces = const [];
       _workspaceRoot = null;
       _workspaceLabel = null;
-      _workspaceMentionIndexedRoot = null;
-      _workspaceMentionEntries = const [];
-      _workspaceMentionSuggestions = const [];
-      _activeWorkspaceMentionQuery = null;
-      _activeWorkspaceMentionSuggestionIndex = -1;
     });
   }
 
@@ -291,32 +269,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _persistConnectedWorkspaces() async {
-    final completed = _connectedWorkspaces
-        .where((item) => !item.isConnecting && item.path.trim().isNotEmpty)
-        .toList();
-    await SharedPrefsService.setConnectedWorkspaceProjects(
-      completed.map((item) => item.toPrefs()).toList(),
-    );
-
-    _ConnectedWorkspace? primary;
-    for (final workspace in completed) {
-      if (workspace.source == _activeWorkspaceSource) {
-        primary = workspace;
-        break;
-      }
-    }
-    if (primary == null) {
-      await SharedPrefsService.clearWorkspaceRoot();
-      await SharedPrefsService.clearWorkspaceSource();
-      return;
-    }
-
-    await SharedPrefsService.setWorkspaceRoot(primary.path);
-    await SharedPrefsService.setWorkspaceLabel(primary.label);
-    await SharedPrefsService.setWorkspaceArchiveName('');
-    await SharedPrefsService.setWorkspaceSource(primary.source);
+    _syncPrimaryWorkspaceFromConnected();
   }
-
 
   Future<void> _changeModel(String newModel) async {
     final prefs = SharedPrefsService.instance;
@@ -350,39 +304,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  Future<void> _loadToken() async {
-    if (widget.config.tokenKey != null) {
-      final token = await ApiKeyStorageService.getApiKey(
-        widget.config.modelName,
-      );
-      setState(() {
-        _token = token;
-      });
-    }
-  }
-
-  bool get _hasApiKey => (_token ?? '').trim().isNotEmpty;
-
-  bool get _hasRemoteMacConnection =>
-      MacCompanionService.instance.stateNotifier.value.hasRemoteConnection;
-
   bool get _isGithubMode => _githubModeActive;
 
-
-
-  String get _activeWorkspaceSource =>
-      _isGithubMode ? _workspaceSourceLocalGithub : _workspaceSourceRemoteMac;
+  String get _activeWorkspaceSource => _workspaceSourceLocalGithub;
 
   List<_ConnectedWorkspace> get _visibleConnectedWorkspaces =>
       _connectedWorkspaces
           .where((item) => item.source == _activeWorkspaceSource)
           .toList(growable: false);
 
-  bool get _shouldShowRemoteWorkspaceUi =>
-      _hasRemoteMacConnection && _hasApiKey && !_isGithubMode;
-
-  bool get _shouldShowWorkspaceUi =>
-      _shouldShowRemoteWorkspaceUi || _isGithubMode;
+  bool get _shouldShowWorkspaceUi => _isGithubMode;
 
   ChatSessionRepository get _chatSessions => ChatSessionRepository.instance;
 
@@ -504,8 +435,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     });
 
     _provider.clearHistory();
-    await MacCompanionService.instance.clearActiveCommandSessionAllowlist();
-    MacCompanionService.instance.setActiveChatSessionId(null);
     await _clearWorkspaceSelection();
   }
 
@@ -688,8 +617,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     _provider.clearHistory();
     _provider.loadConversationState(loadedActiveState);
-    MacCompanionService.instance.setActiveChatSessionId(loaded.session.id);
-
     if (!mounted) return;
     setState(() {
       _activeSession = loaded.session;
@@ -952,37 +879,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     final includeWorkspaceInMention = workspaces.length > 1;
-    final cachedEntries = <WorkspaceMentionEntry>[];
-    final missingCacheWorkspaces = <_ConnectedWorkspace>[];
-    for (final workspace in workspaces) {
-      final cached = SharedPrefsService.getWorkspaceMentionIndexCache(
-        workspace.path,
-      );
-      if (cached != null && cached.isNotEmpty) {
-        cachedEntries.addAll(
-          _parseRawWorkspaceMentionResults(
-            cached,
-            workspace: workspace,
-            includeWorkspaceInMention: includeWorkspaceInMention,
-          ),
-        );
-      } else {
-        missingCacheWorkspaces.add(workspace);
-      }
-    }
-
-    final hasCachedEntries = cachedEntries.isNotEmpty;
-    if (hasCachedEntries && mounted) {
-      cachedEntries.sort(compareWorkspaceMentionEntries);
-      setState(() {
-        _workspaceMentionIndexedRoot = indexedKey;
-        _workspaceMentionEntries = cachedEntries;
-      });
-      _updateWorkspaceMentionSuggestions();
-      if (!force && missingCacheWorkspaces.isEmpty) return;
-    }
-
-    // Network refresh — silent if cache was already applied.
     try {
       final refreshedEntries = <WorkspaceMentionEntry>[];
       for (final workspace in workspaces) {
@@ -1008,16 +904,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             includeWorkspaceInMention: includeWorkspaceInMention,
           ),
         );
-        unawaited(
-          SharedPrefsService.saveWorkspaceMentionIndexCache(
-            workspace.path,
-            rawResults,
-          ),
-        );
       }
 
       if (!mounted) return;
-      if (refreshedEntries.isEmpty && !hasCachedEntries) {
+      if (refreshedEntries.isEmpty) {
         setState(() {
           _workspaceMentionIndexedRoot = indexedKey;
           _workspaceMentionEntries = const [];
@@ -1028,26 +918,21 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         return;
       }
 
-      final entries = refreshedEntries.isEmpty
-          ? cachedEntries
-          : refreshedEntries;
-      entries.sort(compareWorkspaceMentionEntries);
+      refreshedEntries.sort(compareWorkspaceMentionEntries);
       setState(() {
         _workspaceMentionIndexedRoot = indexedKey;
-        _workspaceMentionEntries = entries;
+        _workspaceMentionEntries = refreshedEntries;
       });
       _updateWorkspaceMentionSuggestions();
     } catch (_) {
       if (!mounted) return;
-      if (!hasCachedEntries) {
-        setState(() {
-          _workspaceMentionIndexedRoot = indexedKey;
-          _workspaceMentionEntries = const [];
-          _workspaceMentionSuggestions = const [];
-          _activeWorkspaceMentionQuery = null;
-          _activeWorkspaceMentionSuggestionIndex = -1;
-        });
-      }
+      setState(() {
+        _workspaceMentionIndexedRoot = indexedKey;
+        _workspaceMentionEntries = const [];
+        _workspaceMentionSuggestions = const [];
+        _activeWorkspaceMentionQuery = null;
+        _activeWorkspaceMentionSuggestionIndex = -1;
+      });
     }
   }
 
@@ -1088,13 +973,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       return _listGithubCloneMentionFiles(workspaceRoot: workspaceRoot);
     }
 
-    final result = await MacCompanionService.instance.listRemoteFiles(
-      workspaceRoot: workspaceRoot,
-      path: '.',
-      recursive: true,
-      maxResults: 20000,
-      ignoredDirectoryNames: kIgnoredWorkspaceMentionDirectoryNames,
-    );
+    final result = {'ok': false, 'error': 'Remote workspace is unavailable.'};
     if (result['ok'] == false) {
       return {
         'error':
@@ -1402,7 +1281,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           ? 'Review this local app operation before it runs.'
           : isLocalGithubDelete
           ? 'Review this local GitHub operation before it runs.'
-          : 'Review this MacRemote command before it runs.';
+          : 'Review this command before it runs.';
       final consequence = request['consequence']?.toString() ?? '';
       final displayText = [
         command,
@@ -1541,15 +1420,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
     }
 
-    final requestId = request['id']?.toString() ?? '';
     final command = request['command']?.toString() ?? '';
     final workingDirectory = request['working_directory']?.toString();
-
-    final response = await MacCompanionService.instance
-        .respondToCommandApproval(requestId: requestId, approved: approved);
-    if (response['ok'] != true) {
-      return response;
-    }
 
     if (!approved) {
       await _handleCommandApprovalResolved(sourceToolCall, {
@@ -1560,119 +1432,20 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       });
       return {'ok': true};
     }
-
-    // Show "Running command ..." instantly in the chat timeline while the
-    // remote command executes so the user knows work is in progress.
-    await _updateToolCallResultInTimeline(sourceToolCall, {
-      'approval_required': true,
-      'approval_request': request,
-      'approval_decision': 'approved',
-      'content': 'Running command ...',
-    }, markComplete: false);
-
-    final commandResult = await _runApprovedRemoteCommandWithProgress(
-      sourceToolCall: sourceToolCall,
-      request: request,
-      workspaceRoot: workingDirectory,
-      command: command,
-    );
     await _handleCommandApprovalResolved(sourceToolCall, {
       'approval_required': true,
       'approval_request': request,
       'approval_decision': 'approved',
-      'added_to_session': addToSession,
-      'command_result': commandResult,
-      'content':
-          commandResult['content']?.toString() ??
-          commandResult['stdout']?.toString() ??
-          commandResult['stderr']?.toString() ??
-          'Command approved.',
+      'added_to_session': false,
+      'command_result': {
+        'success': false,
+        'command': command,
+        'working_directory': workingDirectory,
+        'error': 'Remote commands are no longer available.',
+      },
+      'content': 'Remote commands are no longer available.',
     });
     return {'ok': true};
-  }
-
-  Future<Map<String, dynamic>> _runApprovedRemoteCommandWithProgress({
-    required ToolCall sourceToolCall,
-    required Map<String, dynamic> request,
-    required String? workspaceRoot,
-    required String command,
-  }) async {
-    final root = workspaceRoot == null || workspaceRoot.trim().isEmpty
-        ? null
-        : workspaceRoot;
-    final startResult = await MacCompanionService.instance
-        .startRemoteTerminalCommand(workspaceRoot: root, command: command);
-    if (startResult['error'] != null || startResult['command_id'] == null) {
-      return startResult;
-    }
-
-    Future<void> pushProgress(Map<String, dynamic> progress) {
-      final output = _remoteCommandOutput(progress);
-      return _updateToolCallResultInTimeline(sourceToolCall, {
-        'approval_required': true,
-        'approval_request': request,
-        'approval_decision': 'approved',
-        'command_result': {
-          ...progress,
-          'command': command,
-          'workspace_root': root,
-          'working_directory': root,
-          'content': output,
-        },
-        'content': output.isEmpty ? 'Running command ...' : output,
-      }, markComplete: false);
-    }
-
-    var latest = Map<String, dynamic>.from(startResult);
-    await pushProgress(latest);
-    final commandId = startResult['command_id'].toString();
-
-    while (mounted) {
-      await Future<void>.delayed(const Duration(seconds: 2));
-      final progress = await MacCompanionService.instance
-          .getRemoteTerminalProgress(commandId);
-      if (progress['error'] != null) {
-        return {
-          ...latest,
-          'success': false,
-          'error': progress['error'],
-          'content': progress['error']?.toString() ?? 'Command failed.',
-        };
-      }
-      latest = Map<String, dynamic>.from(progress);
-      await pushProgress(latest);
-      if ((latest['status']?.toString() ?? 'running') != 'running') break;
-    }
-
-    final exitCode = (latest['exit_code'] as num?)?.toInt();
-    return {
-      'tool': 'terminal_command',
-      'backend': 'terminal',
-      'operation': 'execute',
-      'workspace_root': root,
-      'working_directory': root,
-      'command': command,
-      ...latest,
-      'success': exitCode == 0,
-      'stdout': latest['stdout_tail']?.toString().trim() ?? '',
-      'stderr': latest['stderr_tail']?.toString().trim() ?? '',
-      'content': _remoteCommandOutput(latest),
-    };
-  }
-
-  String _remoteCommandOutput(Map<dynamic, dynamic> result) {
-    for (final key in const [
-      'content',
-      'stdout',
-      'stderr',
-      'stdout_tail',
-      'stderr_tail',
-      'output_sample',
-    ]) {
-      final value = result[key]?.toString().trim() ?? '';
-      if (value.isNotEmpty) return value;
-    }
-    return '';
   }
 
   Future<Map<String, dynamic>> _resolveLocalToolApproval({
@@ -2041,7 +1814,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await AgentSkillService.instance.activateForMessage(providerMessageText);
     final agentFlowPromptSnapshot = await _buildAgentFlowPromptSnapshot();
     final session = await _ensureSessionCreated(provisionalUserMessage);
-    MacCompanionService.instance.setActiveChatSessionId(session.id);
     final storedAttachments = await _chatSessions.copyAttachmentsToSession(
       sessionId: session.id,
       originalPaths: allOriginalAttachments,
@@ -2102,8 +1874,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     ChatMessage? finalAssistantMessage;
     int? assistantEntryId;
     bool shouldSilentlyContinueAfterToolError = false;
-    bool shouldContinueAfterRecoverableEditFailure = false;
-    bool shouldContinueAfterRecoverableFileAccessFailure = false;
 
     try {
       final replacingAssistant =
@@ -2584,18 +2354,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           automaticToolContinuationDepth < _maxAutomaticToolContinuations &&
           !_hasPendingCommandApproval(messageBlocks) &&
           _shouldAutoContinueAfterToolBlocks(messageBlocks);
-      shouldContinueAfterRecoverableEditFailure =
-          mounted &&
-          automaticToolContinuationDepth < _maxAutomaticToolContinuations &&
-          _hasRecoverableEditToolFailure(messageBlocks);
-      shouldContinueAfterRecoverableFileAccessFailure =
-          mounted &&
-          automaticToolContinuationDepth < _maxAutomaticToolContinuations &&
-          _hasRecoverableFileAccessToolFailure(messageBlocks);
-      final postToolFallback =
-          willAutoContinueToolTurn ||
-              shouldContinueAfterRecoverableEditFailure ||
-              shouldContinueAfterRecoverableFileAccessFailure
+      final postToolFallback = willAutoContinueToolTurn
           ? null
           : _buildPostToolCompletionFallback(messageBlocks);
       if (postToolFallback != null && postToolFallback.isNotEmpty) {
@@ -2623,10 +2382,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _streamingBubble.value = finalAssistantMessage;
       setState(() {
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
-        if (!hasPendingApproval &&
-            !willAutoContinueToolTurn &&
-            !shouldContinueAfterRecoverableEditFailure &&
-            !shouldContinueAfterRecoverableFileAccessFailure) {
+        if (!hasPendingApproval && !willAutoContinueToolTurn) {
           _isStreaming = false;
           _streamingMessageIndex = null;
         }
@@ -2638,9 +2394,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _streamingBubble.value = null;
       });
-      if (!hasPendingApproval &&
-          !willAutoContinueToolTurn &&
-          !shouldContinueAfterRecoverableEditFailure) {
+      if (!hasPendingApproval && !willAutoContinueToolTurn) {
         if (_turnWallClockStart != null) {
           _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
             _turnWallClockStart!,
@@ -2689,15 +2443,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             : messageBlocks,
       );
 
-      final fallbackText = _buildStreamTimeoutFallback(blocks);
-      if (fallbackText != null && fallbackText.isNotEmpty) {
-        _appendResponseBlock(blocks, fallbackText);
-      } else {
-        _appendResponseBlock(
-          blocks,
-          '\n\nThe model stopped responding before it finished the reply.',
-        );
-      }
+      _appendResponseBlock(
+        blocks,
+        '\n\nThe model stopped responding before it finished the reply.',
+      );
       _markAllOpenTextBlocksComplete(blocks);
 
       responseTimeMs = DateTime.now().difference(startTime).inMilliseconds;
@@ -2929,17 +2678,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         automaticToolContinuationDepth < _maxAutomaticToolContinuations &&
         aiMessageIndex != null &&
         (shouldSilentlyContinueAfterToolError ||
-            shouldContinueAfterRecoverableEditFailure ||
-            shouldContinueAfterRecoverableFileAccessFailure ||
             _shouldAutoContinueAfterToolTurn(finalAssistantMessage));
     if (shouldContinueToolTurn) {
       await _sendMessage(
         appendUserMessage: false,
-        providerMessageOverride: shouldContinueAfterRecoverableEditFailure
-            ? _continueAfterRecoverableEditFailurePrompt
-            : shouldContinueAfterRecoverableFileAccessFailure
-            ? _continueAfterRecoverableFileAccessFailurePrompt
-            : _continueInterruptedResponsePrompt,
+        providerMessageOverride: _continueInterruptedResponsePrompt,
         removeProviderMessageFromHistory: true,
         replaceAssistantMessageIndex: aiMessageIndex,
         automaticToolContinuationDepth: automaticToolContinuationDepth + 1,
@@ -3155,6 +2898,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _attemptBackNavigation([Object? result]) async {
+    final scaffoldState = _scaffoldKey.currentState;
+    if (scaffoldState?.isDrawerOpen ?? false) {
+      scaffoldState?.closeDrawer();
+      return;
+    }
+
     if (_isBusyBlockingNavigation) {
       final shouldLeave = await _showLeaveWhileStreamingSheet();
       if (!mounted || !shouldLeave) {
@@ -3366,64 +3115,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           block.toolCall != null &&
           !block.toolCall!.isComplete,
     );
-  }
-
-  bool _hasRecoverableEditToolFailure(List<ChatMessageBlock> blocks) {
-    final latestTool = _latestCompletedTool(blocks, successfulOnly: false);
-    if (latestTool == null ||
-        latestTool.status != ToolCallStatus.failed ||
-        !_isEditToolName(latestTool.name)) {
-      return false;
-    }
-
-    final decoded = _decodeToolResult(latestTool.result);
-    if (decoded is! Map) return false;
-    final result = Map<String, dynamic>.from(decoded);
-
-    final error = result['error']?.toString().toLowerCase() ?? '';
-    final suggestions = result['suggestions'];
-    return suggestions is List &&
-        suggestions.isNotEmpty &&
-        (error.contains('could not find') ||
-            error.contains('oldtext') ||
-            error.contains('unique') ||
-            error.contains('not found'));
-  }
-
-  bool _hasRecoverableFileAccessToolFailure(List<ChatMessageBlock> blocks) {
-    final latestTool = _latestCompletedTool(blocks, successfulOnly: false);
-    if (latestTool == null || latestTool.status != ToolCallStatus.failed) {
-      return false;
-    }
-
-    final toolName = latestTool.name.trim().toLowerCase();
-    if (toolName != 'read' &&
-        toolName != 'edit' &&
-        toolName != 'read_workspace_file' &&
-        toolName != 'edit_workspace_file') {
-      return false;
-    }
-
-    final decoded = _decodeToolResult(latestTool.result);
-    if (decoded is! Map) return false;
-    final result = Map<String, dynamic>.from(decoded);
-    final error = [result['error'], result['file_error']]
-        .whereType<Object>()
-        .map((value) => value.toString().toLowerCase())
-        .join('\n');
-
-    return error.contains('could not read') ||
-        error.contains('dioexception') ||
-        error.contains('bad response') ||
-        error.contains('connection') ||
-        error.contains('timed out') ||
-        error.contains('socketexception') ||
-        error.contains('httpexception');
-  }
-
-  bool _isEditToolName(String name) {
-    final normalized = name.trim().toLowerCase();
-    return normalized == 'edit' || normalized == 'edit_workspace_file';
   }
 
   void _appendThinkingBlock(List<ChatMessageBlock> blocks, String text) {
@@ -4176,24 +3867,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         r'\n\nThe model stopped responding before it finished the reply\.$',
       ),
       RegExp(
-        r'\n\n`[^`]+` was written in your workspace before the model stopped responding\.$',
-      ),
-      RegExp(
-        r'\n\n`[^`]+` is ready, but the model stopped before finishing the response\.$',
-      ),
-      RegExp(
-        r'\n\nEdited `?[^`\n]+`?\. The model finished the tool call but did not send a final summary\.$',
-      ),
-      RegExp(
-        r'\n\nWrote `?[^`\n]+`? in your workspace\. The model finished the tool call but did not send a final summary\.$',
-      ),
-      RegExp(
-        r'\n\n`?[^`\n]+`? is ready\. The model finished the tool call but did not send a final summary\.$',
-      ),
-      RegExp(
-        r'\n\nApplied a patch in your workspace\. The model finished the tool call but did not send a final summary\.$',
-      ),
-      RegExp(
         r'(?:\n\n)?Unable to send message\.\n\nConnection failed after \d+ attempts\.[\s\S]*$',
       ),
       RegExp(r'(?:\n\n)?Connection failed after \d+ attempts\.[\s\S]*$'),
@@ -4216,19 +3889,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             'The model stopped responding after finishing the tool call.' ||
         trimmed ==
             'The model stopped responding before it finished the reply.' ||
-        (trimmed.contains(
-              'The model finished the tool call but did not send a final summary.',
-            ) &&
-            (trimmed.startsWith('Edited ') ||
-                trimmed.startsWith('Wrote ') ||
-                trimmed.startsWith('Applied a patch') ||
-                trimmed.endsWith(
-                  'is ready. The model finished the tool call but did not send a final summary.',
-                ))) ||
-        trimmed.endsWith('before the model stopped responding.') ||
-        trimmed.endsWith(
-          'but the model stopped before finishing the response.',
-        ) ||
         _isReconnectExhaustedMessage(trimmed);
   }
 
@@ -4412,7 +4072,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(32),
           border: Border.all(
-            color: theme.brightness == Brightness.dark 
+            color: theme.brightness == Brightness.dark
                 ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
                 : theme.colorScheme.onSurface.withValues(alpha: 0.1),
             width: 1,
@@ -4472,9 +4132,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(32),
         border: Border.all(
-         color: theme.brightness == Brightness.dark 
-                ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
-                : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+          color: theme.brightness == Brightness.dark
+              ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.1),
           width: 1,
         ),
         boxShadow: [
@@ -4504,7 +4164,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       ),
     );
   }
-
 
   Widget _buildBody() {
     if (_timelineItems.isEmpty) {
@@ -4590,7 +4249,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   String _folderNameFromPath(String path) {
     return path.split(RegExp(r'[\\/]')).where((part) => part.isNotEmpty).last;
   }
-
 
   Widget _buildTimelineItem(_TimelineViewItem item) {
     switch (item) {
@@ -4847,17 +4505,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-
-
-
-
-
-
-
-
-
-
-
   Future<void> _navigateToModelSelection({
     bool fromContextLimitCard = false,
   }) async {
@@ -4903,9 +4550,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             : _messages.indexWhere((m) => identical(m, message)));
 
     if (message.isUser) {
-      final userBubbleColor = theme.colorScheme.primary.withValues(
-        alpha: theme.brightness == Brightness.dark ? 0.24 : 0.12,
-      );
       final userTextColor = theme.colorScheme.onSurface;
 
       Widget buildContent() {
@@ -4940,16 +4584,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               maxWidth: MediaQuery.sizeOf(context).width * 0.82,
             ),
             decoration: BoxDecoration(
-              color: userBubbleColor,
+              color: theme.colorScheme.surface,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(22),
-                topRight: Radius.circular(22),
-                bottomLeft: Radius.circular(22),
+                topLeft: Radius.circular(100),
+                topRight: Radius.circular(100),
+                bottomLeft: Radius.circular(100),
                 bottomRight: Radius.circular(8),
               ),
               border: Border.all(
                 color: theme.colorScheme.primary.withValues(
-                  alpha: theme.brightness == Brightness.dark ? 0.14 : 0.06,
+                  alpha: theme.brightness == Brightness.dark ? 0.3 : 0.25,
                 ),
               ),
             ),
@@ -4974,17 +4618,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (isFollowedByAssistant) {
         return const SizedBox.shrink();
       }
-      _hasPendingCommandApproval(
-        _getMessageBlocks(message),
-      );
-      _shouldShowRetryContinue(
-        message,
-        resolvedMessageIndex,
-      );
-      _shareableAssistantText(
-        message,
-        resolvedMessageIndex,
-      );
+      _hasPendingCommandApproval(_getMessageBlocks(message));
+      _shouldShowRetryContinue(message, resolvedMessageIndex);
+      _shareableAssistantText(message, resolvedMessageIndex);
       _cacheUsageLabel(message.responseMetadata);
 
       Widget messageContent = Padding(
@@ -5125,9 +4761,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       (block) => _isContinuationFallbackText(block.text ?? ''),
     );
   }
-
-
-
 
   List<ChatMessageBlock> _getEffectiveBlocks(
     int messageIndex,
@@ -5608,7 +5241,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       children.add(_buildStreamingCursorPlaceholder());
     }
 
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children,
@@ -5815,9 +5447,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-
-
-
   List<Map<String, dynamic>> _fileInfosFromBlocks(
     List<ChatMessageBlock> blocks,
   ) {
@@ -5975,16 +5604,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       ],
       contentWidgets: [
         if (_hasWorkspaceForMarkdownActions && fileCandidate)
-        if (_hasWorkspaceForMarkdownActions)
-          _MarkdownActionTile(
-            icon: CupertinoIcons.search,
-            title: 'Find Definition And Uses',
-            subtitle: _workspaceDisplayName,
-            onTap: () {
-              Navigator.pop(context);
-          
-            },
-          ),
+          if (_hasWorkspaceForMarkdownActions)
+            _MarkdownActionTile(
+              icon: CupertinoIcons.search,
+              title: 'Find Definition And Uses',
+              subtitle: _workspaceDisplayName,
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
         _MarkdownActionTile(
           icon: CupertinoIcons.doc_on_doc,
           title: 'Copy',
@@ -6049,17 +5677,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       caseSensitive: false,
     ).hasMatch(clean);
   }
-
-
-
-
-
-
-
-
-
-
-
 
   String? _cacheUsageLabel(Map<String, dynamic>? metadata) {
     final cacheReadTokens =
@@ -6129,11 +5746,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return value.toString();
   }
 
-
-
-
-
-
   Widget _buildStatusCard(_TimelineStatusItem item) {
     final data = item.data;
     final kind = item.kind;
@@ -6151,7 +5763,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
   }
@@ -6167,7 +5778,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (confirmed != true || !mounted) return;
     await _deleteMessage(messageIndex);
   }
-
 
   Future<bool?> _showDeleteConfirmationDialog(
     String title,
@@ -6316,78 +5926,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   int get _estimatedConversationTokens => _currentContextPromptTokens;
 
-
-
-  String? _buildStreamTimeoutFallback(List<ChatMessageBlock> blocks) {
-    final successfulWorkspaceTool = _latestCompletedWorkspaceMutationTool(
-      blocks,
-      successfulOnly: true,
-    );
-    if (successfulWorkspaceTool == null) {
-      return null;
-    }
-
-    final filePath = (successfulWorkspaceTool.arguments['path'] ?? '')
-        .toString()
-        .trim();
-    final fileName = filePath.isEmpty
-        ? 'generated file'
-        : _fileNameFromPath(filePath);
-
-    if (_hasResponseAfterToolBlock(blocks, successfulWorkspaceTool.id)) {
-      return '\n\nThe model stopped responding after finishing the tool call.';
-    }
-
-    if (_hasActiveWorkspaceContext) {
-      return '\n\n`$fileName` was written in your workspace before the model stopped responding.';
-    }
-
-    return '\n\n`$fileName` is ready, but the model stopped before finishing the response.';
-  }
-
   String? _buildPostToolCompletionFallback(List<ChatMessageBlock> blocks) {
     final latestTool = _latestCompletedTool(blocks, successfulOnly: false);
     if (latestTool == null ||
         _hasResponseAfterToolBlock(blocks, latestTool.id)) {
-      return null;
-    }
-
-    final toolName = latestTool.name.trim().toLowerCase();
-    final filePath = (latestTool.arguments['path'] ?? '').toString().trim();
-    final fileLabel = filePath.isEmpty ? 'the file' : '`$filePath`';
-    final isWorkspaceMutationTool = {
-      'write_workspace_file',
-      'edit_workspace_file',
-      'write',
-      'edit',
-      'patch',
-    }.contains(toolName);
-
-    if (latestTool.status == ToolCallStatus.failed && isWorkspaceMutationTool) {
-      if (_hasRecoverableEditToolFailure(blocks)) {
-        return null;
-      }
-      return '\n\nThe last tool call failed. Open the tool details above for the exact error and retry context.';
-    }
-
-    if (toolName == 'edit_workspace_file' || toolName == 'edit') {
-      return '\n\nEdited $fileLabel. The model finished the tool call but did not send a final summary.';
-    }
-
-    if (toolName == 'write_workspace_file' || toolName == 'write') {
-      return _hasActiveWorkspaceContext
-          ? '\n\nWrote $fileLabel in your workspace. The model finished the tool call but did not send a final summary.'
-          : '\n\n$fileLabel is ready. The model finished the tool call but did not send a final summary.';
-    }
-
-    if (toolName == 'patch') {
-      return '\n\nApplied a patch in your workspace. The model finished the tool call but did not send a final summary.';
-    }
-
-    if (toolName == 'bash' ||
-        toolName == 'terminal_command' ||
-        toolName == 'git_repository' ||
-        toolName == 'makefile_command') {
       return null;
     }
 
@@ -6404,39 +5946,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         continue;
       }
       if (_isLoopDetectedToolCall(toolCall)) {
-        continue;
-      }
-      if (successfulOnly && toolCall.status != ToolCallStatus.completed) {
-        continue;
-      }
-      if (!successfulOnly &&
-          toolCall.status != ToolCallStatus.completed &&
-          toolCall.status != ToolCallStatus.failed) {
-        continue;
-      }
-      return toolCall;
-    }
-    return null;
-  }
-
-  ToolCall? _latestCompletedWorkspaceMutationTool(
-    List<ChatMessageBlock> blocks, {
-    required bool successfulOnly,
-  }) {
-    const mutationTools = {
-      'write_workspace_file',
-      'edit_workspace_file',
-      'write',
-      'edit',
-      'patch',
-    };
-
-    for (int i = blocks.length - 1; i >= 0; i--) {
-      final toolCall = blocks[i].toolCall;
-      if (blocks[i].type != ChatMessageBlockType.toolCall || toolCall == null) {
-        continue;
-      }
-      if (!mutationTools.contains(toolCall.name.trim().toLowerCase())) {
         continue;
       }
       if (successfulOnly && toolCall.status != ToolCallStatus.completed) {
@@ -6482,13 +5991,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   bool get _hasActiveWorkspaceContext {
     return _visibleConnectedWorkspaces.isNotEmpty;
-  }
-
-
-  String _fileNameFromPath(String path) {
-    final normalized = path.replaceAll('\\', '/');
-    final segments = normalized.split('/');
-    return segments.isEmpty ? path : segments.last;
   }
 
   Widget _buildLoadingMessage() {

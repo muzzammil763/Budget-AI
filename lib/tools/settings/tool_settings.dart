@@ -1,55 +1,14 @@
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
-
-enum ToolPermissionLevel { safe, approvalRequired, fullAccess }
-
-enum ToolAccessMode { approvalRequired, fullAccess }
-
-extension ToolAccessModeLabel on ToolAccessMode {
-  String get label {
-    switch (this) {
-      case ToolAccessMode.approvalRequired:
-        return 'Approval required';
-      case ToolAccessMode.fullAccess:
-        return 'Full access';
-    }
-  }
-
-  String get storageValue {
-    switch (this) {
-      case ToolAccessMode.approvalRequired:
-        return 'approval_required';
-      case ToolAccessMode.fullAccess:
-        return 'full_access';
-    }
-  }
-}
-
-extension ToolPermissionLevelLabel on ToolPermissionLevel {
-  String get label {
-    switch (this) {
-      case ToolPermissionLevel.safe:
-        return 'Safe';
-      case ToolPermissionLevel.approvalRequired:
-        return 'Approval required';
-      case ToolPermissionLevel.fullAccess:
-        return 'Full access';
-    }
-  }
-}
-
 class ToolCollectionDefinition {
   const ToolCollectionDefinition({
     required this.id,
     required this.title,
     required this.description,
-    required this.permissionLevel,
     required this.tools,
   });
 
   final String id;
   final String title;
   final String description;
-  final ToolPermissionLevel permissionLevel;
   final List<ToolItemDefinition> tools;
 
   bool matchesTool(String name) {
@@ -62,70 +21,24 @@ class ToolItemDefinition {
     required this.name,
     required this.title,
     required this.description,
-    this.defaultAccessMode = ToolAccessMode.fullAccess,
   });
 
   final String name;
   final String title;
   final String description;
-  final ToolAccessMode defaultAccessMode;
 }
 
 class ToolSettings {
   const ToolSettings._();
 
-  static const filesystem = 'filesystem';
-  static const browser = 'browser';
   static const finance = 'finance';
   static const memory = 'memory';
 
   static const collections = <ToolCollectionDefinition>[
     ToolCollectionDefinition(
-      id: filesystem,
-      title: 'Filesystem Tools',
-      description: 'Read, write, and edit workspace files',
-      permissionLevel: ToolPermissionLevel.approvalRequired,
-      tools: [
-        ToolItemDefinition(
-          name: 'read',
-          title: 'Read',
-          description: 'Read text files and image attachments',
-        ),
-        ToolItemDefinition(
-          name: 'write',
-          title: 'Write',
-          description: 'Create or overwrite workspace files',
-        ),
-        ToolItemDefinition(
-          name: 'edit',
-          title: 'Edit',
-          description: 'Apply exact text replacements to files',
-        ),
-      ],
-    ),
-    ToolCollectionDefinition(
-      id: browser,
-      title: 'Web Tools',
-      description: 'Search the web and fetch pages',
-      permissionLevel: ToolPermissionLevel.approvalRequired,
-      tools: [
-        ToolItemDefinition(
-          name: 'web_search',
-          title: 'Web Search',
-          description: 'Search the web for current information',
-        ),
-        ToolItemDefinition(
-          name: 'web_page_fetch',
-          title: 'Fetch Web Page',
-          description: 'Fetch and summarize a web page',
-        ),
-      ],
-    ),
-    ToolCollectionDefinition(
       id: finance,
       title: 'Finance Tools',
       description: 'Add, list, summarize, and delete expense records',
-      permissionLevel: ToolPermissionLevel.safe,
       tools: [
         ToolItemDefinition(
           name: 'finance_add',
@@ -158,7 +71,6 @@ class ToolSettings {
       id: memory,
       title: 'Memory Tools',
       description: 'Save, list, and remove assistant memories',
-      permissionLevel: ToolPermissionLevel.safe,
       tools: [
         ToolItemDefinition(
           name: 'memory_write',
@@ -201,14 +113,6 @@ class ToolSettings {
     return null;
   }
 
-  static bool isIndividualToolEnabled(String name) {
-    return SharedPrefsService.getToolEnabled(name);
-  }
-
-  static Future<void> setIndividualToolEnabled(String name, bool enabled) {
-    return SharedPrefsService.setToolEnabled(name, enabled);
-  }
-
   static ToolItemDefinition? toolForName(String name) {
     for (final tool in tools) {
       if (tool.name == name) return tool;
@@ -216,47 +120,5 @@ class ToolSettings {
     return null;
   }
 
-  static ToolAccessMode defaultAccessModeForTool(String name) {
-    return toolForName(name)?.defaultAccessMode ?? ToolAccessMode.fullAccess;
-  }
-
-  static ToolAccessMode accessModeForTool(String name) {
-    final stored = SharedPrefsService.getToolAccessMode(name);
-    if (stored == 'full_access') return ToolAccessMode.fullAccess;
-    if (stored == 'approval_required') return ToolAccessMode.approvalRequired;
-    return defaultAccessModeForTool(name);
-  }
-
-  static Future<void> setToolAccessMode(
-    String name,
-    ToolAccessMode mode,
-  ) async {
-    await SharedPrefsService.setToolAccessMode(name, mode.storageValue);
-  }
-
-  static bool isToolAtDefault(String name) {
-    final enabledDefault = true;
-    final enabled = isIndividualToolEnabled(name);
-    if (enabled != enabledDefault) return false;
-
-    final stored = SharedPrefsService.getToolAccessMode(name);
-    if (stored == null) return true;
-    return accessModeForTool(name) == defaultAccessModeForTool(name);
-  }
-
-  static Future<void> resetToolToDefault(String name) async {
-    await SharedPrefsService.clearToolEnabled(name);
-    await SharedPrefsService.clearToolAccessMode(name);
-  }
-
-  static bool isToolEnabled(String name) {
-    return toolForName(name) == null || isIndividualToolEnabled(name);
-  }
-
-  static List<ToolItemDefinition> disabledToolsForPrompt() {
-    return [
-      for (final tool in tools)
-        if (!isToolEnabled(tool.name)) tool,
-    ];
-  }
+  static bool isToolEnabled(String name) => true;
 }

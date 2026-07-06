@@ -1,8 +1,6 @@
 import 'package:budget_ai/tools/core/tool_context.dart';
 import 'package:budget_ai/tools/core/tool_models.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
-import 'package:budget_ai/tools/core/tool_approval.dart';
-import 'package:budget_ai/tools/settings/tool_settings.dart';
 
 ToolDefinition buildFinanceDeleteTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,
@@ -38,20 +36,6 @@ mixin FinanceDeleteToolHandler {
 
     if (ids.isEmpty) return {'error': 'id or ids is required'};
 
-    if (ToolSettings.accessModeForTool('finance_delete') ==
-        ToolAccessMode.approvalRequired) {
-      return localToolApprovalRequired(
-        tool: 'finance_delete',
-        title: 'Delete Expense',
-        command: ids.length == 1
-            ? 'Delete finance entry ${ids.first}'
-            : 'Delete ${ids.length} finance entries',
-        consequence: ids.length == 1
-            ? 'This removes the saved expense entry from this device.'
-            : 'This permanently removes ${ids.length} expense entries from this device.',
-        arguments: ids.length == 1 ? {'id': ids.first} : {'ids': ids},
-      );
-    }
     try {
       if (ids.length == 1) {
         final deleted = await FinanceService.instance.delete(ids.first);

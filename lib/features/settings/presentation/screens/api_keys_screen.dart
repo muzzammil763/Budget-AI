@@ -16,14 +16,10 @@ class APIKeysScreen extends StatefulWidget {
 
 class _APIKeysScreenState extends State<APIKeysScreen> {
   final TextEditingController _deepseekApiController = TextEditingController();
-  final TextEditingController _searchApiController = TextEditingController();
   List<String> _deepseekApiKeys = [];
-  List<String> _searchApiKeys = [];
   bool _deepseekObscure = true;
-  bool _searchApiObscure = true;
   bool _isLoading = true;
   bool _deepseekSaving = false;
-  bool _searchApiSaving = false;
 
   @override
   void initState() {
@@ -34,7 +30,6 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
   @override
   void dispose() {
     _deepseekApiController.dispose();
-    _searchApiController.dispose();
     super.dispose();
   }
 
@@ -42,15 +37,12 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     setState(() => _isLoading = true);
 
     final deepseekKeys = await ApiKeyStorageService.getDeepSeekApiKeys();
-    final searchApiKeys = await ApiKeyStorageService.getSearchApiKeys();
 
     _deepseekApiController.clear();
-    _searchApiController.clear();
 
     if (mounted) {
       setState(() {
         _deepseekApiKeys = List.from(deepseekKeys);
-        _searchApiKeys = List.from(searchApiKeys);
         _isLoading = false;
       });
     }
@@ -74,24 +66,6 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     }
   }
 
-  Future<void> _saveSearchApiKey() async {
-    final key = _searchApiController.text.trim();
-    if (key.isEmpty) return;
-
-    setState(() => _searchApiSaving = true);
-    await ApiKeyStorageService.addApiKey('searchapi', key);
-    _searchApiController.clear();
-    await _loadApiKeys();
-    if (mounted) {
-      setState(() => _searchApiSaving = false);
-      showAppToast(
-        context,
-        message: 'SearchAPI key saved',
-        type: ToastificationType.success,
-      );
-    }
-  }
-
   Future<void> _deleteApiKey(String service, String key) async {
     final authenticated = await _confirmDelete(context, service);
     if (!authenticated) return;
@@ -99,9 +73,6 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     if (service == 'deepseek') {
       final updated = _deepseekApiKeys.where((k) => k != key).toList();
       await ApiKeyStorageService.saveApiKeys('deepseek', updated);
-    } else if (service == 'searchapi') {
-      final updated = _searchApiKeys.where((k) => k != key).toList();
-      await ApiKeyStorageService.saveApiKeys('searchapi', updated);
     }
 
     await _loadApiKeys();
@@ -227,22 +198,6 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
                   onDelete: (key) => _deleteApiKey('deepseek', key),
                   hintText: 'Enter DeepSeek API key',
                 ),
-                const SizedBox(height: 16),
-                _buildApiKeySection(
-                  theme,
-                  service: 'searchapi',
-                  title: 'SearchAPI',
-                  icon: null,
-                  controller: _searchApiController,
-                  keys: _searchApiKeys,
-                  obscure: _searchApiObscure,
-                  saving: _searchApiSaving,
-                  onToggleObscure: () =>
-                      setState(() => _searchApiObscure = !_searchApiObscure),
-                  onSave: _saveSearchApiKey,
-                  onDelete: (key) => _deleteApiKey('searchapi', key),
-                  hintText: 'Enter SearchAPI key (optional)',
-                ),
               ],
             ),
     );
@@ -252,7 +207,7 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     ThemeData theme, {
     required String service,
     required String title,
-    required String? icon,
+    required String icon,
     required TextEditingController controller,
     required List<String> keys,
     required bool obscure,
@@ -267,18 +222,15 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
       children: [
         Row(
           children: [
-            if (icon != null)
-              SvgPicture.asset(
-                icon,
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(
-                  theme.colorScheme.primary,
-                  BlendMode.srcIn,
-                ),
-              )
-            else
-              Icon(Icons.search, size: 24, color: theme.colorScheme.primary),
+            SvgPicture.asset(
+              icon,
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                theme.colorScheme.primary,
+                BlendMode.srcIn,
+              ),
+            ),
             const SizedBox(width: 4),
             Text(
               title,
@@ -296,8 +248,7 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
             (key) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Container(
-                padding: const EdgeInsets.only(
-                 left: 12,),
+                padding: const EdgeInsets.only(left: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(
