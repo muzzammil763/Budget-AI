@@ -336,6 +336,7 @@ Future<ChatProviderException> _mapDioException(
     case DioExceptionType.connectionTimeout:
     case DioExceptionType.sendTimeout:
     case DioExceptionType.receiveTimeout:
+    case DioExceptionType.transformTimeout:
       return _providerException(
         providerName,
         '$providerName timed out while waiting for a response.',
