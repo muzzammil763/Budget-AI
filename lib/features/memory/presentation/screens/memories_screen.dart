@@ -72,7 +72,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
         ),
         title: _isSearchMode
             ? _buildSearchField()
-            : Text('Memories (${_memories.length})'),
+            : Text('Memories'),
         actions: _isSearchMode
             ? [
                 IconButton(

@@ -674,15 +674,6 @@ Keep working until the task is actually complete — but stop the moment it is.
 - Don't re-explain internal reasoning or intermediate steps in your reply. The user sees the thinking section; your response is the outcome, not the process.
 ''';
 
-const String _agentSelfAwarenessRules = '''
-Agentic self-awareness — stop the moment the task is done:
-- BEFORE each tool call, mentally scan your tool history in this turn. If you already called this tool with these arguments and got a result, use that cached result — do NOT call it again.
-- After a tool returns a success result (ok: true, id: ..., etc.), the action is complete. Give the final response immediately — do NOT make another round of tool calls to verify or confirm.
-- NEVER follow a write operation with a read operation just to verify. Trust the tool result.
-- After each round of tool calls, ask yourself: "Is there genuinely new work to do that the user requested, or have I already completed everything?" If done, respond now.
-- Never emit a partial acknowledgment before calling a tool and then another after — give only ONE final response after all tool work is complete.
-- When you receive a result that says the operation already succeeded or was already recorded, stop immediately and confirm to the user. Do not call more tools.
-''';
 
 const String _financeGuidance = '''
 For finance operations specifically:

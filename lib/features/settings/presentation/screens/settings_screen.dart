@@ -47,6 +47,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
+        actions: [
+          if (_packageInfo != null) ...[
+            
+            Text(
+              '${_packageInfo!.version} (${_packageInfo!.buildNumber})',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            
+          ],
+          const SizedBox(width: 8),
+        ],
         title: const Text('Settings'),
       ),
       body: ListView(
@@ -87,24 +101,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: CupertinoIcons.archivebox,
             title: 'Backup & Restore',
             subtitle:
-                'Export or restore API keys, finances, memories, and model',
+                'Export or restore API keys, finances, memories',
             onTap: _showBackupRestoreSheet,
           ),
-          if (_packageInfo != null) ...[
-            const SizedBox(height: 16),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Text(
-                  'Budget AI ${_packageInfo!.version} (${_packageInfo!.buildNumber})',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -123,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -186,18 +185,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         theme.colorScheme.primary.withValues(alpha: 0.78),
       ],
       contentWidgets: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            'Choose what you want to do with your Budget AI data.',
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 13,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 16),
         _buildSheetAction(
           theme,
           icon: CupertinoIcons.cloud_upload,
@@ -286,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       showAppToast(
         context,
-        message: 'Backup failed: $e',
+        message: 'Backup Failed: $e',
         type: ToastificationType.error,
       );
     }
@@ -306,7 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         showAppToast(
           context,
-          message: 'File not found',
+          message: 'File Not Found',
           type: ToastificationType.error,
         );
         return;
@@ -322,13 +309,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context,
           message:
               restoreResult['message']?.toString() ??
-              'Backup restored successfully!',
+              'Backup Restored Successfully!',
           type: ToastificationType.success,
         );
       } else {
         showAppToast(
           context,
-          message: restoreResult['error']?.toString() ?? 'Restore failed',
+          message: restoreResult['error']?.toString() ?? 'Restore Failed',
           type: ToastificationType.error,
         );
       }
@@ -336,7 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       showAppToast(
         context,
-        message: 'Restore failed: $e',
+        message: 'Restore Failed: $e',
         type: ToastificationType.error,
       );
     }

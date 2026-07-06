@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 
 class VibrationManager with WidgetsBindingObserver {
   static final VibrationManager instance = VibrationManager._internal();

@@ -7,14 +7,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
-import 'package:budget_ai/features/chat/presentation/screens/image_viewer_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/settings_screen.dart';
-import 'package:budget_ai/features/chat/presentation/screens/video_preview_screen.dart';
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/app/navigation/app_route_observer.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
 import 'package:budget_ai/features/chat/data/services/chat_provider.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/delayed_marquee_text.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/core/models/notification_payload.dart';
 import 'package:budget_ai/core/services/notification_service.dart';
@@ -33,18 +30,9 @@ import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 
 import 'package:budget_ai/features/chat/domain/chat_mode.dart';
 import 'package:budget_ai/features/chat/presentation/screens/chat_history_screen.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_image_attachments.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_input_action_buttons.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_response_audio_recordings.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_response_file.dart';
+import 'package:budget_ai/features/chat/presentation/widgets/chat_empty_state.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/chat_response_markdown.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_response_recordings.dart';
-import 'package:budget_ai/features/chat/presentation/widgets/chat_response_screenshots.dart';
-import 'package:budget_ai/features/chat/presentation/screens/agent_response_flow_screen.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/agentic_message_sections.dart';
-import 'package:budget_ai/features/chat/presentation/screens/workspace_file_preview_screen.dart';
-import 'package:budget_ai/features/changes/presentation/screens/changes_diff_screen.dart';
-import 'package:budget_ai/features/changes/data/file_change.dart';
 
 import 'package:budget_ai/features/chat/presentation/widgets/chat_loading_widgets.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/expandable_user_message_text.dart';
@@ -54,11 +42,6 @@ import 'package:budget_ai/features/chat/presentation/widgets/timeline_status_car
 import 'package:budget_ai/features/chat/presentation/widgets/workspace_mention_suggestions_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
 import 'package:budget_ai/features/chat/presentation/widgets/streaming_text_reveal.dart';
 import 'package:toastification/toastification.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -89,7 +72,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       'Continue from the previous assistant turn. The last workspace file tool failed because the backend could not read the target path. Retry internally: verify the exact file path/workspace root, prefer a relative path from the connected workspace when possible, and use another available file access route such as bash if the file API still fails. Do not ask the user to continue manually.';
   static const int _maxAutomaticToolContinuations = 3;
   static const int _maxSilentPostToolErrorContinuations = 1;
-  static const int _workspaceSearchContextLineCount = 10;
 
   static const int _maxReconnectAttempts = 5;
   static const List<Duration> _reconnectDelays = [
@@ -152,18 +134,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   bool _shouldFollowChatScroll = true;
   bool _isShowingLeaveConfirmation = false;
   bool _isShowingStopConfirmation = false;
-  List<String> _attachedImages = [];
+  final List<String> _attachedImages = [];
   final List<String> _attachedVideos = [];
   final List<String> _attachedPdfs = [];
   String? _pendingWhatsAppFilePath;
-  bool _isUploadingWhatsAppFile = false;
-  final ImagePicker _imagePicker = ImagePicker();
   final Set<String> _shownApprovalDialogRequestIds = {};
   final ValueNotifier<int> _tokenUiRevision = ValueNotifier(0);
   bool _isCommandApprovalDialogOpen = false;
   final List<Map<String, dynamic>> _pendingApprovalDialogQueue = [];
   List<ChatSessionSummary>? _cachedSessionSummaries;
-  ChatModePreset _currentChatMode = ChatModes.defaultPreset;
   final ValueNotifier<ChatMessage?> _streamingBubble = ValueNotifier(null);
   final ValueNotifier<bool> _canSendNotifier = ValueNotifier(false);
   Timer? _streamingThrottleTimer;
@@ -211,19 +190,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     setState(() {
       _selectedModel =
           saved ?? AIModels.getDefaultModel(widget.config.modelName);
-      _currentChatMode = ChatModes.current();
     });
     await _clearTransientWorkspaceSelection();
     await _refreshProviderState();
   }
 
   void _loadChatMode() {
-    setState(() => _currentChatMode = ChatModes.current());
   }
 
   Future<void> _applyModeAndRefresh(ChatModePreset preset) async {
     // Optimistic update — button and toast appear instantly.
-    setState(() => _currentChatMode = preset);
     showAppToast(
       context,
       message: preset.isDefault ? 'Fast Mode: Off' : 'Fast Mode: On',
@@ -234,13 +210,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (mounted) _loadChatMode();
   }
 
-  Future<void> _toggleFastMode() async {
-    final isFast = _currentChatMode.mode == ChatMode.fastChat;
-    final target = isFast
-        ? ChatModes.defaultPreset
-        : ChatModes.forId('fast_chat');
-    await _applyModeAndRefresh(target);
-  }
 
   Future<void> _refreshChatConfiguration() async {
     await _loadToken();
@@ -346,25 +315,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await SharedPrefsService.setWorkspaceSource(primary.source);
   }
 
-  Future<void> _clearWorkspaceFolder({_ConnectedWorkspace? workspace}) async {
-    if (workspace == null) {
-      await _clearWorkspaceSelection();
-      return;
-    }
-
-    setState(() {
-      _connectedWorkspaces = _connectedWorkspaces
-          .where((item) => item.key != workspace.key)
-          .toList(growable: false);
-      _syncPrimaryWorkspaceFromConnected();
-    });
-    await SharedPrefsService.removeConnectedWorkspaceProject(
-      path: workspace.path,
-      source: workspace.source,
-    );
-    await _persistConnectedWorkspaces();
-    await _refreshWorkspaceMentionIndex(force: true);
-  }
 
   Future<void> _changeModel(String newModel) async {
     final prefs = SharedPrefsService.instance;
@@ -416,10 +366,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   bool get _isGithubMode => _githubModeActive;
 
-  bool get _shouldShowGithubToggle => _hasApiKey;
 
-  bool get _isLocalGithubWorkspace =>
-      SharedPrefsService.getWorkspaceSource() == _workspaceSourceLocalGithub;
 
   String get _activeWorkspaceSource =>
       _isGithubMode ? _workspaceSourceLocalGithub : _workspaceSourceRemoteMac;
@@ -529,7 +476,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _attachedVideos.clear();
     _attachedPdfs.clear();
     _pendingWhatsAppFilePath = null;
-    _isUploadingWhatsAppFile = false;
     _workspaceMentionSuggestions = const [];
     _activeWorkspaceMentionQuery = null;
     _activeWorkspaceMentionSuggestionIndex = -1;
@@ -1308,49 +1254,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _workspaceMentionSuggestionsScrollController.jumpTo(0);
   }
 
-  bool _selectActiveWorkspaceMentionSuggestion() {
-    if (_workspaceMentionSuggestions.isEmpty) {
-      return false;
-    }
-    if (_activeWorkspaceMentionSuggestionIndex < 0) return false;
-
-    final safeIndex = _activeWorkspaceMentionSuggestionIndex.clamp(
-      0,
-      _workspaceMentionSuggestions.length - 1,
-    );
-    _insertWorkspaceMention(_workspaceMentionSuggestions[safeIndex]);
-    return true;
-  }
-
-  void _insertWorkspaceMention(WorkspaceMentionEntry entry) {
-    final query =
-        _activeWorkspaceMentionQuery ??
-        currentWorkspaceMentionQuery(_messageController.value);
-    if (query == null) {
-      return;
-    }
-
-    final text = _messageController.text;
-    final replacement = '@${entry.mentionToken}';
-    final suffix = query.end == text.length ? ' ' : '';
-    final nextText = text.replaceRange(
-      query.start,
-      query.end,
-      '$replacement$suffix',
-    );
-    final nextOffset = query.start + replacement.length + suffix.length;
-
-    _messageController.value = TextEditingValue(
-      text: nextText,
-      selection: TextSelection.collapsed(offset: nextOffset),
-    );
-
-    _workspaceMentionSuggestions = const [];
-    _activeWorkspaceMentionQuery = null;
-    _activeWorkspaceMentionSuggestionIndex = -1;
-    _bumpSuggestionVersion();
-  }
-
   String _prepareMessageForProvider(String message) {
     final normalized = message.trim().toLowerCase();
     if (normalized == 'retry & continue' || normalized == 'continue') {
@@ -2096,7 +1999,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       ...originalAttachedVideos,
       ...originalAttachedPdfs,
     ];
-    final githubModeForTurn = _githubModeActive;
     final whatsappAttachedFile = _pendingWhatsAppFilePath;
     var providerMessageText = providerMessageOverride == null
         ? _prepareMessageForProvider(userMessageText)
@@ -2745,7 +2647,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _stopStreamingDurationTimer();
         if (_isAppInBackground || !_isOnChatScreen) {
           final toolCallCount = _countToolCallsInMessage(finalAssistantMessage);
-          final responseText = finalAssistantMessage?.text ?? '';
+          final responseText = finalAssistantMessage.text;
           final summary = responseText.isNotEmpty
               ? (responseText.length > 200
                     ? '${responseText.substring(0, 200)}...'
@@ -4426,7 +4328,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Widget _buildTopChrome() {
     final theme = Theme.of(context);
-    final connectedProjects = _buildConnectedProjectAppBarBottom(theme);
     return Positioned(
       top: 0,
       left: 0,
@@ -4437,7 +4338,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -4458,19 +4359,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                           children: [
                             _buildPillAppBarButton(
                               theme,
-                              icon: CupertinoIcons.square_pencil,
-                              tooltip: 'New Chat',
-                              onPressed: _resetToFreshDraft,
-                            ),
-                            _buildPillAppBarButton(
-                              theme,
                               icon: CupertinoIcons.slider_horizontal_3,
                               tooltip: 'Model',
                               onPressed: _navigateToModelSelection,
                             ),
                             _buildPillAppBarButton(
                               theme,
-                              icon: CupertinoIcons.ellipsis_vertical,
+                              icon: CupertinoIcons.settings,
                               tooltip: 'Settings',
                               onPressed: _openSettingsScreen,
                             ),
@@ -4479,7 +4374,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                       ),
                     ],
                   ),
-                  if (connectedProjects != null) connectedProjects,
                 ],
               ),
             ),
@@ -4497,11 +4391,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }) {
     return Center(
       child: Container(
-        width: 64,
-        height: 56,
+        width: 56,
+        height: 48,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: theme.brightness == Brightness.dark 
+                ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
+                : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -4512,16 +4412,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(32),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(32),
             onTap: onPressed,
             child: Tooltip(
               message: tooltip,
               child: SizedBox(
                 width: 64,
-                height: 56,
+                height: 48,
                 child: Icon(icon, color: theme.colorScheme.onSurface, size: 28),
               ),
             ),
@@ -4533,17 +4433,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Widget _buildAppBarFade(ThemeData theme) {
     return Container(
-      height: 116,
+      height: 100,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
             theme.scaffoldBackgroundColor,
-            theme.scaffoldBackgroundColor.withValues(alpha: 0.88),
+            theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
             theme.scaffoldBackgroundColor.withValues(alpha: 0),
           ],
-          stops: const [0, 0.58, 1],
+          stops: const [0, 0.50, 1],
         ),
       ),
     );
@@ -4551,10 +4451,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Widget _buildAppBarControlSurface(ThemeData theme, {required Widget child}) {
     return Container(
-      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      height: 48,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+         color: theme.brightness == Brightness.dark 
+                ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
+                : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -4583,115 +4490,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  PreferredSizeWidget? _buildConnectedProjectAppBarBottom(ThemeData theme) {
-    final workspaces = _visibleConnectedWorkspaces;
-    if (workspaces.isEmpty) {
-      return null;
-    }
-    final nameStyle = AppTheme.bodySmall.copyWith(
-      color: theme.colorScheme.onSurface,
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-    );
-    final pathStyle = AppTheme.bodySmall.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontSize: 12,
-      fontWeight: FontWeight.w500,
-    );
-
-    return PreferredSize(
-      preferredSize: Size.fromHeight(28.0 * workspaces.length),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final workspace in workspaces)
-            _buildConnectedProjectRow(
-              theme: theme,
-              workspace: workspace,
-              nameStyle: nameStyle,
-              pathStyle: pathStyle,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConnectedProjectRow({
-    required ThemeData theme,
-    required _ConnectedWorkspace workspace,
-    required TextStyle nameStyle,
-    required TextStyle pathStyle,
-  }) {
-    final content = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: workspace.isConnecting
-          ? null
-          : () => _showDisconnectProjectSheet(workspace: workspace),
-      child: Container(
-        height: 28,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 12),
-        child: Row(
-          children: [
-            _ConnectedWorkspaceLeadingIcon(workspace: workspace),
-            const SizedBox(width: 6),
-            Flexible(
-              flex: 0,
-              child: Text(
-                workspace.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: nameStyle,
-              ),
-            ),
-            Text(
-              ' ',
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              style: pathStyle,
-            ),
-            Expanded(
-              child: DelayedMarqueeText(
-                key: ValueKey(workspace.key),
-                text: workspace.path,
-                style: pathStyle,
-                startDelay: const Duration(seconds: 3),
-                endPause: const Duration(milliseconds: 700),
-                pixelsPerSecond: 32,
-                endPadding: 0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (workspace.isConnecting) {
-      return content;
-    }
-
-    return Dismissible(
-      key: ValueKey('workspace_${workspace.key}'),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        return _confirmDisconnectProject(workspace: workspace);
-      },
-      onDismissed: (_) {
-        unawaited(_clearWorkspaceFolder(workspace: workspace));
-      },
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        color: theme.colorScheme.error.withValues(alpha: 0.12),
-        child: Icon(
-          CupertinoIcons.xmark,
-          size: 16,
-          color: theme.colorScheme.error,
-        ),
-      ),
-      child: content,
-    );
-  }
 
   Widget _buildBody() {
     if (_timelineItems.isEmpty) {
@@ -4702,7 +4500,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         NotificationListener<ScrollNotification>(
           onNotification: _handleChatScrollNotification,
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 104, bottom: 132),
+            padding: const EdgeInsets.only(top: 112, bottom: 112),
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
@@ -4752,23 +4550,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Widget _buildEmptyState() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Hero(
-          tag: widget.heroTag ?? 'provider-${widget.config.modelName}',
-          child: SvgPicture.asset(
-            widget.config.iconPath,
-            colorFilter: ColorFilter.mode(
-              Theme.of(context).colorScheme.primary,
-              BlendMode.srcIn,
-            ),
-            width: 72,
-            height: 72,
-          ),
-        ),
-      ],
+    return ChatEmptyState(
+      onPromptTap: (prompt) {
+        _messageController.text = prompt;
+        _messageController.selection = TextSelection.collapsed(
+          offset: prompt.length,
+        );
+        _sendMessage();
+      },
     );
   }
 
@@ -4787,11 +4576,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return path.split(RegExp(r'[\\/]')).where((part) => part.isNotEmpty).last;
   }
 
-  bool get _shouldShowWorkspaceMentionSuggestions {
-    return _shouldShowWorkspaceUi &&
-        _activeWorkspaceMentionQuery != null &&
-        _workspaceMentionSuggestions.isNotEmpty;
-  }
 
   Widget _buildTimelineItem(_TimelineViewItem item) {
     switch (item) {
@@ -4917,41 +4701,32 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     return SafeArea(
       top: false,
-      minimum: EdgeInsets.only(bottom: isKeyboardVisible ? 8 : 16),
+      minimum: EdgeInsets.only(bottom: isKeyboardVisible ? 12 : 32),
       child: AnimatedPadding(
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(horizontal: isKeyboardVisible ? 8 : 12),
+        padding: EdgeInsets.symmetric(horizontal: isKeyboardVisible ? 8 : 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_attachedImages.isNotEmpty) _buildAttachedImagesPreview(),
-            if (_attachedVideos.isNotEmpty)
-              _buildAttachedNonImageFilesPreview(
-                _attachedVideos,
-                Icons.videocam,
-                _removeAttachedVideo,
-              ),
-            if (_attachedPdfs.isNotEmpty)
-              _buildAttachedNonImageFilesPreview(
-                _attachedPdfs,
-                Icons.picture_as_pdf,
-                _removeAttachedPdf,
-              ),
-            if (_pendingWhatsAppFilePath != null)
-              _buildWhatsAppPendingFilePreview(_pendingWhatsAppFilePath!),
             AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
               constraints: const BoxConstraints(minHeight: 56, maxHeight: 148),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: theme.brightness == Brightness.dark
+                      ? theme.colorScheme.outline.withValues(alpha: 0.2)
+                      : theme.colorScheme.outline.withValues(alpha: 0.06),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 24,
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
                 ],
@@ -4985,9 +4760,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                         autofocus: false,
                         decoration: InputDecoration(
                           hoverColor: Colors.transparent,
-                          hintText: _isContextLimitBlocked
-                              ? 'Context limit reached'
-                              : 'Reply to Budget AI',
+                          hintText: 'Ask Budget AI',
                           hintStyle: TextStyle(
                             color: hintColor.withValues(alpha: 0.72),
                             fontSize: 16,
@@ -5000,19 +4773,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                           contentPadding: EdgeInsets.zero,
                           fillColor: Colors.transparent,
                         ),
-                        maxLines: 4,
+                        maxLines: 1,
                         minLines: 1,
                         textInputAction: TextInputAction.newline,
                         textCapitalization: TextCapitalization.sentences,
-                        onSubmitted: (_) {
-                          if (_shouldShowWorkspaceMentionSuggestions &&
-                              _selectActiveWorkspaceMentionSuggestion()) {
-                            return;
-                          }
-                          if (_canSubmitCurrentMessage) {
-                            _handleComposerSubmit();
-                          }
-                        },
                         style: TextStyle(fontSize: 16, color: textColor),
                       ),
                     ),
@@ -5035,17 +4799,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Widget _buildComposerFade() {
     final theme = Theme.of(context);
     return Container(
-      height: 150,
+      height: 64,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
             theme.scaffoldBackgroundColor.withValues(alpha: 0),
-            theme.scaffoldBackgroundColor.withValues(alpha: 0.82),
+            theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
             theme.scaffoldBackgroundColor,
           ],
-          stops: const [0, 0.55, 1],
+          stops: const [0, 0.50, 1],
         ),
       ),
     );
@@ -5099,535 +4863,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Widget _buildGithubModeToggleButton() {
-    if (!_shouldShowGithubToggle) {
-      return const SizedBox.shrink();
-    }
 
-    return Padding(
-      padding: EdgeInsets.zero,
-      child: GithubModeToggleButton(
-        isEnabled: _githubModeActive,
-        onPressed: _toggleGithubMode,
-      ),
-    );
-  }
 
-  Future<void> _toggleGithubMode() async {
-    final next = !_githubModeActive;
-    setState(() {
-      _githubModeActive = next;
-      _syncPrimaryWorkspaceFromConnected();
-      _workspaceMentionSuggestions = const [];
-      _activeWorkspaceMentionQuery = null;
-      _activeWorkspaceMentionSuggestionIndex = -1;
-    });
-    await _persistConnectedWorkspaces();
-    await _refreshWorkspaceMentionIndex(force: true);
-    if (!mounted) return;
-    showAppToast(
-      context,
-      message: next ? 'GitHub mode enabled' : 'GitHub mode disabled',
-      type: ToastificationType.success,
-    );
-  }
 
-  Widget _buildImageAttachmentButton() {
-    return ImageAttachmentActionButton(
-      imageCount: _attachedImages.length,
-      onPressed: _pickImages,
-    );
-  }
 
-  Widget _buildContextUsageButton() {
-    return ValueListenableBuilder<int>(
-      valueListenable: _tokenUiRevision,
-      builder: (context, revision, child) {
-        final usage = _contextUsageBreakdown;
-        final percent = usage.percentUsed;
-        final hasLimit = usage.contextLimit != null && usage.contextLimit! > 0;
-        final tooltip = hasLimit
-            ? 'Context ${percent.round()}% - ${_formatCompactTokenCount(usage.currentContextTokens)} / ${_formatCompactTokenCount(usage.contextLimit!)}'
-            : 'Context ${_formatCompactTokenCount(usage.currentContextTokens)} - limit unknown';
 
-        return ContextUsageActionButton(
-          progress: usage.progress,
-          hasLimit: hasLimit,
-          isOverLimit: usage.isOverLimit,
-          tooltip: tooltip,
-          onPressed: _showContextOverviewSheet,
-        );
-      },
-    );
-  }
 
-  Widget _buildChatModeButton() {
-    return ChatModeActionButton(
-      isFastMode: _currentChatMode.mode == ChatMode.fastChat,
-      onPressed: _toggleFastMode,
-    );
-  }
 
-  Widget _buildWhatsAppSendFileButton() {
-    if (!_hasRemoteMacConnection) return const SizedBox.shrink();
-    if (_isUploadingWhatsAppFile) {
-      return SizedBox(
-        width: 28,
-        height: 28,
-        child: Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-        ),
-      );
-    }
-    return WhatsAppSendFileButton(
-      isActive: _pendingWhatsAppFilePath != null,
-      onPressed: _pickAndSendWhatsAppFile,
-    );
-  }
 
-  Future<void> _pickAndSendWhatsAppFile() async {
-    try {
-      _unfocusComposer();
-      final file = await FilePicker.pickFile(type: FileType.any);
-      if (file == null) return;
-      final localPath = file.path;
-      if (localPath == null) return;
-      if (!mounted) return;
 
-      setState(() {
-        _isUploadingWhatsAppFile = true;
-        _pendingWhatsAppFilePath = null;
-      });
 
-      final result = await MacCompanionService.instance.uploadWhatsAppFile(
-        localPath,
-      );
-
-      if (!mounted) return;
-
-      final macPath = result['path'] as String?;
-      if (macPath == null || macPath.isEmpty) {
-        setState(() => _isUploadingWhatsAppFile = false);
-        showAppToast(
-          context,
-          message: result['error']?.toString() ?? 'Upload failed',
-          type: ToastificationType.error,
-        );
-        return;
-      }
-
-      setState(() {
-        _isUploadingWhatsAppFile = false;
-        _pendingWhatsAppFilePath = macPath;
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploadingWhatsAppFile = false);
-        showAppToast(
-          context,
-          message: 'Failed to upload file: $e',
-          type: ToastificationType.error,
-        );
-      }
-    }
-  }
-
-  Widget _buildWhatsAppPendingFilePreview(String filePath) {
-    final theme = Theme.of(context);
-    final green = const Color(0xFF25D366);
-    final fileName = p.basename(filePath);
-
-    return Container(
-      margin: EdgeInsets.only(top: 8),
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: green.withValues(alpha: 0.4), width: 1),
-        color: green.withValues(alpha: 0.08),
-      ),
-      child: Row(
-        children: [
-          SvgPicture.asset(
-            'assets/icons/whatsapp.svg',
-            width: 16,
-            height: 16,
-            colorFilter: ColorFilter.mode(green, BlendMode.srcIn),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              fileName,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => setState(() => _pendingWhatsAppFilePath = null),
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                color: Colors.red.shade400,
-                shape: BoxShape.circle,
-                border: Border.all(color: theme.colorScheme.surface, width: 1),
-              ),
-              child: Icon(
-                Icons.close,
-                size: 12,
-                color: theme.colorScheme.onError,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showContextOverviewSheet() {
-    _unfocusComposer();
-    final theme = Theme.of(context);
-    final usage = _contextUsageBreakdown;
-    final hasLimit = usage.contextLimit != null && usage.contextLimit! > 0;
-    final percentLabel = hasLimit ? '${usage.percentUsed.round()}' : 'Live';
-    final remainingLabel = hasLimit
-        ? _formatTokenCount(math.max(0, usage.remainingTokens ?? 0))
-        : 'Unknown';
-
-    ResponsiveInfoSheet.show(
-      context,
-      title: 'Chat Context',
-      headerIcon: Icon(
-        Icons.memory_rounded,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        (usage.isOverLimit || usage.progress >= 0.80)
-            ? theme.colorScheme.error
-            : theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _ContextOverviewSummary(
-          usage: usage,
-          modelName: _currentModelInfo?.name ?? _selectedModel,
-          percentLabel: percentLabel,
-          remainingLabel: remainingLabel,
-          formatTokens: _formatTokenCount,
-          formatCompactTokens: _formatCompactTokenCount,
-        ),
-      ],
-    );
-  }
-
-  Future<void> _showDisconnectProjectSheet({
-    _ConnectedWorkspace? workspace,
-  }) async {
-    final confirmed = await _confirmDisconnectProject(workspace: workspace);
-    if (!confirmed) return;
-    await _clearWorkspaceFolder(workspace: workspace);
-  }
-
-  Future<bool> _confirmDisconnectProject({
-    _ConnectedWorkspace? workspace,
-  }) async {
-    final target =
-        workspace ?? _firstConnectedWorkspaceForSource(_activeWorkspaceSource);
-    final workspaceName = target?.label ?? _workspaceDisplayName;
-    if (workspaceName.isEmpty) return false;
-
-    _unfocusComposer();
-    final theme = Theme.of(context);
-
-    final confirmed = await ResponsiveInfoSheet.show<bool>(
-      context,
-      title: 'Disconnect Project',
-      headerIcon: Icon(
-        CupertinoIcons.xmark_circle_fill,
-        color: theme.colorScheme.onPrimary,
-        size: 28,
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        Text(
-          'Disconnect "$workspaceName" From This Chat?',
-          style: AppTheme.bodyMedium.copyWith(
-            fontWeight: FontWeight.w700,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'This Only Removes The Currently Selected Project From The Chat Context. Your Project Files Stay Unchanged.',
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.onSurface,
-                  side: BorderSide(color: theme.colorScheme.outline),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text('Cancel'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text('Disconnect'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-    return confirmed == true;
-  }
-
-  Future<void> _pickImages() async {
-    try {
-      _unfocusComposer();
-      final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-
-      if (pickedFiles.isNotEmpty) {
-        final supportedPaths = pickedFiles
-            .map((file) => file.path)
-            .where(_isSupportedAttachableImagePath)
-            .where((path) => !_attachedImages.contains(path))
-            .toList();
-        final rejectedCount = pickedFiles.length - supportedPaths.length;
-
-        setState(() {
-          _attachedImages.addAll(supportedPaths);
-          if (_attachedImages.length > 5) {
-            _attachedImages = _attachedImages.sublist(0, 5);
-            if (mounted) {
-              showAppToast(
-                context,
-                message: 'Maximum 5 images allowed',
-                type: ToastificationType.warning,
-              );
-            }
-          }
-        });
-
-        if (rejectedCount > 0 && mounted) {
-          showAppToast(
-            context,
-            message:
-                'Some selected files were skipped because they are not supported image types.',
-            type: ToastificationType.warning,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        showAppToast(
-          context,
-          message: 'Failed to pick images: $e',
-          type: ToastificationType.error,
-        );
-      }
-    }
-  }
-
-  Widget _buildMessageImages(List<String> imagePaths) {
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: imagePaths.map((path) {
-        final ext = _fileExtension(path);
-        const videoExts = {'mp4', 'mov', 'avi', 'webm', 'mkv'};
-        const pdfExts = {'pdf'};
-
-        if (pdfExts.contains(ext)) {
-          return _buildFileChipTile(path, Icons.picture_as_pdf);
-        }
-        if (videoExts.contains(ext)) {
-          return _buildFileChipTile(path, Icons.videocam);
-        }
-        return GestureDetector(
-          onTap: () => _showLocalImagePreview(path),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: ChatImageThumbnail(path: path, size: 50),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildFileChipTile(String path, IconData icon) {
-    final theme = Theme.of(context);
-    final name = p.basename(path);
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: theme.colorScheme.primary),
-          const SizedBox(width: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 110),
-            child: Text(
-              name,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _removeAttachedImage(int index) {
-    setState(() {
-      if (index >= 0 && index < _attachedImages.length) {
-        _attachedImages.removeAt(index);
-      }
-    });
-  }
-
-  Widget _buildAttachedImagesPreview() {
-    return AttachedImagesPreview(
-      imagePaths: _attachedImages,
-      onRemoveImage: _removeAttachedImage,
-      onTapImage: _showLocalImagePreview,
-    );
-  }
-
-  bool _isSupportedAttachableImagePath(String path) {
-    const supportedExtensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'};
-    return supportedExtensions.contains(_fileExtension(path));
-  }
-
-  void _removeAttachedVideo(int index) {
-    setState(() {
-      if (index >= 0 && index < _attachedVideos.length) {
-        _attachedVideos.removeAt(index);
-      }
-    });
-  }
-
-  void _removeAttachedPdf(int index) {
-    setState(() {
-      if (index >= 0 && index < _attachedPdfs.length) {
-        _attachedPdfs.removeAt(index);
-      }
-    });
-  }
-
-  Widget _buildAttachedNonImageFilesPreview(
-    List<String> paths,
-    IconData icon,
-    ValueChanged<int> onRemove,
-  ) {
-    final theme = Theme.of(context);
-
-    return Container(
-      height: 32,
-      margin: const EdgeInsets.only(top: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: paths.length,
-        itemBuilder: (context, index) {
-          final name = p.basename(paths[index]);
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 6),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 120),
-                    child: Text(
-                      name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () => onRemove(index),
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade400,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.colorScheme.surface,
-                          width: 1,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 12,
-                        color: theme.colorScheme.onError,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   Future<void> _navigateToModelSelection({
     bool fromContextLimitCard = false,
@@ -5674,10 +4919,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             : _messages.indexWhere((m) => identical(m, message)));
 
     if (message.isUser) {
-      final hasImages =
-          message.imagePaths != null && message.imagePaths!.isNotEmpty;
       final userBubbleColor = theme.colorScheme.primary.withValues(
-        alpha: theme.brightness == Brightness.dark ? 0.26 : 0.16,
+        alpha: theme.brightness == Brightness.dark ? 0.24 : 0.12,
       );
       final userTextColor = theme.colorScheme.onSurface;
 
@@ -5686,16 +4929,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (hasImages) ...[
-              _buildMessageImages(message.imagePaths!),
-              if (message.text.isNotEmpty) const SizedBox(height: 8),
-            ],
             if (message.text.isNotEmpty)
               ExpandableUserMessageText(
                 text: message.text,
                 style: AppTheme.bodyMedium.copyWith(
                   color: userTextColor,
-                  fontSize: 15,
+                  fontSize: 16,
                 ),
               ),
           ],
@@ -5712,14 +4951,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               _confirmDeleteUserMessage(message, resolvedMessageIndex),
           child: Container(
             margin: const EdgeInsets.only(left: 8, right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: userBubbleColor,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(12),
-                topRight: const Radius.circular(12),
-                bottomLeft: const Radius.circular(12),
-                bottomRight: const Radius.circular(2),
+              borderRadius: BorderRadius.circular(24
               ),
             ),
             child: buildContent(),
@@ -5743,18 +4978,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (isFollowedByAssistant) {
         return const SizedBox.shrink();
       }
-      final hasPendingApproval = _hasPendingCommandApproval(
+      _hasPendingCommandApproval(
         _getMessageBlocks(message),
       );
-      final canRetryContinue = _shouldShowRetryContinue(
+      _shouldShowRetryContinue(
         message,
         resolvedMessageIndex,
       );
-      final shareableText = _shareableAssistantText(
+      _shareableAssistantText(
         message,
         resolvedMessageIndex,
       );
-      final cacheUsageLabel = _cacheUsageLabel(message.responseMetadata);
+      _cacheUsageLabel(message.responseMetadata);
 
       Widget messageContent = Padding(
         padding: const EdgeInsets.only(bottom: 8),
@@ -5895,31 +5130,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Widget _buildRetryContinueButton(int messageIndex) {
-    final enabled = _canRetryContinueNow;
-    return _buildActionButton(
-      icon: CupertinoIcons.arrow_clockwise,
-      onTap: enabled ? () => _continueInterruptedResponse(messageIndex) : null,
-    );
-  }
 
-  bool get _canRetryContinueNow =>
-      !_isResponseInProgress &&
-      !_isContextLimitBlocked &&
-      !_wouldExceedContextLimit &&
-      _isModelReady;
 
-  Future<void> _continueInterruptedResponse(int messageIndex) async {
-    if (!_canRetryContinueNow) {
-      return;
-    }
-    await _sendMessage(
-      appendUserMessage: false,
-      providerMessageOverride: _continueInterruptedResponsePrompt,
-      removeProviderMessageFromHistory: true,
-      replaceAssistantMessageIndex: messageIndex,
-    );
-  }
 
   List<ChatMessageBlock> _getEffectiveBlocks(
     int messageIndex,
@@ -6025,10 +5237,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final hasAgenticBlocks = blocks.any(
       (block) => block.type != ChatMessageBlockType.response,
     );
-    final responseScreenshots = _screenshotUrlsFromMessage(message);
-    final responseRecordings = _recordingUrlsFromMessage(message);
-    final responseAudioRecordings = _audioRecordingUrlsFromMessage(message);
-    final responseFiles = _fileInfosFromBlocks(blocks);
+    _screenshotUrlsFromMessage(message);
+    _recordingUrlsFromMessage(message);
+    _audioRecordingUrlsFromMessage(message);
+    _fileInfosFromBlocks(blocks);
     final currentModel = AIModels.getModelById(
       widget.config.modelName,
       _selectedModel,
@@ -6082,31 +5294,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (responseFiles.isNotEmpty) ...[
-            _buildResponseFiles(responseFiles),
-            if (responseAudioRecordings.isNotEmpty ||
-                responseRecordings.isNotEmpty ||
-                responseScreenshots.isNotEmpty ||
-                message.text.trim().isNotEmpty)
-              const SizedBox(height: 12),
-          ],
-          if (responseAudioRecordings.isNotEmpty) ...[
-            _buildResponseAudioRecordings(responseAudioRecordings),
-            if (responseRecordings.isNotEmpty ||
-                responseScreenshots.isNotEmpty ||
-                message.text.trim().isNotEmpty)
-              const SizedBox(height: 12),
-          ],
-          if (responseRecordings.isNotEmpty) ...[
-            _buildResponseRecordings(responseRecordings),
-            if (responseScreenshots.isNotEmpty ||
-                message.text.trim().isNotEmpty)
-              const SizedBox(height: 12),
-          ],
-          if (responseScreenshots.isNotEmpty) ...[
-            _buildResponseScreenshots(responseScreenshots),
-            if (message.text.trim().isNotEmpty) const SizedBox(height: 12),
-          ],
           if (message.text.trim().isNotEmpty)
             _buildResponseMarkdown(
               message.text,
@@ -6425,99 +5612,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       children.add(_buildStreamingCursorPlaceholder());
     }
 
-    if (responseFiles.isNotEmpty) {
-      final firstResponseIndex = children.indexWhere(
-        (child) =>
-            child is! AgenticActivitySection &&
-            child is! AgenticThinkingSection &&
-            child is! AgenticToolCallSection &&
-            child is! AgenticToolCallGroupSection,
-      );
-      final fileWidgets = <Widget>[_buildResponseFiles(responseFiles)];
-      if (children.isNotEmpty) {
-        fileWidgets.add(const SizedBox(height: blockSpacing));
-      }
-      if (firstResponseIndex >= 0) {
-        children.insertAll(firstResponseIndex, fileWidgets);
-      } else {
-        if (children.isNotEmpty) {
-          children.add(const SizedBox(height: blockSpacing));
-        }
-        children.add(_buildResponseFiles(responseFiles));
-      }
-    }
-
-    if (responseScreenshots.isNotEmpty) {
-      final firstResponseIndex = children.indexWhere(
-        (child) =>
-            child is! AgenticActivitySection &&
-            child is! AgenticThinkingSection &&
-            child is! AgenticToolCallSection &&
-            child is! AgenticToolCallGroupSection,
-      );
-      final screenshotWidgets = <Widget>[
-        _buildResponseScreenshots(responseScreenshots),
-      ];
-      if (children.isNotEmpty) {
-        screenshotWidgets.add(const SizedBox(height: blockSpacing));
-      }
-      if (firstResponseIndex >= 0) {
-        children.insertAll(firstResponseIndex, screenshotWidgets);
-      } else {
-        if (children.isNotEmpty) {
-          children.add(const SizedBox(height: blockSpacing));
-        }
-        children.add(_buildResponseScreenshots(responseScreenshots));
-      }
-    }
-
-    if (responseRecordings.isNotEmpty) {
-      final firstResponseIndex = children.indexWhere(
-        (child) =>
-            child is! AgenticActivitySection &&
-            child is! AgenticThinkingSection &&
-            child is! AgenticToolCallSection &&
-            child is! AgenticToolCallGroupSection,
-      );
-      final recordingWidgets = <Widget>[
-        _buildResponseRecordings(responseRecordings),
-      ];
-      if (children.isNotEmpty) {
-        recordingWidgets.add(const SizedBox(height: blockSpacing));
-      }
-      if (firstResponseIndex >= 0) {
-        children.insertAll(firstResponseIndex, recordingWidgets);
-      } else {
-        if (children.isNotEmpty) {
-          children.add(const SizedBox(height: blockSpacing));
-        }
-        children.add(_buildResponseRecordings(responseRecordings));
-      }
-    }
-
-    if (responseAudioRecordings.isNotEmpty) {
-      final firstResponseIndex = children.indexWhere(
-        (child) =>
-            child is! AgenticActivitySection &&
-            child is! AgenticThinkingSection &&
-            child is! AgenticToolCallSection &&
-            child is! AgenticToolCallGroupSection,
-      );
-      final audioWidgets = <Widget>[
-        _buildResponseAudioRecordings(responseAudioRecordings),
-      ];
-      if (children.isNotEmpty) {
-        audioWidgets.add(const SizedBox(height: blockSpacing));
-      }
-      if (firstResponseIndex >= 0) {
-        children.insertAll(firstResponseIndex, audioWidgets);
-      } else {
-        if (children.isNotEmpty) {
-          children.add(const SizedBox(height: blockSpacing));
-        }
-        children.add(_buildResponseAudioRecordings(responseAudioRecordings));
-      }
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -6725,68 +5819,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  void _showImagePreview(String imageUrl) {
-    final token =
-        MacCompanionService.instance.stateNotifier.value.remoteToken ?? '';
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => ImagePreviewScreen.network(
-          imageUrl: imageUrl,
-          headers: {'X-API-Key': token},
-          title: 'Screenshot Preview',
-        ),
-      ),
-    );
-  }
 
-  void _showVideoPreview(String videoUrl) {
-    final token =
-        MacCompanionService.instance.stateNotifier.value.remoteToken ?? '';
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => VideoPreviewScreen.network(
-          videoUrl: videoUrl,
-          headers: {'X-API-Key': token},
-          title: 'Screen Recording',
-        ),
-      ),
-    );
-  }
 
-  void _showLocalImagePreview(String path) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) =>
-            ImagePreviewScreen.file(filePath: path, title: 'Image Preview'),
-      ),
-    );
-  }
-
-  Widget _buildResponseScreenshots(List<String> screenshotUrls) {
-    final token =
-        MacCompanionService.instance.stateNotifier.value.remoteToken ?? '';
-    return ChatResponseScreenshots(
-      screenshotUrls: screenshotUrls,
-      authToken: token,
-      onImageTap: _showImagePreview,
-    );
-  }
-
-  Widget _buildResponseRecordings(List<String> recordingUrls) {
-    final token =
-        MacCompanionService.instance.stateNotifier.value.remoteToken ?? '';
-    return ChatResponseRecordings(
-      recordingUrls: recordingUrls,
-      authToken: token,
-      onRecordingTap: _showVideoPreview,
-    );
-  }
-
-  Widget _buildResponseAudioRecordings(List<String> audioUrls) {
-    final token =
-        MacCompanionService.instance.stateNotifier.value.remoteToken ?? '';
-    return ChatResponseAudioRecordings(audioUrls: audioUrls, authToken: token);
-  }
 
   List<Map<String, dynamic>> _fileInfosFromBlocks(
     List<ChatMessageBlock> blocks,
@@ -6820,12 +5854,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       'size_bytes': (decoded['size_bytes'] as num?)?.toInt() ?? 0,
       'mime_type': decoded['mime_type'] as String?,
     };
-  }
-
-  Widget _buildResponseFiles(List<Map<String, dynamic>> fileInfos) {
-    final token =
-        MacCompanionService.instance.stateNotifier.value.remoteToken ?? '';
-    return ChatResponseFile(fileInfos: fileInfos, authToken: token);
   }
 
   Widget _buildResponseMarkdown(String text, {required bool isStreaming}) {
@@ -6931,16 +5959,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             );
           },
         ),
-        if (_hasWorkspaceForMarkdownActions)
-          _MarkdownActionTile(
-            icon: CupertinoIcons.search,
-            title: 'Search In Workspace',
-            subtitle: label,
-            onTap: () {
-              Navigator.pop(context);
-              unawaited(_searchWorkspaceForMarkdownToken(label));
-            },
-          ),
       ],
     );
   }
@@ -6961,15 +5979,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       ],
       contentWidgets: [
         if (_hasWorkspaceForMarkdownActions && fileCandidate)
-          _MarkdownActionTile(
-            icon: CupertinoIcons.doc_text,
-            title: 'Open File',
-            subtitle: 'Open the matching workspace file',
-            onTap: () {
-              Navigator.pop(context);
-              unawaited(_openWorkspacePathFromMarkdownToken(token));
-            },
-          ),
         if (_hasWorkspaceForMarkdownActions)
           _MarkdownActionTile(
             icon: CupertinoIcons.search,
@@ -6977,7 +5986,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             subtitle: _workspaceDisplayName,
             onTap: () {
               Navigator.pop(context);
-              unawaited(_searchWorkspaceForMarkdownToken(token));
+          
             },
           ),
         _MarkdownActionTile(
@@ -7045,419 +6054,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     ).hasMatch(clean);
   }
 
-  String _searchTermFromMarkdownToken(String token) {
-    var value = _cleanMarkdownActionToken(token);
-    value = value.replaceFirst(RegExp(r'\(\)$'), '');
-    value = value.replaceAll(RegExp(r'^[#@]'), '');
-    final lineSuffix = RegExp(r'^(.+?)(?::\d+){1,2}$').firstMatch(value);
-    if (lineSuffix != null) {
-      value = lineSuffix.group(1)!;
-    }
-    return value.trim();
-  }
 
-  int? _lineFromMarkdownToken(String token) {
-    final match = RegExp(r':(\d+)(?::\d+)?$').firstMatch(token.trim());
-    if (match == null) return null;
-    return int.tryParse(match.group(1)!);
-  }
 
-  Future<void> _searchWorkspaceForMarkdownToken(String token) async {
-    final query = _searchTermFromMarkdownToken(token);
-    final workspaceRoot = (_workspaceRoot ?? '').trim();
-    if (query.isEmpty || workspaceRoot.isEmpty) return;
 
-    showAppToast(
-      context,
-      message: 'Searching workspace...',
-      type: ToastificationType.info,
-    );
 
-    try {
-      final hits = _isLocalGithubWorkspace
-          ? await _searchLocalWorkspace(
-              workspaceRoot: workspaceRoot,
-              query: query,
-              maxResults: 80,
-            )
-          : await _searchRemoteWorkspace(
-              workspaceRoot: workspaceRoot,
-              query: query,
-              maxResults: 80,
-            );
-      if (!mounted) return;
-      if (hits.isEmpty) {
-        showAppToast(
-          context,
-          message: 'No workspace matches for $query',
-          type: ToastificationType.info,
-        );
-        return;
-      }
-      await _showWorkspaceSearchResultsSheet(query: query, hits: hits);
-    } catch (error) {
-      if (!mounted) return;
-      showAppToast(
-        context,
-        message: 'Workspace search failed: $error',
-        type: ToastificationType.error,
-      );
-    }
-  }
 
-  Future<List<_WorkspaceSearchHit>> _searchRemoteWorkspace({
-    required String workspaceRoot,
-    required String query,
-    required int maxResults,
-  }) async {
-    final result = await MacCompanionService.instance.searchRemoteFiles(
-      workspaceRoot: workspaceRoot,
-      query: query,
-      maxResults: maxResults,
-    );
-    if (result['error'] != null) {
-      throw result['error'].toString();
-    }
-    final rawResults = result['results'] as List<dynamic>? ?? const [];
-    final hits = rawResults
-        .whereType<Map>()
-        .map((item) {
-          return _WorkspaceSearchHit(
-            path: item['path']?.toString() ?? '',
-            line: int.tryParse(item['line']?.toString() ?? ''),
-            snippet:
-                item['snippet']?.toString() ??
-                item['content']?.toString() ??
-                '',
-          );
-        })
-        .where((hit) => hit.path.trim().isNotEmpty)
-        .toList();
-    return _withRemoteWorkspaceContext(
-      workspaceRoot: workspaceRoot,
-      hits: hits,
-    );
-  }
 
-  Future<List<_WorkspaceSearchHit>> _withRemoteWorkspaceContext({
-    required String workspaceRoot,
-    required List<_WorkspaceSearchHit> hits,
-  }) async {
-    final enriched = <_WorkspaceSearchHit>[];
-    for (final hit in hits) {
-      final line = hit.line;
-      if (line == null || line <= 0) {
-        enriched.add(hit);
-        continue;
-      }
-      final startLine = math.max(1, line - 4);
-      final endLine = startLine + _workspaceSearchContextLineCount - 1;
-      try {
-        var result = await MacCompanionService.instance.readRemoteFile(
-          hit.path,
-          workspaceRoot: workspaceRoot,
-          startLine: startLine,
-          endLine: endLine,
-          updateState: false,
-        );
-        final file = result['file'];
-        if (result['ok'] != true || file is! Map) {
-          enriched.add(hit);
-          continue;
-        }
-        final lineCount = int.tryParse(file['line_count']?.toString() ?? '');
-        if (lineCount != null &&
-            lineCount >= _workspaceSearchContextLineCount) {
-          final idealStartLine = math.max(
-            1,
-            math.min(
-              line - 4,
-              lineCount - _workspaceSearchContextLineCount + 1,
-            ),
-          );
-          if (idealStartLine != startLine) {
-            result = await MacCompanionService.instance.readRemoteFile(
-              hit.path,
-              workspaceRoot: workspaceRoot,
-              startLine: idealStartLine,
-              endLine: idealStartLine + _workspaceSearchContextLineCount - 1,
-              updateState: false,
-            );
-          }
-        }
-        final contextFile = result['file'];
-        if (result['ok'] != true || contextFile is! Map) {
-          enriched.add(hit);
-          continue;
-        }
-        final actualStartLine =
-            int.tryParse(contextFile['start_line']?.toString() ?? '') ??
-            startLine;
-        final content = contextFile['content']?.toString() ?? '';
-        final contextSnippet = _formatWorkspaceContextSnippet(
-          content.split('\n'),
-          startLine: actualStartLine,
-        );
-        enriched.add(
-          contextSnippet.trim().isEmpty
-              ? hit
-              : hit.copyWith(snippet: contextSnippet),
-        );
-      } catch (_) {
-        enriched.add(hit);
-      }
-    }
-    return enriched;
-  }
 
-  Future<List<_WorkspaceSearchHit>> _searchLocalWorkspace({
-    required String workspaceRoot,
-    required String query,
-    required int maxResults,
-  }) async {
-    final root = Directory(workspaceRoot);
-    if (!await root.exists()) {
-      throw 'Selected workspace folder was not found.';
-    }
-    final hits = <_WorkspaceSearchHit>[];
-    final lowerQuery = query.toLowerCase();
-    await for (final entity in root.list(recursive: true, followLinks: false)) {
-      if (hits.length >= maxResults) break;
-      if (entity is! File) continue;
-      final relativePath = p.relative(entity.path, from: workspaceRoot);
-      if (shouldIgnoreWorkspaceMentionPath(relativePath) ||
-          !_isSearchableWorkspaceTextFile(relativePath)) {
-        continue;
-      }
-      try {
-        final size = await entity.length();
-        if (size > 2 * 1024 * 1024) continue;
-        final lines = await entity.readAsLines();
-        for (var i = 0; i < lines.length && hits.length < maxResults; i++) {
-          final line = lines[i];
-          if (!line.contains(query) &&
-              !line.toLowerCase().contains(lowerQuery)) {
-            continue;
-          }
-          final start = math.max(
-            0,
-            math.min(i - 4, lines.length - _workspaceSearchContextLineCount),
-          );
-          final end = math.min(
-            lines.length,
-            start + _workspaceSearchContextLineCount,
-          );
-          hits.add(
-            _WorkspaceSearchHit(
-              path: relativePath.replaceAll('\\', '/'),
-              line: i + 1,
-              snippet: _formatWorkspaceContextSnippet(
-                lines.sublist(start, end),
-                startLine: start + 1,
-              ),
-            ),
-          );
-        }
-      } catch (_) {
-        continue;
-      }
-    }
-    return hits;
-  }
 
-  String _formatWorkspaceContextSnippet(
-    List<String> lines, {
-    required int startLine,
-  }) {
-    final buffer = StringBuffer();
-    for (var i = 0; i < lines.length; i++) {
-      final lineNumber = startLine + i;
-      final marker = lineNumber.toString().padLeft(4);
-      buffer.writeln('$marker  ${lines[i]}');
-    }
-    return buffer.toString().trimRight();
-  }
 
-  bool _isSearchableWorkspaceTextFile(String path) {
-    final lower = path.toLowerCase();
-    const extensions = {
-      '.dart',
-      '.py',
-      '.js',
-      '.mjs',
-      '.cjs',
-      '.jsx',
-      '.ts',
-      '.tsx',
-      '.java',
-      '.kt',
-      '.swift',
-      '.go',
-      '.rs',
-      '.json',
-      '.yaml',
-      '.yml',
-      '.md',
-      '.txt',
-      '.html',
-      '.css',
-      '.scss',
-      '.xml',
-      '.sql',
-      '.sh',
-      '.bash',
-      '.zsh',
-      '.rb',
-      '.php',
-      '.cs',
-      '.toml',
-      '.ini',
-      '.gradle',
-      '.properties',
-    };
-    if (extensions.any(lower.endsWith)) return true;
-    final name = p.basename(lower);
-    return const {
-      'makefile',
-      'dockerfile',
-      'podfile',
-      'gemfile',
-      'readme',
-      'license',
-      '.gitignore',
-    }.contains(name);
-  }
 
-  Future<void> _showWorkspaceSearchResultsSheet({
-    required String query,
-    required List<_WorkspaceSearchHit> hits,
-  }) async {
-    final theme = Theme.of(context);
-    await ResponsiveInfoSheet.show<void>(
-      context,
-      title: '$query (${hits.length})',
-      headerIcon: Icon(
-        CupertinoIcons.search,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        for (final hit in hits.take(80))
-          _WorkspaceSearchResultTile(
-            hit: hit,
-            onTap: () {
-              Navigator.pop(context);
-              _openWorkspaceFilePreview(hit.path, line: hit.line);
-            },
-          ),
-      ],
-    );
-  }
-
-  Future<void> _openWorkspacePathFromMarkdownToken(String token) async {
-    final workspaceRoot = (_workspaceRoot ?? '').trim();
-    if (workspaceRoot.isEmpty) return;
-    final candidates = _workspacePathCandidatesFromToken(token);
-    for (final candidate in candidates) {
-      if (await _workspaceFileExists(candidate, workspaceRoot)) {
-        _openWorkspaceFilePreview(
-          candidate,
-          line: _lineFromMarkdownToken(token),
-        );
-        return;
-      }
-    }
-    if (!mounted) return;
-    showAppToast(
-      context,
-      message: 'No matching workspace file found',
-      type: ToastificationType.info,
-    );
-  }
-
-  List<String> _workspacePathCandidatesFromToken(String token) {
-    var clean = _searchTermFromMarkdownToken(
-      token,
-    ).replaceAll(RegExp(r'^\./'), '').replaceAll('\\', '/').trim();
-    clean = clean.replaceAll(RegExp(r'[\)\]\}]+$'), '');
-    if (clean.isEmpty) return const [];
-    final candidates = <String>[clean];
-    if (!clean.contains('/')) {
-      for (final entry in _workspaceMentionEntries) {
-        if (entry.isDirectory) continue;
-        final path = entry.relativePath;
-        if (p.basename(path) == clean) {
-          candidates.add(path);
-        }
-      }
-    }
-    return candidates.toSet().toList();
-  }
-
-  Future<bool> _workspaceFileExists(String path, String workspaceRoot) async {
-    if (_isLocalGithubWorkspace) {
-      final file = File(
-        p.isAbsolute(path) ? path : p.join(workspaceRoot, path),
-      );
-      return file.exists();
-    }
-    final result = await MacCompanionService.instance.readRemoteFile(
-      path,
-      workspaceRoot: workspaceRoot,
-      startLine: 1,
-      endLine: 1,
-      updateState: false,
-    );
-    return result['ok'] == true && result['file'] is Map;
-  }
-
-  void _openWorkspaceFilePreview(String path, {int? line}) {
-    final workspaceRoot = (_workspaceRoot ?? '').trim();
-    if (workspaceRoot.isEmpty || !mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => WorkspaceFilePreviewScreen(
-          path: path,
-          workspaceRoot: workspaceRoot,
-          source: _isLocalGithubWorkspace
-              ? WorkspaceFileSource.localFile
-              : WorkspaceFileSource.remoteMac,
-          initialLine: line,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMessageTimeLabel(DateTime timestamp) {
-    final theme = Theme.of(context);
-    final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(timestamp),
-      alwaysUse24HourFormat: false,
-    );
-
-    return Text(
-      time,
-      style: AppTheme.bodySmall.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  Widget _buildMessageMetadataLabel(String label) {
-    final theme = Theme.of(context);
-
-    return Text(
-      label,
-      style: AppTheme.bodySmall.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
 
   String? _cacheUsageLabel(Map<String, dynamic>? metadata) {
     final cacheReadTokens =
@@ -7527,224 +6133,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return value.toString();
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required VoidCallback? onTap,
-    bool isActive = false,
-  }) {
-    final theme = Theme.of(context);
-    final hintColor = theme.colorScheme.onSurfaceVariant;
-    final enabled = onTap != null;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(32),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        child: Icon(
-          icon,
-          size: 16,
-          color: enabled
-              ? (isActive ? theme.colorScheme.primary : hintColor)
-              : hintColor.withValues(alpha: 0.45),
-        ),
-      ),
-    );
-  }
 
-  List<FileChange> _extractFileChanges(ChatMessage message) {
-    final blocks = _getMessageBlocks(message);
-    final changeMap = <String, FileChange>{};
 
-    for (final block in blocks) {
-      final tc = block.toolCall;
-      if (tc == null || !tc.isComplete) continue;
 
-      if (tc.name == 'write') {
-        final path =
-            (tc.arguments['filePath'] as String?) ??
-            (tc.arguments['path'] as String?) ??
-            '';
-        if (path.isEmpty) continue;
-        final content = tc.arguments['content'] as String? ?? '';
-        final lines = content.split('\n');
-        final patch =
-            '@@ -0,0 +1,${lines.length} @@\n${lines.map((l) => '+$l').join('\n')}';
-        changeMap[path] = FileChange(
-          path: path,
-          patch: patch,
-          status: 'added',
-          additions: lines.length,
-          deletions: 0,
-        );
-      } else if (tc.name == 'edit') {
-        final path =
-            (tc.arguments['filePath'] as String?) ??
-            (tc.arguments['path'] as String?) ??
-            '';
-        if (path.isEmpty) continue;
-        final edits = tc.arguments['edits'] as List<dynamic>? ?? [];
-        int additions = 0;
-        int deletions = 0;
-        final hunks = <String>[];
-        for (final edit in edits) {
-          final oldText = edit['oldText'] as String? ?? '';
-          final newText = edit['newText'] as String? ?? '';
-          final oldLines = oldText.isEmpty ? <String>[] : oldText.split('\n');
-          final newLines = newText.isEmpty ? <String>[] : newText.split('\n');
-          additions += newLines.length;
-          deletions += oldLines.length;
-          final hunk = StringBuffer();
-          hunk.writeln('@@ -1,${oldLines.length} +1,${newLines.length} @@');
-          for (final l in oldLines) {
-            hunk.writeln('-$l');
-          }
-          for (final l in newLines) {
-            hunk.write('+$l');
-            if (l != newLines.last) hunk.writeln();
-          }
-          hunks.add(hunk.toString());
-        }
-        final patch = hunks.join('\n');
-        final existing = changeMap[path];
-        if (existing != null) {
-          changeMap[path] = FileChange(
-            path: path,
-            patch: '${existing.patch}\n$patch',
-            status: 'modified',
-            additions: existing.additions + additions,
-            deletions: existing.deletions + deletions,
-          );
-        } else {
-          changeMap[path] = FileChange(
-            path: path,
-            patch: patch,
-            status: 'modified',
-            additions: additions,
-            deletions: deletions,
-          );
-        }
-      }
-    }
-
-    return changeMap.values.toList();
-  }
-
-  Widget _buildChangesButton(List<FileChange> changes) {
-    final theme = Theme.of(context);
-    final totalAdditions = changes.fold(0, (s, c) => s + c.additions);
-    final totalDeletions = changes.fold(0, (s, c) => s + c.deletions);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 2),
-      child: GestureDetector(
-        onTap: () => ChangesDiffScreen.open(context, changes),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.4),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.difference_outlined,
-                size: 14,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${changes.length} file${changes.length == 1 ? '' : 's'} changed',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '+$totalAdditions',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.green,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '-$totalDeletions',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _userMessageTextForAssistantResponse(int assistantMessageIndex) {
-    if (assistantMessageIndex >= 0 &&
-        assistantMessageIndex < _messages.length) {
-      final metadataMessage = _messages[assistantMessageIndex]
-          .responseMetadata?['agentFlowUserMessage']
-          ?.toString()
-          .trim();
-      if (metadataMessage != null && metadataMessage.isNotEmpty) {
-        return metadataMessage;
-      }
-    }
-
-    for (var i = assistantMessageIndex - 1; i >= 0; i--) {
-      final message = _messages[i];
-      if (message.isUser && message.text.trim().isNotEmpty) {
-        return message.text.trim();
-      }
-    }
-    return '';
-  }
-
-  Future<void> _showAgentFlowForResponse(
-    ChatMessage message,
-    int messageIndex,
-  ) async {
-    final metadata = message.responseMetadata ?? const <String, dynamic>{};
-    var systemPrompt = metadata['agentFlowSystemPrompt']?.toString() ?? '';
-    var isSnapshot =
-        metadata['agentFlowSystemPromptIsSnapshot'] == true &&
-        systemPrompt.trim().isNotEmpty;
-    final wasTruncated = metadata['agentFlowSystemPromptTruncated'] == true;
-
-    if (systemPrompt.trim().isEmpty) {
-      systemPrompt = await _buildAgentFlowPromptSnapshot();
-      isSnapshot = false;
-    } else if (wasTruncated) {
-      final originalLength = metadata['agentFlowPromptLength'];
-      systemPrompt =
-          '$systemPrompt\n\n[Prompt snapshot truncated in storage. Original length: $originalLength characters.]';
-    }
-
-    if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AgentResponseFlowScreen(
-          userMessage: _userMessageTextForAssistantResponse(messageIndex),
-          assistantMessage: message,
-          systemPrompt: systemPrompt.trim().isEmpty
-              ? 'No system prompt snapshot is available for this response.'
-              : systemPrompt,
-          systemPromptIsSnapshot: isSnapshot,
-        ),
-      ),
-    );
-  }
 
   Widget _buildStatusCard(_TimelineStatusItem item) {
     final data = item.data;
@@ -7763,20 +6155,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Future<void> _shareMessage(String text) async {
-    try {
-      await SharePlus.instance.share(ShareParams(text: text));
-    } catch (e) {
-      // Fallback to clipboard if share fails
-      Clipboard.setData(ClipboardData(text: text));
-      if (!mounted) return;
-      showAppToast(
-        context,
-        message: 'Message copied to clipboard',
-        type: ToastificationType.success,
-      );
-    }
-  }
 
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
@@ -7794,14 +6172,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _deleteMessage(messageIndex);
   }
 
-  Future<void> _confirmDeleteAssistantMessage(int messageIndex) async {
-    final confirmed = await _showDeleteConfirmationDialog(
-      'Delete this response?',
-      'This will remove the AI response from the current chat so it is not included in context for subsequent messages.',
-    );
-    if (confirmed != true || !mounted) return;
-    await _deleteMessage(messageIndex);
-  }
 
   Future<bool?> _showDeleteConfirmationDialog(
     String title,
@@ -7950,25 +6320,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   int get _estimatedConversationTokens => _currentContextPromptTokens;
 
-  _ContextUsageBreakdown get _contextUsageBreakdown {
-    return _ContextUsageBreakdown(
-      currentContextTokens: _currentContextPromptTokens,
-      contextLimit: _currentContextLimit,
-    );
-  }
 
-  String _formatTokenCount(int value) {
-    final raw = value.toString();
-    final buffer = StringBuffer();
-    for (var index = 0; index < raw.length; index++) {
-      final remaining = raw.length - index;
-      buffer.write(raw[index]);
-      if (remaining > 1 && remaining % 3 == 1) {
-        buffer.write(',');
-      }
-    }
-    return buffer.toString();
-  }
 
   String? _buildStreamTimeoutFallback(List<ChatMessageBlock> blocks) {
     final successfulWorkspaceTool = _latestCompletedWorkspaceMutationTool(
@@ -8136,13 +6488,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return _visibleConnectedWorkspaces.isNotEmpty;
   }
 
-  String _fileExtension(String fileName) {
-    final dotIndex = fileName.lastIndexOf('.');
-    if (dotIndex < 0 || dotIndex == fileName.length - 1) {
-      return '';
-    }
-    return fileName.substring(dotIndex + 1).toLowerCase();
-  }
 
   String _fileNameFromPath(String path) {
     final normalized = path.replaceAll('\\', '/');

@@ -1,16 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
+
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:budget_ai/features/settings/data/api_key_storage_service.dart';
 import 'package:budget_ai/tools/catalog/tool_catalog.dart';
 import 'package:budget_ai/tools/core/tool_context.dart';
 import 'package:budget_ai/tools/core/tool_models.dart';
 import 'package:budget_ai/tools/modules/tool_modules.dart';
-import 'package:budget_ai/tools/core/tool_approval.dart';
 import 'package:budget_ai/tools/settings/tool_settings.dart';
 
 class ToolRegistry
@@ -32,9 +29,6 @@ class ToolRegistry
   final Dio _dio;
   CancelToken? _cancelToken;
   List<ToolDefinition>? _toolsCache;
-  String _activeProviderModelId = '';
-  String _activeProviderApiKey = '';
-  String _activeProviderBaseUrl = '';
   final Map<String, Map<String, dynamic>> _webSearchCache = {};
 
   @override
@@ -47,9 +41,6 @@ class ToolRegistry
     required String apiKey,
     required String baseUrl,
   }) {
-    _activeProviderModelId = modelId;
-    _activeProviderApiKey = apiKey;
-    _activeProviderBaseUrl = baseUrl;
   }
 
   void setActiveMessageImagePaths(List<String>? imagePaths) {
@@ -64,9 +55,7 @@ class ToolRegistry
     bool includeWorkspaceTools = true,
     bool includeGithubModeTools = false,
   }) {
-    if (_toolsCache == null) {
-      _toolsCache = _buildTools();
-    }
+    _toolsCache ??= _buildTools();
     return _filterEnabledTools(_toolsCache!);
   }
 

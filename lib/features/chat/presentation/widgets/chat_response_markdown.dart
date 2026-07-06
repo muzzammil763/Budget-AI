@@ -83,7 +83,7 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
           color: textColor,
         ),
         bodyMedium: AppTheme.bodyMedium.copyWith(
-          fontSize: 15,
+          fontSize: 16,
           color: textColor,
           height: 1.5,
         ),
@@ -222,7 +222,7 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
 
     final style = AppTheme.bodyMedium.copyWith(
       color: textColor,
-      fontSize: 15,
+      fontSize: 16,
       height: 1.5,
     );
 
@@ -253,7 +253,7 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
           final tokenStyle = const TextStyle(
             color: AppTheme.highlight,
             fontWeight: FontWeight.w600,
-            fontSize: 15,
+            fontSize: 16,
             height: 1.5,
           );
           final onTap = onTokenTap;

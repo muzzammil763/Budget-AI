@@ -58,6 +58,7 @@ class _ContextUsageBreakdown {
   int get percentUsed => (progress * 100).round();
 }
 
+// ignore: unused_element
 class _ContextOverviewSummary extends StatelessWidget {
   final _ContextUsageBreakdown usage;
   final String modelName;
@@ -230,25 +231,6 @@ class _ContextMetric extends StatelessWidget {
   }
 }
 
-class _WorkspaceSearchHit {
-  const _WorkspaceSearchHit({
-    required this.path,
-    required this.snippet,
-    this.line,
-  });
-
-  final String path;
-  final int? line;
-  final String snippet;
-
-  _WorkspaceSearchHit copyWith({String? snippet}) {
-    return _WorkspaceSearchHit(
-      path: path,
-      line: line,
-      snippet: snippet ?? this.snippet,
-    );
-  }
-}
 
 class _MarkdownActionTile extends StatelessWidget {
   const _MarkdownActionTile({
@@ -325,104 +307,6 @@ class _MarkdownActionTile extends StatelessWidget {
   }
 }
 
-class _WorkspaceSearchResultTile extends StatelessWidget {
-  const _WorkspaceSearchResultTile({required this.hit, required this.onTap});
-
-  final _WorkspaceSearchHit hit;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final line = hit.line;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Icon(
-                  CupertinoIcons.doc_text_search,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      [
-                        hit.path,
-                        if (line != null && line > 0) 'line $line',
-                      ].join(' - '),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      hit.snippet.trim(),
-                      maxLines: _UnifiedChatScreenState
-                          ._workspaceSearchContextLineCount,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontFamily: 'monospace',
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ConnectedWorkspaceLeadingIcon extends StatelessWidget {
-  final _ConnectedWorkspace workspace;
-
-  const _ConnectedWorkspaceLeadingIcon({required this.workspace});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (workspace.source ==
-        _UnifiedChatScreenState._workspaceSourceLocalGithub) {
-      return SizedBox(
-        width: 14,
-        height: 14,
-        child: SvgPicture.asset(
-          'assets/icons/github.svg',
-          colorFilter: ColorFilter.mode(
-            theme.colorScheme.primary,
-            BlendMode.srcIn,
-          ),
-        ),
-      );
-    }
-
-    return Icon(
-      CupertinoIcons.folder_fill,
-      size: 14,
-      color: theme.colorScheme.primary,
-    );
-  }
-}
 
 class _ApprovalDetailsBox extends StatelessWidget {
   const _ApprovalDetailsBox({required this.text});
