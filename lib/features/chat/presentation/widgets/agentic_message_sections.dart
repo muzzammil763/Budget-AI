@@ -1031,7 +1031,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hintColor = theme.colorScheme.onSurfaceVariant;
     final isSuccess = widget.toolCall.status == ToolCallStatus.completed;
     final isFailed = widget.toolCall.status == ToolCallStatus.failed;
     final isAwaitingApproval = _isAwaitingApproval;

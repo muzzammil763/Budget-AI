@@ -4,7 +4,7 @@ class AppTheme {
   static const Color primaryColor = Colors.black;
   static const Color lightSurface = Colors.white;
   static const Color darkSurface = Colors.black;
-  static const Color highlight = Color.fromARGB(255, 70, 154, 249);
+  static const Color highlight = Colors.blueAccent;
 
   static Color readableOn(Color color) {
     return color.computeLuminance() > 0.55 ? Colors.black : Colors.white;

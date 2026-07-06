@@ -80,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             theme,
             icon: CupertinoIcons.money_dollar_circle,
             title: 'Finances',
-            subtitle: 'View and manage expenses',
+            subtitle: 'View and manage finances data',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FinancesScreen()),
@@ -90,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             theme,
             icon: CupertinoIcons.book,
             title: 'Memories',
-            subtitle: 'Manage saved memories',
+            subtitle: 'View and manage saved memories',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MemoriesScreen()),
@@ -101,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: CupertinoIcons.archivebox,
             title: 'Backup & Restore',
             subtitle:
-                'Export or restore API keys, finances, memories',
+                'Backup & Restore finances, memories data',
             onTap: _showBackupRestoreSheet,
           ),
         ],
@@ -119,19 +119,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(100),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(100),
             border: Border.all(
               color: theme.colorScheme.outline.withValues(alpha: 0.4),
             ),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 22, color: theme.colorScheme.primary),
+              Icon(icon, size: 24, color: theme.colorScheme.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
