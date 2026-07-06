@@ -143,6 +143,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   bool _isCommandApprovalDialogOpen = false;
   final List<Map<String, dynamic>> _pendingApprovalDialogQueue = [];
   List<ChatSessionSummary>? _cachedSessionSummaries;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  Future<List<ChatSessionSummary>>? _historySessionsFuture;
   final ValueNotifier<ChatMessage?> _streamingBubble = ValueNotifier(null);
   final ValueNotifier<bool> _canSendNotifier = ValueNotifier(false);
   Timer? _streamingThrottleTimer;
@@ -4309,6 +4311,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         await _attemptBackNavigation(result);
       },
       child: Scaffold(
+        key: _scaffoldKey,
+        drawer: _buildHistoryDrawer(),
+        drawerScrimColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: 0.18),
+        drawerEdgeDragWidth: 28,
+        onDrawerChanged: (isOpened) {
+          if (isOpened) {
+            _ensureHistorySessionsFuture();
+          } else {
+            _historySessionsFuture = null;
+          }
+        },
         body: Stack(
           children: [
             Positioned.fill(child: _buildBody()),
@@ -4590,98 +4605,67 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _openHistoryScreen() async {
-    // Refresh sessions list in background. If we have a cache, the history
-    // screen opens immediately on the first frame; the cache is swapped in when
-    // fresh data arrives so the user never sees a shimmer on repeat opens.
-    final sessionsFuture = _chatSessions.listRecentSessions();
+    _ensureHistorySessionsFuture();
+    _scaffoldKey.currentState?.openDrawer();
+  }
 
-    // Pre-load future captured the moment the user taps a session tile so the
-    // DB query runs during the 240 ms close animation rather than after it.
-    Future<LoadedChatSession?>? preloadFuture;
-
-    final selection = await showGeneralDialog<ChatHistorySelection>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Chat History',
-      barrierColor: Theme.of(
-        context,
-      ).colorScheme.primary.withValues(alpha: 0.18),
-      transitionDuration: const Duration(milliseconds: 240),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        final screenWidth = MediaQuery.sizeOf(context).width;
-        final historyWidth = screenWidth < 600 ? screenWidth : 500.0;
-
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: historyWidth,
-            height: double.infinity,
-            child: FutureBuilder<List<ChatSessionSummary>>(
-              future: sessionsFuture,
-              // Cached list renders the screen on the very first frame so
-              // there is no shimmer on repeat opens.
-              initialData: _cachedSessionSummaries,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return ChatHistoryLoadingScreen(
-                    onClose: () => Navigator.of(context).pop(),
-                  );
-                }
-
-                return ChatHistoryScreen(
-                  sessions: snapshot.data!,
-                  currentSessionId: _activeSession?.id,
-                  onClose: () => Navigator.of(context).pop(),
-                  onNewChat: () => Navigator.of(
-                    context,
-                  ).pop(const ChatHistorySelection.newChat()),
-                  onSessionSelected: (sessionId) {
-                    // Start the DB load immediately; by the time the close
-                    // animation finishes the data is likely already in memory.
-                    preloadFuture = _chatSessions.loadSession(sessionId);
-                    Navigator.of(
-                      context,
-                    ).pop(ChatHistorySelection.openSession(sessionId));
-                  },
-                  onSessionDeleted: _deleteHistorySession,
-                  onSessionRenamed: _renameHistorySession,
-                );
-              },
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-        );
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(-1, 0),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        );
-      },
-    );
-
-    // Update the cache with the freshly fetched list.
-    sessionsFuture.then((sessions) {
+  // Refresh sessions list in background. If we have a cache, the drawer
+  // renders immediately on the first frame; the cache is swapped in when
+  // fresh data arrives so the user never sees a shimmer on repeat opens.
+  Future<List<ChatSessionSummary>> _ensureHistorySessionsFuture() {
+    final existing = _historySessionsFuture;
+    if (existing != null) return existing;
+    final future = _chatSessions.listRecentSessions();
+    _historySessionsFuture = future;
+    future.then((sessions) {
       if (mounted) _cachedSessionSummaries = sessions;
     });
+    return future;
+  }
 
-    if (!mounted || selection == null) return;
+  void _closeHistoryDrawer() {
+    _scaffoldKey.currentState?.closeDrawer();
+  }
 
-    if (selection.createNewChat) {
-      await _resetToFreshDraft();
-      return;
-    }
+  Widget _buildHistoryDrawer() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final drawerWidth = math.min(screenWidth * 0.86, 400.0);
 
-    final sessionId = selection.sessionId;
-    if (sessionId == null) return;
+    return Drawer(
+      width: drawerWidth,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
+      ),
+      child: FutureBuilder<List<ChatSessionSummary>>(
+        future: _ensureHistorySessionsFuture(),
+        initialData: _cachedSessionSummaries,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return ChatHistoryLoadingScreen(onClose: _closeHistoryDrawer);
+          }
 
-    await _loadPersistedSession(sessionId, preloadFuture: preloadFuture);
+          return ChatHistoryScreen(
+            sessions: snapshot.data!,
+            currentSessionId: _activeSession?.id,
+            onClose: _closeHistoryDrawer,
+            onNewChat: () {
+              _closeHistoryDrawer();
+              _resetToFreshDraft();
+            },
+            onSessionSelected: (sessionId) {
+              // Start the DB load immediately; it runs during the drawer
+              // close animation rather than after it.
+              final preloadFuture = _chatSessions.loadSession(sessionId);
+              _closeHistoryDrawer();
+              _loadPersistedSession(sessionId, preloadFuture: preloadFuture);
+            },
+            onSessionDeleted: _deleteHistorySession,
+            onSessionRenamed: _renameHistorySession,
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _openSettingsScreen() async {

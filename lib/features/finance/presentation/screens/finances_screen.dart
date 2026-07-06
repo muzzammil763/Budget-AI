@@ -119,55 +119,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
             onSelected: (index) => _selectMonth(months[index]),
           ),
           if (!_isLoading && _monthEntries.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.colorScheme.outline),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Total',
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        '${FinanceEntry.formatAmount(total)} Rs',
-                        style: AppTheme.headingSmall.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: topCats.map((e) {
-                      return Text(
-                        '${e.key}: ${FinanceEntry.formatAmount(e.value)} Rs',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
+            _buildSummaryCard(theme, total, topCats),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -175,6 +127,99 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 ? _buildEmpty(theme)
                 : _buildList(theme),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+    ThemeData theme,
+    double total,
+    List<MapEntry<String, double>> topCats,
+  ) {
+    final cardColor = theme.colorScheme.primary;
+    final onCard = AppTheme.readableOn(cardColor);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            cardColor,
+            Color.lerp(cardColor, theme.colorScheme.primary, 0.28)!,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? theme.colorScheme.primary.withValues(alpha: 0.14)
+                : Colors.black.withValues(alpha: 0.16),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TOTAL · ${_monthLabel(_selectedMonth).toUpperCase()}',
+                  style: AppTheme.bodySmall.copyWith(
+                    color: onCard.withValues(alpha: 0.65),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.8,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${FinanceEntry.formatAmount(total)} Rs',
+                  style: AppTheme.headingLarge.copyWith(
+                    color: onCard,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _monthEntries.length == 1
+                      ? '1 entry'
+                      : '${_monthEntries.length} entries',
+                  style: AppTheme.bodySmall.copyWith(
+                    color: onCard.withValues(alpha: 0.6),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (topCats.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: topCats.take(3).map((e) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '${e.key} · ${FinanceEntry.formatAmount(e.value)} Rs',
+                    style: TextStyle(
+                      color: onCard.withValues(alpha: 0.85),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -203,17 +248,36 @@ class _FinancesScreenState extends State<FinancesScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            CupertinoIcons.money_dollar_circle,
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(
+              CupertinoIcons.money_dollar_circle,
+              size: 32,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Text(
             'No entries for ${_monthLabel(_selectedMonth)}',
             style: AppTheme.headingSmall.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Log an expense from the chat\nand it will show up here.',
+            textAlign: TextAlign.center,
+            style: AppTheme.bodySmall.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 16,
+              fontSize: 13,
+              height: 1.45,
             ),
           ),
         ],
@@ -226,7 +290,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
-      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 12),
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
       itemCount: keys.length,
       itemBuilder: (ctx, i) {
         final key = keys[i];
@@ -237,31 +301,34 @@ class _FinancesScreenState extends State<FinancesScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 6),
+              padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: Row(
                 spacing: 12,
                 children: [
                   Text(
-                    "${_dayLabel(entries.first.date)} Total",
+                    _dayLabel(entries.first.date).toUpperCase(),
                     style: AppTheme.headingSmall.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.4,
                     ),
                   ),
                   Expanded(
                     child: Container(
                       width: double.infinity,
                       height: 1,
-                      color: theme.colorScheme.onSurface,
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.08,
+                      ),
                     ),
                   ),
                   Text(
                     '${FinanceEntry.formatAmount(dayTotal)} Rs',
                     style: AppTheme.bodySmall.copyWith(
                       color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
                     ),
                   ),
                 ],
@@ -287,36 +354,35 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   Widget _buildEntryTile(ThemeData theme, FinanceEntry entry) {
     final timeStr = entry.hasTime ? _formatClockTime(entry.date) : null;
+    final onSurface = theme.colorScheme.onSurface;
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.6),
-        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: onSurface.withValues(alpha: 0.08)),
       ),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(11),
             ),
             child: Center(
               child: Text(
                 entry.category.isNotEmpty ? entry.category[0] : '?',
                 style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onPrimary,
+                  fontWeight: FontWeight.w800,
                   fontSize: 15,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,9 +390,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 Text(
                   entry.description,
                   style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    color: onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -336,7 +402,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                       entry.category,
                       style: TextStyle(
                         color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 11,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -345,7 +411,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                         ' · $timeStr',
                         style: TextStyle(
                           color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -359,8 +425,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
           Text(
             entry.displayAmount,
             style: AppTheme.headingSmall.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontSize: 13,
+              color: onSurface,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -371,11 +438,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
   Widget _buildDeleteBackground(ThemeData theme) {
     return Container(
       alignment: Alignment.centerRight,
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(right: 18),
       decoration: BoxDecoration(
         color: theme.colorScheme.error,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(CupertinoIcons.trash, color: theme.colorScheme.onError),
     );

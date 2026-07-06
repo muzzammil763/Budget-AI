@@ -210,7 +210,7 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               children: [
                 _buildApiKeySection(
                   theme,

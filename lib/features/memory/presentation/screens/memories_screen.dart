@@ -96,7 +96,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
           : filteredMemories.isEmpty
           ? _buildEmpty(theme)
           : ListView.separated(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               itemCount: filteredMemories.length,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) =>
