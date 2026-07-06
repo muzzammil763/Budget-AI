@@ -37,7 +37,7 @@ class AgenticActivitySection extends StatefulWidget {
 }
 
 class _AgenticActivitySectionState extends State<AgenticActivitySection> {
-  static const double _horizontalInset = 8;
+  static const double _horizontalInset = 12;
 
   late bool _isExpanded;
 
@@ -290,7 +290,7 @@ class _AgenticToolCallGroupSectionState
           radius: 48,
           onTap: () => setState(() => _isExpanded = !_isExpanded),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
                 Icon(
@@ -491,7 +491,7 @@ class _CompactToolCallBatchSectionState
         : 'files';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1043,7 +1043,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1058,9 +1058,9 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
-                spacing: 6,
+                spacing: 4,
                 children: [
                   Icon(
                     isSuccess
@@ -1072,7 +1072,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                         : isRunning
                         ? Icons.pending_outlined
                         : CupertinoIcons.info_circle,
-                    size: 18,
+                    size: 20,
                     color: isSuccess
                         ? Colors.green
                         : isFailed
@@ -1088,10 +1088,13 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                       formatToolNameForUi(widget.toolCall.name),
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: 13.5
+                        ,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
+                  
 
                   if (widget.isInProgress && !isAwaitingApproval) ...[
                     SizedBox(
@@ -1108,8 +1111,8 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                     duration: const Duration(milliseconds: 200),
                     child: Icon(
                       Icons.keyboard_arrow_down,
-                      size: 18,
-                      color: hintColor,
+                      size: 22,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ],

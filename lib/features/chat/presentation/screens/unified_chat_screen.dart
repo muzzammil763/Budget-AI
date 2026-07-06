@@ -4950,11 +4950,23 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           onLongPress: () =>
               _confirmDeleteUserMessage(message, resolvedMessageIndex),
           child: Container(
-            margin: const EdgeInsets.only(left: 8, right: 8),
+            margin: const EdgeInsets.only(left: 12, right: 12),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+            ),
             decoration: BoxDecoration(
               color: userBubbleColor,
-              borderRadius: BorderRadius.circular(24
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(22),
+                topRight: Radius.circular(22),
+                bottomLeft: Radius.circular(22),
+                bottomRight: Radius.circular(8),
+              ),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.14 : 0.06,
+                ),
               ),
             ),
             child: buildContent(),
@@ -4963,7 +4975,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
 
       return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(top: 4, bottom: 12),
         child: Align(
           alignment: Alignment.centerRight,
           child: buildCopyableUserBubble(),
@@ -4992,7 +5004,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _cacheUsageLabel(message.responseMetadata);
 
       Widget messageContent = Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -5670,14 +5682,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Widget _buildStreamingCursorPlaceholder() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: StreamingTextReveal(
         text: '',
         isStreaming: true,
         textAlign: TextAlign.start,
         style: AppTheme.bodyMedium.copyWith(
           color: Theme.of(context).colorScheme.onSurface,
-          fontSize: 15,
+          fontSize: 16,
           height: 1.5,
         ),
         cursorColor: Theme.of(context).colorScheme.primary,

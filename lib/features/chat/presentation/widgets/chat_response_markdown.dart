@@ -208,7 +208,7 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
     this.onTokenTap,
   });
 
-  static const double _horizontalInset = 8.0;
+  static const double _horizontalInset = 12.0;
 
   final String text;
   final bool isStreaming;
