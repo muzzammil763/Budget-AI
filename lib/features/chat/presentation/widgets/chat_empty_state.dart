@@ -14,6 +14,15 @@ class ChatEmptyState extends StatelessWidget {
     (Icons.savings_outlined, 'Help me plan a savings goal'),
     (Icons.trending_down_rounded, 'Where can I cut back this month?'),
     (Icons.calculate_outlined, 'Build me a 50/30/20 budget'),
+    (Icons.calendar_month_outlined, 'What bills are coming up soon?'),
+    (Icons.shopping_cart_outlined, 'Create a weekly grocery budget'),
+    (
+      Icons.account_balance_wallet_outlined,
+      'How much can I safely spend today?',
+    ),
+    (Icons.query_stats_rounded, 'Compare this month with last month'),
+    (Icons.manage_search_rounded, 'Find unusual transactions'),
+    (Icons.credit_score_outlined, 'Make a debt payoff plan'),
   ];
 
   String get _greeting {
@@ -32,92 +41,94 @@ class ChatEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 112, 12, 112),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 1100),
-            builder: (context, t, _) {
-              final markT = _stagger(t, 0.0, 0.55);
-              final headT = _stagger(t, 0.15, 0.6);
-              final tagT = _stagger(t, 0.25, 0.7);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Opacity(
-                    opacity: markT,
-                    child: CustomPaint(
-                      size: const Size(96, 96),
-                      painter: _BudgetMarkPainter(
-                        progress: t,
-                        primary: theme.colorScheme.primary,
-                        surface: theme.scaffoldBackgroundColor,
-                        accent: AppTheme.highlight,
-                        isDark: theme.brightness == Brightness.dark,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Opacity(
-                    opacity: headT,
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - headT) * 10),
-                      child: Column(
-                        children: [
-                          Text(
-                            _greeting.toUpperCase(),
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppTheme.highlight,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 3,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Let\'s make your money\nmake sense',
-                            textAlign: TextAlign.center,
-                            style: AppTheme.headingLarge.copyWith(
-                              color: theme.colorScheme.onSurface,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              height: 1.22,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Opacity(
-                    opacity: tagT,
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - tagT) * 10),
-                      child: Text(
-                        'Track spending, plan budgets, set goals —\nor just ask anything about your money.',
-                        textAlign: TextAlign.center,
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 13,
-                          height: 1.45,
+    return _EdgeFadeMask(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 112, 12, 112),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 1100),
+              builder: (context, t, _) {
+                final markT = _stagger(t, 0.0, 0.55);
+                final headT = _stagger(t, 0.15, 0.6);
+                final tagT = _stagger(t, 0.25, 0.7);
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Opacity(
+                      opacity: markT,
+                      child: CustomPaint(
+                        size: const Size(96, 96),
+                        painter: _BudgetMarkPainter(
+                          progress: t,
+                          primary: theme.colorScheme.primary,
+                          surface: theme.scaffoldBackgroundColor,
+                          accent: AppTheme.highlight,
+                          isDark: theme.brightness == Brightness.dark,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  for (var i = 0; i < _prompts.length; i++)
-                    _PromptCard(
-                      icon: _prompts[i].$1,
-                      label: _prompts[i].$2,
-                      reveal: _stagger(t, 0.38 + i * 0.09, 0.72 + i * 0.09),
-                      onTap: () => onPromptTap(_prompts[i].$2),
+                    const SizedBox(height: 16),
+                    Opacity(
+                      opacity: headT,
+                      child: Transform.translate(
+                        offset: Offset(0, (1 - headT) * 10),
+                        child: Column(
+                          children: [
+                            Text(
+                              _greeting.toUpperCase(),
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppTheme.highlight,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 3,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Let\'s make your money\nmake sense',
+                              textAlign: TextAlign.center,
+                              style: AppTheme.headingLarge.copyWith(
+                                color: theme.colorScheme.onSurface,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                height: 1.22,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                ],
-              );
-            },
+                    const SizedBox(height: 8),
+                    Opacity(
+                      opacity: tagT,
+                      child: Transform.translate(
+                        offset: Offset(0, (1 - tagT) * 10),
+                        child: Text(
+                          'Track spending, plan budgets, set goals —\nor just ask anything about your money.',
+                          textAlign: TextAlign.center,
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 13,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    for (var i = 0; i < _prompts.length; i++)
+                      _PromptCard(
+                        icon: _prompts[i].$1,
+                        label: _prompts[i].$2,
+                        reveal: _stagger(t, 0.38 + i * 0.045, 0.72 + i * 0.045),
+                        onTap: () => onPromptTap(_prompts[i].$2),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -156,14 +167,12 @@ class _PromptCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                  horizontal:   12,
+                  horizontal: 12,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: onSurface.withValues(alpha: 0.08),
-                  ),
+                  border: Border.all(color: onSurface.withValues(alpha: 0.08)),
                 ),
                 child: Row(
                   children: [
@@ -179,7 +188,7 @@ class _PromptCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Icon(
                       Icons.arrow_outward_rounded,
                       size: 15,
@@ -192,6 +201,33 @@ class _PromptCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _EdgeFadeMask extends StatelessWidget {
+  const _EdgeFadeMask({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (bounds) {
+        return const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Colors.white,
+            Colors.white,
+            Colors.transparent,
+          ],
+          stops: [0.0, 0.12, 0.88, 1.0],
+        ).createShader(bounds);
+      },
+      child: child,
     );
   }
 }

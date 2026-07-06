@@ -3473,7 +3473,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               _confirmDeleteUserMessage(message, resolvedMessageIndex),
           child: Container(
             margin: const EdgeInsets.only(left: 12, right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.82,
             ),

@@ -43,6 +43,10 @@ class FinanceInsightsScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _buildProgressPanel(theme, insights),
                 const SizedBox(height: 12),
+                _buildSpendingHeatmap(theme, insights),
+                const SizedBox(height: 12),
+                _buildBudgetSignals(theme, insights),
+                const SizedBox(height: 12),
                 _buildHighlights(theme, insights),
                 if (insights.topCategories.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -478,6 +482,274 @@ class FinanceInsightsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildSpendingHeatmap(ThemeData theme, _FinanceInsights insights) {
+    final weeks = _chunkHeatmapWeeks(insights.yearlyActivity);
+    final monthLabels = _heatmapMonthLabels(weeks);
+    final activeColor = theme.colorScheme.primary;
+    final emptyColor = theme.colorScheme.surfaceContainerHighest.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.34 : 0.58,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _sectionTitle(theme, 'Spending Activity')),
+              Text(
+                'Last 12 months',
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Darker squares mean heavier spending days. Blank days mean nothing was tracked.',
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 11.5,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 28),
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < weeks.length; i++)
+                        SizedBox(
+                          width: 15,
+                          child: Text(
+                            monthLabels[i],
+                            maxLines: 1,
+                            overflow: TextOverflow.visible,
+                            style: AppTheme.bodySmall.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      child: Column(
+                        children: [
+                          for (var weekday = 1; weekday <= 7; weekday++)
+                            SizedBox(
+                              height: 15,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  switch (weekday) {
+                                    1 => 'M',
+                                    3 => 'W',
+                                    5 => 'F',
+                                    _ => '',
+                                  },
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (final week in weeks)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 3),
+                            child: Column(
+                              children: [
+                                for (final day in week)
+                                  _HeatmapCell(
+                                    day: day,
+                                    maxTotal: insights.yearlyMaxDailyTotal,
+                                    activeColor: activeColor,
+                                    emptyColor: emptyColor,
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Less',
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              for (var i = 0; i < 5; i++) ...[
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: i == 0
+                        ? emptyColor
+                        : _heatmapColor(activeColor, i / 4),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                if (i < 4) const SizedBox(width: 4),
+              ],
+              const SizedBox(width: 6),
+              Text(
+                'More',
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBudgetSignals(ThemeData theme, _FinanceInsights insights) {
+    final topCategory = insights.topCategories.isEmpty
+        ? null
+        : insights.topCategories.first;
+    final topCategoryShare = insights.total == 0 || topCategory == null
+        ? 0.0
+        : topCategory.value / insights.total;
+    final consistency = insights.trackedDays == 0
+        ? 0.0
+        : insights.activeDays / insights.trackedDays;
+
+    final signals = [
+      _Metric(
+        Icons.show_chart_rounded,
+        'Projected month',
+        _money(insights.currentMonthProjected),
+      ),
+      _Metric(
+        Icons.nights_stay_outlined,
+        'No-spend days',
+        '${insights.currentMonthNoSpendDays}/${insights.currentMonthElapsedDays}',
+      ),
+      _Metric(
+        Icons.category_outlined,
+        topCategory == null ? 'Top category' : topCategory.key,
+        '${(topCategoryShare * 100).round()}%',
+      ),
+      _Metric(
+        Icons.check_circle_outline_rounded,
+        'Tracking cadence',
+        '${(consistency * 100).round()}%',
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(theme, 'Budget Signals'),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 8.0;
+              final width = (constraints.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: signals
+                    .map(
+                      (signal) => SizedBox(
+                        width: width,
+                        child: _buildSignalCard(theme, signal),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignalCard(ThemeData theme, _Metric signal) {
+    return Container(
+      height: 92,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.055),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.13),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(signal.icon, color: theme.colorScheme.primary, size: 20),
+          const Spacer(),
+          Text(
+            signal.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.headingSmall.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            signal.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHighlights(ThemeData theme, _FinanceInsights insights) {
     final cards = <Widget>[
       if (insights.mostSpentDayOverall != null)
@@ -757,6 +1029,32 @@ class FinanceInsightsScreen extends StatelessWidget {
     );
   }
 
+  List<List<_DatedTotal>> _chunkHeatmapWeeks(List<_DatedTotal> days) {
+    final weeks = <List<_DatedTotal>>[];
+    for (var index = 0; index < days.length; index += 7) {
+      weeks.add(days.sublist(index, math.min(index + 7, days.length)));
+    }
+    return weeks;
+  }
+
+  List<String> _heatmapMonthLabels(List<List<_DatedTotal>> weeks) {
+    var previousMonth = 0;
+    return weeks.map((week) {
+      final firstMonthDay = week.where((day) => day.date.day <= 7).toList();
+      final candidate = firstMonthDay.isNotEmpty ? firstMonthDay.first : null;
+      if (candidate == null || candidate.date.month == previousMonth) {
+        return '';
+      }
+      previousMonth = candidate.date.month;
+      return _shortMonthLabel(candidate.date);
+    }).toList();
+  }
+
+  static Color _heatmapColor(Color color, double intensity) {
+    final clamped = intensity.clamp(0.0, 1.0);
+    return Color.lerp(color.withValues(alpha: 0.24), color, clamped)!;
+  }
+
   Widget _sectionTitle(ThemeData theme, String title) {
     return Text(
       title.toUpperCase(),
@@ -842,6 +1140,80 @@ class FinanceInsightsScreen extends StatelessWidget {
     ];
     return '${names[dt.month - 1]} ${dt.year}';
   }
+
+  String _shortMonthLabel(DateTime dt) {
+    const names = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return names[dt.month - 1];
+  }
+}
+
+class _HeatmapCell extends StatelessWidget {
+  const _HeatmapCell({
+    required this.day,
+    required this.maxTotal,
+    required this.activeColor,
+    required this.emptyColor,
+  });
+
+  final _DatedTotal day;
+  final double maxTotal;
+  final Color activeColor;
+  final Color emptyColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = day.total;
+    final intensity = maxTotal == 0 ? 0.0 : total / maxTotal;
+    final color = total == 0
+        ? emptyColor
+        : FinanceInsightsScreen._heatmapColor(activeColor, intensity);
+
+    return Tooltip(
+      message: total == 0
+          ? 'No spending on ${_tooltipDate(day.date)}'
+          : '${FinanceEntry.formatAmount(total)} Rs on ${_tooltipDate(day.date)}',
+      child: Container(
+        width: 12,
+        height: 12,
+        margin: const EdgeInsets.only(bottom: 3),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(3),
+        ),
+      ),
+    );
+  }
+
+  String _tooltipDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
 }
 
 class _FinanceInsights {
@@ -850,6 +1222,7 @@ class _FinanceInsights {
   final double todayTotal;
   final double currentWeekTotal;
   final double currentMonthTotal;
+  final double currentMonthProjected;
   final double selectedMonthTotal;
   final double previousMonthTotal;
   final double averagePerDay;
@@ -857,6 +1230,8 @@ class _FinanceInsights {
   final double previousMonthDelta;
   final int trackedDays;
   final int activeDays;
+  final int currentMonthElapsedDays;
+  final int currentMonthNoSpendDays;
   final int entryCount;
   final DateTime? firstDate;
   final _DatedTotal? mostSpentDayOverall;
@@ -866,6 +1241,8 @@ class _FinanceInsights {
   final FinanceEntry? largestEntry;
   final List<MapEntry<String, double>> topCategories;
   final List<_DatedTotal> lastSevenDays;
+  final List<_DatedTotal> yearlyActivity;
+  final double yearlyMaxDailyTotal;
 
   const _FinanceInsights({
     required this.isEmpty,
@@ -873,6 +1250,7 @@ class _FinanceInsights {
     required this.todayTotal,
     required this.currentWeekTotal,
     required this.currentMonthTotal,
+    required this.currentMonthProjected,
     required this.selectedMonthTotal,
     required this.previousMonthTotal,
     required this.averagePerDay,
@@ -880,6 +1258,8 @@ class _FinanceInsights {
     required this.previousMonthDelta,
     required this.trackedDays,
     required this.activeDays,
+    required this.currentMonthElapsedDays,
+    required this.currentMonthNoSpendDays,
     required this.entryCount,
     required this.firstDate,
     required this.mostSpentDayOverall,
@@ -889,6 +1269,8 @@ class _FinanceInsights {
     required this.largestEntry,
     required this.topCategories,
     required this.lastSevenDays,
+    required this.yearlyActivity,
+    required this.yearlyMaxDailyTotal,
   });
 
   factory _FinanceInsights.fromEntries(
@@ -908,6 +1290,7 @@ class _FinanceInsights {
         todayTotal: 0,
         currentWeekTotal: 0,
         currentMonthTotal: 0,
+        currentMonthProjected: 0,
         selectedMonthTotal: 0,
         previousMonthTotal: 0,
         averagePerDay: 0,
@@ -915,6 +1298,8 @@ class _FinanceInsights {
         previousMonthDelta: 0,
         trackedDays: 0,
         activeDays: 0,
+        currentMonthElapsedDays: 0,
+        currentMonthNoSpendDays: 0,
         entryCount: 0,
         firstDate: null,
         mostSpentDayOverall: null,
@@ -924,6 +1309,8 @@ class _FinanceInsights {
         largestEntry: null,
         topCategories: [],
         lastSevenDays: [],
+        yearlyActivity: [],
+        yearlyMaxDailyTotal: 0,
       );
     }
 
@@ -937,6 +1324,12 @@ class _FinanceInsights {
       selectedMonthStart.year,
       selectedMonthStart.month - 1,
     );
+    final nextCurrentMonthStart = DateTime(today.year, today.month + 1);
+    final currentMonthDays = nextCurrentMonthStart
+        .difference(currentMonthStart)
+        .inDays;
+    final currentMonthElapsedDays =
+        today.difference(currentMonthStart).inDays + 1;
 
     final totalsByDay = <DateTime, double>{};
     final totalsByWeek = <DateTime, double>{};
@@ -987,6 +1380,35 @@ class _FinanceInsights {
       final day = today.subtract(Duration(days: 6 - index));
       return _DatedTotal(day, totalsByDay[day] ?? 0);
     });
+    final yearlyActivityStart = today.subtract(const Duration(days: 364));
+    final alignedYearlyActivityStart = yearlyActivityStart.subtract(
+      Duration(days: yearlyActivityStart.weekday - 1),
+    );
+    final yearlyActivityEnd = today.add(Duration(days: 7 - today.weekday));
+    final yearlyActivityDays =
+        yearlyActivityEnd.difference(alignedYearlyActivityStart).inDays + 1;
+    final yearlyActivity = List.generate(yearlyActivityDays, (index) {
+      final day = alignedYearlyActivityStart.add(Duration(days: index));
+      final total = day.isAfter(today) ? 0.0 : totalsByDay[day] ?? 0.0;
+      return _DatedTotal(day, total);
+    });
+    final yearlyMaxDailyTotal = yearlyActivity.fold<double>(
+      0,
+      (max, day) => day.total > max ? day.total : max,
+    );
+    final currentMonthActiveDays = totalsByDay.keys
+        .where(
+          (day) =>
+              day.year == currentMonthStart.year &&
+              day.month == currentMonthStart.month &&
+              !day.isAfter(today),
+        )
+        .length;
+    final currentMonthNoSpendDays =
+        currentMonthElapsedDays - currentMonthActiveDays;
+    final currentMonthProjected = currentMonthElapsedDays == 0
+        ? 0.0
+        : (currentMonthTotal / currentMonthElapsedDays) * currentMonthDays;
 
     return _FinanceInsights(
       isEmpty: false,
@@ -994,6 +1416,7 @@ class _FinanceInsights {
       todayTotal: todayTotal,
       currentWeekTotal: currentWeekTotal,
       currentMonthTotal: currentMonthTotal,
+      currentMonthProjected: currentMonthProjected,
       selectedMonthTotal: selectedMonthTotal,
       previousMonthTotal: previousMonthTotal,
       averagePerDay: trackedDays == 0 ? 0 : total / trackedDays,
@@ -1001,6 +1424,8 @@ class _FinanceInsights {
       previousMonthDelta: selectedMonthTotal - previousMonthTotal,
       trackedDays: trackedDays,
       activeDays: activeDays,
+      currentMonthElapsedDays: currentMonthElapsedDays,
+      currentMonthNoSpendDays: currentMonthNoSpendDays,
       entryCount: usableEntries.length,
       firstDate: firstDate,
       mostSpentDayOverall: _maxDatedTotal(totalsByDay),
@@ -1010,6 +1435,8 @@ class _FinanceInsights {
       largestEntry: largestEntry,
       topCategories: topCategories,
       lastSevenDays: lastSevenDays,
+      yearlyActivity: yearlyActivity,
+      yearlyMaxDailyTotal: yearlyMaxDailyTotal,
     );
   }
 
