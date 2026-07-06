@@ -247,7 +247,7 @@ class PillNavBar extends StatelessWidget {
     required this.items,
     required this.selectedIndex,
     required this.onSelected,
-    this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
     this.height = 44,
   });
 
@@ -260,17 +260,17 @@ class PillNavBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: padding,
         itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (ctx, i) {
           final selected = i == selectedIndex;
           return GestureDetector(
             onTap: () => onSelected(i),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
               decoration: BoxDecoration(
                 color: selected ? theme.colorScheme.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(100),
                 border: Border.all(
                   color: selected
                       ? theme.colorScheme.primary
@@ -284,8 +284,8 @@ class PillNavBar extends StatelessWidget {
                     color: selected
                         ? theme.colorScheme.onPrimary
                         : theme.colorScheme.onSurface,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: selected ? 14 : 13,
                   ),
                 ),
               ),

@@ -243,17 +243,6 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
                   onDelete: (key) => _deleteApiKey('searchapi', key),
                   hintText: 'Enter SearchAPI key (optional)',
                 ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    'DeepSeek is required for AI chat. SearchAPI is optional for enhanced web search (falls back to DuckDuckGo if not set).',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
               ],
             ),
     );
@@ -273,156 +262,135 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
     required void Function(String key) onDelete,
     required String hintText,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (icon != null)
-                SvgPicture.asset(
-                  icon,
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
-                    theme.colorScheme.primary,
-                    BlendMode.srcIn,
-                  ),
-                )
-              else
-                Icon(Icons.search, size: 24, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: AppTheme.headingSmall.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (icon != null)
+              SvgPicture.asset(
+                icon,
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  theme.colorScheme.primary,
+                  BlendMode.srcIn,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (keys.isNotEmpty) ...[
-            ...keys.map(
-              (key) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                    color: theme.colorScheme.surface,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          obscure
-                              ? '${'*' * 20}${key.substring(key.length - 4)}'
-                              : key,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          obscure
-                              ? CupertinoIcons.eye
-                              : CupertinoIcons.eye_slash,
-                          size: 18,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: onToggleObscure,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          CupertinoIcons.trash,
-                          size: 18,
-                          color: theme.colorScheme.error,
-                        ),
-                        onPressed: () => onDelete(key),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              )
+            else
+              Icon(Icons.search, size: 24, color: theme.colorScheme.primary),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: AppTheme.headingSmall.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  obscureText: obscure,
-                  decoration: InputDecoration(
-                    hintText: hintText,
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                      fontSize: 13,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.4),
-                      ),
-                    ),
+        ),
+        const SizedBox(height: 12),
+        if (keys.isNotEmpty) ...[
+          ...keys.map(
+            (key) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.only(
+                 left: 12,),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.3),
                   ),
-                  style: const TextStyle(fontSize: 13),
-                  onSubmitted: (_) => onSave(),
+                  color: theme.colorScheme.surface,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        key,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        CupertinoIcons.trash,
+                        size: 20,
+                        color: theme.colorScheme.error,
+                      ),
+                      onPressed: () => onDelete(key),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 44,
-                child: ElevatedButton(
+            ),
+          ),
+        ],
+        Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: TextField(
+                controller: controller,
+                obscureText: obscure,
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.5,
+                    ),
+                    fontSize: 13,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(100),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(100),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(100),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13),
+                onSubmitted: (_) => onSave(),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 1,
+              child: SizedBox(
+                height: 48,
+                child: IconButton(
                   onPressed: saving ? null : onSave,
-                  style: ElevatedButton.styleFrom(
+                  style: IconButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(100),
                     ),
                   ),
-                  child: saving
+                  icon: saving
                       ? const SizedBox(
                           width: 18,
                           height: 18,
@@ -431,13 +399,13 @@ class _APIKeysScreenState extends State<APIKeysScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Save'),
+                      : const Icon(CupertinoIcons.check_mark),
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

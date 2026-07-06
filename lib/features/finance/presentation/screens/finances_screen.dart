@@ -142,10 +142,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+       
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -175,9 +175,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
                   'TOTAL · ${_monthLabel(_selectedMonth).toUpperCase()}',
                   style: AppTheme.bodySmall.copyWith(
                     color: onCard.withValues(alpha: 0.65),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.8,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -185,18 +185,19 @@ class _FinancesScreenState extends State<FinancesScreen> {
                   '${FinanceEntry.formatAmount(total)} Rs',
                   style: AppTheme.headingLarge.copyWith(
                     color: onCard,
-                    fontSize: 26,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _monthEntries.length == 1
-                      ? '1 entry'
-                      : '${_monthEntries.length} entries',
+                      ? '1 ENTRY'
+                      : '${_monthEntries.length} ENTRIES',
                   style: AppTheme.bodySmall.copyWith(
                     color: onCard.withValues(alpha: 0.6),
-                    fontSize: 11.5,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -213,7 +214,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                     '${e.key} · ${FinanceEntry.formatAmount(e.value)} Rs',
                     style: TextStyle(
                       color: onCard.withValues(alpha: 0.85),
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -290,7 +291,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
-      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12, top: 12),
       itemCount: keys.length,
       itemBuilder: (ctx, i) {
         final key = keys[i];
@@ -301,17 +302,17 @@ class _FinancesScreenState extends State<FinancesScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
+              padding: const EdgeInsets.only(top: 2, bottom: 8),
               child: Row(
                 spacing: 12,
                 children: [
                   Text(
                     _dayLabel(entries.first.date).toUpperCase(),
                     style: AppTheme.headingSmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 11,
+                      color: theme.colorScheme.primary,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
+                      letterSpacing: 1,
                     ),
                   ),
                   Expanded(
@@ -319,16 +320,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
                       width: double.infinity,
                       height: 1,
                       color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.08,
+                        alpha: 0.1,
                       ),
                     ),
                   ),
                   Text(
                     '${FinanceEntry.formatAmount(dayTotal)} Rs',
                     style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12.5,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
                 ],
@@ -357,10 +358,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final onSurface = theme.colorScheme.onSurface;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: onSurface.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: onSurface.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -369,7 +370,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
             height: 38,
             decoration: BoxDecoration(
               color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(100),
             ),
             child: Center(
               child: Text(
@@ -388,11 +389,15 @@ class _FinancesScreenState extends State<FinancesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  
                   entry.description,
                   style: TextStyle(
                     color: onSurface,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
+                   
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -441,10 +446,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(right: 18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.error,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Icon(CupertinoIcons.trash, color: theme.colorScheme.onError),
+      child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
     );
   }
 
