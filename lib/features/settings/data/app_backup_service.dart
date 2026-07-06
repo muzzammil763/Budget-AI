@@ -120,6 +120,23 @@ class AppBackupService {
     return key == null || key.isEmpty ? const [] : [key];
   }
 
+  List<dynamic> _extractBackupList(
+    Map<String, dynamic> backup,
+    String key, {
+    Map<String, dynamic>? data,
+  }) {
+    final candidates = <dynamic>[data?[key], backup[key]];
+
+    for (final candidate in candidates) {
+      if (candidate is List) return candidate;
+      if (candidate is Map && candidate[key] is List) {
+        return candidate[key] as List<dynamic>;
+      }
+    }
+
+    return const [];
+  }
+
   Future<Map<String, dynamic>> restoreFromFile(File file) async {
     try {
       final content = await file.readAsString();
@@ -195,38 +212,22 @@ class AppBackupService {
 
       final data = backup['data'] as Map<String, dynamic>? ?? {};
 
-      // Restore finances - handle both list and object formats
-      var financesList = <dynamic>[];
-      final rawFinances = data['finances'];
-      if (rawFinances is List) {
-        financesList = rawFinances;
-      } else if (rawFinances is Map && rawFinances['finances'] is List) {
-        // Old format where buildExportJson wrapped in object
-        financesList = rawFinances['finances'] as List<dynamic>;
-      }
+      // Restore finances from Budget AI and OpenGate formats. OpenGate may
+      // store finances under data.finances, top-level finances, or as a
+      // standalone finance export object.
+      final financesList = _extractBackupList(backup, 'finances', data: data);
       var financeCount = 0;
-      for (final item in financesList) {
-        if (item is Map<String, dynamic>) {
-          try {
-            final entry = FinanceEntry.fromJson(item);
-            await FinanceService.instance.add(entry);
-            financeCount++;
-          } catch (_) {}
-        }
+      if (financesList.isNotEmpty) {
+        financeCount = await FinanceService.instance.importFromJson(
+          jsonEncode({'finances': financesList}),
+        );
       }
       if (financeCount > 0) {
         restoredItems.add('$financeCount finances');
       }
 
       // Restore memories - handle both list and object formats
-      var memoriesList = <dynamic>[];
-      final rawMemories = data['memories'];
-      if (rawMemories is List) {
-        memoriesList = rawMemories;
-      } else if (rawMemories is Map && rawMemories['memories'] is List) {
-        // Old format where buildExportJson wrapped in object
-        memoriesList = rawMemories['memories'] as List<dynamic>;
-      }
+      final memoriesList = _extractBackupList(backup, 'memories', data: data);
       var memoryCount = 0;
       for (final item in memoriesList) {
         if (item is Map<String, dynamic>) {

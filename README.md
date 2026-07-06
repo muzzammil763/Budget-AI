@@ -9,6 +9,7 @@ Budget AI is a Flutter personal finance assistant with DeepSeek chat, local expe
 - Settings contains four options: API Keys, Finances, Memories, and Backup & Restore.
 - API Keys supports multiple saved DeepSeek and SearchAPI keys.
 - Backup & Restore exports and imports API keys, finances, memories, and the selected DeepSeek model.
+- Restore also accepts OpenGate finance exports/backups that contain a `finances` list.
 - Backup files use a dated name like `Backup Budget AI 12-12-2026 12 35 PM.json`.
 
 ## Development
