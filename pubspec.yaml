@@ -29,6 +29,7 @@ dependencies:
   share_plus: ^13.2.0
   url_launcher: ^6.3.2
   file_picker: ^12.0.0-beta.7
+  video_player: ^2.11.1
 
 dev_dependencies:
   flutter_test:
@@ -40,6 +41,7 @@ flutter:
 
   assets:
     - assets/icons/
+    - assets/onboarding/
 
   fonts:
     - family: Google Sans

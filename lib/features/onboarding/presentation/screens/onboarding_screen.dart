@@ -12,6 +12,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:video_player/video_player.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, this.isReplay = false});
@@ -183,6 +184,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           builder: (context, t, pageView) {
             final headerT = _introStagger(t, 0.35, 0.75);
+            final heroT = _introStagger(t, 0.0, 0.55);
             final footerT = _introStagger(t, 0.45, 0.9);
             return Column(
               children: [
@@ -192,6 +194,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     offset: Offset(0, (1 - headerT) * -8),
                     child: _buildHeader(theme),
                   ),
+                ),
+                SizedBox(height: MediaQuery.sizeOf(context).height * 0.05),
+                Opacity(
+                  opacity: heroT,
+                  child: _buildHeroArea(theme, introT: t),
                 ),
                 Expanded(child: pageView!),
                 Opacity(
@@ -209,9 +216,89 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
+  /// A shared hero slot above the PageView. The four page marks live here in
+  /// one Stack and morph into each other, driven by the live scroll position,
+  /// so the icon feels like a single element travelling across pages.
+  Widget _buildHeroArea(ThemeData theme, {required double introT}) {
+    return SizedBox(
+      height: 132,
+      child: AnimatedBuilder(
+        animation: _pageController,
+        builder: (context, _) {
+          final page =
+              _pageController.hasClients &&
+                  _pageController.position.haveDimensions
+              ? (_pageController.page ?? _currentPage.toDouble())
+              : _currentPage.toDouble();
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              for (var i = 0; i < _pageCount; i++)
+                if ((i - page).abs() < 1)
+                  _buildConnectedHero(
+                    theme,
+                    index: i,
+                    shift: i - page,
+                    introT: introT,
+                  ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildConnectedHero(
+    ThemeData theme, {
+    required int index,
+    required double shift,
+    required double introT,
+  }) {
+    final presence = (1 - shift.abs()).clamp(0.0, 1.0);
+    // Position/scale settle smoothly while opacity ramps in late, so the
+    // incoming mark reveals faintly from afar and solidifies as it arrives.
+    final settle = Curves.easeOutCubic.transform(presence);
+    final fade = Curves.easeInQuad.transform(presence);
+    return Opacity(
+      opacity: fade,
+      child: Transform.translate(
+        offset: Offset(shift * 118, shift.abs() * 46),
+        child: Transform.rotate(
+          angle: shift * 0.85,
+          child: Transform.scale(
+            scale: 0.55 + 0.45 * settle,
+            child: index == 0
+                ? CustomPaint(
+                    size: const Size(122, 122),
+                    painter: BudgetMarkPainter(
+                      progress: introT,
+                      primary: theme.colorScheme.primary,
+                      surface: theme.scaffoldBackgroundColor,
+                      accent: AppTheme.highlight,
+                      isDark: theme.brightness == Brightness.dark,
+                    ),
+                  )
+                : _HeroIcon(
+                    icon: _heroIcons[index],
+                    progress: introT,
+                    theme: theme,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const _heroIcons = <IconData>[
+    CupertinoIcons.sparkles, // index 0 unused — welcome uses the brand mark
+    CupertinoIcons.money_dollar,
+    CupertinoIcons.sparkles,
+    CupertinoIcons.checkmark_shield,
+  ];
+
   Widget _buildHeader(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
       child: Row(
         children: [
           if (widget.isReplay)
@@ -253,8 +340,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   duration: const Duration(milliseconds: 280),
                   curve: Curves.easeOutCubic,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: i == _currentPage ? 22 : 7,
-                  height: 7,
+                  width: i == _currentPage ? 24 : 6,
+                  height: 6,
                   decoration: BoxDecoration(
                     color: i == _currentPage
                         ? AppTheme.highlight
@@ -305,31 +392,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildWelcomePage(ThemeData theme) {
     return _OnboardingPage(
-      hero: (t) => CustomPaint(
-        size: const Size(120, 120),
-        painter: BudgetMarkPainter(
-          progress: t,
-          primary: theme.colorScheme.primary,
-          surface: theme.scaffoldBackgroundColor,
-          accent: AppTheme.highlight,
-          isDark: theme.brightness == Brightness.dark,
-        ),
-      ),
       kicker: 'WELCOME TO',
       title: 'Budget AI',
       description:
           'Money, memory and momentum — a personal finance companion powered by AI.',
       items: const [],
+      extra: const _AppShowcase(showDynamicIsland: true),
     );
   }
 
   Widget _buildTrackPage(ThemeData theme) {
     return _OnboardingPage(
-      hero: (t) => _HeroIcon(
-        icon: CupertinoIcons.money_dollar_circle,
-        progress: t,
-        theme: theme,
-      ),
       kicker: 'STAY ON TOP',
       title: 'Track every expense,\nincome and loan',
       description:
@@ -356,15 +429,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildAgentPage(ThemeData theme) {
     return _OnboardingPage(
-      hero: (t) =>
-          _HeroIcon(icon: CupertinoIcons.sparkles, progress: t, theme: theme),
       kicker: 'YOUR AI AGENT',
       title: 'Just say it,\nthe agent does it',
       description:
           'Chat naturally — the AI adds entries, searches your history and builds summaries for you in seconds.',
       items: const [
         (
-          Icons.chat_bubble_outline_rounded,
+          CupertinoIcons.chat_bubble_2,
           'Natural language',
           '"Spent 500 on groceries" — done',
         ),
@@ -384,11 +455,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildPermissionsPage(ThemeData theme) {
     return _OnboardingPage(
-      hero: (t) => _HeroIcon(
-        icon: CupertinoIcons.checkmark_shield,
-        progress: t,
-        theme: theme,
-      ),
       kicker: 'ONE LAST THING',
       title: 'Let the agent\nwork for you',
       description: Platform.isAndroid
@@ -433,7 +499,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
 class _OnboardingPage extends StatelessWidget {
   const _OnboardingPage({
-    required this.hero,
     required this.kicker,
     required this.title,
     required this.description,
@@ -441,7 +506,6 @@ class _OnboardingPage extends StatelessWidget {
     this.extra,
   });
 
-  final Widget Function(double t) hero;
   final String kicker;
   final String title;
   final String description;
@@ -457,9 +521,10 @@ class _OnboardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 380),
           child: TweenAnimationBuilder<double>(
@@ -471,8 +536,6 @@ class _OnboardingPage extends StatelessWidget {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Opacity(opacity: _stagger(t, 0.0, 0.55), child: hero(t)),
-                  const SizedBox(height: 20),
                   Opacity(
                     opacity: headT,
                     child: Transform.translate(
@@ -743,6 +806,262 @@ class _PermissionCard extends StatelessWidget {
                 child: const Text('Allow'),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShowcaseItem {
+  const _ShowcaseItem(this.asset, this.icon, this.label);
+
+  final String asset;
+  final IconData icon;
+  final String label;
+}
+
+/// A fanned deck of three app-UI videos on the welcome page: one front and
+/// center, two tilted behind it. Tapping a back card swaps it with the front
+/// one — both travel to each other's slot at the same time.
+class _AppShowcase extends StatefulWidget {
+  const _AppShowcase({this.showDynamicIsland = true});
+
+  /// Whether the iPhone frame draws the Dynamic Island pill over the screen.
+  final bool showDynamicIsland;
+
+  @override
+  State<_AppShowcase> createState() => _AppShowcaseState();
+}
+
+class _AppShowcaseState extends State<_AppShowcase> {
+  static const _items = <_ShowcaseItem>[
+    _ShowcaseItem(
+      'assets/onboarding/1.mp4',
+      CupertinoIcons.chat_bubble_2,
+      'AI Chat',
+    ),
+    _ShowcaseItem(
+      'assets/onboarding/2.mp4',
+      CupertinoIcons.money_dollar_circle,
+      'Finances',
+    ),
+    _ShowcaseItem(
+      'assets/onboarding/3.mp4',
+      Icons.insights_rounded,
+      'Insights',
+    ),
+  ];
+
+  late final List<VideoPlayerController> _videoControllers;
+  final List<bool> _videoReady = [false, false, false];
+
+  int _front = 0;
+  int _left = 1;
+  int _right = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    _videoControllers = [
+      for (final item in _items) VideoPlayerController.asset(item.asset),
+    ];
+    for (var i = 0; i < _videoControllers.length; i++) {
+      _initVideo(i);
+    }
+  }
+
+  Future<void> _initVideo(int i) async {
+    try {
+      final controller = _videoControllers[i];
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.setVolume(0);
+      await controller.play();
+      if (mounted) setState(() => _videoReady[i] = true);
+    } catch (e) {
+      // Missing/broken asset: the branded placeholder stays visible.
+      debugPrint('[Onboarding] Showcase video ${_items[i].asset} failed: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _videoControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _bringToFront(int item) {
+    if (item == _front) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (item == _left) {
+        _left = _front;
+      } else {
+        _right = _front;
+      }
+      _front = item;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = (MediaQuery.sizeOf(context).height * 0.34).clamp(
+      220.0,
+      360.0,
+    );
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Match the showcase videos' aspect ratio (400x880) so nothing
+          // gets cropped by BoxFit.cover.
+          const gifAspect = 400 / 880;
+          final h = constraints.maxHeight;
+          final w = constraints.maxWidth;
+          var cardH = h * 0.94;
+          var cardW = cardH * gifAspect;
+          final maxW = w * 0.42;
+          if (cardW > maxW) {
+            cardW = maxW;
+            cardH = cardW / gifAspect;
+          }
+          final sideShift = cardW * 0.85;
+
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              _buildCard(_left, cardW, cardH, -sideShift, h),
+              _buildCard(_right, cardW, cardH, sideShift, h),
+              _buildCard(_front, cardW, cardH, 0, h),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCard(
+    int item,
+    double cardW,
+    double cardH,
+    double dx,
+    double areaH,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isFront = item == _front;
+    final rotation = isFront ? 0.0 : (dx < 0 ? -0.22 : 0.22);
+    final scale = isFront ? 1.0 : 0.8;
+    final dy = isFront ? 0.0 : areaH * 0.05;
+    final bezel = cardW * 0.01;
+
+    // Keyed by item so the same element travels between slots when _front
+    // changes — that is what makes both cards animate across on a swap.
+    return AnimatedContainer(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      key: ValueKey(item),
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeInOutCubic,
+      transformAlignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..translateByDouble(dx, dy, 0, 1)
+        ..rotateZ(rotation)
+        ..scaleByDouble(scale, scale, scale, 1),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _bringToFront(item),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 520),
+          curve: Curves.easeInOutCubic,
+          width: cardW + bezel * 2,
+          height: cardH + bezel * 2,
+          padding: EdgeInsets.all(bezel),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xFF17171A),
+            borderRadius: BorderRadius.circular(16 + bezel),
+            border: Border.all(color: const Color(0xFF3E3E42), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? AppTheme.highlight.withValues(alpha: isFront ? 0.12 : 0.05)
+                    : Colors.black.withValues(alpha: isFront ? 0.16 : 0.08),
+                blurRadius: isFront ? 18 : 10,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_videoReady[item])
+                  FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      width: _videoControllers[item].value.size.width,
+                      height: _videoControllers[item].value.size.height,
+                      child: VideoPlayer(_videoControllers[item]),
+                    ),
+                  )
+                else
+                  _buildPlaceholder(theme, _items[item]),
+                if (widget.showDynamicIsland)
+                  // Dynamic Island
+                  Positioned(
+                    top: cardW * 0.04,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        width: cardW * 0.30,
+                        height: cardW * 0.085,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(ThemeData theme, _ShowcaseItem item) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.primary,
+            Color.lerp(theme.colorScheme.primary, AppTheme.highlight, 0.35)!,
+          ],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(item.icon, color: theme.colorScheme.onPrimary, size: 30),
+          const SizedBox(height: 8),
+          Text(
+            item.label,
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
