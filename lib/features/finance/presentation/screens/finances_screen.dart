@@ -21,6 +21,9 @@ class FinancesScreen extends StatefulWidget {
 
 class _FinancesScreenState extends State<FinancesScreen>
     with WidgetsBindingObserver {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
   List<FinanceEntry> _allEntries = [];
   List<FinanceEntry> _monthEntries = [];
   bool _isLoading = true;
@@ -33,6 +36,7 @@ class _FinancesScreenState extends State<FinancesScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _searchFocusNode.addListener(_handleSearchFocusChanged);
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
     _load();
@@ -42,6 +46,9 @@ class _FinancesScreenState extends State<FinancesScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _balanceHideTimer?.cancel();
+    _searchFocusNode.removeListener(_handleSearchFocusChanged);
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -107,12 +114,36 @@ class _FinancesScreenState extends State<FinancesScreen>
     return _selectedMonth.year == now.year && _selectedMonth.month == now.month;
   }
 
+  bool get _isSearching => _searchController.text.trim().isNotEmpty;
+
+  bool get _isSearchFieldActive => _searchFocusNode.hasFocus || _isSearching;
+
+  List<FinanceEntry> get _visibleEntries {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return _monthEntries;
+
+    final terms = _searchTerms(query);
+    if (terms.isEmpty) return _monthEntries;
+
+    return _monthEntries.where((entry) {
+      final searchable = _searchTextForEntry(entry);
+      final normalized = _normalizeSearchText(searchable);
+      final normalizedQuery = _normalizeSearchText(query);
+      return normalized.contains(normalizedQuery) ||
+          terms.any(normalized.contains);
+    }).toList();
+  }
+
   void _hideBalance() {
     _balanceHideTimer?.cancel();
     _balanceHideTimer = null;
     if (_isBalanceVisible && mounted) {
       setState(() => _isBalanceVisible = false);
     }
+  }
+
+  void _handleSearchFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _scheduleBalanceHide() {
@@ -192,6 +223,9 @@ class _FinancesScreenState extends State<FinancesScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final months = _availableMonths();
+    final visibleEntries = _visibleEntries;
+    final isSearching = _isSearching;
+    final isSearchFieldActive = _isSearchFieldActive;
     final totalExpense = FinanceService.instance.totalAmount(
       _monthEntries,
       type: FinanceEntryType.expense,
@@ -237,35 +271,51 @@ class _FinancesScreenState extends State<FinancesScreen>
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: [
-          PillNavBar(
-            items: months.map((m) => _monthLabel(m)).toList(),
-            selectedIndex: months.indexWhere(
-              (m) =>
-                  m.year == _selectedMonth.year &&
-                  m.month == _selectedMonth.month,
+          Positioned.fill(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PillNavBar(
+                  items: months.map((m) => _monthLabel(m)).toList(),
+                  selectedIndex: months.indexWhere(
+                    (m) =>
+                        m.year == _selectedMonth.year &&
+                        m.month == _selectedMonth.month,
+                  ),
+                  onSelected: (index) => _selectMonth(months[index]),
+                ),
+                const SizedBox(height: 12),
+                if (!_isLoading && isSearching)
+                  _buildSearchResultsHeader(theme, visibleEntries.length),
+                if (!_isLoading && !isSearchFieldActive && _isCurrentMonth)
+                  _buildCurrentBalanceCard(theme, currentBalance),
+                if (!_isLoading &&
+                    !isSearchFieldActive &&
+                    _monthEntries.isNotEmpty)
+                  _buildSummaryCard(
+                    theme,
+                    totalExpense,
+                    totalIncome,
+                    topCats,
+                    currentBalance,
+                  ),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _monthEntries.isEmpty
+                      ? _buildEmpty(theme)
+                      : visibleEntries.isEmpty
+                      ? _buildNoSearchResults(theme)
+                      : _buildList(theme, visibleEntries),
+                ),
+              ],
             ),
-            onSelected: (index) => _selectMonth(months[index]),
           ),
-          SizedBox(height: 12),
-          if (!_isLoading && _isCurrentMonth)
-            _buildCurrentBalanceCard(theme, currentBalance),
-          if (!_isLoading && _monthEntries.isNotEmpty)
-            _buildSummaryCard(
-              theme,
-              totalExpense,
-              totalIncome,
-              topCats,
-              currentBalance,
-            ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _monthEntries.isEmpty
-                ? _buildEmpty(theme)
-                : _buildList(theme),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: _buildFinanceSearchField(),
           ),
         ],
       ),
@@ -511,6 +561,35 @@ class _FinancesScreenState extends State<FinancesScreen>
     return '${names[dt.month - 1]} ${dt.year}';
   }
 
+  Widget _buildSearchResultsHeader(ThemeData theme, int resultCount) {
+    final label = resultCount == 1 ? 'result' : 'results';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Row(
+        children: [
+          Icon(
+            CupertinoIcons.search,
+            size: 17,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$resultCount $label in ${_monthLabel(_selectedMonth)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmpty(ThemeData theme) {
     return Center(
       child: Column(
@@ -553,12 +632,54 @@ class _FinancesScreenState extends State<FinancesScreen>
     );
   }
 
-  Widget _buildList(ThemeData theme) {
-    final grouped = _groupByDate(_monthEntries);
+  Widget _buildNoSearchResults(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(
+              CupertinoIcons.search,
+              size: 32,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'No finances found',
+            style: AppTheme.headingSmall.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try another word, category, amount,\nor transaction type.',
+            textAlign: TextAlign.center,
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList(ThemeData theme, List<FinanceEntry> entriesToShow) {
+    final grouped = _groupByDate(entriesToShow);
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
-      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12, top: 12),
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 112, top: 12),
       itemCount: keys.length,
       itemBuilder: (ctx, i) {
         final key = keys[i];
@@ -622,6 +743,138 @@ class _FinancesScreenState extends State<FinancesScreen>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildFinanceSearchField() {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface;
+    final hintColor = theme.colorScheme.onSurfaceVariant;
+    final isActive = _isSearchFieldActive;
+    final iconColor = isActive
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface;
+    final primary = theme.colorScheme.primary;
+    final secondary = theme.colorScheme.secondary;
+    final borderWidth = isActive ? 2.4 : 1.5;
+    final borderGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isActive
+          ? [
+              AppTheme.highlight,
+              Color.lerp(AppTheme.highlight, secondary, 0.45)!.withValues(alpha: 0.88),
+              AppTheme.highlight.withValues(alpha: 0.72),
+            ]
+          : [
+              AppTheme.highlight,
+              Color.lerp(AppTheme.highlight, secondary, 0.32)!.withValues(alpha: 0.34),
+              AppTheme.highlight.withValues(alpha: 0.42),
+            ],
+    );
+
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    const keyboardHeightApprox = 280.0;
+    final t = (bottomInset / keyboardHeightApprox).clamp(0.0, 1.0);
+
+    final horizontalPadding = 32 - (32 - 8) * t;
+    final safeAreaBottom = 16 - (32 - 12) * t;
+
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.only(bottom: safeAreaBottom),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border.all(
+             
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+            ),
+            borderRadius: BorderRadius.circular(28 - 2.4),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: IconButton(
+                  tooltip: 'Search finances',
+                  onPressed: () => _searchFocusNode.requestFocus(),
+                  icon: Icon(
+                    CupertinoIcons.search,
+                    size: 26,
+                 
+                  ),
+                  style: IconButton.styleFrom(
+                   backgroundColor: theme.colorScheme.primary,
+                   foregroundColor: theme.colorScheme.onPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: TextField(
+                  focusNode: _searchFocusNode,
+                  controller: _searchController,
+                  cursorColor: theme.colorScheme.primary,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hoverColor: Colors.transparent,
+                    hintText: 'Search finances',
+                    hintStyle: TextStyle(
+                      color: hintColor.withValues(alpha: 0.72),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    fillColor: Colors.transparent,
+                  ),
+                  maxLines: 1,
+                  minLines: 1,
+                  textInputAction: TextInputAction.search,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: TextStyle(fontSize: 16, color: textColor),
+                ),
+              ),
+              const SizedBox(width: 6),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: _isSearching
+                    ? SizedBox(
+                        key: const ValueKey('clear-search'),
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          tooltip: 'Clear search',
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                            _searchFocusNode.requestFocus();
+                          },
+                          icon: Icon(
+                            CupertinoIcons.xmark_circle_fill,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    : const SizedBox(
+                        key: ValueKey('empty-search-action'),
+                        width: 44,
+                        height: 44,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -817,7 +1070,6 @@ class _FinancesScreenState extends State<FinancesScreen>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.14)),
       ),
@@ -959,6 +1211,31 @@ class _FinancesScreenState extends State<FinancesScreen>
       message: 'Finance entry deleted',
       type: ToastificationType.success,
     );
+  }
+
+  List<String> _searchTerms(String query) {
+    return _normalizeSearchText(
+      query,
+    ).split(RegExp(r'\s+')).where((term) => term.isNotEmpty).toList();
+  }
+
+  String _searchTextForEntry(FinanceEntry entry) {
+    final type = entry.type == FinanceEntryType.income ? 'income' : 'expense';
+    return [
+      entry.description,
+      entry.category,
+      type,
+      entry.displayAmount,
+      entry.displaySignedAmount,
+      entry.displayDate,
+      _dayLabel(entry.date),
+      _monthLabel(DateTime(entry.date.year, entry.date.month)),
+      if (entry.hasTime) _formatClockTime(entry.date),
+    ].join(' ');
+  }
+
+  String _normalizeSearchText(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
   }
 
   String _dayLabel(DateTime date) {

@@ -101,23 +101,7 @@ class ChatEmptyState extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Opacity(
-                      opacity: tagT,
-                      child: Transform.translate(
-                        offset: Offset(0, (1 - tagT) * 10),
-                        child: Text(
-                          'Track spending, plan budgets, set goals —\nor just ask anything about your money.',
-                          textAlign: TextAlign.center,
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 13,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     for (var i = 0; i < _prompts.length; i++)
                       _PromptCard(
                         icon: _prompts[i].$1,
