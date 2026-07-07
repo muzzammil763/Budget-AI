@@ -1,11 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:budget_ai/app/theme/app_theme.dart';
+import 'package:budget_ai/core/widgets/pill_nav_bar.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-class FinanceInsightsScreen extends StatelessWidget {
+class FinanceInsightsScreen extends StatefulWidget {
   final List<FinanceEntry> entries;
   final DateTime selectedMonth;
 
@@ -16,13 +17,61 @@ class FinanceInsightsScreen extends StatelessWidget {
   });
 
   @override
+  State<FinanceInsightsScreen> createState() => _FinanceInsightsScreenState();
+}
+
+class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
+  /// null = overall scope (preselected); otherwise the selected month.
+  DateTime? _scopeMonth;
+
+  bool get _isOverall => _scopeMonth == null;
+
+  bool get _isPastMonthScope {
+    final scope = _scopeMonth;
+    if (scope == null) return false;
+    final now = DateTime.now();
+    return !(scope.year == now.year && scope.month == now.month);
+  }
+
+  List<DateTime> _availableMonths() {
+    final months = <DateTime>{};
+    for (final e in widget.entries) {
+      months.add(DateTime(e.date.year, e.date.month));
+    }
+    final now = DateTime.now();
+    months.add(DateTime(now.year, now.month));
+    return months.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final now = DateTime.now();
+    final scope = _scopeMonth;
+    final scopedEntries = scope == null
+        ? widget.entries
+        : widget.entries
+              .where(
+                (e) => e.date.year == scope.year && e.date.month == scope.month,
+              )
+              .toList();
+    // For a past month, anchor "today" to that month's last day so all
+    // time-relative metrics describe the month itself.
+    final effectiveNow = _isPastMonthScope
+        ? DateTime(scope!.year, scope.month + 1, 0, 23, 59, 59)
+        : now;
     final insights = _FinanceInsights.fromEntries(
-      entries,
-      selectedMonth: selectedMonth,
-      now: DateTime.now(),
+      scopedEntries,
+      selectedMonth: scope ?? widget.selectedMonth,
+      now: effectiveNow,
     );
+    final months = _availableMonths();
+    final selectedIndex = scope == null
+        ? 0
+        : 1 +
+              months.indexWhere(
+                (m) => m.year == scope.year && m.month == scope.month,
+              );
 
     return Scaffold(
       appBar: AppBar(
@@ -32,41 +81,80 @@ class FinanceInsightsScreen extends StatelessWidget {
         ),
         title: const Text('Finance Insights'),
       ),
-      body: insights.isEmpty
-          ? _buildEmpty(theme)
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 18),
-              children: [
-                _buildHeroCard(theme, insights),
-                const SizedBox(height: 12),
-                _buildIncomeExpenseCard(theme, insights),
-                const SizedBox(height: 12),
-                _buildLoansCard(theme),
-                _buildMetricGrid(theme, insights),
-                const SizedBox(height: 12),
-                _buildProgressPanel(theme, insights),
-                const SizedBox(height: 12),
-                _buildSpendingHeatmap(theme, insights),
-                const SizedBox(height: 12),
-                _buildBudgetSignals(theme, insights),
-                const SizedBox(height: 12),
-                _buildHighlights(theme, insights),
-                if (insights.topCategories.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _buildCategoryBreakdown(
-                    theme,
-                    insights,
-                    title: 'Top Categories',
-                    limit: 3,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PillNavBar(
+            items: ['Overall', ...months.map(_pillMonthLabel)],
+            selectedIndex: selectedIndex,
+            onSelected: (index) => setState(() {
+              _scopeMonth = index == 0 ? null : months[index - 1];
+            }),
+          ),
+          Expanded(
+            child: insights.isEmpty
+                ? _buildEmpty(theme)
+                : ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: scope == null
+                        ? [
+                            _buildHeroCard(theme, insights),
+                            const SizedBox(height: 12),
+                            _buildIncomeExpenseCard(theme, insights),
+                            const SizedBox(height: 12),
+                            _buildLoansCard(theme),
+                            _buildMetricGrid(theme, insights),
+                            const SizedBox(height: 12),
+                            _buildProgressPanel(theme, insights),
+                            const SizedBox(height: 12),
+                            _buildSpendingHeatmap(theme, insights),
+                            const SizedBox(height: 12),
+                            _buildBudgetSignals(theme, insights),
+                            const SizedBox(height: 12),
+                            _buildHighlights(theme, insights),
+                            if (insights.topCategories.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              _buildCategoryBreakdown(
+                                theme,
+                                insights,
+                                title: 'Top Categories',
+                                limit: 3,
+                              ),
+                              const SizedBox(height: 12),
+                              _CategoryBreakdownCard(insights: insights),
+                            ],
+                            const SizedBox(height: 12),
+                            _DailyTrendsCard(insights: insights),
+                          ]
+                        : _buildMonthViewCards(
+                            theme,
+                            insights,
+                            scope,
+                            _monthDays(scope, scopedEntries, effectiveNow),
+                          ),
                   ),
-                  const SizedBox(height: 12),
-                  _CategoryBreakdownCard(insights: insights),
-                ],
-                const SizedBox(height: 12),
-                _DailyTrendsCard(insights: insights),
-              ],
-            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  String _pillMonthLabel(DateTime dt) {
+    const names = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${names[dt.month - 1]} ${dt.year}';
   }
 
   Widget _buildEmpty(ThemeData theme) {
@@ -91,7 +179,9 @@ class FinanceInsightsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No finance entries yet',
+              _isOverall
+                  ? 'No finance entries yet'
+                  : 'No entries for ${_pillMonthLabel(_scopeMonth!)}',
               style: AppTheme.headingSmall.copyWith(
                 color: theme.colorScheme.onSurface,
                 fontSize: 18,
@@ -116,13 +206,16 @@ class FinanceInsightsScreen extends StatelessWidget {
   Widget _buildHeroCard(ThemeData theme, _FinanceInsights insights) {
     final cardColor = theme.colorScheme.primary;
     final onCard = AppTheme.readableOn(cardColor);
-    final range = insights.firstDate == null
+    final scope = _scopeMonth;
+    final range = scope != null
+        ? 'MONTH · ${_monthLabel(scope)}'
+        : insights.firstDate == null
         ? 'Until today'
         : 'FROM ${_compactDate(insights.firstDate!)} TO TODAY';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -132,7 +225,7 @@ class FinanceInsightsScreen extends StatelessWidget {
             Color.lerp(cardColor, theme.colorScheme.secondary, 0.34)!,
           ],
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
             color: cardColor.withValues(alpha: 0.18),
@@ -151,7 +244,7 @@ class FinanceInsightsScreen extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: onCard.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(32),
                 ),
                 child: Icon(Icons.insights_rounded, color: onCard, size: 24),
               ),
@@ -170,7 +263,7 @@ class FinanceInsightsScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
           Text(
             _money(insights.total),
             maxLines: 1,
@@ -181,9 +274,11 @@ class FinanceInsightsScreen extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           Text(
-            'Total spent until today',
+            scope != null
+                ? 'Total spent in ${_pillMonthLabel(scope)}'
+                : 'Total spent until today',
             style: AppTheme.bodySmall.copyWith(
               color: onCard.withValues(alpha: 0.72),
               fontSize: 12,
@@ -253,43 +348,53 @@ class FinanceInsightsScreen extends StatelessWidget {
   Widget _buildIncomeExpenseCard(ThemeData theme, _FinanceInsights insights) {
     final monthNet = insights.currentMonthIncome - insights.currentMonthTotal;
     final overallNet = insights.totalIncome - insights.total;
+    final scope = _scopeMonth;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(theme, 'Income vs Expenses'),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildIncomeExpenseColumn(
-                  theme,
-                  label: 'THIS MONTH',
-                  income: insights.currentMonthIncome,
-                  expense: insights.currentMonthTotal,
-                  net: monthNet,
+          if (scope != null)
+            _buildIncomeExpenseColumn(
+              theme,
+              label: _monthLabel(scope),
+              income: insights.totalIncome,
+              expense: insights.total,
+              net: overallNet,
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: _buildIncomeExpenseColumn(
+                    theme,
+                    label: 'THIS MONTH',
+                    income: insights.currentMonthIncome,
+                    expense: insights.currentMonthTotal,
+                    net: monthNet,
+                  ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 92,
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                color: theme.dividerColor.withValues(alpha: 0.18),
-              ),
-              Expanded(
-                child: _buildIncomeExpenseColumn(
-                  theme,
-                  label: 'ALL TIME',
-                  income: insights.totalIncome,
-                  expense: insights.total,
-                  net: overallNet,
+                Container(
+                  width: 1,
+                  height: 92,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  color: theme.dividerColor.withValues(alpha: 0.18),
                 ),
-              ),
-            ],
-          ),
+                Expanded(
+                  child: _buildIncomeExpenseColumn(
+                    theme,
+                    label: 'ALL TIME',
+                    income: insights.totalIncome,
+                    expense: insights.total,
+                    net: overallNet,
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -310,8 +415,7 @@ class FinanceInsightsScreen extends StatelessWidget {
           style: AppTheme.bodySmall.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
+            fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
@@ -395,7 +499,7 @@ class FinanceInsightsScreen extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: _cardDecoration(theme),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,16 +569,21 @@ class FinanceInsightsScreen extends StatelessWidget {
   }
 
   Widget _buildMetricGrid(ThemeData theme, _FinanceInsights insights) {
+    final isPast = _isPastMonthScope;
     final metrics = [
-      _Metric(Icons.today_rounded, 'Today', _money(insights.todayTotal)),
+      _Metric(
+        Icons.today_rounded,
+        isPast ? 'Last day' : 'Today',
+        _money(insights.todayTotal),
+      ),
       _Metric(
         Icons.view_week_rounded,
-        'This week',
+        isPast ? 'Last week' : 'This week',
         _money(insights.currentWeekTotal),
       ),
       _Metric(
         Icons.calendar_month_rounded,
-        'This month',
+        _isOverall ? 'This month' : 'Month total',
         _money(insights.currentMonthTotal),
       ),
       _Metric(
@@ -507,7 +616,7 @@ class FinanceInsightsScreen extends StatelessWidget {
   Widget _buildMetricCard(ThemeData theme, _Metric metric) {
     return Container(
       height: 98,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,11 +629,11 @@ class FinanceInsightsScreen extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppTheme.headingSmall.copyWith(
               color: theme.colorScheme.onSurface,
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 3),
+         
           Text(
             metric.label,
             maxLines: 1,
@@ -550,7 +659,7 @@ class FinanceInsightsScreen extends StatelessWidget {
         : insights.activeDays / insights.trackedDays;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +700,7 @@ class FinanceInsightsScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _buildProgressSlider(
             theme,
-            label: '${_monthLabel(selectedMonth)} VS PREVIOUS MONTH',
+            label: '${_monthLabel(widget.selectedMonth)} VS PREVIOUS MONTH',
             value: insights.previousMonthTotal == 0
                 ? 1
                 : (insights.selectedMonthTotal / insights.previousMonthTotal)
@@ -715,7 +824,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -881,7 +990,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     final signals = [
       _Metric(
         Icons.show_chart_rounded,
-        'Projected month',
+        _isPastMonthScope ? 'Month total' : 'Projected month',
         _money(insights.currentMonthProjected),
       ),
       _Metric(
@@ -902,7 +1011,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -934,14 +1043,13 @@ class FinanceInsightsScreen extends StatelessWidget {
 
   Widget _buildSignalCard(ThemeData theme, _Metric signal) {
     return Container(
-      height: 92,
-      padding: const EdgeInsets.all(12),
+      height: 112,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.055),
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.13),
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(32),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,7 +1096,7 @@ class FinanceInsightsScreen extends StatelessWidget {
         _buildHighlightCard(
           theme,
           icon: Icons.stacked_line_chart_rounded,
-          label: '${_monthLabel(selectedMonth)} peak',
+          label: '${_monthLabel(_scopeMonth ?? widget.selectedMonth)} peak',
           value: _money(insights.mostSpentDaySelectedMonth!.total),
           caption: _compactDate(insights.mostSpentDaySelectedMonth!.date),
         ),
@@ -1019,12 +1127,289 @@ class FinanceInsightsScreen extends StatelessWidget {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(theme, 'Highlights'),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 8.0;
+              final width = (constraints.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: cards
+                    .map((card) => SizedBox(width: width, child: card))
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildMonthViewCards(
+    ThemeData theme,
+    _FinanceInsights insights,
+    DateTime month,
+    List<_DatedTotal> days,
+  ) {
+    return [
+      _buildHeroCard(theme, insights),
+      const SizedBox(height: 12),
+      _buildIncomeExpenseCard(theme, insights),
+      const SizedBox(height: 12),
+      _buildMonthSummaryGrid(theme, insights, month, days),
+      const SizedBox(height: 12),
+      _buildMonthDailyActivity(theme, month, days),
+      const SizedBox(height: 12),
+      _buildMonthHighlights(theme, insights, month),
+      if (insights.topCategories.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _buildCategoryBreakdown(
+          theme,
+          insights,
+          title: '${_shortMonthLabel(month)} Categories',
+        ),
+      ],
+    ];
+  }
+
+  Widget _buildMonthSummaryGrid(
+    ThemeData theme,
+    _FinanceInsights insights,
+    DateTime month,
+    List<_DatedTotal> days,
+  ) {
+    final dayCount = days.length;
+    final noSpendDays = dayCount - insights.activeDays;
+    final peakDay = _maxDatedTotal(days);
+    final metrics = [
+      _Metric(
+        Icons.calendar_month_rounded,
+        'Month total',
+        _money(insights.total),
+      ),
+      _Metric(
+        Icons.event_available_rounded,
+        'Active days',
+        '${insights.activeDays}/$dayCount',
+      ),
+      _Metric(
+        Icons.do_not_disturb_on_outlined,
+        'No-spend days',
+        '$noSpendDays',
+      ),
+      _Metric(
+        Icons.trending_up_rounded,
+        'Peak day',
+        peakDay == null ? _money(0) : _money(peakDay.total),
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _sectionTitle(theme, 'Month Snapshot')),
+              Text(
+                _monthLabel(month),
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 8.0;
+              final width = (constraints.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: metrics
+                    .map(
+                      (metric) => SizedBox(
+                        width: width,
+                        child: _buildSignalCard(theme, metric),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildProgressSlider(
+            theme,
+            label: 'DAILY AVERAGE',
+            value: peakDay == null || peakDay.total == 0
+                ? 0
+                : (insights.averagePerActiveDay / peakDay.total).clamp(
+                    0.0,
+                    1.0,
+                  ),
+            trailing: _money(insights.averagePerActiveDay),
+            color: theme.colorScheme.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthDailyActivity(
+    ThemeData theme,
+    DateTime month,
+    List<_DatedTotal> days,
+  ) {
+    final maxTotal = days.fold<double>(
+      0,
+      (max, day) => day.total > max ? day.total : max,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _sectionTitle(theme, 'Daily Activity')),
+              Text(
+                '${days.length} DAYS',
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 168,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (var i = 0; i < days.length; i++)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Tooltip(
+                                message: days[i].total == 0
+                                    ? 'No spending on ${_compactDate(days[i].date)}'
+                                    : '${_money(days[i].total)} on ${_compactDate(days[i].date)}',
+                                child: FractionallySizedBox(
+                                  heightFactor: math.max(
+                                    maxTotal == 0
+                                        ? 0.0
+                                        : days[i].total / maxTotal,
+                                    days[i].total == 0 ? 0.05 : 0.12,
+                                  ),
+                                  child: Container(
+                                    width: double.infinity,
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 18,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: days[i].total == 0
+                                          ? theme.colorScheme.outline
+                                                .withValues(alpha: 0.18)
+                                          : theme.colorScheme.secondary,
+                                      borderRadius: BorderRadius.circular(99),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _monthBarLabel(days[i].date, month),
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.visible,
+                            style: AppTheme.bodySmall.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthHighlights(
+    ThemeData theme,
+    _FinanceInsights insights,
+    DateTime month,
+  ) {
+    final cards = <Widget>[
+      if (insights.mostSpentDayOverall != null)
+        _buildHighlightCard(
+          theme,
+          icon: CupertinoIcons.flame_fill,
+          label: 'Highest day',
+          value: _money(insights.mostSpentDayOverall!.total),
+          caption: _compactDate(insights.mostSpentDayOverall!.date),
+        ),
+      if (insights.mostSpentWeekOverall != null)
+        _buildHighlightCard(
+          theme,
+          icon: Icons.view_week_rounded,
+          label: 'Highest week',
+          value: _money(insights.mostSpentWeekOverall!.total),
+          caption: 'From ${_compactDate(insights.mostSpentWeekOverall!.date)}',
+        ),
+      if (insights.largestEntry != null)
+        _buildHighlightCard(
+          theme,
+          icon: CupertinoIcons.arrow_up_circle_fill,
+          label: 'Largest expense',
+          value: insights.largestEntry!.displayAmount,
+          caption: insights.largestEntry!.description,
+        ),
+      _buildHighlightCard(
+        theme,
+        icon: Icons.savings_outlined,
+        label: 'Net balance',
+        value: _signedMoney(insights.totalIncome - insights.total),
+        caption: _monthLabel(month),
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(theme, 'Month Highlights'),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1053,10 +1438,10 @@ class FinanceInsightsScreen extends StatelessWidget {
   }) {
     return Container(
       height: 116,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(32),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1111,7 +1496,7 @@ class FinanceInsightsScreen extends StatelessWidget {
         ? insights.topCategories
         : insights.topCategories.take(limit).toList();
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1228,7 +1613,7 @@ class FinanceInsightsScreen extends StatelessWidget {
   static BoxDecoration _cardDecoration(ThemeData theme) {
     return BoxDecoration(
       color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(32),
       border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
       boxShadow: [
         BoxShadow(
@@ -1248,6 +1633,45 @@ class FinanceInsightsScreen extends StatelessWidget {
     final elapsed = now.difference(start).inDays + 1;
     final total = next.difference(start).inDays;
     return (elapsed / total).clamp(0.0, 1.0);
+  }
+
+  List<_DatedTotal> _monthDays(
+    DateTime month,
+    List<FinanceEntry> entries,
+    DateTime now,
+  ) {
+    final totalsByDay = <DateTime, double>{};
+    for (final entry in entries) {
+      if (entry.type != FinanceEntryType.expense) continue;
+      final day = DateTime(entry.date.year, entry.date.month, entry.date.day);
+      totalsByDay[day] = (totalsByDay[day] ?? 0) + entry.amount;
+    }
+
+    final monthStart = DateTime(month.year, month.month);
+    final nextMonth = DateTime(month.year, month.month + 1);
+    final daysInMonth = nextMonth.difference(monthStart).inDays;
+    final isCurrentMonth = month.year == now.year && month.month == now.month;
+    final visibleDays = isCurrentMonth
+        ? math.min(now.day, daysInMonth)
+        : daysInMonth;
+
+    return List.generate(visibleDays, (index) {
+      final day = DateTime(month.year, month.month, index + 1);
+      return _DatedTotal(day, totalsByDay[day] ?? 0);
+    });
+  }
+
+  _DatedTotal? _maxDatedTotal(List<_DatedTotal> days) {
+    if (days.isEmpty) return null;
+    return days.reduce((a, b) => a.total >= b.total ? a : b);
+  }
+
+  String _monthBarLabel(DateTime date, DateTime month) {
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    if (date.day == 1 || date.day == lastDay || (date.day - 1) % 5 == 0) {
+      return '${date.day}';
+    }
+    return '';
   }
 
   static String _money(double amount) =>
@@ -1338,7 +1762,7 @@ class _HeatmapCell extends StatelessWidget {
     final intensity = maxTotal == 0 ? 0.0 : total / maxTotal;
     final color = total == 0
         ? emptyColor
-        : FinanceInsightsScreen._heatmapColor(activeColor, intensity);
+        : _FinanceInsightsScreenState._heatmapColor(activeColor, intensity);
 
     return Tooltip(
       message: total == 0
@@ -1692,15 +2116,18 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard> {
     final hiddenCount = categories.length - _initialCount;
 
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: FinanceInsightsScreen._cardDecoration(theme),
+      padding: const EdgeInsets.all(16),
+      decoration: _FinanceInsightsScreenState._cardDecoration(theme),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          FinanceInsightsScreen._sectionTitle(theme, 'Category Breakdown'),
+          _FinanceInsightsScreenState._sectionTitle(
+            theme,
+            'Category Breakdown',
+          ),
           const SizedBox(height: 12),
           ...visible.map(
-            (entry) => FinanceInsightsScreen._buildCategoryRow(
+            (entry) => _FinanceInsightsScreenState._buildCategoryRow(
               theme,
               entry,
               total: widget.insights.total,
@@ -1755,15 +2182,15 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: FinanceInsightsScreen._cardDecoration(theme),
+      padding: const EdgeInsets.all(16),
+      decoration: _FinanceInsightsScreenState._cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: FinanceInsightsScreen._sectionTitle(
+                child: _FinanceInsightsScreenState._sectionTitle(
                   theme,
                   _page == 0 ? 'Last 7 Days' : 'Last 30 Days',
                 ),
@@ -1882,7 +2309,9 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
                         ? (i % 5 == 0 || i == days.length - 1
                               ? '${days[i].date.day}'
                               : '')
-                        : FinanceInsightsScreen._shortDayLabel(days[i].date),
+                        : _FinanceInsightsScreenState._shortDayLabel(
+                            days[i].date,
+                          ),
                     maxLines: 2,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.visible,

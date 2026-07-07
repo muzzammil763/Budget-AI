@@ -9,7 +9,10 @@ import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
 import 'package:budget_ai/features/chat/presentation/widgets/model_picker_sheet.dart';
+import 'package:budget_ai/features/finance/data/finance_service.dart';
+import 'package:budget_ai/features/finance/presentation/screens/finance_insights_screen.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
+import 'package:budget_ai/features/finance/presentation/screens/loans_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
 import 'package:budget_ai/features/settings/data/app_backup_service.dart';
 import 'package:budget_ai/features/settings/presentation/screens/permissions_screen.dart';
@@ -96,6 +99,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _buildNavTile(
             theme,
+            icon: Icons.handshake_outlined,
+            title: 'Loans',
+            subtitle: 'Borrowed and lent money with repayments',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LoansScreen()),
+            ),
+          ),
+          _buildNavTile(
+            theme,
+            icon: Icons.insights_rounded,
+            title: 'Finance Insights',
+            subtitle: 'Overall and monthly spending insights',
+            onTap: _openInsights,
+          ),
+          _buildNavTile(
+            theme,
             icon: CupertinoIcons.checkmark_shield,
             title: 'Permissions',
             subtitle: 'Notifications and background mode',
@@ -172,6 +192,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInsights() async {
+    final entries = await FinanceService.instance.getAll();
+    if (!mounted) return;
+    final now = DateTime.now();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FinanceInsightsScreen(
+          entries: List.from(entries),
+          selectedMonth: DateTime(now.year, now.month),
         ),
       ),
     );
@@ -256,12 +291,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(32),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(32),
           border: Border.all(
             color: theme.colorScheme.outline.withValues(alpha: 0.35),
           ),

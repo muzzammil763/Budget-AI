@@ -154,7 +154,7 @@ class _LoansScreenState extends State<LoansScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '-${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
+                      '${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
                       style: AppTheme.headingLarge.copyWith(
                         color: Colors.red,
                         fontSize: 20,
@@ -179,7 +179,7 @@ class _LoansScreenState extends State<LoansScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '+${FinanceEntry.formatAmount(lentRemaining)} Rs',
+                      '${FinanceEntry.formatAmount(lentRemaining)} Rs',
                       style: AppTheme.headingLarge.copyWith(
                         color: Colors.green,
                         fontSize: 20,
@@ -213,28 +213,6 @@ class _LoansScreenState extends State<LoansScreen> {
                 ],
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              minHeight: 8,
-              value: overallProgress,
-              backgroundColor: onCard.withValues(alpha: 0.16),
-              valueColor: AlwaysStoppedAnimation<Color>(onCard),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'REPAID ${FinanceEntry.formatAmount(totalPaid)} OF '
-            '${FinanceEntry.formatAmount(totalPrincipal)} RS · '
-            '${(overallProgress * 100).round()}%',
-            style: AppTheme.bodySmall.copyWith(
-              color: onCard.withValues(alpha: 0.7),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
           ),
         ],
       ),
@@ -313,9 +291,9 @@ class _LoansScreenState extends State<LoansScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(color: onSurface.withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -353,11 +331,10 @@ class _LoansScreenState extends State<LoansScreen> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
                       '${isBorrowed ? 'Borrowed' : 'Lent'} · ${_dateLabel(loan.date)}'
                       '${loan.description.isEmpty ? '' : ' · ${loan.description}'}',
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: theme.colorScheme.onSurfaceVariant,

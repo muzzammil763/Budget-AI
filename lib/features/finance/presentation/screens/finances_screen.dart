@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/widgets/pill_nav_bar.dart';
 import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
@@ -16,18 +19,37 @@ class FinancesScreen extends StatefulWidget {
   State<FinancesScreen> createState() => _FinancesScreenState();
 }
 
-class _FinancesScreenState extends State<FinancesScreen> {
+class _FinancesScreenState extends State<FinancesScreen>
+    with WidgetsBindingObserver {
   List<FinanceEntry> _allEntries = [];
   List<FinanceEntry> _monthEntries = [];
   bool _isLoading = true;
+  bool _isBalanceVisible = false;
+  bool _isAuthenticatingBalance = false;
+  Timer? _balanceHideTimer;
   late DateTime _selectedMonth;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _balanceHideTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _hideBalance();
+    }
   }
 
   Future<void> _load() async {
@@ -57,6 +79,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       _selectedMonth = month;
       _isLoading = true;
     });
+    _hideBalance();
     final entries = await FinanceService.instance.getByMonth(
       month.year,
       month.month,
@@ -77,6 +100,78 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final now = DateTime.now();
     months.add(DateTime(now.year, now.month));
     return months.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  bool get _isCurrentMonth {
+    final now = DateTime.now();
+    return _selectedMonth.year == now.year && _selectedMonth.month == now.month;
+  }
+
+  void _hideBalance() {
+    _balanceHideTimer?.cancel();
+    _balanceHideTimer = null;
+    if (_isBalanceVisible && mounted) {
+      setState(() => _isBalanceVisible = false);
+    }
+  }
+
+  void _scheduleBalanceHide() {
+    _balanceHideTimer?.cancel();
+    _balanceHideTimer = Timer(const Duration(seconds: 10), _hideBalance);
+  }
+
+  Future<void> _toggleBalanceVisibility() async {
+    if (_isBalanceVisible) {
+      _hideBalance();
+      return;
+    }
+    if (_isAuthenticatingBalance) return;
+
+    setState(() => _isAuthenticatingBalance = true);
+    final localAuth = LocalAuthentication();
+
+    try {
+      final canCheckBiometrics = await localAuth.canCheckBiometrics;
+      final isDeviceSupported = await localAuth.isDeviceSupported();
+
+      if (!canCheckBiometrics && !isDeviceSupported) {
+        if (!mounted) return;
+        showAppToast(
+          context,
+          message: 'Biometrics not available on this device',
+          type: ToastificationType.error,
+        );
+        return;
+      }
+
+      final authenticated = await localAuth.authenticate(
+        localizedReason: 'Authenticate to view your current balance',
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
+
+      if (!mounted) return;
+      if (!authenticated) {
+        showAppToast(
+          context,
+          message: 'Authentication failed. Balance is still hidden.',
+          type: ToastificationType.error,
+        );
+        return;
+      }
+
+      setState(() => _isBalanceVisible = true);
+      _scheduleBalanceHide();
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(
+        context,
+        message: 'Authentication error: ${e.toString()}',
+        type: ToastificationType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isAuthenticatingBalance = false);
+    }
   }
 
   Map<String, List<FinanceEntry>> _groupByDate(List<FinanceEntry> entries) {
@@ -107,6 +202,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
     final byCat = FinanceService.instance.categorySummary(_monthEntries);
     final topCats = byCat.entries.take(8).toList();
+    final currentBalance = totalIncome - totalExpense;
 
     return Scaffold(
       appBar: AppBar(
@@ -153,8 +249,17 @@ class _FinancesScreenState extends State<FinancesScreen> {
             ),
             onSelected: (index) => _selectMonth(months[index]),
           ),
+          SizedBox(height: 12),
+          if (!_isLoading && _isCurrentMonth)
+            _buildCurrentBalanceCard(theme, currentBalance),
           if (!_isLoading && _monthEntries.isNotEmpty)
-            _buildSummaryCard(theme, totalExpense, totalIncome, topCats),
+            _buildSummaryCard(
+              theme,
+              totalExpense,
+              totalIncome,
+              topCats,
+              currentBalance,
+            ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -172,13 +277,13 @@ class _FinancesScreenState extends State<FinancesScreen> {
     double totalExpense,
     double totalIncome,
     List<MapEntry<String, double>> topCats,
+    double currentBalance,
   ) {
     final cardColor = theme.colorScheme.primary;
     final onCard = AppTheme.readableOn(cardColor);
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -199,98 +304,194 @@ class _FinancesScreenState extends State<FinancesScreen> {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TOTAL · ${_monthLabel(_selectedMonth).toUpperCase()}',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: onCard.withValues(alpha: 0.65),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '-${FinanceEntry.formatAmount(totalExpense)} Rs',
-                  style: AppTheme.headingLarge.copyWith(
-                    color: Colors.red,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '+${FinanceEntry.formatAmount(totalIncome)} Rs',
-                  style: AppTheme.headingLarge.copyWith(
-                    color: Colors.green,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (totalIncome > totalExpense) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(
-                        color: Colors.green.withValues(alpha: 0.55),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    
+                    Text(
+                      '${FinanceEntry.formatAmount(totalExpense)} Rs',
+                      style: AppTheme.headingLarge.copyWith(
+                        color: Colors.red,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    child: Text(
-                      'SAVED ${FinanceEntry.formatAmount(totalIncome - totalExpense)} Rs',
-                      style: AppTheme.bodySmall.copyWith(
+                    const SizedBox(height: 4),
+                    Text(
+                      '${FinanceEntry.formatAmount(totalIncome)} Rs',
+                      style: AppTheme.headingLarge.copyWith(
                         color: Colors.green,
-                        fontSize: 10.5,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
+                      ),
+                    ),
+                  
+                   
+                  ],
+                ),
+              ),
+              if (topCats.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: topCats.take(3).map((e) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '${e.key} · ${FinanceEntry.formatAmount(e.value)} Rs',
+                        style: TextStyle(
+                          color: onCard.withValues(alpha: 0.85),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+           if (!_isCurrentMonth && currentBalance > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${FinanceEntry.formatAmount(currentBalance)} Rs will be moved to the next month balance automatically.',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: onCard.withValues(alpha: 0.82),
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                     
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentBalanceCard(ThemeData theme, double balance) {
+    final cardColor = theme.colorScheme.primary;
+    final onCard = AppTheme.readableOn(cardColor);
+    final isDark = theme.brightness == Brightness.dark;
+    final amount = '${FinanceEntry.formatAmount(balance)} Rs';
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 10),
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              cardColor,
+              Color.lerp(cardColor, theme.colorScheme.secondary, 0.28)!,
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? theme.colorScheme.primary.withValues(alpha: 0.14)
+                  : Colors.black.withValues(alpha: 0.14),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CURRENT BALANCE',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: onCard.withValues(alpha: 0.68),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.14),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      _isBalanceVisible ? amount : '######',
+                      key: ValueKey(_isBalanceVisible),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.headingLarge.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 4),
-                Text(
-                  _monthEntries.length == 1
-                      ? '1 ENTRY'
-                      : '${_monthEntries.length} ENTRIES',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: onCard.withValues(alpha: 0.6),
-                    fontSize: 11,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          if (topCats.isNotEmpty)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: topCats.take(3).map((e) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '${e.key} · ${FinanceEntry.formatAmount(e.value)} Rs',
-                    style: TextStyle(
-                      color: onCard.withValues(alpha: 0.85),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                );
-              }).toList(),
+            const SizedBox(width: 12),
+            IconButton(
+              tooltip: _isBalanceVisible ? 'Hide balance' : 'Show balance',
+              onPressed: _isAuthenticatingBalance
+                  ? null
+                  : _toggleBalanceVisibility,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: _isAuthenticatingBalance
+                    ? SizedBox(
+                        key: const ValueKey('authenticating'),
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: onCard,
+                        ),
+                      )
+                    : Icon(
+                        _isBalanceVisible
+                            ? CupertinoIcons.eye_slash
+                            : CupertinoIcons.eye,
+                        key: ValueKey(_isBalanceVisible),
+                        color: onCard,
+                        size: 32,
+                      ),
+              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
