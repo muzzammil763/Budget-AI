@@ -8,7 +8,7 @@ ToolDefinition buildFinanceSummaryTool({
 }) => ToolDefinition(
   name: 'finance_summary',
   description:
-      'Get an expense/spending summary (total + breakdown by category) for a date range. Use for questions like "how much did I spend this month?", "what are my top expenses?", or "show me a summary for April". Income and loans are intentionally excluded.',
+      'Get a finance summary for a date range, including income, expenses, net balance, and category breakdowns. Use a type filter for income-only or expense-only questions. Loans are intentionally excluded.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -21,6 +21,11 @@ ToolDefinition buildFinanceSummaryTool({
         'type': 'string',
         'description': 'End date in YYYY-MM-DD format. Defaults to today.',
       },
+      'type': {
+        'type': 'string',
+        'description':
+            'Optional entry type filter: expense or income. Omit to summarize both.',
+      },
     },
     'required': [],
   },
@@ -31,6 +36,8 @@ mixin FinanceSummaryToolHandler {
   Future<dynamic> handleFinanceSummaryRequest(Map<String, dynamic> args) async {
     final fromStr = (args['from_date'] as String? ?? '').trim();
     final toStr = (args['to_date'] as String? ?? '').trim();
+    final typeRaw = (args['type'] as String? ?? '').trim();
+    final type = typeRaw.isNotEmpty ? FinanceEntryType.fromJson(typeRaw) : null;
 
     try {
       final now = DateTime.now();
@@ -39,9 +46,27 @@ mixin FinanceSummaryToolHandler {
           : DateTime(now.year, now.month, 1);
       final to = toStr.isNotEmpty ? DateTime.tryParse(toStr) ?? now : now;
 
-      final entries = await FinanceService.instance.getByDateRange(from, to);
+      var entries = await FinanceService.instance.getByDateRange(from, to);
+      if (type != null) {
+        entries = entries.where((entry) => entry.type == type).toList();
+      }
       final total = FinanceService.instance.totalAmount(entries);
-      final byCat = FinanceService.instance.categorySummary(entries);
+      final incomeTotal = FinanceService.instance.totalAmount(
+        entries,
+        type: FinanceEntryType.income,
+      );
+      final expenseTotal = FinanceService.instance.totalAmount(
+        entries,
+        type: FinanceEntryType.expense,
+      );
+      final expenseByCat = FinanceService.instance.categorySummary(
+        entries,
+        type: FinanceEntryType.expense,
+      );
+      final incomeByCat = FinanceService.instance.categorySummary(
+        entries,
+        type: FinanceEntryType.income,
+      );
 
       return {
         'ok': true,
@@ -51,7 +76,14 @@ mixin FinanceSummaryToolHandler {
             '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}',
         'entry_count': entries.length,
         'total': '${FinanceEntry.formatAmount(total)} Rs',
-        'by_category': byCat.map(
+        'income_total': '${FinanceEntry.formatAmount(incomeTotal)} Rs',
+        'expense_total': '${FinanceEntry.formatAmount(expenseTotal)} Rs',
+        'net_balance': _formatSignedAmount(incomeTotal - expenseTotal),
+        'expense_by_category': expenseByCat.map(
+          (cat, amount) =>
+              MapEntry(cat, '${FinanceEntry.formatAmount(amount)} Rs'),
+        ),
+        'income_by_category': incomeByCat.map(
           (cat, amount) =>
               MapEntry(cat, '${FinanceEntry.formatAmount(amount)} Rs'),
         ),
@@ -59,5 +91,10 @@ mixin FinanceSummaryToolHandler {
     } catch (e) {
       return {'error': e.toString()};
     }
+  }
+
+  String _formatSignedAmount(double amount) {
+    final prefix = amount < 0 ? '-' : '';
+    return '$prefix${FinanceEntry.formatAmount(amount.abs())} Rs';
   }
 }

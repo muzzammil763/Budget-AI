@@ -23,6 +23,12 @@ class FinanceInsightsScreen extends StatefulWidget {
 class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   /// null = overall scope (preselected); otherwise the selected month.
   DateTime? _scopeMonth;
+  List<DateTime> _months = const [];
+  int _entriesRevision = 0;
+  int? _cachedRevision;
+  DateTime? _cachedScopeMonth;
+  DateTime? _cachedToday;
+  _FinanceScopeData? _cachedScopeData;
 
   bool get _isOverall => _scopeMonth == null;
 
@@ -33,7 +39,24 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     return !(scope.year == now.year && scope.month == now.month);
   }
 
-  List<DateTime> _availableMonths() {
+  @override
+  void initState() {
+    super.initState();
+    _months = _buildAvailableMonths();
+  }
+
+  @override
+  void didUpdateWidget(covariant FinanceInsightsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.entries, oldWidget.entries) ||
+        widget.selectedMonth != oldWidget.selectedMonth) {
+      _entriesRevision++;
+      _cachedScopeData = null;
+      _months = _buildAvailableMonths();
+    }
+  }
+
+  List<DateTime> _buildAvailableMonths() {
     final months = <DateTime>{};
     for (final e in widget.entries) {
       months.add(DateTime(e.date.year, e.date.month));
@@ -48,24 +71,9 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     final theme = Theme.of(context);
     final now = DateTime.now();
     final scope = _scopeMonth;
-    final scopedEntries = scope == null
-        ? widget.entries
-        : widget.entries
-              .where(
-                (e) => e.date.year == scope.year && e.date.month == scope.month,
-              )
-              .toList();
-    // For a past month, anchor "today" to that month's last day so all
-    // time-relative metrics describe the month itself.
-    final effectiveNow = _isPastMonthScope
-        ? DateTime(scope!.year, scope.month + 1, 0, 23, 59, 59)
-        : now;
-    final insights = _FinanceInsights.fromEntries(
-      scopedEntries,
-      selectedMonth: scope ?? widget.selectedMonth,
-      now: effectiveNow,
-    );
-    final months = _availableMonths();
+    final scopeData = _scopeData(scope, now);
+    final insights = scopeData.insights;
+    final months = _months;
     final selectedIndex = scope == null
         ? 0
         : 1 +
@@ -130,13 +138,61 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                             theme,
                             insights,
                             scope,
-                            _monthDays(scope, scopedEntries, effectiveNow),
+                            scopeData.monthDays,
                           ),
                   ),
           ),
         ],
       ),
     );
+  }
+
+  _FinanceScopeData _scopeData(DateTime? scope, DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    if (_cachedScopeData != null &&
+        _cachedRevision == _entriesRevision &&
+        _sameMonth(_cachedScopeMonth, scope) &&
+        _cachedToday == today) {
+      return _cachedScopeData!;
+    }
+
+    final scopedEntries = scope == null
+        ? widget.entries
+        : widget.entries
+              .where(
+                (e) => e.date.year == scope.year && e.date.month == scope.month,
+              )
+              .toList();
+    final isPastMonthScope = scope != null && !_sameMonth(scope, now);
+    // For a past month, anchor "today" to that month's last day so all
+    // time-relative metrics describe the month itself.
+    final effectiveNow = isPastMonthScope
+        ? DateTime(scope.year, scope.month + 1, 0, 23, 59, 59)
+        : now;
+    final insights = _FinanceInsights.fromEntries(
+      scopedEntries,
+      selectedMonth: scope ?? widget.selectedMonth,
+      now: effectiveNow,
+    );
+    final data = _FinanceScopeData(
+      insights: insights,
+      monthDays: scope == null
+          ? const <_DatedTotal>[]
+          : _monthDays(scope, scopedEntries, effectiveNow),
+    );
+
+    _cachedRevision = _entriesRevision;
+    _cachedScopeMonth = scope == null
+        ? null
+        : DateTime(scope.year, scope.month);
+    _cachedToday = today;
+    _cachedScopeData = data;
+    return data;
+  }
+
+  bool _sameMonth(DateTime? a, DateTime? b) {
+    if (a == null || b == null) return a == null && b == null;
+    return a.year == b.year && a.month == b.month;
   }
 
   String _pillMonthLabel(DateTime dt) {
@@ -633,7 +689,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
               fontWeight: FontWeight.w900,
             ),
           ),
-         
+
           Text(
             metric.label,
             maxLines: 1,
@@ -1741,6 +1797,13 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     ];
     return names[dt.month - 1];
   }
+}
+
+class _FinanceScopeData {
+  const _FinanceScopeData({required this.insights, required this.monthDays});
+
+  final _FinanceInsights insights;
+  final List<_DatedTotal> monthDays;
 }
 
 class _HeatmapCell extends StatelessWidget {

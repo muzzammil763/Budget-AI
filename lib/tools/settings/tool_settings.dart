@@ -38,12 +38,12 @@ class ToolSettings {
       id: finance,
       title: 'Finance Tools',
       description:
-          'Add, list, summarize, and delete income, expense, and loan records',
+          'Add, list, edit, summarize, and delete finance and loan records',
       tools: [
         ToolItemDefinition(
           name: 'finance_add',
-          title: 'Add Expense',
-          description: 'Add a personal expense entry',
+          title: 'Add Finance',
+          description: 'Add a finance entry for spending',
         ),
         ToolItemDefinition(
           name: 'finance_income_add',
@@ -52,7 +52,7 @@ class ToolSettings {
         ),
         ToolItemDefinition(
           name: 'finance_list',
-          title: 'List Entries',
+          title: 'List Finances',
           description: 'List income and expense entries with filters',
         ),
         ToolItemDefinition(
@@ -67,7 +67,7 @@ class ToolSettings {
         ),
         ToolItemDefinition(
           name: 'finance_delete',
-          title: 'Delete Entries',
+          title: 'Delete Finances',
           description: 'Delete one or more income or expense entries',
         ),
         ToolItemDefinition(
@@ -79,6 +79,26 @@ class ToolSettings {
           name: 'loan_payment_add',
           title: 'Add Loan Payment',
           description: 'Record a repayment against a loan',
+        ),
+        ToolItemDefinition(
+          name: 'loan_update',
+          title: 'Edit Loan',
+          description: 'Update an existing loan',
+        ),
+        ToolItemDefinition(
+          name: 'loan_payment_update',
+          title: 'Edit Loan Payment',
+          description: 'Update an existing loan repayment',
+        ),
+        ToolItemDefinition(
+          name: 'loan_payment_delete',
+          title: 'Delete Loan Payment',
+          description: 'Delete a repayment from a loan',
+        ),
+        ToolItemDefinition(
+          name: 'loan_delete',
+          title: 'Delete Loan',
+          description: 'Delete an existing loan',
         ),
         ToolItemDefinition(
           name: 'loan_list',

@@ -238,6 +238,15 @@ class LoanPayment {
     'note': note,
     'created_at': createdAt.toIso8601String(),
   };
+
+  LoanPayment copyWith({DateTime? date, double? amount, String? note}) =>
+      LoanPayment(
+        id: id,
+        date: date ?? this.date,
+        amount: amount ?? this.amount,
+        note: note ?? this.note,
+        createdAt: createdAt,
+      );
 }
 
 class LoanRecord {
@@ -307,14 +316,22 @@ class LoanRecord {
   String get displayRemaining =>
       '${FinanceEntry.formatAmount(remainingAmount)} Rs';
 
-  LoanRecord copyWith({List<LoanPayment>? payments}) => LoanRecord(
+  LoanRecord copyWith({
+    LoanDirection? direction,
+    String? person,
+    String? description,
+    double? principal,
+    DateTime? date,
+    bool? hasTime,
+    List<LoanPayment>? payments,
+  }) => LoanRecord(
     id: id,
-    direction: direction,
-    person: person,
-    description: description,
-    principal: principal,
-    date: date,
-    hasTime: hasTime,
+    direction: direction ?? this.direction,
+    person: person ?? this.person,
+    description: description ?? this.description,
+    principal: principal ?? this.principal,
+    date: date ?? this.date,
+    hasTime: hasTime ?? this.hasTime,
     createdAt: createdAt,
     payments: payments ?? this.payments,
   );
@@ -1016,6 +1033,57 @@ class LoanService {
     final updated = loan.copyWith(payments: updatedPayments);
     loans[index] = updated;
     loans.sort((a, b) => b.date.compareTo(a.date));
+    _cache = loans;
+    await _persist();
+    return updated;
+  }
+
+  Future<LoanRecord?> update(LoanRecord updated) async {
+    final loans = List<LoanRecord>.from(await getAll());
+    final index = loans.indexWhere((loan) => loan.id == updated.id);
+    if (index < 0) return null;
+    loans[index] = updated;
+    loans.sort((a, b) => b.date.compareTo(a.date));
+    _cache = loans;
+    await _persist();
+    return updated;
+  }
+
+  Future<LoanRecord?> updatePayment({
+    required String loanId,
+    required LoanPayment payment,
+  }) async {
+    final loans = List<LoanRecord>.from(await getAll());
+    final loanIndex = loans.indexWhere((loan) => loan.id == loanId);
+    if (loanIndex < 0) return null;
+    final loan = loans[loanIndex];
+    final paymentIndex = loan.payments.indexWhere((p) => p.id == payment.id);
+    if (paymentIndex < 0) return null;
+    final payments = List<LoanPayment>.from(loan.payments);
+    payments[paymentIndex] = payment;
+    payments.sort((a, b) => b.date.compareTo(a.date));
+    final updated = loan.copyWith(payments: payments);
+    loans[loanIndex] = updated;
+    loans.sort((a, b) => b.date.compareTo(a.date));
+    _cache = loans;
+    await _persist();
+    return updated;
+  }
+
+  Future<LoanRecord?> deletePayment({
+    required String loanId,
+    required String paymentId,
+  }) async {
+    final loans = List<LoanRecord>.from(await getAll());
+    final loanIndex = loans.indexWhere((loan) => loan.id == loanId);
+    if (loanIndex < 0) return null;
+    final loan = loans[loanIndex];
+    final payments = loan.payments
+        .where((payment) => payment.id != paymentId)
+        .toList();
+    if (payments.length == loan.payments.length) return null;
+    final updated = loan.copyWith(payments: payments);
+    loans[loanIndex] = updated;
     _cache = loans;
     await _persist();
     return updated;

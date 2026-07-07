@@ -8,7 +8,7 @@ ToolDefinition buildFinanceUpdateTool({
 }) => ToolDefinition(
   name: 'finance_update',
   description:
-      'Edit an existing finance/expense entry by ID. Use finance_list first if you need to find the ID. Only provided fields are changed.',
+      'Edit an existing finance entry by ID, including income or expense entries. Use finance_list first if you need to find the ID. Only provided fields are changed.',
   parameters: {
     'type': 'object',
     'properties': {

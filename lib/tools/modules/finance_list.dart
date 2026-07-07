@@ -8,7 +8,7 @@ ToolDefinition buildFinanceListTool({
 }) => ToolDefinition(
   name: 'finance_list',
   description:
-      'List finance/expense entries with optional filters. Use to answer questions like "what did I spend today?", "show my expenses this week", or "how much did I spend on food?".',
+      'List finance entries with optional filters across income and expenses. Use a type filter for spending-only or income-only questions. Use this before finance_update or finance_delete when you need to find an entry ID.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -29,7 +29,7 @@ ToolDefinition buildFinanceListTool({
       'type': {
         'type': 'string',
         'description':
-            'Optional entry type filter: expense or income. Defaults to expense for spending questions.',
+            'Optional entry type filter: expense or income. Omit to include both income and expenses.',
       },
       'limit': {
         'type': 'integer',
@@ -46,7 +46,8 @@ mixin FinanceListToolHandler {
     final fromStr = (args['from_date'] as String? ?? '').trim();
     final toStr = (args['to_date'] as String? ?? '').trim();
     final category = (args['category'] as String? ?? '').trim().toLowerCase();
-    final type = FinanceEntryType.fromJson(args['type'] as String?);
+    final typeRaw = (args['type'] as String? ?? '').trim();
+    final type = typeRaw.isNotEmpty ? FinanceEntryType.fromJson(typeRaw) : null;
     final limit = (args['limit'] as int?) ?? 50;
 
     try {
@@ -67,7 +68,9 @@ mixin FinanceListToolHandler {
             .where((e) => e.category.toLowerCase() == category)
             .toList();
       }
-      entries = entries.where((e) => e.type == type).toList();
+      if (type != null) {
+        entries = entries.where((e) => e.type == type).toList();
+      }
 
       final limited = entries.take(limit).toList();
       final total = FinanceService.instance.totalAmount(limited);

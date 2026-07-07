@@ -313,7 +313,6 @@ class _FinancesScreenState extends State<FinancesScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    
                     Text(
                       '${FinanceEntry.formatAmount(totalExpense)} Rs',
                       style: AppTheme.headingLarge.copyWith(
@@ -331,8 +330,6 @@ class _FinancesScreenState extends State<FinancesScreen>
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                  
-                   
                   ],
                 ),
               ),
@@ -355,19 +352,19 @@ class _FinancesScreenState extends State<FinancesScreen>
                 ),
             ],
           ),
-           if (!_isCurrentMonth && currentBalance > 0) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${FinanceEntry.formatAmount(currentBalance)} Rs will be moved to the next month balance automatically.',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: onCard.withValues(alpha: 0.82),
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                     
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+          if (!_isCurrentMonth && currentBalance > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${FinanceEntry.formatAmount(currentBalance)} Rs will be moved to the next month balance automatically.',
+              style: AppTheme.bodySmall.copyWith(
+                color: onCard.withValues(alpha: 0.82),
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -642,83 +639,209 @@ class _FinancesScreenState extends State<FinancesScreen>
   Widget _buildEntryTile(ThemeData theme, FinanceEntry entry) {
     final timeStr = entry.hasTime ? _formatClockTime(entry.date) : null;
     final onSurface = theme.colorScheme.onSurface;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: onSurface.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
+        child: InkWell(
+          onTap: () => _showEntryDetails(entry),
+          borderRadius: BorderRadius.circular(100),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(100),
+              border: Border.all(color: onSurface.withValues(alpha: 0.25)),
             ),
-            child: Center(
-              child: Text(
-                entry.category.isNotEmpty ? entry.category[0] : '?',
-                style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-
-                  entry.description,
-                  style: TextStyle(
-                    color: onSurface,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(100),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      entry.category,
+                  child: Center(
+                    child: Text(
+                      entry.category.isNotEmpty ? entry.category[0] : '?',
                       style: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
                       ),
                     ),
-                    if (timeStr != null) ...[
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        ' · $timeStr',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        entry.description,
                         style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
+                          color: onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(
+                            entry.category,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (timeStr != null) ...[
+                            Text(
+                              ' · $timeStr',
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
-                  ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  entry.displaySignedAmount,
+                  style: AppTheme.headingSmall.copyWith(
+                    color: entry.type == FinanceEntryType.income
+                        ? Colors.green
+                        : Colors.red,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEntryDetails(FinanceEntry entry) {
+    final theme = Theme.of(context);
+    final isIncome = entry.type == FinanceEntryType.income;
+    final accent = isIncome ? Colors.green : theme.colorScheme.error;
+    final readableAccent = AppTheme.readableOn(accent);
+
+    return ResponsiveInfoSheet.show<void>(
+      context,
+      title: isIncome ? 'Income Details' : 'Expense Details',
+      headerIcon: Icon(
+        isIncome
+            ? CupertinoIcons.arrow_down_circle_fill
+            : CupertinoIcons.arrow_up_circle_fill,
+        size: 32,
+        color: readableAccent,
+      ),
+      gradientColors: [accent, accent.withValues(alpha: 0.78)],
+      contentWidgets: [
+        Center(
+          child: Text(
             entry.displaySignedAmount,
+            textAlign: TextAlign.center,
+            style: AppTheme.headingLarge.copyWith(
+              color: isIncome ? Colors.green : theme.colorScheme.error,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: Text(
+            entry.description,
+            textAlign: TextAlign.center,
             style: AppTheme.headingSmall.copyWith(
-              color: entry.type == FinanceEntryType.income
-                  ? Colors.green
-                  : Colors.red,
-              fontSize: 14,
+              color: theme.colorScheme.onSurface,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              height: 1.25,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildEntryDetailRow(
+          theme,
+          icon: CupertinoIcons.tag,
+          label: 'Category',
+          value: entry.category,
+        ),
+        _buildEntryDetailRow(
+          theme,
+          icon: CupertinoIcons.calendar,
+          label: 'Date',
+          value: entry.displayDate,
+        ),
+        _buildEntryDetailRow(
+          theme,
+          icon: CupertinoIcons.time,
+          label: 'Logged',
+          value: _fullDateTime(entry.createdAt),
+        ),
+        _buildEntryDetailRow(
+          theme,
+          icon: isIncome
+              ? CupertinoIcons.arrow_down_circle
+              : CupertinoIcons.arrow_up_circle,
+          label: 'Type',
+          value: isIncome ? 'Income' : 'Expense',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEntryDetailRow(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: theme.colorScheme.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            textAlign: TextAlign.right,
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -872,5 +995,25 @@ class _FinancesScreenState extends State<FinancesScreen>
     final minute = date.minute.toString().padLeft(2, '0');
     final period = date.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
+  }
+
+  String _fullDateTime(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${date.day.toString().padLeft(2, '0')} '
+        '${months[date.month - 1]} ${date.year}, '
+        '${_formatClockTime(date)}';
   }
 }

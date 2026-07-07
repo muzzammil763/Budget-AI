@@ -64,6 +64,111 @@ ToolDefinition buildLoanPaymentAddTool({
   handler: handler,
 );
 
+ToolDefinition buildLoanUpdateTool({
+  ToolDefinitionContext context = ToolDefinitionContext.standard,
+  required ToolHandler handler,
+}) => ToolDefinition(
+  name: 'loan_update',
+  description:
+      'Edit an existing loan by ID. Use loan_list first if you need to find the ID. Only provided fields are changed. Use this when the user asks to edit a loan amount, person, direction, note, or date.',
+  parameters: {
+    'type': 'object',
+    'properties': {
+      'loan_id': {
+        'type': 'string',
+        'description': 'Loan ID. Use loan_list first if needed.',
+      },
+      'direction': {
+        'type': 'string',
+        'description': 'Optional direction: borrowed or lent.',
+      },
+      'person': {'type': 'string', 'description': 'Updated person or party.'},
+      'description': {
+        'type': 'string',
+        'description': 'Updated loan purpose or note.',
+      },
+      'amount': {
+        'type': 'number',
+        'description': 'Updated principal amount in Pakistani Rupees.',
+      },
+      'date': {
+        'type': 'string',
+        'description': 'Updated loan date in YYYY-MM-DD format.',
+      },
+    },
+    'required': ['loan_id'],
+  },
+  handler: handler,
+);
+
+ToolDefinition buildLoanPaymentUpdateTool({
+  ToolDefinitionContext context = ToolDefinitionContext.standard,
+  required ToolHandler handler,
+}) => ToolDefinition(
+  name: 'loan_payment_update',
+  description:
+      'Edit an existing repayment/payment on a loan. Use loan_list first if you need to find the loan_id or payment_id. Only provided fields are changed.',
+  parameters: {
+    'type': 'object',
+    'properties': {
+      'loan_id': {
+        'type': 'string',
+        'description': 'Loan ID that contains the payment.',
+      },
+      'payment_id': {'type': 'string', 'description': 'Payment ID to edit.'},
+      'amount': {
+        'type': 'number',
+        'description': 'Updated payment amount in Pakistani Rupees.',
+      },
+      'date': {
+        'type': 'string',
+        'description': 'Updated payment date in YYYY-MM-DD format.',
+      },
+      'note': {'type': 'string', 'description': 'Updated payment note.'},
+    },
+    'required': ['loan_id', 'payment_id'],
+  },
+  handler: handler,
+);
+
+ToolDefinition buildLoanPaymentDeleteTool({
+  ToolDefinitionContext context = ToolDefinitionContext.standard,
+  required ToolHandler handler,
+}) => ToolDefinition(
+  name: 'loan_payment_delete',
+  description:
+      'Delete a repayment/payment from a loan. Use loan_list first if you need to find the loan_id or payment_id.',
+  parameters: {
+    'type': 'object',
+    'properties': {
+      'loan_id': {
+        'type': 'string',
+        'description': 'Loan ID that contains the payment.',
+      },
+      'payment_id': {'type': 'string', 'description': 'Payment ID to delete.'},
+    },
+    'required': ['loan_id', 'payment_id'],
+  },
+  handler: handler,
+);
+
+ToolDefinition buildLoanDeleteTool({
+  ToolDefinitionContext context = ToolDefinitionContext.standard,
+  required ToolHandler handler,
+}) => ToolDefinition(
+  name: 'loan_delete',
+  description:
+      'Delete an existing loan and its repayment history. Use loan_list first if you need to find the loan_id.',
+  parameters: {
+    'type': 'object',
+    'properties': {
+      'loan_id': {'type': 'string', 'description': 'Loan ID to delete.'},
+    },
+    'required': ['loan_id'],
+  },
+  handler: handler,
+);
+
 ToolDefinition buildLoanListTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,
   required ToolHandler handler,
@@ -153,6 +258,157 @@ mixin LoanToolHandler {
           'date': payment.date.toIso8601String().split('T').first,
           'note': payment.note,
         },
+      };
+    } catch (e) {
+      return {'error': e.toString()};
+    }
+  }
+
+  Future<dynamic> handleLoanUpdateRequest(Map<String, dynamic> args) async {
+    final loanId = (args['loan_id'] as String? ?? '').trim();
+    if (loanId.isEmpty) return {'error': 'loan_id is required'};
+
+    try {
+      final loans = await LoanService.instance.getAll();
+      LoanRecord? existing;
+      for (final loan in loans) {
+        if (loan.id == loanId) {
+          existing = loan;
+          break;
+        }
+      }
+      if (existing == null) return {'ok': false, 'error': 'Loan not found'};
+
+      final directionRaw = (args['direction'] as String? ?? '').trim();
+      final person = (args['person'] as String? ?? '').trim();
+      final description = (args['description'] as String? ?? '').trim();
+      final amount = (args['amount'] as num?)?.toDouble();
+      final dateStr = (args['date'] as String? ?? '').trim();
+
+      if (amount != null && amount <= 0) {
+        return {'error': 'amount must be greater than 0'};
+      }
+
+      var date = existing.date;
+      if (dateStr.isNotEmpty) {
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed != null) {
+          date = DateTime(parsed.year, parsed.month, parsed.day);
+        }
+      }
+
+      final updated = existing.copyWith(
+        direction: directionRaw.isNotEmpty
+            ? LoanDirection.fromJson(directionRaw)
+            : null,
+        person: person.isNotEmpty ? person : null,
+        description: description.isNotEmpty ? description : null,
+        principal: amount,
+        date: date,
+        hasTime: false,
+      );
+      final saved = await LoanService.instance.update(updated);
+      if (saved == null) return {'ok': false, 'error': 'Loan not found'};
+      return _loanToJson(saved);
+    } catch (e) {
+      return {'error': e.toString()};
+    }
+  }
+
+  Future<dynamic> handleLoanPaymentUpdateRequest(
+    Map<String, dynamic> args,
+  ) async {
+    final loanId = (args['loan_id'] as String? ?? '').trim();
+    final paymentId = (args['payment_id'] as String? ?? '').trim();
+    if (loanId.isEmpty) return {'error': 'loan_id is required'};
+    if (paymentId.isEmpty) return {'error': 'payment_id is required'};
+
+    try {
+      final loans = await LoanService.instance.getAll();
+      LoanRecord? loan;
+      for (final item in loans) {
+        if (item.id == loanId) {
+          loan = item;
+          break;
+        }
+      }
+      if (loan == null) return {'ok': false, 'error': 'Loan not found'};
+      LoanPayment? existingPayment;
+      for (final payment in loan.payments) {
+        if (payment.id == paymentId) {
+          existingPayment = payment;
+          break;
+        }
+      }
+      if (existingPayment == null) {
+        return {'ok': false, 'error': 'Loan payment not found'};
+      }
+
+      final amount = (args['amount'] as num?)?.toDouble();
+      final dateStr = (args['date'] as String? ?? '').trim();
+      final note = (args['note'] as String? ?? '').trim();
+      if (amount != null && amount <= 0) {
+        return {'error': 'amount must be greater than 0'};
+      }
+
+      var date = existingPayment.date;
+      if (dateStr.isNotEmpty) {
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed != null) {
+          date = DateTime(parsed.year, parsed.month, parsed.day);
+        }
+      }
+
+      final updatedPayment = existingPayment.copyWith(
+        amount: amount,
+        date: date,
+        note: note.isNotEmpty ? note : null,
+      );
+      final updatedLoan = await LoanService.instance.updatePayment(
+        loanId: loanId,
+        payment: updatedPayment,
+      );
+      if (updatedLoan == null) {
+        return {'ok': false, 'error': 'Loan payment not found'};
+      }
+      return {'ok': true, 'loan': _loanToJson(updatedLoan)};
+    } catch (e) {
+      return {'error': e.toString()};
+    }
+  }
+
+  Future<dynamic> handleLoanPaymentDeleteRequest(
+    Map<String, dynamic> args,
+  ) async {
+    final loanId = (args['loan_id'] as String? ?? '').trim();
+    final paymentId = (args['payment_id'] as String? ?? '').trim();
+    if (loanId.isEmpty) return {'error': 'loan_id is required'};
+    if (paymentId.isEmpty) return {'error': 'payment_id is required'};
+
+    try {
+      final updatedLoan = await LoanService.instance.deletePayment(
+        loanId: loanId,
+        paymentId: paymentId,
+      );
+      if (updatedLoan == null) {
+        return {'ok': false, 'error': 'Loan payment not found'};
+      }
+      return {'ok': true, 'loan': _loanToJson(updatedLoan)};
+    } catch (e) {
+      return {'error': e.toString()};
+    }
+  }
+
+  Future<dynamic> handleLoanDeleteRequest(Map<String, dynamic> args) async {
+    final loanId = (args['loan_id'] as String? ?? '').trim();
+    if (loanId.isEmpty) return {'error': 'loan_id is required'};
+
+    try {
+      final deleted = await LoanService.instance.delete(loanId);
+      return {
+        'ok': deleted,
+        if (!deleted) 'error': 'Loan not found',
+        'loan_id': loanId,
       };
     } catch (e) {
       return {'error': e.toString()};

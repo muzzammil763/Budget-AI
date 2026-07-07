@@ -75,6 +75,22 @@ class ToolRegistry
         context: ToolDefinitionContext.standard,
         handler: handleLoanPaymentAddRequest,
       ),
+      buildLoanUpdateTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanUpdateRequest,
+      ),
+      buildLoanPaymentUpdateTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanPaymentUpdateRequest,
+      ),
+      buildLoanPaymentDeleteTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanPaymentDeleteRequest,
+      ),
+      buildLoanDeleteTool(
+        context: ToolDefinitionContext.standard,
+        handler: handleLoanDeleteRequest,
+      ),
       buildLoanListTool(
         context: ToolDefinitionContext.standard,
         handler: handleLoanListRequest,
