@@ -397,7 +397,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description:
           'Money, memory and momentum — a personal finance companion powered by AI.',
       items: const [],
-      extra: const _AppShowcase(showDynamicIsland: true),
+      extra: const _AppShowcase(showDynamicIsland: false),
     );
   }
 
@@ -865,23 +865,42 @@ class _AppShowcaseState extends State<_AppShowcase> {
     _videoControllers = [
       for (final item in _items) VideoPlayerController.asset(item.asset),
     ];
-    for (var i = 0; i < _videoControllers.length; i++) {
-      _initVideo(i);
-    }
+    _initVideos();
   }
 
-  Future<void> _initVideo(int i) async {
-    try {
-      final controller = _videoControllers[i];
-      await controller.initialize();
-      await controller.setLooping(true);
-      await controller.setVolume(0);
-      await controller.play();
-      if (mounted) setState(() => _videoReady[i] = true);
-    } catch (e) {
-      // Missing/broken asset: the branded placeholder stays visible.
-      debugPrint('[Onboarding] Showcase video ${_items[i].asset} failed: $e');
+  /// Initializes every controller first, then starts them all in the same
+  /// frame so the three videos begin playing together instead of each one
+  /// starting whenever its own file happens to finish loading.
+  Future<void> _initVideos() async {
+    final ready = List<bool>.filled(_videoControllers.length, false);
+
+    await Future.wait([
+      for (var i = 0; i < _videoControllers.length; i++)
+        () async {
+          try {
+            final controller = _videoControllers[i];
+            await controller.initialize();
+            await controller.setLooping(true);
+            await controller.setVolume(0);
+            ready[i] = true;
+          } catch (e) {
+            // Missing/broken asset: the branded placeholder stays visible.
+            debugPrint(
+              '[Onboarding] Showcase video ${_items[i].asset} failed: $e',
+            );
+          }
+        }(),
+    ]);
+
+    if (!mounted) return;
+    for (var i = 0; i < _videoControllers.length; i++) {
+      if (ready[i]) _videoControllers[i].play();
     }
+    setState(() {
+      for (var i = 0; i < ready.length; i++) {
+        _videoReady[i] = ready[i];
+      }
+    });
   }
 
   @override
