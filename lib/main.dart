@@ -10,6 +10,7 @@ import 'package:budget_ai/app/navigation/app_route_observer.dart';
 import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
 import 'package:budget_ai/core/logging/open_gate_log_service.dart';
 import 'package:budget_ai/core/storage/shared_prefs_service.dart';
+import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -38,6 +39,10 @@ void main() {
       await VibrationManager.instance.waitForInitialization();
 
       await AndroidSettingsHelper.instance.initialize();
+
+      // Roll last month's savings into this month's income (1st, 1 AM entry)
+      // without blocking startup.
+      unawaited(FinanceService.instance.applySavingsRollover());
 
       runApp(const MyApp());
     },

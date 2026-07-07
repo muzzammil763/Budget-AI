@@ -4,8 +4,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/app/theme/app_theme.dart';
+import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:budget_ai/core/widgets/responsive_info_sheet.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
+import 'package:budget_ai/features/chat/domain/models/ai_models.dart';
+import 'package:budget_ai/features/chat/presentation/widgets/model_picker_sheet.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
 import 'package:budget_ai/features/settings/presentation/screens/api_keys_screen.dart';
 import 'package:budget_ai/features/settings/data/app_backup_service.dart';
@@ -73,6 +76,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               context,
               MaterialPageRoute(builder: (_) => const APIKeysScreen()),
             ),
+          ),
+          _buildNavTile(
+            theme,
+            icon: CupertinoIcons.slider_horizontal_3,
+            title: 'AI Model',
+            subtitle: _selectedModelName,
+            onTap: _showModelPickerSheet,
           ),
           _buildNavTile(
             theme,
@@ -164,6 +174,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  String get _selectedModelId =>
+      SharedPrefsService.getSelectedDeepSeekModel() ??
+      SharedPrefsService.instance.getString('deepseek_selected_model') ??
+      AIModels.getDefaultModel('deepseek');
+
+  String get _selectedModelName =>
+      AIModels.getModelById('deepseek', _selectedModelId)?.name ??
+      _selectedModelId;
+
+  Future<void> _showModelPickerSheet() async {
+    final result = await ModelPickerSheet.show(
+      context,
+      modelType: 'deepseek',
+      selectedModel: _selectedModelId,
+    );
+    if (result == null || result == _selectedModelId) return;
+
+    await SharedPrefsService.instance.setString(
+      'deepseek_selected_model',
+      result,
+    );
+    await SharedPrefsService.setSelectedDeepSeekModel(result);
+    if (!mounted) return;
+    setState(() {});
+    showAppToast(
+      context,
+      message: 'Model changed to $_selectedModelName',
+      type: ToastificationType.success,
     );
   }
 

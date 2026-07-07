@@ -15,7 +15,7 @@ import 'package:budget_ai/core/models/notification_payload.dart';
 import 'package:budget_ai/core/widgets/toast_helper.dart';
 import 'package:budget_ai/core/services/notification_service.dart';
 import 'package:budget_ai/core/utils/vibration_manager.dart';
-import 'package:budget_ai/features/chat/presentation/screens/model_selector_screen.dart';
+import 'package:budget_ai/features/chat/presentation/widgets/model_picker_sheet.dart';
 import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
 import 'package:budget_ai/features/skills/data/agent_skill_service.dart';
 import 'package:budget_ai/core/network/network_reachability_service.dart';
@@ -2876,7 +2876,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         drawerScrimColor: Theme.of(
           context,
         ).colorScheme.primary.withValues(alpha: 0.18),
-        drawerEdgeDragWidth: 28,
+        // Wide drag zone so a left-to-right swipe anywhere on the chat body
+        // opens the history drawer, mirroring the top-left chrome button.
+        drawerEdgeDragWidth: MediaQuery.sizeOf(context).width * 0.55,
         onDrawerChanged: (isOpened) {
           if (isOpened) {
             _ensureHistorySessionsFuture();
@@ -2936,6 +2938,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                               theme,
                               icon: CupertinoIcons.slider_horizontal_3,
                               tooltip: 'Model',
+                              badge: ModelPickerSheet.badgeForModelId(
+                                _selectedModel,
+                              ),
                               onPressed: _navigateToModelSelection,
                             ),
                             _buildPillAppBarButton(
@@ -3054,12 +3059,43 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     required IconData icon,
     required String tooltip,
     required VoidCallback onPressed,
+    String? badge,
   }) {
     return Tooltip(
       message: tooltip,
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, color: theme.colorScheme.onSurface, size: 25),
+        icon: badge == null
+            ? Icon(icon, color: theme.colorScheme.onSurface, size: 25)
+            : Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, color: theme.colorScheme.onSurface, size: 25),
+                  Positioned(
+                    top: -4,
+                    right: -12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 3.5,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        badge,
+                        style: TextStyle(
+                          fontSize: 6.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
         splashRadius: 24,
       ),
     );
@@ -3400,16 +3436,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     bool fromContextLimitCard = false,
   }) async {
     _unfocusComposer();
-    final result = await Navigator.push<String>(
+    final result = await ModelPickerSheet.show(
       context,
-      MaterialPageRoute(
-        builder: (context) => ModelSelectorScreen(
-          modelType: widget.config.modelName,
-          themeColor: Theme.of(context).colorScheme.primary,
-          selectedModel: _selectedModel,
-          iconPath: widget.config.iconPath,
-        ),
-      ),
+      modelType: widget.config.modelName,
+      selectedModel: _selectedModel,
     );
 
     if (result != null && result != _selectedModel) {

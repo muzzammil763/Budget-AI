@@ -707,6 +707,86 @@ class FinanceService {
     return s[0].toUpperCase() + s.substring(1);
   }
 
+  // ── Savings Rollover ──────────────────────────────────────────
+
+  static const String savingsCategory = 'Savings';
+
+  static const List<String> _rolloverMonthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  /// Carries each month's leftover (income - expenses) forward as an income
+  /// entry dated the 1st of the next month at 1:00 AM. Catches up on any
+  /// month boundaries missed while the app was closed, in chronological
+  /// order so consecutive months compound correctly.
+  Future<int> applySavingsRollover({DateTime? now}) async {
+    final current = now ?? DateTime.now();
+    final all = await getAll();
+    if (all.isEmpty) return 0;
+
+    final firstEntryDate = all.last.date; // entries are sorted newest first
+    var month = DateTime(firstEntryDate.year, firstEntryDate.month + 1);
+    final currentMonth = DateTime(current.year, current.month);
+    var added = 0;
+
+    while (!month.isAfter(currentMonth)) {
+      final rolloverMoment = DateTime(month.year, month.month, 1, 1);
+      if (current.isBefore(rolloverMoment)) break;
+
+      final alreadyRolled = _cache!.any(
+        (e) =>
+            e.type == FinanceEntryType.income &&
+            e.category == savingsCategory &&
+            e.description.startsWith('Savings from') &&
+            e.date.year == month.year &&
+            e.date.month == month.month,
+      );
+      if (!alreadyRolled) {
+        final prev = DateTime(month.year, month.month - 1);
+        final prevEntries = _cache!
+            .where(
+              (e) => e.date.year == prev.year && e.date.month == prev.month,
+            )
+            .toList();
+        final savings =
+            totalAmount(prevEntries, type: FinanceEntryType.income) -
+            totalAmount(prevEntries, type: FinanceEntryType.expense);
+        if (prevEntries.isNotEmpty && savings > 0) {
+          _cache!.add(
+            FinanceEntry.create(
+              type: FinanceEntryType.income,
+              date: rolloverMoment,
+              hasTime: true,
+              description:
+                  'Savings from ${_rolloverMonthNames[prev.month - 1]} ${prev.year}',
+              amount: savings,
+              category: savingsCategory,
+            ),
+          );
+          added++;
+        }
+      }
+      month = DateTime(month.year, month.month + 1);
+    }
+
+    if (added > 0) {
+      _cache!.sort((a, b) => b.date.compareTo(a.date));
+      await _persist();
+    }
+    return added;
+  }
+
   // ── Analytics ─────────────────────────────────────────────────
 
   double totalAmount(List<FinanceEntry> entries, {FinanceEntryType? type}) =>

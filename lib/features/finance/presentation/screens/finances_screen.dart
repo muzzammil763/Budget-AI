@@ -33,6 +33,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     FinanceService.instance.invalidateCache();
+    await FinanceService.instance.applySavingsRollover();
     final allEntries = await FinanceService.instance.getAll();
     final month = await FinanceService.instance.getByMonth(
       _selectedMonth.year,
@@ -232,6 +233,31 @@ class _FinancesScreenState extends State<FinancesScreen> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                if (totalIncome > totalExpense) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(
+                        color: Colors.green.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    child: Text(
+                      'SAVED ${FinanceEntry.formatAmount(totalIncome - totalExpense)} Rs',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: Colors.green,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   _monthEntries.length == 1
@@ -296,11 +322,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.10),
+              color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(22),
             ),
             child: Icon(
-              CupertinoIcons.money_dollar_circle,
+              CupertinoIcons.exclamationmark_circle,
               size: 32,
               color: Theme.of(context).colorScheme.onPrimary,
             ),

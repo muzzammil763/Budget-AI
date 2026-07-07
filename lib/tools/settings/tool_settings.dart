@@ -37,7 +37,8 @@ class ToolSettings {
     ToolCollectionDefinition(
       id: finance,
       title: 'Finance Tools',
-      description: 'Add, list, summarize, and delete expense records',
+      description:
+          'Add, list, summarize, and delete income, expense, and loan records',
       tools: [
         ToolItemDefinition(
           name: 'finance_add',
@@ -45,24 +46,44 @@ class ToolSettings {
           description: 'Add a personal expense entry',
         ),
         ToolItemDefinition(
+          name: 'finance_income_add',
+          title: 'Add Income',
+          description: 'Add an income entry',
+        ),
+        ToolItemDefinition(
           name: 'finance_list',
-          title: 'List Expenses',
-          description: 'List expense entries with filters',
+          title: 'List Entries',
+          description: 'List income and expense entries with filters',
         ),
         ToolItemDefinition(
           name: 'finance_summary',
-          title: 'Expense Summary',
-          description: 'Summarize spending by date range',
+          title: 'Finance Summary',
+          description: 'Summarize income and spending by date range',
         ),
         ToolItemDefinition(
           name: 'finance_update',
-          title: 'Edit Expense',
-          description: 'Update an existing expense entry',
+          title: 'Edit Finances',
+          description: 'Update an existing income or expense entry',
         ),
         ToolItemDefinition(
           name: 'finance_delete',
-          title: 'Delete Expense',
-          description: 'Delete one or more expense entries',
+          title: 'Delete Entries',
+          description: 'Delete one or more income or expense entries',
+        ),
+        ToolItemDefinition(
+          name: 'loan_add',
+          title: 'Add Loan',
+          description: 'Record a borrowed or lent loan',
+        ),
+        ToolItemDefinition(
+          name: 'loan_payment_add',
+          title: 'Add Loan Payment',
+          description: 'Record a repayment against a loan',
+        ),
+        ToolItemDefinition(
+          name: 'loan_list',
+          title: 'List Loans',
+          description: 'List loans and their repayments',
         ),
       ],
     ),

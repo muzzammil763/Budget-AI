@@ -60,14 +60,10 @@ class FinanceInsightsScreen extends StatelessWidget {
                     limit: 3,
                   ),
                   const SizedBox(height: 12),
-                  _buildCategoryBreakdown(
-                    theme,
-                    insights,
-                    title: 'Category Breakdown',
-                  ),
+                  _CategoryBreakdownCard(insights: insights),
                 ],
                 const SizedBox(height: 12),
-                _buildLastSevenDays(theme, insights),
+                _DailyTrendsCard(insights: insights),
               ],
             ),
     );
@@ -84,12 +80,12 @@ class FinanceInsightsScreen extends StatelessWidget {
               width: 76,
               height: 76,
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Icon(
                 CupertinoIcons.chart_bar_alt_fill,
-                color: theme.colorScheme.primary,
+                color: theme.colorScheme.onPrimary,
                 size: 34,
               ),
             ),
@@ -1122,142 +1118,68 @@ class FinanceInsightsScreen extends StatelessWidget {
         children: [
           _sectionTitle(theme, title),
           const SizedBox(height: 12),
-          ...categories.map((entry) {
-            final percent = insights.total == 0
-                ? 0.0
-                : entry.value / insights.total;
-            final widthFactor = maxTotal == 0 ? 0.0 : entry.value / maxTotal;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          entry.key,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.bodySmall.copyWith(
-                            color: theme.colorScheme.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${_money(entry.value)} - ${(percent * 100).round()}%',
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(99),
-                    child: LinearProgressIndicator(
-                      minHeight: 9,
-                      value: widthFactor.clamp(0.0, 1.0),
-                      backgroundColor: theme.colorScheme.primary.withValues(
-                        alpha: 0.10,
-                      ),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          ...categories.map(
+            (entry) => _buildCategoryRow(
+              theme,
+              entry,
+              total: insights.total,
+              maxTotal: maxTotal,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLastSevenDays(ThemeData theme, _FinanceInsights insights) {
-    final maxTotal = insights.lastSevenDays.fold<double>(
-      0,
-      (max, day) => day.total > max ? day.total : max,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(theme),
+  static Widget _buildCategoryRow(
+    ThemeData theme,
+    MapEntry<String, double> entry, {
+    required double total,
+    required double maxTotal,
+  }) {
+    final percent = total == 0 ? 0.0 : entry.value / total;
+    final widthFactor = maxTotal == 0 ? 0.0 : entry.value / maxTotal;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(theme, 'Last 7 Days'),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 154,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: insights.lastSevenDays.map((day) {
-                final value = maxTotal == 0 ? 0.0 : day.total / maxTotal;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          day.total == 0
-                              ? '-'
-                              : FinanceEntry.formatAmount(day.total),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.bodySmall.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: FractionallySizedBox(
-                              heightFactor: math.max(
-                                value,
-                                day.total == 0 ? 0.06 : 0.12,
-                              ),
-                              child: Container(
-                                width: double.infinity,
-                                constraints: const BoxConstraints(maxWidth: 28),
-                                decoration: BoxDecoration(
-                                  color: day.total == 0
-                                      ? theme.colorScheme.outline.withValues(
-                                          alpha: 0.18,
-                                        )
-                                      : theme.colorScheme.secondary,
-                                  borderRadius: BorderRadius.circular(99),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _shortDayLabel(day.date),
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.bodySmall.copyWith(
-                            color: theme.colorScheme.onSurface,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.key,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodySmall.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                   ),
-                );
-              }).toList(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${_money(entry.value)} - ${(percent * 100).round()}%',
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 9,
+              value: widthFactor.clamp(0.0, 1.0),
+              backgroundColor: theme.colorScheme.primary.withValues(
+                alpha: 0.10,
+              ),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
           ),
         ],
@@ -1291,7 +1213,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     return Color.lerp(color.withValues(alpha: 0.24), color, clamped)!;
   }
 
-  Widget _sectionTitle(ThemeData theme, String title) {
+  static Widget _sectionTitle(ThemeData theme, String title) {
     return Text(
       title.toUpperCase(),
       style: AppTheme.bodySmall.copyWith(
@@ -1303,7 +1225,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     );
   }
 
-  BoxDecoration _cardDecoration(ThemeData theme) {
+  static BoxDecoration _cardDecoration(ThemeData theme) {
     return BoxDecoration(
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(8),
@@ -1328,7 +1250,8 @@ class FinanceInsightsScreen extends StatelessWidget {
     return (elapsed / total).clamp(0.0, 1.0);
   }
 
-  String _money(double amount) => '${FinanceEntry.formatAmount(amount)} Rs';
+  static String _money(double amount) =>
+      '${FinanceEntry.formatAmount(amount)} Rs';
 
   String _signedMoney(double amount) {
     if (amount == 0) return _money(0);
@@ -1354,7 +1277,7 @@ class FinanceInsightsScreen extends StatelessWidget {
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
-  String _shortDayLabel(DateTime date) {
+  static String _shortDayLabel(DateTime date) {
     const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     return '${days[date.weekday - 1]}\n${date.day.toString().padLeft(2, '0')}';
   }
@@ -1477,6 +1400,7 @@ class _FinanceInsights {
   final FinanceEntry? largestEntry;
   final List<MapEntry<String, double>> topCategories;
   final List<_DatedTotal> lastSevenDays;
+  final List<_DatedTotal> lastThirtyDays;
   final List<_DatedTotal> yearlyActivity;
   final double yearlyMaxDailyTotal;
   final double totalIncome;
@@ -1508,6 +1432,7 @@ class _FinanceInsights {
     required this.largestEntry,
     required this.topCategories,
     required this.lastSevenDays,
+    required this.lastThirtyDays,
     required this.yearlyActivity,
     required this.yearlyMaxDailyTotal,
     required this.totalIncome,
@@ -1557,6 +1482,7 @@ class _FinanceInsights {
         largestEntry: null,
         topCategories: [],
         lastSevenDays: [],
+        lastThirtyDays: [],
         yearlyActivity: [],
         yearlyMaxDailyTotal: 0,
         totalIncome: 0,
@@ -1642,6 +1568,10 @@ class _FinanceInsights {
       final day = today.subtract(Duration(days: 6 - index));
       return _DatedTotal(day, totalsByDay[day] ?? 0);
     });
+    final lastThirtyDays = List.generate(30, (index) {
+      final day = today.subtract(Duration(days: 29 - index));
+      return _DatedTotal(day, totalsByDay[day] ?? 0);
+    });
     final yearlyActivityStart = today.subtract(const Duration(days: 364));
     final alignedYearlyActivityStart = yearlyActivityStart.subtract(
       Duration(days: yearlyActivityStart.weekday - 1),
@@ -1697,6 +1627,7 @@ class _FinanceInsights {
       largestEntry: largestEntry,
       topCategories: topCategories,
       lastSevenDays: lastSevenDays,
+      lastThirtyDays: lastThirtyDays,
       yearlyActivity: yearlyActivity,
       yearlyMaxDailyTotal: yearlyMaxDailyTotal,
       totalIncome: totalIncome,
@@ -1734,4 +1665,238 @@ class _Metric {
   final String value;
 
   const _Metric(this.icon, this.label, this.value);
+}
+
+class _CategoryBreakdownCard extends StatefulWidget {
+  const _CategoryBreakdownCard({required this.insights});
+
+  final _FinanceInsights insights;
+
+  @override
+  State<_CategoryBreakdownCard> createState() => _CategoryBreakdownCardState();
+}
+
+class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard> {
+  static const int _initialCount = 6;
+
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final categories = widget.insights.topCategories;
+    final maxTotal = categories.first.value;
+    final visible = _expanded
+        ? categories
+        : categories.take(_initialCount).toList();
+    final hiddenCount = categories.length - _initialCount;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: FinanceInsightsScreen._cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FinanceInsightsScreen._sectionTitle(theme, 'Category Breakdown'),
+          const SizedBox(height: 12),
+          ...visible.map(
+            (entry) => FinanceInsightsScreen._buildCategoryRow(
+              theme,
+              entry,
+              total: widget.insights.total,
+              maxTotal: maxTotal,
+            ),
+          ),
+          if (hiddenCount > 0)
+            Center(
+              child: TextButton.icon(
+                onPressed: () => setState(() => _expanded = !_expanded),
+                icon: Icon(
+                  _expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  _expanded ? 'Show less' : 'Show $hiddenCount more',
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyTrendsCard extends StatefulWidget {
+  const _DailyTrendsCard({required this.insights});
+
+  final _FinanceInsights insights;
+
+  @override
+  State<_DailyTrendsCard> createState() => _DailyTrendsCardState();
+}
+
+class _DailyTrendsCardState extends State<_DailyTrendsCard> {
+  final PageController _pageController = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: FinanceInsightsScreen._cardDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: FinanceInsightsScreen._sectionTitle(
+                  theme,
+                  _page == 0 ? 'Last 7 Days' : 'Last 30 Days',
+                ),
+              ),
+              for (var i = 0; i < 2; i++)
+                Container(
+                  width: 7,
+                  height: 7,
+                  margin: const EdgeInsets.only(left: 5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == _page
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline.withValues(alpha: 0.4),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 154,
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (page) => setState(() => _page = page),
+              children: [
+                _buildBars(
+                  theme,
+                  widget.insights.lastSevenDays,
+                  compact: false,
+                ),
+                _buildBars(
+                  theme,
+                  widget.insights.lastThirtyDays,
+                  compact: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              _page == 0 ? 'Swipe for last 30 days' : 'Swipe for last 7 days',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBars(
+    ThemeData theme,
+    List<_DatedTotal> days, {
+    required bool compact,
+  }) {
+    final maxTotal = days.fold<double>(
+      0,
+      (max, day) => day.total > max ? day.total : max,
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < days.length; i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: compact ? 1 : 3),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (!compact) ...[
+                    Text(
+                      days[i].total == 0
+                          ? '-'
+                          : FinanceEntry.formatAmount(days[i].total),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: FractionallySizedBox(
+                        heightFactor: math.max(
+                          maxTotal == 0 ? 0.0 : days[i].total / maxTotal,
+                          days[i].total == 0 ? 0.06 : 0.12,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          constraints: const BoxConstraints(maxWidth: 28),
+                          decoration: BoxDecoration(
+                            color: days[i].total == 0
+                                ? theme.colorScheme.outline.withValues(
+                                    alpha: 0.18,
+                                  )
+                                : theme.colorScheme.secondary,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    compact
+                        ? (i % 5 == 0 || i == days.length - 1
+                              ? '${days[i].date.day}'
+                              : '')
+                        : FinanceInsightsScreen._shortDayLabel(days[i].date),
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.visible,
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: compact ? 9 : 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }

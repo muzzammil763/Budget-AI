@@ -31,8 +31,8 @@ class ResponsiveInfoSheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.only(
-            topRight: Radius.circular(12),
-            topLeft: Radius.circular(12),
+            topRight: Radius.circular(32),
+            topLeft: Radius.circular(32),
           ),
           border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
         ),
@@ -61,8 +61,8 @@ class ResponsiveInfoSheet extends StatelessWidget {
                             colors: gradientColors,
                           ),
                           borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            topRight: Radius.circular(12),
+                            topLeft: Radius.circular(32),
+                            topRight: Radius.circular(32),
                           ),
                         ),
                         child: Column(

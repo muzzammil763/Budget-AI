@@ -103,6 +103,14 @@ class _LoansScreenState extends State<LoansScreen> {
     final onCard = AppTheme.readableOn(cardColor);
     final isDark = theme.brightness == Brightness.dark;
     final openLoans = _loans.where((loan) => loan.remainingAmount > 0).length;
+    final totalPrincipal = _loans.fold(
+      0.0,
+      (sum, loan) => sum + loan.principal,
+    );
+    final totalPaid = _loans.fold(0.0, (sum, loan) => sum + loan.paidAmount);
+    final overallProgress = totalPrincipal == 0
+        ? 0.0
+        : (totalPaid / totalPrincipal).clamp(0.0, 1.0);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
@@ -126,80 +134,107 @@ class _LoansScreenState extends State<LoansScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TO PAY BACK',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: onCard.withValues(alpha: 0.65),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '-${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
-                  style: AppTheme.headingLarge.copyWith(
-                    color: Colors.red,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TO RECEIVE',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: onCard.withValues(alpha: 0.65),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '+${FinanceEntry.formatAmount(lentRemaining)} Rs',
-                  style: AppTheme.headingLarge.copyWith(
-                    color: Colors.green,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(
-                '$openLoans',
-                style: AppTheme.headingLarge.copyWith(
-                  color: onCard,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TO PAY BACK',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: onCard.withValues(alpha: 0.65),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '-${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
+                      style: AppTheme.headingLarge.copyWith(
+                        color: Colors.red,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                openLoans == 1 ? 'OPEN LOAN' : 'OPEN LOANS',
-                style: AppTheme.bodySmall.copyWith(
-                  color: onCard.withValues(alpha: 0.6),
-                  fontSize: 10,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TO RECEIVE',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: onCard.withValues(alpha: 0.65),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '+${FinanceEntry.formatAmount(lentRemaining)} Rs',
+                      style: AppTheme.headingLarge.copyWith(
+                        color: Colors.green,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$openLoans',
+                    style: AppTheme.headingLarge.copyWith(
+                      color: onCard,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    openLoans == 1 ? 'OPEN LOAN' : 'OPEN LOANS',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: onCard.withValues(alpha: 0.6),
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 8,
+              value: overallProgress,
+              backgroundColor: onCard.withValues(alpha: 0.16),
+              valueColor: AlwaysStoppedAnimation<Color>(onCard),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'REPAID ${FinanceEntry.formatAmount(totalPaid)} OF '
+            '${FinanceEntry.formatAmount(totalPrincipal)} RS · '
+            '${(overallProgress * 100).round()}%',
+            style: AppTheme.bodySmall.copyWith(
+              color: onCard.withValues(alpha: 0.7),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
           ),
         ],
       ),
@@ -215,7 +250,7 @@ class _LoansScreenState extends State<LoansScreen> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.10),
+              color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(22),
             ),
             child: Icon(
@@ -404,9 +439,7 @@ class _LoansScreenState extends State<LoansScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              loan.payments.length == 1
-                  ? 'REPAYMENT'
-                  : '${loan.payments.length} REPAYMENTS',
+              'TIMELINE',
               style: AppTheme.bodySmall.copyWith(
                 color: theme.colorScheme.primary,
                 fontSize: 10,
@@ -414,44 +447,126 @@ class _LoansScreenState extends State<LoansScreen> {
                 letterSpacing: 1.2,
               ),
             ),
-            const SizedBox(height: 6),
-            ...loan.payments.map(
-              (payment) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      CupertinoIcons.checkmark_circle,
-                      size: 13,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        '${_dateLabel(payment.date)}'
-                        '${payment.note.isEmpty ? '' : ' · ${payment.note}'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${FinanceEntry.formatAmount(payment.amount)} Rs',
-                      style: TextStyle(
-                        color: onSurface,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
+            const SizedBox(height: 8),
+            ..._buildTimelineRows(theme, loan),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildTimelineRows(ThemeData theme, LoanRecord loan) {
+    final isBorrowed = loan.direction == LoanDirection.borrowed;
+    final directionColor = isBorrowed ? Colors.red : Colors.green;
+    final ascending = [...loan.payments]
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    var remaining = loan.principal;
+    final rows = <Widget>[
+      _buildTimelineRow(
+        theme,
+        dotColor: directionColor,
+        isFirst: true,
+        isLast: ascending.isEmpty,
+        title: isBorrowed
+            ? 'Took ${loan.displayPrincipal} from ${loan.person}'
+            : 'Gave ${loan.displayPrincipal} to ${loan.person}',
+        caption: _dateLabel(loan.date),
+      ),
+    ];
+    for (var i = 0; i < ascending.length; i++) {
+      final payment = ascending[i];
+      remaining = (remaining - payment.amount).clamp(0.0, loan.principal);
+      rows.add(
+        _buildTimelineRow(
+          theme,
+          dotColor: remaining <= 0 ? Colors.green : theme.colorScheme.primary,
+          isFirst: false,
+          isLast: i == ascending.length - 1,
+          title:
+              '${isBorrowed ? 'Paid back' : 'Received'} '
+              '${FinanceEntry.formatAmount(payment.amount)} Rs'
+              '${payment.note.isEmpty ? '' : ' · ${payment.note}'}',
+          caption:
+              '${_dateLabel(payment.date)} · '
+              '${remaining <= 0 ? 'Settled' : '${FinanceEntry.formatAmount(remaining)} Rs remaining'}',
+        ),
+      );
+    }
+    return rows;
+  }
+
+  Widget _buildTimelineRow(
+    ThemeData theme, {
+    required Color dotColor,
+    required bool isFirst,
+    required bool isLast,
+    required String title,
+    required String caption,
+  }) {
+    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.14);
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 16,
+            child: Column(
+              children: [
+                Container(
+                  width: 2,
+                  height: 3,
+                  color: isFirst ? Colors.transparent : lineColor,
                 ),
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: isLast ? Colors.transparent : lineColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ],
       ),
     );

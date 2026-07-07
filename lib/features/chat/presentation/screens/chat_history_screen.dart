@@ -251,11 +251,40 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(
+              isSearching
+                  ? CupertinoIcons.search
+                  : CupertinoIcons.chat_bubble_2,
+              size: 32,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(height: 18),
           Text(
             isSearching ? 'No chats found' : 'No chat history yet',
             style: AppTheme.headingSmall.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isSearching
+                ? 'Try a different search term.'
+                : 'Start a conversation and\nit will show up here.',
+            textAlign: TextAlign.center,
+            style: AppTheme.bodySmall.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 16,
+              fontSize: 13,
+              height: 1.45,
             ),
           ),
         ],
@@ -296,68 +325,55 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
     bool isActive,
   ) {
     final theme = Theme.of(context);
-    return Dismissible(
-      key: ValueKey(session.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        if (_isMutatingSession) return false;
-        final confirmed = await _confirmDeleteSession(session);
-        if (confirmed && mounted) await _deleteSession(session);
-        return false;
-      },
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
-      ),
-      child: RepaintBoundary(
-        child: InkWell(
-          onTap: () => widget.onSessionSelected(session.id),
-          borderRadius: BorderRadius.circular(100),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(
-                color: isActive
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.primary.withValues(alpha: 0.12),
-              ),
+    return RepaintBoundary(
+      child: InkWell(
+        onTap: () => widget.onSessionSelected(session.id),
+        onLongPress: () async {
+          if (_isMutatingSession) return;
+          final confirmed = await _confirmDeleteSession(session);
+          if (confirmed && mounted) await _deleteSession(session);
+        },
+        borderRadius: BorderRadius.circular(32),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: isActive
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.primary.withValues(alpha: 0.12),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTheme.headingSmall.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontSize: 14,
-                          fontWeight: isActive
-                              ? FontWeight.bold
-                              : FontWeight.w600,
-                        ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.headingSmall.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 14,
+                        fontWeight: isActive
+                            ? FontWeight.bold
+                            : FontWeight.w600,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatDate(session.updatedAt),
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDate(session.updatedAt),
+                      style: AppTheme.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
