@@ -103,14 +103,25 @@ class _LoansScreenState extends State<LoansScreen> {
     final onCard = AppTheme.readableOn(cardColor);
     final isDark = theme.brightness == Brightness.dark;
     final openLoans = _loans.where((loan) => loan.remainingAmount > 0).length;
-    final totalPrincipal = _loans.fold(
+    final borrowedLoans = _loans
+        .where((loan) => loan.direction == LoanDirection.borrowed)
+        .toList();
+    final lentLoans = _loans
+        .where((loan) => loan.direction == LoanDirection.lent)
+        .toList();
+    final borrowedPrincipal = borrowedLoans.fold(
       0.0,
       (sum, loan) => sum + loan.principal,
     );
-    final totalPaid = _loans.fold(0.0, (sum, loan) => sum + loan.paidAmount);
-    final overallProgress = totalPrincipal == 0
-        ? 0.0
-        : (totalPaid / totalPrincipal).clamp(0.0, 1.0);
+    final borrowedPaid = borrowedLoans.fold(
+      0.0,
+      (sum, loan) => sum + loan.paidAmount,
+    );
+    final lentPrincipal = lentLoans.fold(
+      0.0,
+      (sum, loan) => sum + loan.principal,
+    );
+    final lentPaid = lentLoans.fold(0.0, (sum, loan) => sum + loan.paidAmount);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
@@ -140,82 +151,159 @@ class _LoansScreenState extends State<LoansScreen> {
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TO PAY BACK',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: onCard.withValues(alpha: 0.65),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
-                      style: AppTheme.headingLarge.copyWith(
-                        color: Colors.red,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                child: _buildSummaryColumn(
+                  theme,
+                  label: 'I BORROWED',
+                  primaryAmount: borrowedPrincipal,
+                  primaryColor: Colors.red,
+                  rows: [
+                    _LoanSummaryRow('I paid', borrowedPaid),
+                    
                   ],
                 ),
               ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TO RECEIVE',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: onCard.withValues(alpha: 0.65),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${FinanceEntry.formatAmount(lentRemaining)} Rs',
-                      style: AppTheme.headingLarge.copyWith(
-                        color: Colors.green,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                child: _buildSummaryColumn(
+                  theme,
+                  label: 'I LENT',
+                  primaryAmount: lentPrincipal,
+                  primaryColor: Colors.green,
+                  rows: [
+                    _LoanSummaryRow('I got back', lentPaid),
+                   
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '$openLoans',
-                    style: AppTheme.headingLarge.copyWith(
-                      color: onCard,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    openLoans == 1 ? 'OPEN LOAN' : 'OPEN LOANS',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: onCard.withValues(alpha: 0.6),
-                      fontSize: 10,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryFooterItem(
+                  theme,
+                  value: '$openLoans',
+                  label: openLoans == 1 ? 'Open loan' : 'Open loans',
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 28,
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                color: onCard.withValues(alpha: 0.16),
+              ),
+              Expanded(
+                child: _buildSummaryFooterItem(
+                  theme,
+                  value: '${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
+                  label: 'To pay back',
+                  valueColor: Colors.red,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 28,
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                color: onCard.withValues(alpha: 0.16),
+              ),
+              Expanded(
+                child: _buildSummaryFooterItem(
+                  theme,
+                  value: '${FinanceEntry.formatAmount(lentRemaining)} Rs',
+                  label: 'To receive',
+                  valueColor: Colors.green,
+                ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSummaryColumn(
+    ThemeData theme, {
+    required String label,
+    required double primaryAmount,
+    required Color primaryColor,
+    required List<_LoanSummaryRow> rows,
+  }) {
+    final onCard = AppTheme.readableOn(theme.colorScheme.primary);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: AppTheme.bodySmall.copyWith(
+            color: onCard.withValues(alpha: 0.65),
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.6,
+          ),
+        ),
+         const SizedBox(height: 6),
+        Text(
+          '${FinanceEntry.formatAmount(primaryAmount)} Rs',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.headingLarge.copyWith(
+            color: primaryColor,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text(
+              '${row.label}: ${FinanceEntry.formatAmount(row.amount)} Rs',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodySmall.copyWith(
+                color: onCard.withValues(alpha: 0.76),
+                fontSize: row.isEmphasis ? 12.5 : 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryFooterItem(
+    ThemeData theme, {
+    required String value,
+    required String label,
+    Color? valueColor,
+  }) {
+    final onCard = AppTheme.readableOn(theme.colorScheme.primary);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.headingSmall.copyWith(
+            color: valueColor ?? onCard,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.bodySmall.copyWith(
+            color: onCard.withValues(alpha: 0.68),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 
@@ -389,7 +477,9 @@ class _LoansScreenState extends State<LoansScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Paid ${loan.displayPaid} of ${loan.displayPrincipal}',
+                  isBorrowed
+                      ? 'I paid ${loan.displayPaid} of ${loan.displayPrincipal}'
+                      : '${loan.person} paid ${loan.displayPaid} of ${loan.displayPrincipal}',
                   style: AppTheme.bodySmall.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontSize: 11.5,
@@ -461,7 +551,7 @@ class _LoansScreenState extends State<LoansScreen> {
           isFirst: false,
           isLast: i == ascending.length - 1,
           title:
-              '${isBorrowed ? 'Paid back' : 'Received'} '
+              '${isBorrowed ? 'I paid' : '${loan.person} paid'} '
               '${FinanceEntry.formatAmount(payment.amount)} Rs'
               '${payment.note.isEmpty ? '' : ' · ${payment.note}'}',
           caption:
@@ -677,4 +767,12 @@ class _LoansScreenState extends State<LoansScreen> {
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]}, ${date.year}';
   }
+}
+
+class _LoanSummaryRow {
+  const _LoanSummaryRow(this.label, this.amount, {this.isEmphasis = false});
+
+  final String label;
+  final double amount;
+  final bool isEmphasis;
 }
