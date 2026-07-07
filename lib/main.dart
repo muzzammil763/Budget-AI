@@ -4,6 +4,8 @@ import 'package:budget_ai/app/theme/app_theme.dart';
 import 'package:budget_ai/core/utils/vibration_manager.dart';
 import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
 import 'package:budget_ai/features/chat/presentation/screens/unified_chat_screen.dart';
+import 'package:budget_ai/features/onboarding/data/onboarding_service.dart';
+import 'package:budget_ai/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:budget_ai/features/splash/presentation/screens/splash_screen.dart';
 import 'package:budget_ai/features/settings/data/android_settings_helper.dart';
 import 'package:budget_ai/app/navigation/app_route_observer.dart';
@@ -42,7 +44,10 @@ void main() {
       // without blocking startup.
       unawaited(FinanceService.instance.applySavingsRollover());
 
-      runApp(const MyApp());
+      final onboardingCompleted = await OnboardingService.instance
+          .isCompleted();
+
+      runApp(MyApp(showOnboarding: !onboardingCompleted));
     },
     (error, stack) {
       OpenGateLogService.logError(error, stack, area: 'ZoneError');
@@ -60,7 +65,9 @@ class _ShutdownLogObserver extends WidgetsBindingObserver {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.showOnboarding = false});
+
+  final bool showOnboarding;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +78,9 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       navigatorObservers: [appRouteObserver],
       home: SplashScreen(
-        child: UnifiedChatScreen(config: ChatModelConfig.deepseek),
+        child: showOnboarding
+            ? const OnboardingScreen()
+            : UnifiedChatScreen(config: ChatModelConfig.deepseek),
       ),
     );
   }

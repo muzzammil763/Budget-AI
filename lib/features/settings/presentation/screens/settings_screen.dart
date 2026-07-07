@@ -10,6 +10,7 @@ import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finance_insights_screen.dart';
 import 'package:budget_ai/features/finance/presentation/screens/finances_screen.dart';
 import 'package:budget_ai/features/finance/presentation/screens/loans_screen.dart';
+import 'package:budget_ai/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:budget_ai/features/settings/data/app_backup_service.dart';
 import 'package:budget_ai/features/settings/presentation/screens/permissions_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -108,6 +109,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Backup & Restore',
             subtitle: 'Backup & Restore finances data',
             onTap: _showBackupRestoreSheet,
+          ),
+          _buildNavTile(
+            theme,
+            icon: CupertinoIcons.sparkles,
+            title: 'Onboarding',
+            subtitle: 'Replay the welcome tour',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const OnboardingScreen(isReplay: true),
+              ),
+            ),
           ),
         ],
       ),
