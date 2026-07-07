@@ -20,7 +20,6 @@ import 'package:budget_ai/features/chat/data/repositories/chat_session_repositor
 import 'package:budget_ai/features/skills/data/agent_skill_service.dart';
 import 'package:budget_ai/core/network/network_reachability_service.dart';
 import 'package:budget_ai/core/platform/android_background_agent_service.dart';
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 
 import 'package:budget_ai/features/chat/domain/chat_mode.dart';
 import 'package:budget_ai/features/chat/presentation/screens/chat_history_screen.dart';
@@ -138,18 +137,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _initialize() async {
-    // Batch synchronous prefs reads into one setState instead of two separate
-    // rebuilds — each setState on this large screen is expensive.
-    final savedModel = SharedPrefsService.instance.getString(
-      '${widget.config.modelName}_selected_model',
-    );
-    // Also check the global selected model from settings
-    final globalModel = SharedPrefsService.getSelectedDeepSeekModel();
-    final saved = globalModel ?? savedModel;
-    if (!mounted) return;
+    // Always start with flash on restart. Pro can be selected in-session.
     setState(() {
-      _selectedModel =
-          saved ?? AIModels.getDefaultModel(widget.config.modelName);
+      _selectedModel = 'deepseek-v4-flash';
     });
     await _refreshProviderState();
   }
@@ -190,31 +180,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _loadSelectedModel() async {
-    final prefs = SharedPrefsService.instance;
-    final savedModel = prefs.getString(
-      '${widget.config.modelName}_selected_model',
-    );
-    final globalModel = widget.config.modelName == 'deepseek'
-        ? SharedPrefsService.getSelectedDeepSeekModel()
-        : null;
+    // Always default to flash on restart. Pro selected in-session is temporary.
     setState(() {
-      _selectedModel =
-          globalModel ??
-          savedModel ??
-          AIModels.getDefaultModel(widget.config.modelName);
+      _selectedModel = 'deepseek-v4-flash';
     });
   }
 
   Future<void> _changeModel(String newModel) async {
-    final prefs = SharedPrefsService.instance;
-    await prefs.setString(
-      '${widget.config.modelName}_selected_model',
-      newModel,
-    );
-    if (widget.config.modelName == 'deepseek') {
-      await SharedPrefsService.setSelectedDeepSeekModel(newModel);
-    }
-
     final modelInfo = AIModels.getModelById(widget.config.modelName, newModel);
 
     setState(() {

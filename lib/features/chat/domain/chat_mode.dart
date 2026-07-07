@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 
 enum ChatMode { defaultMode, fastChat }
 
@@ -30,7 +29,7 @@ class ChatModePreset {
 }
 
 class ChatModes {
-  const ChatModes._();
+  ChatModes._();
 
   static const presets = <ChatModePreset>[
     ChatModePreset(
@@ -53,21 +52,20 @@ class ChatModes {
     ),
   ];
 
-  static ChatModePreset get defaultPreset => presets.first;
+  static final defaultPreset = presets.first;
+
+  // In-app current mode — resets to default on restart.
+  static ChatModePreset _current = defaultPreset;
 
   static ChatModePreset forId(String id) {
     return presets.firstWhere((p) => p.id == id, orElse: () => presets.first);
   }
 
-  static ChatModePreset current() {
-    final id = SharedPrefsService.getChatMode();
-    return forId(id ?? 'default');
-  }
+  static ChatModePreset current() => _current;
 
-  /// Apply [preset]: persist the mode and update individual tool enabled states.
-  /// All SharedPrefs writes run in parallel for instant UI response.
+  /// Apply [preset] in memory only — resets to default on next startup.
   static Future<void> applyMode(ChatModePreset preset) async {
-    await SharedPrefsService.setChatMode(preset.id);
+    _current = preset;
   }
 
   // ── Natural-language detection ─────────────────────────────────────────────

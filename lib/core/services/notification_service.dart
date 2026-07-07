@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:budget_ai/core/models/notification_payload.dart';
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'
     hide PendingNotificationRequest;
@@ -142,42 +141,34 @@ class NotificationService {
     return true;
   }
 
-  static const _responseNotificationsKey = 'response_notifications_enabled';
-  static const _backgroundOnlyKey = 'notifications_background_only';
-  static const _dndStartKey = 'dnd_start_hour';
-  static const _dndEndKey = 'dnd_end_hour';
+  // In-memory defaults — resets on every app restart.
+  bool _responseNotificationsEnabled = true;
+  bool _backgroundOnlyEnabled = true;
+  int _dndStartHour = 23;
+  int _dndEndHour = 7;
 
-  bool get responseNotificationsEnabled {
-    return SharedPrefsService.instance.getBool(_responseNotificationsKey) ??
-        true;
-  }
+  bool get responseNotificationsEnabled => _responseNotificationsEnabled;
 
   Future<void> setResponseNotificationsEnabled(bool value) async {
-    await SharedPrefsService.instance.setBool(_responseNotificationsKey, value);
+    _responseNotificationsEnabled = value;
   }
 
-  bool get backgroundOnlyEnabled {
-    return SharedPrefsService.instance.getBool(_backgroundOnlyKey) ?? true;
-  }
+  bool get backgroundOnlyEnabled => _backgroundOnlyEnabled;
 
   Future<void> setBackgroundOnlyEnabled(bool value) async {
-    await SharedPrefsService.instance.setBool(_backgroundOnlyKey, value);
+    _backgroundOnlyEnabled = value;
   }
 
-  int get dndStartHour {
-    return SharedPrefsService.instance.getInt(_dndStartKey) ?? 23;
-  }
+  int get dndStartHour => _dndStartHour;
 
   Future<void> setDndStartHour(int value) async {
-    await SharedPrefsService.instance.setInt(_dndStartKey, value);
+    _dndStartHour = value;
   }
 
-  int get dndEndHour {
-    return SharedPrefsService.instance.getInt(_dndEndKey) ?? 7;
-  }
+  int get dndEndHour => _dndEndHour;
 
   Future<void> setDndEndHour(int value) async {
-    await SharedPrefsService.instance.setInt(_dndEndKey, value);
+    _dndEndHour = value;
   }
 
   bool get isDndActive {

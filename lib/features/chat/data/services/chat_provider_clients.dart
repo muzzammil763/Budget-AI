@@ -94,11 +94,12 @@ abstract class BaseChatProvider extends ChatProvider {
 
   @override
   Future<void> initialize() async {
-    final prefs = SharedPrefsService.instance;
-    _apiKeys = await ApiKeyStorageService.getApiKeys(config.modelName);
-    _apiKey = _apiKeys.isEmpty ? null : _apiKeys.first;
-    _selectedModel =
-        prefs.getString('${config.modelName}_selected_model') ?? _selectedModel;
+    _apiKey = AppConstants.deepSeekApiKey.isNotEmpty
+        ? AppConstants.deepSeekApiKey
+        : null;
+    _apiKeys = _apiKey != null ? [_apiKey!] : [];
+    // Always default to flash on startup. Pro can be selected in-session.
+    _selectedModel = 'deepseek-v4-flash';
     _dio.options.headers = {'Accept': 'application/json'};
   }
 

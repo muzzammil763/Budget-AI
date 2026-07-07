@@ -9,7 +9,6 @@ import 'package:budget_ai/features/settings/data/android_settings_helper.dart';
 import 'package:budget_ai/app/navigation/app_route_observer.dart';
 import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
 import 'package:budget_ai/core/logging/open_gate_log_service.dart';
-import 'package:budget_ai/core/storage/shared_prefs_service.dart';
 import 'package:budget_ai/features/finance/data/finance_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +33,6 @@ void main() {
         return false;
       };
 
-      await SharedPrefsService.init();
       await ChatSessionRepository.instance.init();
       await VibrationManager.instance.waitForInitialization();
 
