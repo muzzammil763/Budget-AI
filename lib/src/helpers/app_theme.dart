@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  static const String defaultFontFamily = 'Google Sans';
   static const Color primaryColor = Colors.black;
   static const Color lightSurface = Colors.white;
   static const Color darkSurface = Colors.black;
@@ -15,7 +16,7 @@ class AppTheme {
   }
 
   static AppBarTheme appBarTheme({
-    String fontFamily = 'Inter',
+    String fontFamily = defaultFontFamily,
     required Color primaryColor,
     required Color surfaceColor,
   }) {
@@ -73,7 +74,7 @@ class AppTheme {
     color: Color(0xFF757575),
   );
 
-  static ThemeData light({String fontFamily = 'Inter'}) {
+  static ThemeData light({String fontFamily = defaultFontFamily}) {
     return _build(
       fontFamily: fontFamily,
       brightness: Brightness.light,
@@ -82,7 +83,7 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark({String fontFamily = 'Inter'}) {
+  static ThemeData dark({String fontFamily = defaultFontFamily}) {
     return _build(
       fontFamily: fontFamily,
       brightness: Brightness.dark,
@@ -225,9 +226,5 @@ class AppTheme {
         bodySmall: bodySmall.copyWith(color: onSurfaceVariant),
       ),
     );
-  }
-
-  static ThemeData custom({String fontFamily = 'Google Sans'}) {
-    return light(fontFamily: fontFamily);
   }
 }

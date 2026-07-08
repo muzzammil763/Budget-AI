@@ -365,18 +365,12 @@ class ChatHistoryDatabase {
     _database = next;
     return next;
   }
-
-  Future<void> init() async {
-    await database;
-  }
 }
 
 class ChatSessionRepository {
   ChatSessionRepository._();
 
   static final ChatSessionRepository instance = ChatSessionRepository._();
-
-  Future<void> init() => ChatHistoryDatabase.instance.init();
 
   Future<ChatSessionRecord> createSession({
     required String id,

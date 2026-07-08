@@ -9,12 +9,9 @@ class VibrationManager with WidgetsBindingObserver {
   VibrationManager._internal() {
     WidgetsBinding.instance.addObserver(this);
     _updateForegroundState(WidgetsBinding.instance.lifecycleState);
-    _isInitialized = true;
   }
 
   bool _isAppInForeground = true;
-
-  bool _isInitialized = false;
 
   bool get isAppInForeground => _isAppInForeground;
 
@@ -59,11 +56,5 @@ class VibrationManager with WidgetsBindingObserver {
   /// an optional chat-screen visibility flag.
   bool canTrigger({required bool isChatScreenVisible}) {
     return shouldVibrate && isChatScreenVisible;
-  }
-
-  Future<void> waitForInitialization() async {
-    while (!_isInitialized) {
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
   }
 }

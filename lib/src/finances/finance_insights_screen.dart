@@ -21,7 +21,6 @@ class FinanceInsightsScreen extends StatefulWidget {
 }
 
 class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
-  /// null = overall scope (preselected); otherwise the selected month.
   DateTime? _scopeMonth;
   List<DateTime> _months = const [];
   int _entriesRevision = 0;
