@@ -29,7 +29,6 @@ import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
 
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
-import 'package:budget_ai/src/chat/timeline_status_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:budget_ai/src/chat/streaming_text_reveal.dart';
@@ -195,14 +194,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   ChatSessionRepository get _chatSessions => ChatSessionRepository.instance;
 
-  AIModel? get _currentModelInfo =>
-      AIModels.getModelById(widget.config.modelName, _selectedModel);
-
-  int? get _currentContextLimit => _currentModelInfo?.contextLength;
-
-  bool get _isContextLimitBlocked =>
-      _activeSession?.flags.isContextLimitBlocked ?? false;
-
   void _rebuildMessagesFromTimeline() {
     _messages.clear();
     var msgIdx = 0;
@@ -227,10 +218,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         entryId: entryId,
       ),
     );
-  }
-
-  void _appendTimelineStatus(Map<String, dynamic> payload, {int? entryId}) {
-    _timelineItems.add(_TimelineStatusItem(payload: payload, entryId: entryId));
   }
 
   void _replaceTimelineMessageAt(int timelineIndex, ChatMessage message) {
@@ -270,11 +257,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void _replaceTimelineEntryIdAt(int timelineIndex, int entryId) {
     if (timelineIndex < 0 || timelineIndex >= _timelineItems.length) return;
     final item = _timelineItems[timelineIndex];
-    switch (item) {
-      case _TimelineMessageItem():
-        _timelineItems[timelineIndex] = item.copyWith(entryId: entryId);
-      case _TimelineStatusItem():
-        _timelineItems[timelineIndex] = item.copyWith(entryId: entryId);
+    if (item is _TimelineMessageItem) {
+      _timelineItems[timelineIndex] = item.copyWith(entryId: entryId);
     }
   }
 
@@ -340,8 +324,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Future<void> _syncProviderStateToSession({
     ChatSessionLifecycleState? lifecycleState,
-    ChatSessionFlags? flags,
-    int? contextLimit,
   }) async {
     final session = _activeSession;
     if (session == null) return;
@@ -351,21 +333,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       lastProviderKey: widget.config.modelName,
       lastModelId: _selectedModel,
       lifecycleState: lifecycleState ?? session.lifecycleState,
-      activeContextTokens: 0,
-      lastKnownContextLimit: contextLimit ?? _currentContextLimit,
-      flags: flags ?? session.flags,
     );
 
     await _chatSessions.replaceActiveContextItems(
       sessionId: nextSession.id,
       generation: nextSession.activeGeneration,
       items: exportedState,
-      activeContextTokens: 0,
       providerKey: widget.config.modelName,
       modelId: _selectedModel,
       lifecycleState: nextSession.lifecycleState,
-      flags: nextSession.flags,
-      lastKnownContextLimit: nextSession.lastKnownContextLimit,
     );
 
     if (!mounted) return;
@@ -410,42 +386,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  Future<int?> _appendStatusCard({
-    required String kind,
-    Map<String, dynamic> data = const {},
-    ChatSessionLifecycleState? lifecycleState,
-    ChatSessionFlags? flags,
-  }) async {
-    final session = _activeSession;
-    if (session == null) return null;
-    final payload = {
-      'kind': kind,
-      'data': data,
-      'created_at': DateTime.now().toIso8601String(),
-    };
-    final entryId = await _chatSessions.appendStatusCard(
-      sessionId: session.id,
-      payload: payload,
-    );
-
-    final nextSession = session.copyWith(
-      updatedAt: DateTime.now(),
-      lifecycleState: lifecycleState ?? session.lifecycleState,
-      flags: flags ?? session.flags,
-      lastProviderKey: widget.config.modelName,
-      lastModelId: _selectedModel,
-      lastKnownContextLimit: _currentContextLimit,
-    );
-    await _chatSessions.saveSession(nextSession);
-
-    if (!mounted) return entryId;
-    setState(() {
-      _activeSession = nextSession;
-      _appendTimelineStatus(payload, entryId: entryId);
-    });
-    return entryId;
-  }
-
   Future<void> _loadPersistedSession(
     String sessionId, {
     Future<LoadedChatSession?>? preloadFuture,
@@ -456,12 +396,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final timelineItems = <_TimelineViewItem>[];
     final messages = <ChatMessage>[];
     for (final entry in loaded.timelineEntries) {
-      if (entry.type == ChatTimelineEntryType.statusCard) {
-        timelineItems.add(
-          _TimelineStatusItem(payload: entry.payload, entryId: entry.id),
-        );
-        continue;
-      }
+      if (entry.type == ChatTimelineEntryType.statusCard) continue;
       final message = entry.message;
       if (message == null) continue;
       final messageIndex = messages.length;
@@ -575,96 +510,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  bool get _wouldExceedContextLimit {
-    final limit = _currentContextLimit;
-    if (limit == null || limit <= 0) return false;
-    final prompt = _currentContextPromptTokens;
-    return prompt > 0 && prompt >= limit;
-  }
-
-  Future<void> _updateSessionFlags(
-    ChatSessionFlags flags, {
-    ChatSessionLifecycleState? lifecycleState,
-  }) async {
-    final session = _activeSession;
-    if (session == null) return;
-    final nextSession = session.copyWith(
-      updatedAt: DateTime.now(),
-      flags: flags,
-      lifecycleState: lifecycleState ?? session.lifecycleState,
-      lastProviderKey: widget.config.modelName,
-      lastModelId: _selectedModel,
-      lastKnownContextLimit: _currentContextLimit,
-    );
-    await _chatSessions.saveSession(nextSession);
-    if (!mounted) return;
-    setState(() {
-      _activeSession = nextSession;
-    });
-  }
-
-  Future<void> _clearContextLimitBlock() async {
-    final session = _activeSession;
-    if (session == null || !session.flags.isContextLimitBlocked) {
-      return;
-    }
-    await _updateSessionFlags(
-      session.flags.copyWith(
-        clearActiveContextLimitEntryId: true,
-        isContextLimitBlocked: false,
-      ),
-      lifecycleState: ChatSessionLifecycleState.idle,
-    );
-  }
-
-  Future<void> _ensureContextLimitCard({bool forceNewCard = false}) async {
-    final session = _activeSession;
-    if (session == null) return;
-    final flags = session.flags;
-    if (!forceNewCard &&
-        flags.activeContextLimitEntryId != null &&
-        flags.isContextLimitBlocked) {
-      return;
-    }
-    final entryId = await _appendStatusCard(
-      kind: kChatStatusContextLimitReached,
-      data: {
-        'used_tokens': _estimatedConversationTokens,
-        'context_limit': _currentContextLimit,
-        'model_id': _selectedModel,
-        'model_name': _currentModelInfo?.name ?? _selectedModel,
-      },
-      lifecycleState: ChatSessionLifecycleState.blockedContextLimit,
-      flags: flags,
-    );
-    if (entryId == null) return;
-    await _updateSessionFlags(
-      flags.copyWith(
-        activeContextLimitEntryId: entryId,
-        isContextLimitBlocked: true,
-      ),
-      lifecycleState: ChatSessionLifecycleState.blockedContextLimit,
-    );
-  }
-
-  Future<void> _handlePostTurnSessionState({
-    bool afterSuccessfulMessage = false,
-  }) async {
-    final session = _activeSession;
-    if (session == null) return;
-
-    if (_wouldExceedContextLimit) {
-      await _ensureContextLimitCard(forceNewCard: afterSuccessfulMessage);
-      return;
-    }
-
-    if ((_activeSession?.flags.isContextLimitBlocked ?? false)) {
-      await _clearContextLimitBlock();
-    }
-  }
-
-  Future<void> _handleContextLimitChangeModel() async {
-    await _navigateToModelSelection(fromContextLimitCard: true);
+  Future<void> _handlePostTurnSessionState() async {
+    await _syncProviderStateToSession();
   }
 
   void _handleComposerTextChanged() {}
@@ -897,14 +744,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     if (widget.config.requiresDownload && !_isModelReady) {
       _showErrorToast('Please Download The Model First');
-      return;
-    }
-
-    if (_isContextLimitBlocked || _wouldExceedContextLimit) {
-      if (_activeSession != null) {
-        await _ensureContextLimitCard();
-      }
-      _showErrorToast('Context limit reached for the selected model');
       return;
     }
 
@@ -1765,7 +1604,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       return;
     }
 
-    await _handlePostTurnSessionState(afterSuccessfulMessage: true);
+    await _handlePostTurnSessionState();
     _unfocusComposer();
     _scrollToBottom();
   }
@@ -1866,10 +1705,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _attachedVideos.isNotEmpty ||
         _attachedPdfs.isNotEmpty ||
         _pendingWhatsAppFilePath != null;
-    return !_isStreaming &&
-        !_isContextLimitBlocked &&
-        !_wouldExceedContextLimit &&
-        (hasText || hasAttachments);
+    return !_isStreaming && (hasText || hasAttachments);
   }
 
   bool get _isResponseInProgress => _isLoading || _isStreaming;
@@ -3102,7 +2938,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Key _timelineItemKey(_TimelineViewItem item, int index) {
     return switch (item) {
       _TimelineMessageItem() => ValueKey('message_${item.messageIndex}'),
-      _TimelineStatusItem() => ValueKey('status_${item.entryId ?? index}'),
     };
   }
 
@@ -3125,8 +2960,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           item.message,
           messageIndex: item.messageIndex,
         );
-      case _TimelineStatusItem():
-        return _buildStatusCard(item);
     }
   }
 
@@ -3271,7 +3104,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                         scrollController: _messageInputScrollController,
                         cursorColor: theme.colorScheme.primary,
                         controller: _messageController,
-                        enabled: !_isContextLimitBlocked,
+                        enabled: true,
                         autofocus: false,
                         decoration: InputDecoration(
                           hoverColor: Colors.transparent,
@@ -3351,7 +3184,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
     }
 
-    final canSend = _canSubmitCurrentMessage && !_isContextLimitBlocked;
+    final canSend = _canSubmitCurrentMessage;
     final activeColor = theme.colorScheme.primary;
     final disabledColor = theme.colorScheme.primary.withValues(alpha: 0.16);
     final iconColor = canSend
@@ -3378,9 +3211,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Future<void> _navigateToModelSelection({
-    bool fromContextLimitCard = false,
-  }) async {
+  Future<void> _navigateToModelSelection() async {
     _unfocusComposer();
     final result = await ModelPickerSheet.show(
       context,
@@ -3390,18 +3221,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     if (result != null && result != _selectedModel) {
       await _changeModel(result);
-      if (fromContextLimitCard && _activeSession != null) {
-        await _appendStatusCard(
-          kind: kChatStatusModelChanged,
-          data: {
-            'model_id': result,
-            'model_name': _currentModelInfo?.name ?? result,
-          },
-          lifecycleState: ChatSessionLifecycleState.idle,
-          flags: _activeSession!.flags,
-        );
-        await _handlePostTurnSessionState();
-      }
     }
   }
 
@@ -4282,23 +4101,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return value.toString();
   }
 
-  Widget _buildStatusCard(_TimelineStatusItem item) {
-    final data = item.data;
-    final kind = item.kind;
-    final isActiveContextLimit =
-        kind == kChatStatusContextLimitReached &&
-        item.entryId != null &&
-        _activeSession?.flags.activeContextLimitEntryId == item.entryId &&
-        (_activeSession?.flags.isContextLimitBlocked ?? false);
-
-    return TimelineStatusCard(
-      kind: kind,
-      data: data,
-      isActiveContextLimit: isActiveContextLimit,
-      onChangeModel: _handleContextLimitChangeModel,
-    );
-  }
-
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
   }
@@ -4435,32 +4237,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       await _handlePostTurnSessionState();
     }
   }
-
-  /// The most recent response's prompt tokens — represents the actual
-  /// context window size currently in use. Used for limit checks.
-  int get _currentContextPromptTokens {
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      final message = _messages[i];
-      if (message.isUser) continue;
-      final metadata = message.responseMetadata;
-      if (metadata == null) continue;
-
-      final rounds = metadata['usageRounds'] as List?;
-      if (rounds != null && rounds.isNotEmpty) {
-        final lastRound = rounds.last;
-        if (lastRound is Map) {
-          final promptTokens = lastRound['promptTokens'];
-          if (promptTokens is num) return promptTokens.round();
-        }
-      }
-
-      final promptTokens = metadata['promptTokens'];
-      if (promptTokens is num) return promptTokens.round();
-    }
-    return 0;
-  }
-
-  int get _estimatedConversationTokens => _currentContextPromptTokens;
 
   String? _buildPostToolCompletionFallback(List<ChatMessageBlock> blocks) {
     final latestTool = _latestCompletedTool(blocks, successfulOnly: false);

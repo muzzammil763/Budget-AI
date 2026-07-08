@@ -7,51 +7,9 @@ import 'package:budget_ai/src/helpers/app_data_directory_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
-const String kChatStatusContextLimitReached = 'context_limit_reached';
-const String kChatStatusModelChanged = 'model_changed';
-
-enum ChatSessionLifecycleState { idle, blockedContextLimit }
+enum ChatSessionLifecycleState { idle }
 
 enum ChatTimelineEntryType { userMessage, assistantMessage, statusCard }
-
-class ChatSessionFlags {
-  final int? activeContextLimitEntryId;
-  final bool isContextLimitBlocked;
-
-  const ChatSessionFlags({
-    this.activeContextLimitEntryId,
-    this.isContextLimitBlocked = false,
-  });
-
-  ChatSessionFlags copyWith({
-    int? activeContextLimitEntryId,
-    bool clearActiveContextLimitEntryId = false,
-    bool? isContextLimitBlocked,
-  }) {
-    return ChatSessionFlags(
-      activeContextLimitEntryId: clearActiveContextLimitEntryId
-          ? null
-          : (activeContextLimitEntryId ?? this.activeContextLimitEntryId),
-      isContextLimitBlocked:
-          isContextLimitBlocked ?? this.isContextLimitBlocked,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'active_context_limit_entry_id': activeContextLimitEntryId,
-    'is_context_limit_blocked': isContextLimitBlocked,
-  };
-
-  factory ChatSessionFlags.fromJson(Map<String, dynamic>? json) {
-    if (json == null) {
-      return const ChatSessionFlags();
-    }
-    return ChatSessionFlags(
-      activeContextLimitEntryId: json['active_context_limit_entry_id'] as int?,
-      isContextLimitBlocked: json['is_context_limit_blocked'] as bool? ?? false,
-    );
-  }
-}
 
 class ChatSessionRecord {
   final String id;
@@ -64,9 +22,6 @@ class ChatSessionRecord {
   final String lastModelId;
   final int activeGeneration;
   final ChatSessionLifecycleState lifecycleState;
-  final int activeContextTokens;
-  final int? lastKnownContextLimit;
-  final ChatSessionFlags flags;
 
   const ChatSessionRecord({
     required this.id,
@@ -79,9 +34,6 @@ class ChatSessionRecord {
     required this.lastModelId,
     required this.activeGeneration,
     required this.lifecycleState,
-    required this.activeContextTokens,
-    required this.lastKnownContextLimit,
-    required this.flags,
   });
 
   ChatSessionRecord copyWith({
@@ -92,9 +44,6 @@ class ChatSessionRecord {
     String? lastModelId,
     int? activeGeneration,
     ChatSessionLifecycleState? lifecycleState,
-    int? activeContextTokens,
-    int? lastKnownContextLimit,
-    ChatSessionFlags? flags,
   }) {
     return ChatSessionRecord(
       id: id,
@@ -107,10 +56,6 @@ class ChatSessionRecord {
       lastModelId: lastModelId ?? this.lastModelId,
       activeGeneration: activeGeneration ?? this.activeGeneration,
       lifecycleState: lifecycleState ?? this.lifecycleState,
-      activeContextTokens: activeContextTokens ?? this.activeContextTokens,
-      lastKnownContextLimit:
-          lastKnownContextLimit ?? this.lastKnownContextLimit,
-      flags: flags ?? this.flags,
     );
   }
 
@@ -125,9 +70,7 @@ class ChatSessionRecord {
     'last_model_id': lastModelId,
     'active_generation': activeGeneration,
     'session_state': lifecycleState.name,
-    'active_context_tokens': activeContextTokens,
-    'last_known_context_limit': lastKnownContextLimit,
-    'flags_json': jsonEncode(flags.toJson()),
+    'flags_json': '{}',
   };
 
   factory ChatSessionRecord.fromDatabaseMap(Map<String, dynamic> map) {
@@ -144,11 +87,6 @@ class ChatSessionRecord {
       lifecycleState: ChatSessionLifecycleState.values.firstWhere(
         (value) => value.name == map['session_state']?.toString(),
         orElse: () => ChatSessionLifecycleState.idle,
-      ),
-      activeContextTokens: map['active_context_tokens'] as int? ?? 0,
-      lastKnownContextLimit: map['last_known_context_limit'] as int?,
-      flags: ChatSessionFlags.fromJson(
-        _decodeJsonMap(map['flags_json']?.toString()),
       ),
     );
   }
@@ -309,8 +247,6 @@ class ChatHistoryDatabase {
             last_model_id TEXT NOT NULL,
             active_generation INTEGER NOT NULL DEFAULT 0,
             session_state TEXT NOT NULL,
-            active_context_tokens INTEGER NOT NULL DEFAULT 0,
-            last_known_context_limit INTEGER,
             flags_json TEXT NOT NULL
           )
         ''');
@@ -392,9 +328,6 @@ class ChatSessionRepository {
       lastModelId: modelId,
       activeGeneration: 0,
       lifecycleState: ChatSessionLifecycleState.idle,
-      activeContextTokens: 0,
-      lastKnownContextLimit: null,
-      flags: const ChatSessionFlags(),
     );
     await db.insert('chat_sessions', record.toDatabaseMap());
     return record;
@@ -580,20 +513,6 @@ class ChatSessionRepository {
     return entryId;
   }
 
-  Future<int> appendStatusCard({
-    required String sessionId,
-    required Map<String, dynamic> payload,
-  }) async {
-    final db = await ChatHistoryDatabase.instance.database;
-    final now = DateTime.now();
-    return db.insert('chat_timeline_entries', {
-      'session_id': sessionId,
-      'type': ChatTimelineEntryType.statusCard.name,
-      'payload_json': jsonEncode(payload),
-      'created_at': now.toIso8601String(),
-    });
-  }
-
   Future<void> deleteTimelineEntry({required int entryId}) async {
     final db = await ChatHistoryDatabase.instance.database;
     await db.delete(
@@ -620,12 +539,9 @@ class ChatSessionRepository {
     required String sessionId,
     required int generation,
     required List<Map<String, dynamic>> items,
-    required int activeContextTokens,
     required String providerKey,
     required String modelId,
     required ChatSessionLifecycleState lifecycleState,
-    required ChatSessionFlags flags,
-    required int? lastKnownContextLimit,
   }) async {
     final db = await ChatHistoryDatabase.instance.database;
     await db.transaction((txn) async {
@@ -654,9 +570,7 @@ class ChatSessionRepository {
           'last_model_id': modelId,
           'active_generation': generation,
           'session_state': lifecycleState.name,
-          'active_context_tokens': activeContextTokens,
-          'last_known_context_limit': lastKnownContextLimit,
-          'flags_json': jsonEncode(flags.toJson()),
+          'flags_json': '{}',
         },
         where: 'id = ?',
         whereArgs: [sessionId],

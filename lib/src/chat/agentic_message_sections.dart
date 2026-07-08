@@ -6,7 +6,7 @@ import 'package:gpt_markdown/custom_widgets/markdown_config.dart'
     show LinkBuilder;
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/tools/settings/tool_name_formatter.dart';
+import 'package:budget_ai/src/tools/tool_name_formatter.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/chat/markdown_table_view.dart';
 import 'package:budget_ai/src/chat/streaming_text_reveal.dart';

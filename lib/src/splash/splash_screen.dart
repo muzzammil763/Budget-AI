@@ -590,7 +590,7 @@ class _SplashPainter extends CustomPainter {
     if (tagT > 0) {
       final tagPainter = TextPainter(
         text: TextSpan(
-          text: 'MONEY · MEMORY · MOMENTUM',
+          text: 'MONEY · CLARITY · MOMENTUM',
           style: TextStyle(
             fontFamily: fontFamily,
             fontSize: shortest * 0.027,

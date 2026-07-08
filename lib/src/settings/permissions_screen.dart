@@ -215,7 +215,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                granted ? 'Agent permissions ready' : 'Agent permissions',
+                granted ? 'Agent Permissions Ready' : 'Agent Permissions',
                 style: AppTheme.headingSmall.copyWith(
                   fontSize: 16,
                   color: theme.colorScheme.onSurface,

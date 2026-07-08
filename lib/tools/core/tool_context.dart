@@ -1,1 +1,0 @@
-enum ToolDefinitionContext { standard }

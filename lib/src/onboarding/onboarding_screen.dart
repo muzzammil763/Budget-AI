@@ -7,12 +7,15 @@ import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/unified_chat_screen.dart';
-import 'package:budget_ai/src/onboarding/onboarding_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
+
+const _onboardingCompletedKey = 'onboarding_completed';
+const _onboardingCompletedAtKey = 'onboarding_completed_at';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, this.isReplay = false});
@@ -138,7 +141,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         Navigator.of(context).pop();
         return;
       }
-      await OnboardingService.instance.markCompleted();
+      final preferences = SharedPreferencesAsync();
+      await preferences.setBool(_onboardingCompletedKey, true);
+      await preferences.setString(
+        _onboardingCompletedAtKey,
+        DateTime.now().toIso8601String(),
+      );
       if (!mounted) return;
       HapticFeedback.lightImpact();
       await Navigator.of(context).pushReplacement(
@@ -395,7 +403,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       kicker: 'WELCOME TO',
       title: 'Budget AI',
       description:
-          'Money, memory and momentum — a personal finance companion powered by AI.',
+          'Money, clarity and momentum — a personal finance companion powered by AI.',
       items: const [],
       extra: const _AppShowcase(showDynamicIsland: false),
     );

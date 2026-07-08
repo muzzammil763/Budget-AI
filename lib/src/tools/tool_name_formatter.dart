@@ -1,4 +1,4 @@
-import 'package:budget_ai/tools/settings/tool_settings.dart';
+import 'package:budget_ai/src/tools/tool_settings.dart';
 
 /// Returns a human-readable display name for any tool name string.
 ///

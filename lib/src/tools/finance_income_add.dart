@@ -1,7 +1,6 @@
 import 'package:budget_ai/src/finances/finance_service.dart';
-import 'package:budget_ai/tools/core/tool_context.dart';
-import 'package:budget_ai/tools/core/tool_models.dart';
-import 'package:budget_ai/tools/modules/finance_entry_tool_helpers.dart';
+import 'package:budget_ai/src/tools/tools.dart';
+import 'package:budget_ai/src/tools/finance_entry_tool_helpers.dart';
 
 ToolDefinition buildFinanceIncomeAddTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,

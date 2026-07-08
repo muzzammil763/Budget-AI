@@ -394,7 +394,7 @@ Future<Response<ResponseBody>> _postStreamWithApiKeyFallback({
   if (apiKeys.isEmpty) {
     throw _providerException(
       providerName,
-      '$providerName API key is missing. Add it in Settings > API Keys.',
+      '$providerName API key is not configured for this build.',
     );
   }
 
@@ -524,7 +524,7 @@ Future<Response<dynamic>> _postJsonWithApiKeyFallback({
   if (apiKeys.isEmpty) {
     throw _providerException(
       providerName,
-      '$providerName API key is missing. Add it in Settings > API Keys.',
+      '$providerName API key is not configured for this build.',
     );
   }
 

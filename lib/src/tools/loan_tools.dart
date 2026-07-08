@@ -1,6 +1,5 @@
 import 'package:budget_ai/src/finances/finance_service.dart';
-import 'package:budget_ai/tools/core/tool_context.dart';
-import 'package:budget_ai/tools/core/tool_models.dart';
+import 'package:budget_ai/src/tools/tools.dart';
 
 ToolDefinition buildLoanAddTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,
