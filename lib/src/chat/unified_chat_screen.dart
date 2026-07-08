@@ -17,11 +17,9 @@ import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/vibration_manager.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
 import 'package:budget_ai/src/chat/chat_session_repository.dart';
-import 'package:budget_ai/src/skills/agent_skill_service.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/helpers/android_background_agent_service.dart';
 
-import 'package:budget_ai/src/chat/chat_mode.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
@@ -36,7 +34,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:budget_ai/src/chat/streaming_text_reveal.dart';
 import 'package:toastification/toastification.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 import 'package:uuid/uuid.dart';
 
 part 'unified_chat_models.dart';
@@ -142,20 +140,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _selectedModel = 'deepseek-v4-flash';
     });
     await _refreshProviderState();
-  }
-
-  void _loadChatMode() {}
-
-  Future<void> _applyModeAndRefresh(ChatModePreset preset) async {
-    // Optimistic update — button and toast appear instantly.
-    showAppToast(
-      context,
-      message: preset.isDefault ? 'Fast Mode: Off' : 'Fast Mode: On',
-      type: ToastificationType.success,
-    );
-    // Persist in parallel in the background.
-    await ChatModes.applyMode(preset);
-    if (mounted) _loadChatMode();
   }
 
   Future<void> _refreshChatConfiguration() async {
@@ -928,14 +912,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     final userMessageText = _messageController.text.trim();
 
-    // Detect natural-language mode-change requests ("change my mode to finance mode").
-    if (providerMessageOverride == null) {
-      final modeChange = ChatModes.detectModeChangeFromMessage(userMessageText);
-      if (modeChange != null) {
-        await _applyModeAndRefresh(modeChange);
-      }
-    }
-
     final originalAttachedImages = List<String>.from(_attachedImages);
     final originalAttachedVideos = List<String>.from(_attachedVideos);
     final originalAttachedPdfs = List<String>.from(_attachedPdfs);
@@ -981,7 +957,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _messageController.clear();
     _scrollToBottom(force: true);
 
-    await AgentSkillService.instance.activateForMessage(providerMessageText);
     final agentFlowPromptSnapshot = await _buildAgentFlowPromptSnapshot();
     final session = await _ensureSessionCreated(provisionalUserMessage);
     final storedAttachments = await _chatSessions.copyAttachmentsToSession(
@@ -3757,10 +3732,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final hasAgenticBlocks = blocks.any(
       (block) => block.type != ChatMessageBlockType.response,
     );
-    _screenshotUrlsFromMessage(message);
-    _recordingUrlsFromMessage(message);
-    _audioRecordingUrlsFromMessage(message);
-    _fileInfosFromBlocks(blocks);
     final currentModel = AIModels.getModelById(
       widget.config.modelName,
       _selectedModel,
@@ -4192,127 +4163,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  List<String> _screenshotUrlsFromMessage(ChatMessage message) {
-    final urls = <String>[];
-    final seen = <String>{};
-
-    void addFromToolCall(ToolCall? toolCall) {
-      final imageUrl = _screenshotUrlFromToolCall(toolCall);
-      if (imageUrl == null || !seen.add(imageUrl)) return;
-      urls.add(imageUrl);
-    }
-
-    for (final toolCall in message.toolCalls ?? const <ToolCall>[]) {
-      addFromToolCall(toolCall);
-    }
-
-    for (final block in message.blocks ?? const <ChatMessageBlock>[]) {
-      addFromToolCall(block.toolCall);
-    }
-
-    return urls;
-  }
-
-  String? _screenshotUrlFromToolCall(ToolCall? toolCall) {
-    if (toolCall == null ||
-        (toolCall.name != 'remote_screenshot' &&
-            toolCall.name != 'remote_camera_photo')) {
-      return null;
-    }
-    if (toolCall.status != ToolCallStatus.completed) {
-      return null;
-    }
-
-    final decoded = _decodeToolResult(toolCall.result);
-    if (decoded is! Map) return null;
-
-    final imageUrl = decoded['image_url'];
-    if (imageUrl is! String) return null;
-
-    final trimmed = imageUrl.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
-  List<String> _recordingUrlsFromMessage(ChatMessage message) {
-    final urls = <String>[];
-    final seen = <String>{};
-
-    void addFromToolCall(ToolCall? toolCall) {
-      final videoUrl = _recordingUrlFromToolCall(toolCall);
-      if (videoUrl == null || !seen.add(videoUrl)) return;
-      urls.add(videoUrl);
-    }
-
-    for (final toolCall in message.toolCalls ?? const <ToolCall>[]) {
-      addFromToolCall(toolCall);
-    }
-
-    for (final block in message.blocks ?? const <ChatMessageBlock>[]) {
-      addFromToolCall(block.toolCall);
-    }
-
-    return urls;
-  }
-
-  String? _recordingUrlFromToolCall(ToolCall? toolCall) {
-    if (toolCall == null ||
-        (toolCall.name != 'remote_screen_recording' &&
-            toolCall.name != 'remote_camera_video')) {
-      return null;
-    }
-    if (toolCall.status != ToolCallStatus.completed) {
-      return null;
-    }
-
-    final decoded = _decodeToolResult(toolCall.result);
-    if (decoded is! Map) return null;
-
-    final videoUrl = decoded['video_url'];
-    if (videoUrl is! String) return null;
-
-    final trimmed = videoUrl.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
-  List<String> _audioRecordingUrlsFromMessage(ChatMessage message) {
-    final urls = <String>[];
-    final seen = <String>{};
-
-    void addFromToolCall(ToolCall? toolCall) {
-      final audioUrl = _audioRecordingUrlFromToolCall(toolCall);
-      if (audioUrl == null || !seen.add(audioUrl)) return;
-      urls.add(audioUrl);
-    }
-
-    for (final toolCall in message.toolCalls ?? const <ToolCall>[]) {
-      addFromToolCall(toolCall);
-    }
-
-    for (final block in message.blocks ?? const <ChatMessageBlock>[]) {
-      addFromToolCall(block.toolCall);
-    }
-
-    return urls;
-  }
-
-  String? _audioRecordingUrlFromToolCall(ToolCall? toolCall) {
-    if (toolCall == null || toolCall.name != 'remote_audio_recording') {
-      return null;
-    }
-    if (toolCall.status != ToolCallStatus.completed) {
-      return null;
-    }
-
-    final decoded = _decodeToolResult(toolCall.result);
-    if (decoded is! Map) return null;
-
-    final audioUrl = decoded['audio_url'];
-    if (audioUrl is! String) return null;
-
-    final trimmed = audioUrl.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
   dynamic _decodeToolResult(String? rawResult) {
     final text = rawResult?.trim();
     if (text == null || text.isEmpty) {
@@ -4326,46 +4176,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  List<Map<String, dynamic>> _fileInfosFromBlocks(
-    List<ChatMessageBlock> blocks,
-  ) {
-    final infos = <Map<String, dynamic>>[];
-    final seen = <String>{};
-
-    for (final block in blocks) {
-      final info = _fileInfoFromToolCall(block.toolCall);
-      if (info == null) continue;
-      final url = info['file_url'] as String;
-      if (!seen.add(url)) continue;
-      infos.add(info);
-    }
-    return infos;
-  }
-
-  Map<String, dynamic>? _fileInfoFromToolCall(ToolCall? toolCall) {
-    if (toolCall == null || toolCall.name != 'send_file') return null;
-    if (toolCall.status != ToolCallStatus.completed) return null;
-
-    final decoded = _decodeToolResult(toolCall.result);
-    if (decoded is! Map) return null;
-
-    final fileUrl = decoded['file_url'];
-    if (fileUrl is! String || fileUrl.trim().isEmpty) return null;
-
-    return {
-      'file_url': fileUrl.trim(),
-      'filename': decoded['filename'] as String? ?? 'file',
-      'size_bytes': (decoded['size_bytes'] as num?)?.toInt() ?? 0,
-      'mime_type': decoded['mime_type'] as String?,
-    };
-  }
-
   Widget _buildResponseMarkdown(String text, {required bool isStreaming}) {
     return ChatResponseMarkdown(
       text: text,
       isStreaming: isStreaming,
       onLinkTap: _handleMarkdownLinkTap,
-      onTokenTap: _handleMarkdownTokenTap,
     );
   }
 
@@ -4389,139 +4204,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _handleMarkdownLinkTap(String url, String title) async {
-    await _showMarkdownLinkActions(url: url, title: title);
-  }
-
-  Future<void> _openMarkdownUrlExternal(String url) async {
-    final parsedUri = Uri.tryParse(url);
-    if (parsedUri == null || !parsedUri.hasScheme) {
+    Clipboard.setData(ClipboardData(text: url));
+    if (mounted) {
       showAppToast(
         context,
-        message: 'Invalid link',
-        type: ToastificationType.error,
-      );
-      return;
-    }
-
-    final launched = await launchUrl(
-      parsedUri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && mounted) {
-      showAppToast(
-        context,
-        message: 'Could not open link',
-        type: ToastificationType.error,
+        message: 'Link copied',
+        type: ToastificationType.success,
       );
     }
-  }
-
-  Future<void> _handleMarkdownTokenTap(String token) async {
-    final normalized = _cleanMarkdownActionToken(token);
-    if (normalized.isEmpty) return;
-    await _showMarkdownTokenActions(normalized);
-  }
-
-  Future<void> _showMarkdownLinkActions({
-    required String url,
-    required String title,
-  }) async {
-    final theme = Theme.of(context);
-    final label = title.trim().isEmpty ? url : title.trim();
-    await ResponsiveInfoSheet.show<void>(
-      context,
-      title: label,
-      headerIcon: Icon(
-        CupertinoIcons.link,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _MarkdownActionTile(
-          icon: CupertinoIcons.arrow_up_right_square,
-          title: 'Open Link',
-          subtitle: url,
-          onTap: () {
-            Navigator.pop(context);
-            unawaited(_openMarkdownUrlExternal(url));
-          },
-        ),
-        _MarkdownActionTile(
-          icon: CupertinoIcons.doc_on_doc,
-          title: 'Copy Link',
-          subtitle: url,
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: url));
-            Navigator.pop(context);
-            showAppToast(
-              context,
-              message: 'Link copied',
-              type: ToastificationType.success,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Future<void> _showMarkdownTokenActions(String token) async {
-    final theme = Theme.of(context);
-    await ResponsiveInfoSheet.show<void>(
-      context,
-      title: token,
-      headerIcon: Icon(
-        CupertinoIcons.scope,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _MarkdownActionTile(
-          icon: CupertinoIcons.doc_on_doc,
-          title: 'Copy',
-          subtitle: token,
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: token));
-            Navigator.pop(context);
-            showAppToast(
-              context,
-              message: 'Copied',
-              type: ToastificationType.success,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  String _cleanMarkdownActionToken(String token) {
-    var value = token.trim();
-    const leadingTrim = {'`', '"', "'", ' ', '\n', '\r', '\t'};
-    const trailingTrim = {
-      '`',
-      '"',
-      "'",
-      ' ',
-      '\n',
-      '\r',
-      '\t',
-      '.',
-      ',',
-      ';',
-      ':',
-    };
-    while (value.isNotEmpty && leadingTrim.contains(value[0])) {
-      value = value.substring(1);
-    }
-    while (value.isNotEmpty && trailingTrim.contains(value[value.length - 1])) {
-      value = value.substring(0, value.length - 1);
-    }
-    return value.trim();
   }
 
   String? _cacheUsageLabel(Map<String, dynamic>? metadata) {
