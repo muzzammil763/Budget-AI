@@ -1,6 +1,7 @@
+import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/tools/core/tool_context.dart';
 import 'package:budget_ai/tools/core/tool_models.dart';
-import 'package:budget_ai/features/finance/data/finance_service.dart';
+import 'package:budget_ai/tools/modules/finance_entry_tool_helpers.dart';
 
 ToolDefinition buildFinanceAddTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,
@@ -48,59 +49,6 @@ ToolDefinition buildFinanceAddTool({
 
 mixin FinanceAddToolHandler {
   Future<dynamic> handleFinanceAddRequest(Map<String, dynamic> args) async {
-    final description = (args['description'] as String? ?? '').trim();
-    final amount = (args['amount'] as num?)?.toDouble() ?? 0.0;
-    final category = (args['category'] as String? ?? '').trim();
-    final dateStr = (args['date'] as String? ?? '').trim();
-    final timeStr = (args['time'] as String? ?? '').trim();
-
-    if (description.isEmpty) return {'error': 'description is required'};
-    if (amount <= 0) return {'error': 'amount must be greater than 0'};
-    if (category.isEmpty) return {'error': 'category is required'};
-
-    try {
-      DateTime date;
-      bool hasTime = true; // Always include time
-
-      if (dateStr.isNotEmpty) {
-        date = DateTime.tryParse(dateStr) ?? DateTime.now();
-      } else {
-        date = DateTime.now();
-      }
-
-      if (timeStr.isNotEmpty) {
-        final parts = timeStr.split(':');
-        if (parts.length == 2) {
-          final hour = int.tryParse(parts[0]) ?? 0;
-          final minute = int.tryParse(parts[1]) ?? 0;
-          date = DateTime(date.year, date.month, date.day, hour, minute);
-        }
-      } else {
-        // Use current time if not specified
-        final now = DateTime.now();
-        date = DateTime(date.year, date.month, date.day, now.hour, now.minute);
-      }
-
-      final entry = FinanceEntry.create(
-        date: date,
-        hasTime: hasTime,
-        description: description,
-        amount: amount,
-        category: category,
-      );
-      await FinanceService.instance.add(entry);
-
-      return {
-        'ok': true,
-        'id': entry.id,
-        'description': entry.description,
-        'amount': entry.amount,
-        'display_amount': entry.displayAmount,
-        'category': entry.category,
-        'date': entry.displayDate,
-      };
-    } catch (e) {
-      return {'error': e.toString()};
-    }
+    return addFinanceEntryFromToolArgs(args, type: FinanceEntryType.expense);
   }
 }

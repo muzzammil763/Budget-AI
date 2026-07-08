@@ -1,17 +1,17 @@
 import 'dart:async';
 
-import 'package:budget_ai/app/theme/app_theme.dart';
-import 'package:budget_ai/core/utils/vibration_manager.dart';
-import 'package:budget_ai/features/chat/domain/chat_model_config.dart';
-import 'package:budget_ai/features/chat/presentation/screens/unified_chat_screen.dart';
-import 'package:budget_ai/features/onboarding/data/onboarding_service.dart';
-import 'package:budget_ai/features/onboarding/presentation/screens/onboarding_screen.dart';
-import 'package:budget_ai/features/splash/presentation/screens/splash_screen.dart';
-import 'package:budget_ai/features/settings/data/android_settings_helper.dart';
-import 'package:budget_ai/app/navigation/app_route_observer.dart';
-import 'package:budget_ai/features/chat/data/repositories/chat_session_repository.dart';
-import 'package:budget_ai/core/logging/open_gate_log_service.dart';
-import 'package:budget_ai/features/finance/data/finance_service.dart';
+import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/vibration_manager.dart';
+import 'package:budget_ai/src/chat/chat_model_config.dart';
+import 'package:budget_ai/src/chat/unified_chat_screen.dart';
+import 'package:budget_ai/src/onboarding/onboarding_service.dart';
+import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
+import 'package:budget_ai/src/splash/splash_screen.dart';
+import 'package:budget_ai/src/settings/android_settings_helper.dart';
+import 'package:budget_ai/src/helpers/app_route_observer.dart';
+import 'package:budget_ai/src/chat/chat_session_repository.dart';
+import 'package:budget_ai/src/helpers/open_gate_log_service.dart';
+import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 

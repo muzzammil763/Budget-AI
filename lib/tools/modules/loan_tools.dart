@@ -1,4 +1,4 @@
-import 'package:budget_ai/features/finance/data/finance_service.dart';
+import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/tools/core/tool_context.dart';
 import 'package:budget_ai/tools/core/tool_models.dart';
 
