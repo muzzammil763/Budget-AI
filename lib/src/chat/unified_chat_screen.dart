@@ -18,12 +18,12 @@ import 'package:budget_ai/src/helpers/vibration_manager.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
 import 'package:budget_ai/src/chat/chat_session_repository.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
-import 'package:budget_ai/src/helpers/android_background_agent_service.dart';
+import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
-import 'package:budget_ai/src/chat/agentic_message_sections.dart';
+import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -36,7 +36,6 @@ import 'package:toastification/toastification.dart';
 
 import 'package:uuid/uuid.dart';
 
-part 'unified_chat_models.dart';
 part 'unified_chat_widgets.dart';
 
 class UnifiedChatScreen extends StatefulWidget {
@@ -83,7 +82,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Timer? _streamingDurationTimer;
   DateTime? _turnWallClockStart;
   final Map<int, Duration> _turnWallClockDurations = {};
-  bool _isModelReady = false;
   String _selectedModel = '';
   ChatSessionRecord? _activeSession;
   final ValueNotifier<bool> _showScrollToBottomButton = ValueNotifier<bool>(
@@ -136,7 +134,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Future<void> _initialize() async {
     // Always start with flash on restart. Pro can be selected in-session.
     setState(() {
-      _selectedModel = 'deepseek-v4-flash';
+      _selectedModel = AIModels.defaultModelId;
     });
     await _refreshProviderState();
   }
@@ -149,28 +147,20 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Future<void> _refreshProviderState() async {
     try {
       await _provider.initialize();
-      final isReady = await _provider.isReady();
-      if (!mounted) return;
-      setState(() {
-        _isModelReady = isReady;
-      });
     } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isModelReady = false;
-      });
+      // The provider will surface API-key or request failures during send.
     }
   }
 
   Future<void> _loadSelectedModel() async {
     // Always default to flash on restart. Pro selected in-session is temporary.
     setState(() {
-      _selectedModel = 'deepseek-v4-flash';
+      _selectedModel = AIModels.defaultModelId;
     });
   }
 
   Future<void> _changeModel(String newModel) async {
-    final modelInfo = AIModels.getModelById(widget.config.modelName, newModel);
+    final modelInfo = AIModels.getModelById(newModel);
 
     setState(() {
       _selectedModel = newModel;
@@ -492,7 +482,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       ],
       contentWidgets: [
         Text(
-          'The agent is still responding.',
+          'Budget AI is still responding.',
           style: AppTheme.bodyMedium.copyWith(
             fontWeight: FontWeight.w700,
             color: Theme.of(context).colorScheme.onSurface,
@@ -575,7 +565,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   void _startStreamingDurationTimer(DateTime startedAt) {
     _streamingDurationTimer?.cancel();
-    unawaited(AndroidBackgroundAgentService.start());
+    unawaited(AndroidBackgroundChatService.start());
     var tickCount = 0;
     _streamingDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !_isStreaming) {
@@ -601,7 +591,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _streamingDurationTimer?.cancel();
     _streamingDurationTimer = null;
     _turnWallClockStart = null;
-    unawaited(AndroidBackgroundAgentService.stop());
+    unawaited(AndroidBackgroundChatService.stop());
   }
 
   // Used by streaming paths so multiple requests within the same frame
@@ -742,11 +732,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     if (!hasText && !hasAttachments && providerMessageOverride == null) return;
 
-    if (widget.config.requiresDownload && !_isModelReady) {
-      _showErrorToast('Please Download The Model First');
-      return;
-    }
-
     _unfocusComposer();
 
     final userMessageText = _messageController.text.trim();
@@ -796,7 +781,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _messageController.clear();
     _scrollToBottom(force: true);
 
-    final agentFlowPromptSnapshot = await _buildAgentFlowPromptSnapshot();
+    final chatFlowPromptSnapshot = await _buildChatFlowPromptSnapshot();
     final session = await _ensureSessionCreated(provisionalUserMessage);
     final storedAttachments = await _chatSessions.copyAttachmentsToSession(
       sessionId: session.id,
@@ -850,10 +835,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
     int? responseTimeMs;
     int tokenCount = 0;
-    Map<String, dynamic> responseMetadata = _buildAgentFlowMetadata(
+    Map<String, dynamic> responseMetadata = _buildChatFlowMetadata(
       userMessage: visibleUserMessageText,
       providerMessage: providerMessageText,
-      systemPrompt: agentFlowPromptSnapshot,
+      systemPrompt: chatFlowPromptSnapshot,
     );
     ChatMessage? finalAssistantMessage;
     int? assistantEntryId;
@@ -935,10 +920,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
 
-      final currentModel = AIModels.getModelById(
-        widget.config.modelName,
-        _selectedModel,
-      );
+      final currentModel = AIModels.getModelById(_selectedModel);
       final supportsReasoning = currentModel?.supportsThinking ?? false;
       final supportsToolCall = currentModel?.supportsToolCall ?? false;
 
@@ -1142,7 +1124,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               // Premium haptic feedback during streaming — the lightest tap
               // for every response text chunk while the chat screen is visible
               // and the app is in the foreground, including intermediate
-              // agentic responses before the final one.
+              // tool-result responses before the final one.
               if (chunk.content.isNotEmpty) {
                 unawaited(
                   VibrationManager.instance.triggerStreamingFeedback(
@@ -1635,7 +1617,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ],
         contentWidgets: [
           Text(
-            'The agent is still working on a reply.',
+            'Budget AI is still working on a reply.',
             style: AppTheme.bodyMedium.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
@@ -1750,7 +1732,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ],
         contentWidgets: [
           Text(
-            'The agent is still working on a reply.',
+            'Budget AI is still working on a reply.',
             style: AppTheme.bodyMedium.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
@@ -2150,10 +2132,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   String _finalResponseTextFromBlocks(List<ChatMessageBlock> blocks) {
-    final hasAgenticBlocks = blocks.any(
+    final hasActivityBlocks = blocks.any(
       (block) => block.type != ChatMessageBlockType.response,
     );
-    if (!hasAgenticBlocks) {
+    if (!hasActivityBlocks) {
       return _responseTextFromBlocks(blocks).trim();
     }
 
@@ -2293,10 +2275,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (message == null) return 0;
     final blocks = _getMessageBlocks(message);
     return blocks.where((b) => b.type == ChatMessageBlockType.toolCall).length;
-  }
-
-  void _showErrorToast(String message) {
-    showAppToast(context, message: message, type: ToastificationType.error);
   }
 
   String _buildAssistantErrorMessage(Object error) {
@@ -2903,7 +2881,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 return _buildLoadingMessage();
               }
               final item = _timelineItems[index];
-              // ValueKey preserves widget state (e.g. expanded/collapsed agentic
+              // ValueKey preserves widget state (e.g. expanded/collapsed tool
               // sections) across rebuilds triggered by streaming setState calls.
               // RepaintBoundary isolates each bubble so streaming updates to the
               // last item don't repaint the entire visible list.
@@ -3215,7 +3193,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _unfocusComposer();
     final result = await ModelPickerSheet.show(
       context,
-      modelType: widget.config.modelName,
       selectedModel: _selectedModel,
     );
 
@@ -3317,7 +3294,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildAgenticMessageBody(
+                  _buildToolMessageBody(
                     message,
                     resolvedMessageIndex,
                     isCurrentlyStreaming,
@@ -3527,7 +3504,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         !_messages[_streamingMessageIndex!].isUser;
   }
 
-  Widget _buildAgenticMessageBody(
+  Widget _buildToolMessageBody(
     ChatMessage message,
     int messageIndex,
     bool isCurrentlyStreaming,
@@ -3548,19 +3525,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         messageIndex == _messages.length - 1 ||
         _messages[messageIndex + 1].isUser;
     final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn);
-    final hasAgenticBlocks = blocks.any(
+    final hasActivityBlocks = blocks.any(
       (block) => block.type != ChatMessageBlockType.response,
     );
-    final currentModel = AIModels.getModelById(
-      widget.config.modelName,
-      _selectedModel,
-    );
+    final currentModel = AIModels.getModelById(_selectedModel);
     final shouldRenderOpenResponseAsProcess =
         isCurrentlyStreaming &&
         isFinalInTurn &&
         (currentModel?.supportsToolCall ?? false) &&
         _hasOpenResponseBlock(blocks);
-    if (!hasAgenticBlocks) {
+    if (!hasActivityBlocks) {
       if (shouldRenderOpenResponseAsProcess) {
         final turnInProgress = _isTurnInProgress(messageIndex);
         final Duration duration;
@@ -3573,7 +3547,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         }
 
         final children = <Widget>[
-          AgenticActivitySection(
+          ChatActivitySection(
             durationLabel: _formatWorkedDuration(
               duration,
               isInProgress: turnInProgress,
@@ -3581,7 +3555,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             initiallyExpanded: true,
             isInProgress: turnInProgress,
             detailsBuilder: (context) =>
-                AgenticProcessTextSection(text: message.text),
+                ChatProcessTextSection(text: message.text),
           ),
         ];
 
@@ -3769,7 +3743,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           }
 
           Widget buildToolSection(ToolCall toolCall) {
-            final toolSection = AgenticToolCallSection(
+            final toolSection = ChatToolCallSection(
               key: ValueKey('tool_${toolCall.id}'),
               toolCall: toolCall,
               themeColor: Theme.of(context).colorScheme.primary,
@@ -3800,7 +3774,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
         entryChildren.add(
           responseAsProcess
-              ? AgenticProcessTextSection(text: entry.text ?? '')
+              ? ChatProcessTextSection(text: entry.text ?? '')
               : _buildResponseMarkdown(
                   entry.text ?? '',
                   isStreaming: entry.isStreaming,
@@ -3836,7 +3810,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         if (entry.type == ChatMessageBlockType.thinking) {
           children.add(
             RepaintBoundary(
-              child: AgenticThinkingSection(
+              child: ChatThinkingSection(
                 text: entry.text ?? '',
                 themeColor: Theme.of(context).colorScheme.primary,
                 isComplete: entry.isComplete,
@@ -3859,7 +3833,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           }
 
           Widget buildToolSection(ToolCall toolCall) {
-            final toolSection = AgenticToolCallSection(
+            final toolSection = ChatToolCallSection(
               key: ValueKey('tool_${toolCall.id}'),
               toolCall: toolCall,
               themeColor: Theme.of(context).colorScheme.primary,
@@ -4052,16 +4026,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return parts.isEmpty ? null : parts.join(' / ');
   }
 
-  Future<String> _buildAgentFlowPromptSnapshot() async {
+  Future<String> _buildChatFlowPromptSnapshot() async {
     try {
-      return await buildAgenticSystemPromptSnapshotForDiagnostics();
+      return await buildChatSystemPromptSnapshotForDiagnostics();
     } catch (error) {
       debugPrint('[UnifiedChatScreen] Could not build prompt snapshot: $error');
       return '';
     }
   }
 
-  Map<String, dynamic> _buildAgentFlowMetadata({
+  Map<String, dynamic> _buildChatFlowMetadata({
     required String userMessage,
     required String providerMessage,
     required String systemPrompt,
@@ -4073,15 +4047,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         : trimmedPrompt;
 
     return {
-      'agentFlowUserMessage': userMessage,
-      'agentFlowProviderMessage': providerMessage,
-      'agentFlowSystemPrompt': promptPreview,
-      'agentFlowSystemPromptIsSnapshot': trimmedPrompt.isNotEmpty,
-      'agentFlowSystemPromptTruncated': trimmedPrompt.length > maxPromptChars,
-      'agentFlowPromptLength': trimmedPrompt.length,
-      'agentFlowModel': _selectedModel,
-      'agentFlowProvider': widget.config.modelName,
-      'agentFlowStartedAt': DateTime.now().toIso8601String(),
+      'chatFlowUserMessage': userMessage,
+      'chatFlowProviderMessage': providerMessage,
+      'chatFlowSystemPrompt': promptPreview,
+      'chatFlowSystemPromptIsSnapshot': trimmedPrompt.isNotEmpty,
+      'chatFlowSystemPromptTruncated': trimmedPrompt.length > maxPromptChars,
+      'chatFlowPromptLength': trimmedPrompt.length,
+      'chatFlowModel': _selectedModel,
+      'chatFlowProvider': widget.config.modelName,
+      'chatFlowStartedAt': DateTime.now().toIso8601String(),
     };
   }
 

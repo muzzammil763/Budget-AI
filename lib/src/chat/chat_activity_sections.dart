@@ -4,24 +4,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/custom_widgets/markdown_config.dart'
     show LinkBuilder;
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/tools/tool_name_formatter.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
-import 'package:budget_ai/src/chat/markdown_table_view.dart';
 import 'package:budget_ai/src/chat/streaming_text_reveal.dart';
 import 'package:budget_ai/src/helpers/themed_code_block.dart';
 
 typedef MarkdownLinkTap = Future<void> Function(String url, String title);
 
-class AgenticActivitySection extends StatefulWidget {
+class ChatActivitySection extends StatefulWidget {
   final String durationLabel;
   final bool initiallyExpanded;
   final bool isInProgress;
   final bool forceCollapsed;
   final WidgetBuilder detailsBuilder;
 
-  const AgenticActivitySection({
+  const ChatActivitySection({
     super.key,
     required this.durationLabel,
     required this.initiallyExpanded,
@@ -31,10 +29,10 @@ class AgenticActivitySection extends StatefulWidget {
   });
 
   @override
-  State<AgenticActivitySection> createState() => _AgenticActivitySectionState();
+  State<ChatActivitySection> createState() => _ChatActivitySectionState();
 }
 
-class _AgenticActivitySectionState extends State<AgenticActivitySection> {
+class _ChatActivitySectionState extends State<ChatActivitySection> {
   static const double _horizontalInset = 12;
 
   late bool _isExpanded;
@@ -46,7 +44,7 @@ class _AgenticActivitySectionState extends State<AgenticActivitySection> {
   }
 
   @override
-  void didUpdateWidget(covariant AgenticActivitySection oldWidget) {
+  void didUpdateWidget(covariant ChatActivitySection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.forceCollapsed) {
       if (_isExpanded) setState(() => _isExpanded = false);
@@ -149,12 +147,12 @@ class _AgenticActivitySectionState extends State<AgenticActivitySection> {
   }
 }
 
-class AgenticThinkingSection extends StatelessWidget {
+class ChatThinkingSection extends StatelessWidget {
   final String text;
   final Color themeColor;
   final bool isComplete;
 
-  const AgenticThinkingSection({
+  const ChatThinkingSection({
     super.key,
     required this.text,
     required this.themeColor,
@@ -172,10 +170,10 @@ class AgenticThinkingSection extends StatelessWidget {
   }
 }
 
-class AgenticProcessTextSection extends StatelessWidget {
+class ChatProcessTextSection extends StatelessWidget {
   final String text;
 
-  const AgenticProcessTextSection({super.key, required this.text});
+  const ChatProcessTextSection({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +188,7 @@ class AgenticProcessTextSection extends StatelessWidget {
   }
 }
 
-class AgenticToolCallSection extends StatelessWidget {
+class ChatToolCallSection extends StatelessWidget {
   final ToolCall toolCall;
   final Color themeColor;
   final bool isInProgress;
@@ -198,7 +196,7 @@ class AgenticToolCallSection extends StatelessWidget {
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
 
-  const AgenticToolCallSection({
+  const ChatToolCallSection({
     super.key,
     required this.toolCall,
     required this.themeColor,
@@ -221,7 +219,7 @@ class AgenticToolCallSection extends StatelessWidget {
   }
 }
 
-class AgenticToolCallGroupSection extends StatefulWidget {
+class ChatToolCallGroupSection extends StatefulWidget {
   final List<ToolCall> toolCalls;
   final Color themeColor;
   final bool isInProgress;
@@ -229,7 +227,7 @@ class AgenticToolCallGroupSection extends StatefulWidget {
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
 
-  const AgenticToolCallGroupSection({
+  const ChatToolCallGroupSection({
     super.key,
     required this.toolCalls,
     required this.themeColor,
@@ -240,12 +238,11 @@ class AgenticToolCallGroupSection extends StatefulWidget {
   });
 
   @override
-  State<AgenticToolCallGroupSection> createState() =>
-      _AgenticToolCallGroupSectionState();
+  State<ChatToolCallGroupSection> createState() =>
+      _ChatToolCallGroupSectionState();
 }
 
-class _AgenticToolCallGroupSectionState
-    extends State<AgenticToolCallGroupSection> {
+class _ChatToolCallGroupSectionState extends State<ChatToolCallGroupSection> {
   late bool _isExpanded;
 
   @override
@@ -255,7 +252,7 @@ class _AgenticToolCallGroupSectionState
   }
 
   @override
-  void didUpdateWidget(covariant AgenticToolCallGroupSection oldWidget) {
+  void didUpdateWidget(covariant ChatToolCallGroupSection oldWidget) {
     super.didUpdateWidget(oldWidget);
   }
 
@@ -339,7 +336,7 @@ class _AgenticToolCallGroupSectionState
                       themeColor: widget.themeColor,
                     )
                   else
-                    AgenticToolCallSection(
+                    ChatToolCallSection(
                       toolCall: entry.toolCall!,
                       themeColor: widget.themeColor,
                       isInProgress: !entry.toolCall!.isComplete,
@@ -578,7 +575,6 @@ class _CompactToolCallBatchSectionState
   }
 }
 
-
 class _SingleToolCallSection extends StatefulWidget {
   final ToolCall toolCall;
   final Color themeColor;
@@ -793,11 +789,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   }
 
   Widget _buildStreamingArgumentsText(BuildContext context, String text) {
-    final codeLike = _looksLikeCodeOrStructuredText(text);
-    if (codeLike) {
-      return _buildCodeContent(context, text, title: 'Arguments');
-    }
-
     final theme = Theme.of(context);
     final isStreaming = widget.isInProgress && !widget.toolCall.isComplete;
 
@@ -824,74 +815,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   }
 
   Map<String, dynamic> _displayArguments(Map<String, dynamic> arguments) {
-    final toolName = widget.toolCall.name.trim().toLowerCase();
-    if (toolName != 'bash' || !arguments.containsKey('timeout')) {
-      return arguments;
-    }
-
-    final displayArguments = Map<String, dynamic>.from(arguments);
-    displayArguments['timeout'] = _estimatedBashTimeoutMs(displayArguments);
-    return displayArguments;
-  }
-
-  int _estimatedBashTimeoutMs(Map<String, dynamic> arguments) {
-    final command = (arguments['command'] as String? ?? '')
-        .trim()
-        .toLowerCase();
-    final description = (arguments['description'] as String? ?? '')
-        .trim()
-        .toLowerCase();
-    final combined = '$command $description';
-    final requested = (arguments['timeout'] as num?)?.toInt();
-    final estimate = _bashTimeoutEstimateForText(combined);
-    if (requested == null) return estimate;
-
-    final safeRequested = requested.clamp(1000, 120000);
-    return safeRequested > estimate ? estimate : safeRequested;
-  }
-
-  int _bashTimeoutEstimateForText(String text) {
-    if (RegExp(
-      r'\b(deploy|release|archive|xcodebuild|docker\s+build|flutter\s+build|gradle\s+(assemble|build)|make\s+.*deploy|make\s+.*all)\b',
-    ).hasMatch(text)) {
-      return 120000;
-    }
-
-    if (RegExp(
-      r'\b(npm|pnpm|yarn|bun|pip|bundle|pod|flutter\s+pub|dart\s+pub)\s+(install|get|add)\b',
-    ).hasMatch(text)) {
-      return 90000;
-    }
-
-    if (RegExp(
-      r'\b(test|analyze|lint|check|build|make|cargo\s+test|go\s+test)\b',
-    ).hasMatch(text)) {
-      return 60000;
-    }
-
-    if (RegExp(r'\bgit\s+(clone|pull|push|fetch)\b').hasMatch(text)) {
-      return 45000;
-    }
-
-    if (RegExp(
-      r'\b(pwd|ls|cat|head|tail|rg|grep|find|git\s+status|git\s+diff|git\s+log)\b',
-    ).hasMatch(text)) {
-      return 10000;
-    }
-
-    return 30000;
-  }
-
-  bool _looksLikeCodeOrStructuredText(String text) {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return false;
-    if (trimmed.startsWith('{') ||
-        trimmed.startsWith('[') ||
-        trimmed.contains(r'\n') ||
-        trimmed.contains('\n')) {
-      return true;
-    }
-    return _isLikelyCodeFile('', trimmed);
+    return arguments;
   }
 
   Widget _buildStructuredResult(
@@ -900,16 +824,13 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
   ) {
     final normalizedResult = _normalizeStructuredResult(result);
     final content = normalizedResult['content'];
-    final diff = result['diff'];
     final metadata = Map<String, dynamic>.from(normalizedResult)
       ..remove('content')
-      ..remove('diff')
       ..remove('image_base64')
       ..remove('image_url');
     final hasContent = content is String && content.trim().isNotEmpty;
-    final hasDiff = diff is String && diff.trim().isNotEmpty;
 
-    if (!hasContent && !hasDiff) {
+    if (!hasContent) {
       return _buildJsonCodeBlock(
         context,
         metadata,
@@ -939,27 +860,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
 
   Map<String, dynamic> _normalizeStructuredResult(Map<String, dynamic> result) {
     final normalized = Map<String, dynamic>.from(result);
-    final file = result['file'];
-    if (normalized['content'] == null && file is Map) {
-      final fileMap = Map<String, dynamic>.from(file);
-      final fileContent = fileMap['content'];
-      if (fileContent is String && fileContent.isNotEmpty) {
-        normalized['content'] = fileContent;
-        for (final key in const [
-          'path',
-          'absolute_path',
-          'start_line',
-          'end_line',
-          'line_count',
-          'size_bytes',
-        ]) {
-          if (!normalized.containsKey(key) && fileMap.containsKey(key)) {
-            normalized[key] = fileMap[key];
-          }
-        }
-        normalized.remove('file');
-      }
-    }
 
     final preview = normalized['content_preview'];
     if (normalized['content'] == null && preview is String) {
@@ -981,208 +881,12 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     Map<String, dynamic> result,
     String content,
   ) {
-    final normalizedPath =
-        (result['path'] ?? widget.toolCall.arguments['path'] ?? '')
-            .toString()
-            .toLowerCase();
-    final isMarkdownFile =
-        normalizedPath.endsWith('.md') || normalizedPath.endsWith('.markdown');
-    final isCodeFile = _isLikelyCodeFile(normalizedPath, content);
     final cleanContent = _stripMarkdownImages(content);
-
-    final contentTitle = isMarkdownFile
+    final contentTitle = result.containsKey('content_preview')
         ? 'Content Preview'
-        : isCodeFile
-        ? 'Code Content'
         : 'Content';
-    Widget contentWidget;
-    if (isMarkdownFile) {
-      contentWidget = _buildToolMarkdown(context, cleanContent);
-    } else if (isCodeFile) {
-      contentWidget = _buildCodeContent(
-        context,
-        cleanContent,
-        title: contentTitle,
-      );
-    } else {
-      contentWidget = _buildPlainTextContent(
-        context,
-        cleanContent,
-        title: contentTitle,
-      );
-    }
 
-    if (!isMarkdownFile) return contentWidget;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          isMarkdownFile
-              ? 'Content Preview'
-              : isCodeFile
-              ? 'Code Content'
-              : 'Content',
-          style: AppTheme.bodySmall.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 6),
-        contentWidget,
-      ],
-    );
-  }
-
-  bool _isLikelyCodeFile(String path, String content) {
-    final codeExtensions = [
-      '.dart',
-      '.py',
-      '.js',
-      '.ts',
-      '.tsx',
-      '.jsx',
-      '.java',
-      '.kt',
-      '.swift',
-      '.c',
-      '.cpp',
-      '.h',
-      '.hpp',
-      '.cs',
-      '.go',
-      '.rs',
-      '.rb',
-      '.php',
-      '.html',
-      '.css',
-      '.scss',
-      '.json',
-      '.yaml',
-      '.yml',
-      '.xml',
-      '.sql',
-      '.sh',
-      '.bash',
-      '.md',
-      '.markdown',
-      '.txt',
-      '.log',
-      '.env',
-      '.gitignore',
-      '.dockerfile',
-    ];
-
-    final pathLower = path.toLowerCase();
-    for (final ext in codeExtensions) {
-      if (pathLower.endsWith(ext)) return true;
-    }
-
-    // Also detect code patterns in content
-    final codePatterns = [
-      RegExp(r'^\s*(import|export|from|require|use|include|namespace)\s'),
-      RegExp(
-        r'^\s*(class|struct|interface|enum|fn|def|function|const|let|var)\s',
-      ),
-      RegExp(
-        r'^\s*(if|else|for|while|switch|match|return|throw|try|catch)\s*[\(\{]',
-      ),
-      RegExp(r'^\s*(public|private|protected|static|async|await)\s'),
-      RegExp(r'\{[\s\S]*\}:[\s\S]*;'),
-      RegExp(r'=>'),
-      RegExp(r'^\s*///\s', multiLine: true),
-      RegExp(r'^\s*//\s', multiLine: true),
-      RegExp(r'^\s*#\s', multiLine: true),
-    ];
-
-    final lines = content.split('\n');
-    int patternMatches = 0;
-    for (final line in lines.take(10)) {
-      for (final pattern in codePatterns) {
-        if (pattern.hasMatch(line)) patternMatches++;
-      }
-    }
-
-    return patternMatches >= 2 ||
-        content.contains('\n\n') && content.length > 100;
-  }
-
-  Widget _buildCodeContent(
-    BuildContext context,
-    String content, {
-    String title = 'Code Content',
-  }) {
-    final language = _detectLanguage(content, _targetPathForToolCall());
-
-    return ThemedCodeBlock(
-      name: language.toLowerCase(),
-      code: content,
-      closed: true,
-      fontSize: 12,
-      contentPadding: 8,
-      borderRadius: 8,
-      headerHeight: 34,
-      showHeader: true,
-      headerTitle: title,
-      showHeaderIcon: false,
-      showCopyAction: false,
-      showLineNumbers: false,
-      selectable: false,
-      showZoom: false,
-    );
-  }
-
-  String _detectLanguage(String content, String path) {
-    final pathLower = path.toLowerCase();
-    if (pathLower.endsWith('.dart')) return 'Dart';
-    if (pathLower.endsWith('.py')) return 'Python';
-    if (pathLower.endsWith('.js')) return 'JavaScript';
-    if (pathLower.endsWith('.ts') || pathLower.endsWith('.tsx')) {
-      return 'TypeScript';
-    }
-    if (pathLower.endsWith('.java')) return 'Java';
-    if (pathLower.endsWith('.kt')) return 'Kotlin';
-    if (pathLower.endsWith('.swift')) return 'Swift';
-    if (pathLower.endsWith('.go')) return 'Go';
-    if (pathLower.endsWith('.rs')) return 'Rust';
-    if (pathLower.endsWith('.rb')) return 'Ruby';
-    if (pathLower.endsWith('.php')) return 'PHP';
-    if (pathLower.endsWith('.cs')) return 'C#';
-    if (pathLower.endsWith('.cpp') || pathLower.endsWith('.cc')) return 'C++';
-    if (pathLower.endsWith('.c')) return 'C';
-    if (pathLower.endsWith('.html')) return 'HTML';
-    if (pathLower.endsWith('.css')) return 'CSS';
-    if (pathLower.endsWith('.scss')) return 'SCSS';
-    if (pathLower.endsWith('.json')) return 'JSON';
-    if (pathLower.endsWith('.yaml') || pathLower.endsWith('.yml')) {
-      return 'YAML';
-    }
-    if (pathLower.endsWith('.xml')) return 'XML';
-    if (pathLower.endsWith('.sql')) return 'SQL';
-    if (pathLower.endsWith('.sh') || pathLower.endsWith('.bash')) {
-      return 'Shell';
-    }
-    if (pathLower.endsWith('.md')) return 'Markdown';
-
-    // Try to detect from content patterns
-    if (content.contains("import 'package:")) return 'Dart';
-    if (content.contains('def ') && content.contains(':')) return 'Python';
-    if (content.contains('function ') || content.contains('const ')) {
-      return 'JavaScript';
-    }
-    if (content.contains('func ') && content.contains('->')) return 'Go';
-    if (content.contains('fn ') && content.contains('->')) return 'Rust';
-
-    return 'Text';
-  }
-
-  String _targetPathForToolCall() {
-    final arguments = widget.toolCall.arguments;
-    return (arguments['path'] ??
-                arguments['filePath'] ??
-                arguments['file_path'])
-            ?.toString() ??
-        '';
+    return _buildPlainTextContent(context, cleanContent, title: contentTitle);
   }
 
   Widget _buildPlainTextContent(
@@ -1205,54 +909,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
       showLineNumbers: false,
       selectable: false,
       showZoom: false,
-    );
-  }
-
-  Widget _buildToolMarkdown(BuildContext context, String text) {
-    final theme = Theme.of(context);
-    final textColor = theme.colorScheme.onSurface;
-    final normalizedText = widget.markdownNormalizer?.call(text) ?? text;
-
-    return Theme(
-      data: theme.copyWith(
-        textTheme: theme.textTheme.copyWith(
-          headlineLarge: AppTheme.headingLarge.copyWith(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
-          headlineMedium: AppTheme.headingMedium.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
-          headlineSmall: AppTheme.headingSmall.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
-          bodyMedium: AppTheme.bodyMedium.copyWith(
-            fontSize: 14,
-            color: textColor,
-            height: 1.5,
-          ),
-        ),
-      ),
-      child: GptMarkdown(
-        normalizedText,
-        textAlign: TextAlign.start,
-        style: AppTheme.bodyMedium.copyWith(
-          color: textColor,
-          fontSize: 14,
-          height: 1.5,
-        ),
-        codeBuilder: (context, name, code, closed) {
-          return ThemedCodeBlock(name: name, code: code);
-        },
-        onLinkTap: widget.onLinkTap,
-        linkBuilder: widget.linkBuilder,
-        tableBuilder: buildStyledMarkdownTable,
-      ),
     );
   }
 
@@ -1361,136 +1017,4 @@ String _basename(String path) {
   final normalized = path.replaceAll('\\', '/');
   final segments = normalized.split('/').where((part) => part.isNotEmpty);
   return segments.isEmpty ? path : segments.last;
-}
-
-class _DiffFileSummary {
-  const _DiffFileSummary({
-    required this.path,
-    required this.added,
-    required this.removed,
-    required this.lines,
-  });
-
-  final String path;
-  final int added;
-  final int removed;
-  final List<String> lines;
-}
-
-class _SplitDiffRow {
-  const _SplitDiffRow({required this.left, required this.right});
-
-  final String left;
-  final String right;
-}
-
-List<_DiffFileSummary> _parseUnifiedDiff(String diff) {
-  final lines = diff.split('\n');
-  final files = <_DiffFileSummary>[];
-  String? path;
-  final buffer = <String>[];
-  var hasGitHeaderForCurrentFile = false;
-
-  void flush() {
-    if (path == null && buffer.isEmpty) return;
-    final fileLines = List<String>.from(buffer);
-    files.add(
-      _DiffFileSummary(
-        path: path ?? 'Changes',
-        added: _countAddedLines(fileLines.join('\n')),
-        removed: _countRemovedLines(fileLines.join('\n')),
-        lines: fileLines,
-      ),
-    );
-    buffer.clear();
-    hasGitHeaderForCurrentFile = false;
-  }
-
-  for (final line in lines) {
-    if (line.startsWith('diff --git ')) {
-      flush();
-      path = _pathFromGitDiffHeader(line) ?? 'Changes';
-      hasGitHeaderForCurrentFile = true;
-      buffer.add(line);
-      continue;
-    }
-
-    if (line.startsWith('--- ')) {
-      if (!hasGitHeaderForCurrentFile) {
-        flush();
-        path = null;
-      }
-      buffer.add(line);
-      continue;
-    }
-
-    if (line.startsWith('+++ ')) {
-      path = _normalizeDiffPath(line.substring(4).trim());
-      buffer.add(line);
-      continue;
-    }
-
-    buffer.add(line);
-  }
-
-  flush();
-  return files
-      .where((file) => file.lines.any((line) => line.trim().isNotEmpty))
-      .toList();
-}
-
-String _normalizeDiffPath(String rawPath) {
-  if (rawPath == '/dev/null') return 'New file';
-  return rawPath.replaceFirst(RegExp(r'^[ab]/'), '');
-}
-
-String? _pathFromGitDiffHeader(String line) {
-  final match = RegExp(r'^diff --git a/(.+?) b/(.+)$').firstMatch(line);
-  return match?.group(2);
-}
-
-int _countAddedLines(String diff) {
-  return diff
-      .split('\n')
-      .where((line) => line.startsWith('+') && !line.startsWith('+++'))
-      .length;
-}
-
-int _countRemovedLines(String diff) {
-  return diff
-      .split('\n')
-      .where((line) => line.startsWith('-') && !line.startsWith('---'))
-      .length;
-}
-
-List<String> _condenseDiffLines(List<String> lines) {
-  final output = <String>[];
-  var unchangedRun = 0;
-
-  void flushRun() {
-    if (unchangedRun <= 0) return;
-    if (unchangedRun > 6) {
-      output.add('  ... $unchangedRun unmodified lines');
-    }
-    unchangedRun = 0;
-  }
-
-  for (final line in lines) {
-    final isHeader =
-        line.startsWith('---') ||
-        line.startsWith('+++') ||
-        line.startsWith('@@');
-    final isChange = line.startsWith('+') || line.startsWith('-');
-    if (!isHeader && !isChange && line.trim().isNotEmpty) {
-      unchangedRun++;
-      if (unchangedRun <= 3) output.add(' $line');
-      continue;
-    }
-
-    flushRun();
-    output.add(line);
-  }
-
-  flushRun();
-  return output;
 }

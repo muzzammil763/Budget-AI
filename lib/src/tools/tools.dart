@@ -59,16 +59,6 @@ class ToolRegistry
         LoanToolHandler {
   List<ToolDefinition>? _toolsCache;
 
-  void setActiveProviderInfo({
-    required String modelId,
-    required String apiKey,
-    required String baseUrl,
-  }) {}
-
-  void setActiveMessageImagePaths(List<String>? imagePaths) {}
-
-  void cancelActiveRequests() {}
-
   List<ToolDefinition> getAvailableTools() {
     return _toolsCache ??= List.unmodifiable([
       buildFinanceAddTool(handler: handleFinanceAddRequest),

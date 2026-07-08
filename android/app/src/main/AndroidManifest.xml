@@ -44,7 +44,7 @@
             </intent-filter>
         </receiver>
         <service
-            android:name=".BackgroundAgentService"
+            android:name=".BackgroundChatService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
         <meta-data

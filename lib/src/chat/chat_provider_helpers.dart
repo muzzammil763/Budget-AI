@@ -637,4 +637,4 @@ Future<Response<dynamic>> _postJsonWithApiKeyFallback({
 }
 
 /// Tracks tool-call budget, deduplication, and loop detection for a single
-/// agentic turn (the `do…while` loop inside `sendMessageStreamWithThinking`).
+/// tool-enabled chat turn.

@@ -8,22 +8,6 @@ import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:toastification/toastification.dart';
 
-class ChatHistorySelection {
-  final String? sessionId;
-  final bool createNewChat;
-
-  const ChatHistorySelection._({
-    required this.sessionId,
-    required this.createNewChat,
-  });
-
-  const ChatHistorySelection.openSession(String sessionId)
-    : this._(sessionId: sessionId, createNewChat: false);
-
-  const ChatHistorySelection.newChat()
-    : this._(sessionId: null, createNewChat: true);
-}
-
 class ChatHistoryScreen extends StatefulWidget {
   final List<ChatSessionSummary> sessions;
   final String? currentSessionId;

@@ -4,13 +4,7 @@ class AIModel {
   final String description;
   final bool supportsToolCall;
   final bool supportsThinking;
-  final List<String> inputModalities;
-  final List<String> outputModalities;
-  final bool supportsAttachments;
   final int? contextLength;
-  final int? maxOutput;
-  final String? providerId;
-  final bool? supportsTemperature;
 
   const AIModel({
     required this.id,
@@ -18,20 +12,8 @@ class AIModel {
     required this.description,
     this.supportsToolCall = false,
     this.supportsThinking = false,
-    this.inputModalities = const ['text'],
-    this.outputModalities = const ['text'],
-    this.supportsAttachments = false,
     this.contextLength,
-    this.maxOutput,
-    this.providerId,
-    this.supportsTemperature,
   });
-
-  bool supportsInput(String modality) =>
-      inputModalities.contains(modality.toLowerCase());
-
-  bool supportsOutput(String modality) =>
-      outputModalities.contains(modality.toLowerCase());
 
   String get formattedContextLength {
     if (contextLength == null) return 'Unknown';
@@ -52,11 +34,7 @@ const List<AIModel> _deepseekModels = [
         'Fast and efficient. 1M context, tool calls, thinking mode, and JSON output.',
     supportsToolCall: true,
     supportsThinking: true,
-    supportsTemperature: true,
-    inputModalities: ['text'],
-    outputModalities: ['text'],
     contextLength: 1000000,
-    maxOutput: 384000,
   ),
   AIModel(
     id: 'deepseek-v4-pro',
@@ -65,52 +43,20 @@ const List<AIModel> _deepseekModels = [
         'Highest capability tier. 1M context, tool calls, thinking mode, and JSON output. Best for complex coding, math, and multi-step reasoning.',
     supportsToolCall: true,
     supportsThinking: true,
-    supportsTemperature: true,
-    inputModalities: ['text'],
-    outputModalities: ['text'],
     contextLength: 1000000,
-    maxOutput: 384000,
   ),
 ];
 
 class AIModels {
   static const List<AIModel> deepseekModels = _deepseekModels;
 
-  static String getDefaultModel(String modelType) {
-    switch (modelType) {
-      case 'deepseek':
-        return 'deepseek-v4-flash';
-      default:
-        return '';
-    }
-  }
+  static const String defaultModelId = 'deepseek-v4-flash';
 
-  static List<AIModel> getModelsForType(String modelType) {
-    switch (modelType) {
-      case 'deepseek':
-        return deepseekModels;
-      default:
-        return [];
-    }
-  }
-
-  static AIModel? getModelById(String modelType, String modelId) {
-    final models = getModelsForType(modelType);
+  static AIModel? getModelById(String modelId) {
     try {
-      return models.firstWhere((model) => model.id == modelId);
+      return deepseekModels.firstWhere((model) => model.id == modelId);
     } catch (e) {
       return null;
     }
-  }
-
-  static List<AIModel> searchModels(List<AIModel> models, String query) {
-    if (query.isEmpty) return models;
-
-    final lowerQuery = query.toLowerCase();
-    return models.where((model) {
-      return model.name.toLowerCase().contains(lowerQuery) ||
-          model.description.toLowerCase().contains(lowerQuery) ||
-          model.id.toLowerCase().contains(lowerQuery);
-    }).toList();
   }
 }

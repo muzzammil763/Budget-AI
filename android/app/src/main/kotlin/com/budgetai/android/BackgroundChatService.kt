@@ -11,7 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 
-class BackgroundAgentService : Service() {
+class BackgroundChatService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -20,9 +20,9 @@ class BackgroundAgentService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Budget AI agent running"
+        val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Budget AI chat running"
         val text = intent?.getStringExtra(EXTRA_TEXT)
-            ?: "Keeping the active agent response connected."
+            ?: "Keeping the active chat response connected."
         val notification = buildNotification(title, text)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -69,23 +69,23 @@ class BackgroundAgentService : Service() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Active agent",
+            "Active chat",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps active Budget AI agent responses running in the background."
+            description = "Keeps active Budget AI chat responses running in the background."
             setShowBadge(false)
         }
         manager.createNotificationChannel(channel)
     }
 
     companion object {
-        private const val CHANNEL_ID = "opengate_active_agent"
+        private const val CHANNEL_ID = "budget_ai_active_chat"
         private const val NOTIFICATION_ID = 4301
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_TEXT = "text"
 
         fun start(context: Context, title: String, text: String) {
-            val intent = Intent(context, BackgroundAgentService::class.java).apply {
+            val intent = Intent(context, BackgroundChatService::class.java).apply {
                 putExtra(EXTRA_TITLE, title)
                 putExtra(EXTRA_TEXT, text)
             }
@@ -97,7 +97,7 @@ class BackgroundAgentService : Service() {
         }
 
         fun stop(context: Context) {
-            context.stopService(Intent(context, BackgroundAgentService::class.java))
+            context.stopService(Intent(context, BackgroundChatService::class.java))
         }
     }
 }

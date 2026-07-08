@@ -643,7 +643,7 @@ String truncateToolPayloadForStorage(dynamic value) {
   return value is String ? value : jsonEncode(value);
 }
 
-const String _coreAgentBehavior = '''
+const String _coreChatBehavior = '''
 You are Budget AI, a personal finance and budget management assistant. Your primary role is to help users track expenses and provide budget advice.
 
 Core behaviors:

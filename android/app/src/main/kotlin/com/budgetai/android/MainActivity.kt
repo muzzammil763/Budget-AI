@@ -10,28 +10,28 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
-    private val backgroundAgentChannel = "open_gate/background_agent"
+    private val backgroundChatChannel = "budget_ai/background_chat"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            backgroundAgentChannel,
+            backgroundChatChannel,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "start" -> {
-                    val title = call.argument<String>("title") ?: "Budget AI agent running"
+                    val title = call.argument<String>("title") ?: "Budget AI chat running"
                     val text = call.argument<String>("text")
-                        ?: "Keeping the active agent response connected."
+                        ?: "Keeping the active chat response connected."
                     try {
-                        BackgroundAgentService.start(this, title, text)
+                        BackgroundChatService.start(this, title, text)
                         result.success(true)
                     } catch (e: Exception) {
-                        result.error("BACKGROUND_AGENT_START_ERROR", e.message, null)
+                        result.error("BACKGROUND_CHAT_START_ERROR", e.message, null)
                     }
                 }
                 "stop" -> {
-                    BackgroundAgentService.stop(this)
+                    BackgroundChatService.stop(this)
                     result.success(true)
                 }
                 "isBatteryOptimizationIgnored" -> {

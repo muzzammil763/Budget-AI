@@ -438,7 +438,7 @@ class FinanceService {
   Future<FinanceEntry> add(FinanceEntry entry) async {
     await getAll(); // ensure cache loaded
     // Guard against duplicate tool calls executing the same add twice in one
-    // agentic loop iteration — match on description+amount+date within 10s.
+    // tool loop iteration: match on description+amount+date within 10s.
     final existing = _cache!.where(
       (e) =>
           e.description.toLowerCase() == entry.description.toLowerCase() &&
@@ -824,7 +824,7 @@ class FinanceService {
     );
   }
 
-  /// Short finance summary injected into the agent's system context.
+  /// Short finance summary injected into the chat system context.
   String buildContextText(
     List<FinanceEntry> todayEntries,
     List<FinanceEntry> monthEntries,

@@ -25,8 +25,6 @@ abstract class ChatProvider {
 
   Future<void> initialize();
 
-  Future<bool> isReady();
-
   Stream<String> sendMessageStream(String message, {List<String>? imagePaths});
 
   /// Enhanced stream with thinking/reasoning tokens
@@ -100,8 +98,7 @@ abstract class BaseChatProvider extends ChatProvider {
 
   String get _providerName => config.displayName;
 
-  bool get _preserveReasoningContentForHistory =>
-      config.type == ChatModelType.deepseek;
+  bool get _preserveReasoningContentForHistory => true;
 
   String get _baseUrl;
 
@@ -115,18 +112,12 @@ abstract class BaseChatProvider extends ChatProvider {
         : null;
     _apiKeys = _apiKey != null ? [_apiKey!] : [];
     // Always default to flash on startup. Pro can be selected in-session.
-    _selectedModel = 'deepseek-v4-flash';
+    _selectedModel = AIModels.defaultModelId;
     _dio.options.headers = {'Accept': 'application/json'};
   }
 
   @override
-  Future<bool> isReady() async {
-    return _apiKeys.isNotEmpty;
-  }
-
-  @override
   void cancelRequest() {
-    _toolRegistry.cancelActiveRequests();
     _cancelToken?.cancel('User cancelled the request');
   }
 

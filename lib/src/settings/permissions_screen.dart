@@ -4,7 +4,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/helpers/android_background_agent_service.dart';
+import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -22,7 +22,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   bool _isLoading = true;
   bool _isRequestingRequired = false;
 
-  bool get _requiredAgentPermissionsGranted {
+  bool get _requiredChatPermissionsGranted {
     if (!(_notificationGranted ?? false)) return false;
     if (Platform.isAndroid && !(_backgroundBatteryGranted ?? false)) {
       return false;
@@ -63,7 +63,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     bool? backgroundBatteryGranted;
     if (Platform.isAndroid) {
       backgroundBatteryGranted =
-          await AndroidBackgroundAgentService.isBatteryOptimizationIgnored();
+          await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
       debugPrint(
         '[Permissions] Background battery unrestricted: $backgroundBatteryGranted',
       );
@@ -92,15 +92,15 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     if (!(_notificationGranted ?? false)) {
       await _requestNotificationPermission();
     }
-    await AndroidBackgroundAgentService.requestBatteryOptimizationExemption();
+    await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
     final granted =
-        await AndroidBackgroundAgentService.isBatteryOptimizationIgnored();
+        await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
     if (mounted) {
       setState(() => _backgroundBatteryGranted = granted);
     }
   }
 
-  Future<void> _requestRequiredAgentPermissions() async {
+  Future<void> _requestRequiredChatPermissions() async {
     if (_isRequestingRequired) return;
     setState(() => _isRequestingRequired = true);
 
@@ -110,7 +110,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       }
 
       if (Platform.isAndroid) {
-        await AndroidBackgroundAgentService.requestBatteryOptimizationExemption();
+        await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
       }
 
       await _checkPermissions();
@@ -182,7 +182,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
   Widget _buildRequiredPermissionsCard() {
     final theme = Theme.of(context);
-    final granted = _requiredAgentPermissionsGranted;
+    final granted = _requiredChatPermissionsGranted;
 
     return Container(
       decoration: BoxDecoration(
@@ -215,7 +215,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                granted ? 'Agent Permissions Ready' : 'Agent Permissions',
+                granted ? 'Chat Permissions Ready' : 'Chat Permissions',
                 style: AppTheme.headingSmall.copyWith(
                   fontSize: 16,
                   color: theme.colorScheme.onSurface,
@@ -228,7 +228,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                 child: ElevatedButton(
                   onPressed: _isRequestingRequired
                       ? null
-                      : _requestRequiredAgentPermissions,
+                      : _requestRequiredChatPermissions,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,

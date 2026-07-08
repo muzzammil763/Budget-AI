@@ -59,7 +59,7 @@ String _buildBehaviorPrompt() {
   final financeEnabled = ToolSettings.isToolEnabled('finance_add');
 
   return [
-    _coreAgentBehavior,
+    _coreChatBehavior,
     if (financeEnabled) _financeGuidance,
   ].map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n\n');
 }
@@ -101,7 +101,7 @@ String _buildDateTimeContextPrompt() {
       'Current date and time: $weekday, ${now.day} $month ${now.year} at $hour:$min (${now.timeZoneName}, UTC$sign$oh:$om).';
 }
 
-String _buildAgenticBaseSystemPrompt() {
+String _buildChatBaseSystemPrompt() {
   final segments = <String>[
     _buildBehaviorPrompt(),
     _buildDateTimeContextPrompt(),
@@ -110,15 +110,15 @@ String _buildAgenticBaseSystemPrompt() {
   return segments.map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n\n');
 }
 
-Future<String> _buildAgenticSystemPrompt() async {
-  final basePrompt = _buildAgenticBaseSystemPrompt();
+Future<String> _buildChatSystemPrompt() async {
+  final basePrompt = _buildChatBaseSystemPrompt();
   final contextSections = await _buildSystemContextSections();
 
   return [basePrompt, ...contextSections].join('\n\n');
 }
 
-Future<String> buildAgenticSystemPromptSnapshotForDiagnostics() {
-  return _buildAgenticSystemPrompt();
+Future<String> buildChatSystemPromptSnapshotForDiagnostics() {
+  return _buildChatSystemPrompt();
 }
 
 Future<List<String>> _buildSystemContextSections() async {
@@ -175,12 +175,12 @@ Future<List<Map<String, dynamic>>> _buildMessagesWithContext(
   ];
 }
 
-Future<List<Map<String, dynamic>>> _buildAgenticMessages(
+Future<List<Map<String, dynamic>>> _buildToolEnabledMessages(
   List<Map<String, dynamic>> chatHistory, {
   bool preserveReasoningContent = false,
 }) async {
   return [
-    {'role': 'system', 'content': await _buildAgenticSystemPrompt()},
+    {'role': 'system', 'content': await _buildChatSystemPrompt()},
     ..._sanitizeConversationStateForApi(
       chatHistory,
       preserveReasoningContent: preserveReasoningContent,

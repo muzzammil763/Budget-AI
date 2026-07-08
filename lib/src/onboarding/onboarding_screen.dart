@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:app_settings/app_settings.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/helpers/android_background_agent_service.dart';
+import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
@@ -67,7 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     bool? backgroundBatteryGranted;
     if (Platform.isAndroid) {
       backgroundBatteryGranted =
-          await AndroidBackgroundAgentService.isBatteryOptimizationIgnored();
+          await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
     }
 
     if (mounted) {
@@ -92,9 +92,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (!(_notificationGranted ?? false)) {
       await _requestNotificationPermission();
     }
-    await AndroidBackgroundAgentService.requestBatteryOptimizationExemption();
+    await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
     final granted =
-        await AndroidBackgroundAgentService.isBatteryOptimizationIgnored();
+        await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
     if (mounted) {
       setState(() => _backgroundBatteryGranted = granted);
     }
@@ -186,7 +186,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             children: [
               _buildWelcomePage(theme),
               _buildTrackPage(theme),
-              _buildAgentPage(theme),
+              _buildChatPage(theme),
               _buildPermissionsPage(theme),
             ],
           ),
@@ -435,10 +435,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildAgentPage(ThemeData theme) {
+  Widget _buildChatPage(ThemeData theme) {
     return _OnboardingPage(
-      kicker: 'YOUR AI AGENT',
-      title: 'Just say it,\nthe agent does it',
+      kicker: 'YOUR AI CHAT',
+      title: 'Just say it,\nBudget AI does it',
       description:
           'Chat naturally — the AI adds entries, searches your history and builds summaries for you in seconds.',
       items: const [
@@ -464,17 +464,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildPermissionsPage(ThemeData theme) {
     return _OnboardingPage(
       kicker: 'ONE LAST THING',
-      title: 'Let the agent\nwork for you',
+      title: 'Let Budget AI\nwork for you',
       description: Platform.isAndroid
-          ? 'Notifications and background access keep the agent running and reporting even when the app is closed.'
-          : 'Notifications let the agent report back to you when it finishes working.',
+          ? 'Notifications and background access keep Budget AI running and reporting even when the app is closed.'
+          : 'Notifications let Budget AI report back to you when it finishes working.',
       items: const [],
       extra: Column(
         children: [
           _PermissionCard(
             icon: CupertinoIcons.bell,
             title: 'Notifications',
-            subtitle: 'Get updates when the agent finishes',
+            subtitle: 'Get updates when Budget AI finishes',
             isGranted: _notificationGranted ?? false,
             onRequest: _requestNotificationPermission,
           ),
@@ -483,7 +483,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             _PermissionCard(
               icon: CupertinoIcons.bolt_horizontal_circle,
               title: 'Background Service',
-              subtitle: 'Keep the agent alive for background',
+              subtitle: 'Keep Budget AI active in the background',
               isGranted:
                   (_notificationGranted ?? false) &&
                   (_backgroundBatteryGranted ?? false),

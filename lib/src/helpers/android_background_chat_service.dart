@@ -2,16 +2,16 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
-class AndroidBackgroundAgentService {
-  AndroidBackgroundAgentService._();
+class AndroidBackgroundChatService {
+  AndroidBackgroundChatService._();
 
   static const MethodChannel _channel = MethodChannel(
-    'open_gate/background_agent',
+    'budget_ai/background_chat',
   );
 
   static Future<bool> start({
-    String title = 'Budget AI agent running',
-    String text = 'Keeping the active agent response connected.',
+    String title = 'Budget AI chat running',
+    String text = 'Keeping the active chat response connected.',
   }) async {
     if (!Platform.isAndroid) return false;
     return await _channel.invokeMethod<bool>('start', {
