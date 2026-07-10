@@ -61,9 +61,9 @@ class NotificationService {
       '@mipmap/ic_launcher',
     );
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     const initSettings = InitializationSettings(
@@ -127,6 +127,7 @@ class NotificationService {
 
   Future<bool> requestPermission() async {
     if (Platform.isIOS) {
+      await initialize();
       final iosPlugin = _notifications
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
@@ -137,6 +138,9 @@ class NotificationService {
             sound: true,
           ) ??
           false;
+    }
+    if (Platform.isAndroid) {
+      await initialize();
     }
     return true;
   }

@@ -8,12 +8,14 @@ import 'package:budget_ai/src/splash/splash_screen.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   unawaited(FinanceService.instance.applySavingsRollover());
   final preferences = SharedPreferencesAsync();
   final onboardingCompleted =

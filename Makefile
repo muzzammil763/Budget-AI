@@ -8,6 +8,7 @@ KEYSTORE_FILE := $(HOME)/Keystores/budgetai.jks
 KEY_ALIAS := key0
 STORE_PASSWORD := admin123
 KEY_PASSWORD := admin123
+ENV_FILE := .env
 
 .DEFAULT_GOAL := help
 
@@ -22,13 +23,18 @@ help:
 	@printf "  clean      Run flutter clean\n"
 	@printf "  verify-signing  Check the Budget AI release keystore\n"
 	@printf "\n"
-	@printf "Set DEEPSEEK_API_KEY ahead of time to skip the prompt:\n"
-	@printf "  DEEPSEEK_API_KEY=sk-xxx make apk\n"
+	@printf "Create $(ENV_FILE) in the project root before building:\n"
+	@printf "  DEEPSEEK_API_KEY=sk-xxx\n"
 	@printf "\n"
 
 apk:
-	@key="$${DEEPSEEK_API_KEY:-}"; \
-	if [ -z "$$key" ]; then read -p "Enter DeepSeek API key (will be baked into the APK): " key; fi; \
+	@key=$$(sed -n 's/^DEEPSEEK_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
+	key="$${key%\"}"; key="$${key#\"}"; key="$${key%\'}"; key="$${key#\'}"; \
+	if [ -z "$$key" ]; then \
+		printf "Missing DEEPSEEK_API_KEY in $(ENV_FILE)\n"; \
+		printf "Create $(ENV_FILE) with: DEEPSEEK_API_KEY=sk-xxx\n"; \
+		exit 1; \
+	fi; \
 	if [ ! -f "$(KEYSTORE_FILE)" ]; then \
 		printf "Creating release keystore: $(KEYSTORE_FILE)\n"; \
 		mkdir -p "$$(dirname "$(KEYSTORE_FILE)")"; \
@@ -45,10 +51,9 @@ apk:
 	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
 		"$(KEYSTORE_FILE)" "$(STORE_PASSWORD)" "$(KEY_ALIAS)" "$(KEY_PASSWORD)" \
 		> android/key.properties; \
-	printf "Building with DeepSeek API key\n"; \
+	printf "Building with DeepSeek API key from $(ENV_FILE)\n"; \
 	flutter build apk --release --target-platform android-arm64 \
-		--split-debug-info=build/debug-info --obfuscate \
-		--dart-define=DEEPSEEK_API_KEY=$$key; \
+		--split-debug-info=build/debug-info --obfuscate; \
 	status=$$?; rm -f android/key.properties; [ $$status -ne 0 ] && exit $$status; \
 	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \
@@ -56,8 +61,13 @@ apk:
 	printf "APK ready: $$dest/$(APP_NAME) $$version.apk\n"
 
 apk-split:
-	@key="$${DEEPSEEK_API_KEY:-}"; \
-	if [ -z "$$key" ]; then read -p "Enter DeepSeek API key (will be baked into the APK): " key; fi; \
+	@key=$$(sed -n 's/^DEEPSEEK_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
+	key="$${key%\"}"; key="$${key#\"}"; key="$${key%\'}"; key="$${key#\'}"; \
+	if [ -z "$$key" ]; then \
+		printf "Missing DEEPSEEK_API_KEY in $(ENV_FILE)\n"; \
+		printf "Create $(ENV_FILE) with: DEEPSEEK_API_KEY=sk-xxx\n"; \
+		exit 1; \
+	fi; \
 	if [ ! -f "$(KEYSTORE_FILE)" ]; then \
 		printf "Creating release keystore: $(KEYSTORE_FILE)\n"; \
 		mkdir -p "$$(dirname "$(KEYSTORE_FILE)")"; \
@@ -74,10 +84,9 @@ apk-split:
 	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
 		"$(KEYSTORE_FILE)" "$(STORE_PASSWORD)" "$(KEY_ALIAS)" "$(KEY_PASSWORD)" \
 		> android/key.properties; \
-	printf "Building with DeepSeek API key\n"; \
+	printf "Building with DeepSeek API key from $(ENV_FILE)\n"; \
 	flutter build apk --release --split-per-abi \
-		--split-debug-info=build/debug-info --obfuscate \
-		--dart-define=DEEPSEEK_API_KEY=$$key; \
+		--split-debug-info=build/debug-info --obfuscate; \
 	status=$$?; rm -f android/key.properties; [ $$status -ne 0 ] && exit $$status; \
 	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \
@@ -88,8 +97,13 @@ apk-split:
 	done
 
 aab:
-	@key="$${DEEPSEEK_API_KEY:-}"; \
-	if [ -z "$$key" ]; then read -p "Enter DeepSeek API key (will be baked into the APK): " key; fi; \
+	@key=$$(sed -n 's/^DEEPSEEK_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
+	key="$${key%\"}"; key="$${key#\"}"; key="$${key%\'}"; key="$${key#\'}"; \
+	if [ -z "$$key" ]; then \
+		printf "Missing DEEPSEEK_API_KEY in $(ENV_FILE)\n"; \
+		printf "Create $(ENV_FILE) with: DEEPSEEK_API_KEY=sk-xxx\n"; \
+		exit 1; \
+	fi; \
 	if [ ! -f "$(KEYSTORE_FILE)" ]; then \
 		printf "Creating release keystore: $(KEYSTORE_FILE)\n"; \
 		mkdir -p "$$(dirname "$(KEYSTORE_FILE)")"; \
@@ -106,10 +120,9 @@ aab:
 	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
 		"$(KEYSTORE_FILE)" "$(STORE_PASSWORD)" "$(KEY_ALIAS)" "$(KEY_PASSWORD)" \
 		> android/key.properties; \
-	printf "Building with DeepSeek API key\n"; \
+	printf "Building with DeepSeek API key from $(ENV_FILE)\n"; \
 	flutter build appbundle --release \
-		--split-debug-info=build/debug-info --obfuscate \
-		--dart-define=DEEPSEEK_API_KEY=$$key; \
+		--split-debug-info=build/debug-info --obfuscate; \
 	status=$$?; rm -f android/key.properties; [ $$status -ne 0 ] && exit $$status; \
 	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \

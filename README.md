@@ -14,9 +14,17 @@ Budget AI is a Flutter personal finance assistant with DeepSeek chat, local expe
 
 ## Development
 
+Create a root `.env` file before running or building the app:
+
+```sh
+cp .env.example .env
+# then set DEEPSEEK_API_KEY in .env
+```
+
 ```sh
 flutter pub get
 flutter analyze --no-fatal-warnings --no-fatal-infos
+make apk
 ```
 
 There is currently no `test/` directory in this app.

@@ -2676,7 +2676,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2871,7 +2871,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         NotificationListener<ScrollNotification>(
           onNotification: _handleChatScrollNotification,
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 112, bottom: 112),
+            padding: const EdgeInsets.only(top: 120, bottom: 112),
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
@@ -3238,8 +3238,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           onTap: message.text.trim().isEmpty
               ? null
               : () => _copyMessage(message.text),
-          onLongPress: () =>
-              _confirmDeleteUserMessage(message, resolvedMessageIndex),
           child: Container(
             margin: const EdgeInsets.only(left: 12, right: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -4079,138 +4077,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     Clipboard.setData(ClipboardData(text: text));
   }
 
-  Future<void> _confirmDeleteUserMessage(
-    ChatMessage message,
-    int messageIndex,
-  ) async {
-    final confirmed = await _showDeleteConfirmationDialog(
-      'Delete this message?',
-      'This will remove your message from the current chat so it is not sent to the AI in subsequent messages.',
-    );
-    if (confirmed != true || !mounted) return;
-    await _deleteMessage(messageIndex);
-  }
 
-  Future<bool?> _showDeleteConfirmationDialog(
-    String title,
-    String message,
-  ) async {
-    final theme = Theme.of(context);
-    return ResponsiveInfoSheet.show<bool>(
-      context,
-      title: title,
-      headerIcon: Icon(
-        CupertinoIcons.trash,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        Text(
-          message,
-          style: AppTheme.bodyMedium.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 14,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        Row(
-          spacing: 12,
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    foregroundColor: theme.colorScheme.onSurface,
-                    elevation: 0,
-                    side: BorderSide(color: theme.colorScheme.outline),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Future<void> _deleteMessage(int messageIndex) async {
-    if (messageIndex < 0 || messageIndex >= _messages.length) return;
-
-    final message = _messages[messageIndex];
-
-    // Find the timeline entry and its index
-    final timelineIndex = _timelineIndexForMessageIndex(messageIndex);
-    if (timelineIndex == null) return;
-
-    final entryId = _timelineEntryIdForMessageIndex(messageIndex);
-
-    // Remove from provider history
-    if (message.isUser) {
-      _removeProviderUserMessageFromHistory(message.text);
-    } else {
-      _removeProviderAssistantMessageFromHistory(message.text);
-    }
-
-    // Delete from database
-    if (entryId != null) {
-      await _chatSessions.deleteTimelineEntry(entryId: entryId);
-    }
-
-    // Remove from local state
-    setState(() {
-      _timelineItems.removeAt(timelineIndex);
-      _rebuildMessagesFromTimeline();
-
-      // Adjust streaming message index if needed
-      if (_streamingMessageIndex != null &&
-          _streamingMessageIndex! > messageIndex) {
-        _streamingMessageIndex = _streamingMessageIndex! - 1;
-      } else if (_streamingMessageIndex == messageIndex) {
-        _streamingMessageIndex = null;
-      }
-    });
-
-    // Sync provider state to session
-    if (_activeSession != null) {
-      await _syncProviderStateToSession();
-      await _handlePostTurnSessionState();
-    }
-  }
 
   String? _buildPostToolCompletionFallback(List<ChatMessageBlock> blocks) {
     final latestTool = _latestCompletedTool(blocks, successfulOnly: false);

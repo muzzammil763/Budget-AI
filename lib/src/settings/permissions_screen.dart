@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
+import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -79,10 +80,14 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   }
 
   Future<void> _requestNotificationPermission() async {
-    final status = await Permission.notification.request();
+    final granted = Platform.isIOS
+        ? await NotificationService.instance.requestPermission()
+        : (await Permission.notification.request()).isGranted;
+    final status = await Permission.notification.status;
+    final isGranted = granted || status.isGranted;
     if (mounted) {
-      setState(() => _notificationGranted = status.isGranted);
-      if (!status.isGranted) {
+      setState(() => _notificationGranted = isGranted);
+      if (!isGranted) {
         _showPermissionDeniedDialog('Notifications');
       }
     }
