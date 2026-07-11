@@ -624,11 +624,8 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            radius: 48,
-            splashColor: AppTheme.highlight.withValues(alpha: 0.25),
-            hoverColor: Colors.transparent,
-            highlightColor: Colors.transparent,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               setState(() {
                 _isExpanded = !_isExpanded;
