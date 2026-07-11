@@ -164,12 +164,15 @@ class _FinancesScreenState extends State<FinancesScreen>
     try {
       final canCheckBiometrics = await localAuth.canCheckBiometrics;
       final isDeviceSupported = await localAuth.isDeviceSupported();
+      final availableBiometrics = await localAuth.getAvailableBiometrics();
 
-      if (!canCheckBiometrics && !isDeviceSupported) {
+      if (!canCheckBiometrics ||
+          !isDeviceSupported ||
+          availableBiometrics.isEmpty) {
         if (!mounted) return;
         showAppToast(
           context,
-          message: 'Biometrics not available on this device',
+          message: 'Biometrics are not set up on this device',
           type: ToastificationType.error,
         );
         return;
