@@ -19,6 +19,7 @@ import 'package:budget_ai/src/chat/model_picker_sheet.dart';
 import 'package:budget_ai/src/chat/chat_session_repository.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
+import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
@@ -71,6 +72,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
   bool _isAppInBackground = false;
+  bool _isAppInactive = false;
   bool _isOnChatScreen = true;
   late ChatProvider _provider;
   int? _streamingMessageIndex;
@@ -566,6 +568,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void _startStreamingDurationTimer(DateTime startedAt) {
     _streamingDurationTimer?.cancel();
     unawaited(AndroidBackgroundChatService.start());
+    unawaited(IosBackgroundTaskService.start());
     var tickCount = 0;
     _streamingDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !_isStreaming) {
@@ -592,6 +595,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _streamingDurationTimer = null;
     _turnWallClockStart = null;
     unawaited(AndroidBackgroundChatService.stop());
+    unawaited(IosBackgroundTaskService.stop());
   }
 
   // Used by streaming paths so multiple requests within the same frame
@@ -1301,13 +1305,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           );
         }
         _stopStreamingDurationTimer();
-        if (_isAppInBackground || !_isOnChatScreen) {
+        final shouldNotifyResponseComplete =
+            _isAppInBackground || _isAppInactive || !_isOnChatScreen;
+        if (shouldNotifyResponseComplete) {
           final toolCallCount = _countToolCallsInMessage(finalAssistantMessage);
           final responseText = finalAssistantMessage.text;
           final summary = responseText.isNotEmpty
-              ? (responseText.length > 200
-                    ? '${responseText.substring(0, 200)}...'
-                    : responseText)
+              ? responseText
               : 'Response complete. ${toolCallCount > 0 ? '$toolCallCount tool call(s) executed.' : ''}';
           final responsePayload = ResponseReadyPayload(
             chatId: _activeSession?.id ?? '',
@@ -1321,7 +1325,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           unawaited(
             NotificationService.instance.showResponseReadyNotification(
               responsePayload,
-              appInBackground: _isAppInBackground,
+              appInBackground: shouldNotifyResponseComplete,
             ),
           );
         }
@@ -2581,6 +2585,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _isAppInBackground = false;
+      _isAppInactive = false;
       _suppressNetworkWaitingUntil = DateTime.now().add(
         const Duration(seconds: 3),
       );
@@ -2592,9 +2597,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (_isResponseInProgress) {
         _scrollToBottom();
       }
+    } else if (state == AppLifecycleState.inactive) {
+      _isAppInactive = true;
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _isAppInBackground = true;
+      _isAppInactive = false;
       NetworkReachabilityService.instance.stop();
     }
   }
@@ -4076,8 +4084,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
   }
-
-
 
   String? _buildPostToolCompletionFallback(List<ChatMessageBlock> blocks) {
     final latestTool = _latestCompletedTool(blocks, successfulOnly: false);

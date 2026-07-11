@@ -198,11 +198,21 @@ class NotificationService {
 
     if (!responseNotificationsEnabled) return null;
     if (backgroundOnlyEnabled && !appInBackground) return null;
-    if (isDndActive) return null;
 
     final id = payload.chatId.hashCode.abs();
-    final title = payload.hasError ? 'Response Error' : 'Response Ready';
+    final title = payload.hasError
+        ? 'Budget AI response error'
+        : 'Budget AI response ready';
     final body = payload.summary ?? 'Your AI response is ready.';
+    final tapPayload = ResponseReadyPayload(
+      chatId: payload.chatId,
+      modelUsed: payload.modelUsed,
+      toolCallCount: payload.toolCallCount,
+      status: payload.status,
+      summary: body.length > 500 ? '${body.substring(0, 500)}...' : body,
+      timestamp: payload.timestamp,
+      hasError: payload.hasError,
+    );
 
     final androidDetails = AndroidNotificationDetails(
       NotificationChannels.responseReady,
@@ -232,7 +242,7 @@ class NotificationService {
       title: title,
       body: body,
       notificationDetails: details,
-      payload: payload.toPayloadString(),
+      payload: tapPayload.toPayloadString(),
     );
 
     return id;
