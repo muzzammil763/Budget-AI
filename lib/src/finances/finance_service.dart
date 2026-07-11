@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:budget_ai/src/settings/currency_settings_service.dart';
 
 const List<String> kFinanceCategories = [
   'Food',
@@ -157,9 +158,16 @@ class FinanceEntry {
     return '$day $month, $year - ${hour.toString().padLeft(2, '0')}:$minute $period';
   }
 
-  String get displayAmount => '${formatAmount(amount)} Rs';
+  String get displayAmount => money(amount);
   String get displaySignedAmount =>
-      '${type == FinanceEntryType.income ? '+' : '-'}${formatAmount(amount)} Rs';
+      money(type == FinanceEntryType.income ? amount : -amount);
+
+  static String money(double amount, {bool forceSign = false}) {
+    return CurrencySettingsService.instance.formatAmount(
+      amount,
+      forceSign: forceSign,
+    );
+  }
 
   static String formatAmount(double amount) {
     final intPart = amount.toInt();
@@ -311,10 +319,9 @@ class LoanRecord {
   double get paidAmount =>
       payments.fold(0.0, (sum, payment) => sum + payment.amount);
   double get remainingAmount => (principal - paidAmount).clamp(0.0, principal);
-  String get displayPrincipal => '${FinanceEntry.formatAmount(principal)} Rs';
-  String get displayPaid => '${FinanceEntry.formatAmount(paidAmount)} Rs';
-  String get displayRemaining =>
-      '${FinanceEntry.formatAmount(remainingAmount)} Rs';
+  String get displayPrincipal => FinanceEntry.money(principal);
+  String get displayPaid => FinanceEntry.money(paidAmount);
+  String get displayRemaining => FinanceEntry.money(remainingAmount);
 
   LoanRecord copyWith({
     LoanDirection? direction,
@@ -566,8 +573,8 @@ class FinanceService {
       final description = fields[1].trim();
       final amountStr = fields[2]
           .trim()
-          .replaceAll(RegExp(r'\s*Rs\.?', caseSensitive: false), '')
           .replaceAll(',', '')
+          .replaceAll(RegExp(r'[^0-9.\-]'), '')
           .trim();
       final category = fields.length >= 4
           ? _capitalize(fields[3].trim())
@@ -845,12 +852,12 @@ class FinanceService {
       );
       if (todayExpenseEntries.isNotEmpty) {
         lines.add(
-          'Today spent: ${FinanceEntry.formatAmount(todayTotal)} Rs '
+          'Today spent: ${FinanceEntry.money(todayTotal)} '
           '(${todayExpenseEntries.length} item${todayExpenseEntries.length == 1 ? '' : 's'})',
         );
       }
       if (todayIncome > 0) {
-        lines.add('Today income: ${FinanceEntry.formatAmount(todayIncome)} Rs');
+        lines.add('Today income: ${FinanceEntry.money(todayIncome)}');
       }
     }
 
@@ -884,14 +891,12 @@ class FinanceService {
       if (monthExpenseEntries.isNotEmpty) {
         lines.add(
           'Current month (${monthNames[now.month - 1]} ${now.year}) total: '
-          '${FinanceEntry.formatAmount(monthTotal)} Rs '
+          '${FinanceEntry.money(monthTotal)} '
           '(${monthExpenseEntries.length} expense entries)',
         );
       }
       if (monthIncome > 0) {
-        lines.add(
-          'Current month income: ${FinanceEntry.formatAmount(monthIncome)} Rs',
-        );
+        lines.add('Current month income: ${FinanceEntry.money(monthIncome)}');
       }
       final byCat = categorySummary(monthEntries);
       if (byCat.isNotEmpty) {
@@ -903,7 +908,7 @@ class FinanceService {
         for (final e in byCat.entries) {
           final count = countsByCat[e.key] ?? 0;
           lines.add(
-            '  - ${e.key}: ${FinanceEntry.formatAmount(e.value)} Rs '
+            '  - ${e.key}: ${FinanceEntry.money(e.value)} '
             '($count ${count == 1 ? 'entry' : 'entries'})',
           );
         }
@@ -1124,8 +1129,8 @@ class LoanService {
     final openLoans = loans.where((loan) => loan.remainingAmount > 0).length;
     final lines = <String>[
       'Loans ledger: $openLoans open loan${openLoans == 1 ? '' : 's'}.',
-      '  - Borrowed remaining: ${FinanceEntry.formatAmount(borrowed)} Rs',
-      '  - Lent remaining: ${FinanceEntry.formatAmount(lent)} Rs',
+      '  - Borrowed remaining: ${FinanceEntry.money(borrowed)}',
+      '  - Lent remaining: ${FinanceEntry.money(lent)}',
     ];
     for (final loan
         in loans.where((loan) => loan.remainingAmount > 0).take(5)) {

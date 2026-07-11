@@ -1729,8 +1729,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     return '';
   }
 
-  static String _money(double amount) =>
-      '${FinanceEntry.formatAmount(amount)} Rs';
+  static String _money(double amount) => FinanceEntry.money(amount);
 
   String _signedMoney(double amount) {
     if (amount == 0) return _money(0);
@@ -1829,7 +1828,7 @@ class _HeatmapCell extends StatelessWidget {
     return Tooltip(
       message: total == 0
           ? 'No spending on ${_tooltipDate(day.date)}'
-          : '${FinanceEntry.formatAmount(total)} Rs on ${_tooltipDate(day.date)}',
+          : '${FinanceEntry.money(total)} on ${_tooltipDate(day.date)}',
       child: Container(
         width: 12,
         height: 12,

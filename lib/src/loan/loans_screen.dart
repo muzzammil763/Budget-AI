@@ -189,7 +189,7 @@ class _LoansScreenState extends State<LoansScreen> {
               Expanded(
                 child: _buildSummaryFooterItem(
                   theme,
-                  value: '${FinanceEntry.formatAmount(borrowedRemaining)} Rs',
+                  value: FinanceEntry.money(borrowedRemaining),
                   label: 'To pay back',
                   valueColor: Colors.red,
                 ),
@@ -203,7 +203,7 @@ class _LoansScreenState extends State<LoansScreen> {
               Expanded(
                 child: _buildSummaryFooterItem(
                   theme,
-                  value: '${FinanceEntry.formatAmount(lentRemaining)} Rs',
+                  value: FinanceEntry.money(lentRemaining),
                   label: 'To receive',
                   valueColor: Colors.green,
                 ),
@@ -238,7 +238,7 @@ class _LoansScreenState extends State<LoansScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          '${FinanceEntry.formatAmount(primaryAmount)} Rs',
+          FinanceEntry.money(primaryAmount),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: AppTheme.headingLarge.copyWith(
@@ -252,7 +252,7 @@ class _LoansScreenState extends State<LoansScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 5),
             child: Text(
-              '${row.label}: ${FinanceEntry.formatAmount(row.amount)} Rs',
+              '${row.label}: ${FinanceEntry.money(row.amount)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTheme.bodySmall.copyWith(
@@ -434,7 +434,12 @@ class _LoansScreenState extends State<LoansScreen> {
                   Text(
                     isSettled
                         ? 'SETTLED'
-                        : '${isBorrowed ? '-' : '+'}${FinanceEntry.formatAmount(loan.remainingAmount)} Rs',
+                        : FinanceEntry.money(
+                            isBorrowed
+                                ? -loan.remainingAmount
+                                : loan.remainingAmount,
+                            forceSign: !isBorrowed,
+                          ),
                     style: AppTheme.headingSmall.copyWith(
                       color: isSettled
                           ? theme.colorScheme.onSurfaceVariant
@@ -545,12 +550,10 @@ class _LoansScreenState extends State<LoansScreen> {
           isFirst: false,
           isLast: i == ascending.length - 1,
           title:
-              '${isBorrowed ? 'I paid' : '${loan.person} paid'} '
-              '${FinanceEntry.formatAmount(payment.amount)} Rs'
-              '${payment.note.isEmpty ? '' : ' · ${payment.note}'}',
+              '${isBorrowed ? 'I paid' : '${loan.person} paid'} ${FinanceEntry.money(payment.amount)}${payment.note.isEmpty ? '' : ' · ${payment.note}'}',
           caption:
               '${_dateLabel(payment.date)} · '
-              '${remaining <= 0 ? 'Settled' : '${FinanceEntry.formatAmount(remaining)} Rs remaining'}',
+              '${remaining <= 0 ? 'Settled' : '${FinanceEntry.money(remaining)} remaining'}',
         ),
       );
     }

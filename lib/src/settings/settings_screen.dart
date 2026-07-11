@@ -12,6 +12,7 @@ import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/loan/loans_screen.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/app_backup_service.dart';
+import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:toastification/toastification.dart';
@@ -25,11 +26,19 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   PackageInfo? _packageInfo;
+  final TextEditingController _customCurrencyController =
+      TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadPackageInfo();
+  }
+
+  @override
+  void dispose() {
+    _customCurrencyController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPackageInfo() async {
@@ -92,6 +101,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Finance Insights',
             subtitle: 'Overall and monthly spending insights',
             onTap: _openInsights,
+          ),
+          ValueListenableBuilder<String>(
+            valueListenable: CurrencySettingsService.instance.currency,
+            builder: (context, currency, _) {
+              return _buildNavTile(
+                theme,
+                icon: CupertinoIcons.money_dollar,
+                title: 'Currency',
+                subtitle:
+                    'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
+                onTap: _showCurrencySheet,
+              );
+            },
           ),
           _buildNavTile(
             theme,
@@ -198,6 +220,185 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (_) => FinanceInsightsScreen(
           entries: List.from(entries),
           selectedMonth: DateTime(now.year, now.month),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCurrencySheet() async {
+    final theme = Theme.of(context);
+    _customCurrencyController.clear();
+
+    await ResponsiveInfoSheet.show<void>(
+      context,
+      title: 'Currency',
+      headerIcon: Icon(
+        CupertinoIcons.money_dollar_circle,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+      ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Text(
+          'Choose how Budget AI displays money. This also updates AI finance responses and tool results.',
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 13,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ValueListenableBuilder<String>(
+          valueListenable: CurrencySettingsService.instance.currency,
+          builder: (context, selectedCurrency, _) {
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final option in kPresetCurrencyOptions)
+                  _buildCurrencyChip(
+                    theme,
+                    option: option,
+                    selected: option.displayText == selectedCurrency,
+                    onTap: () => _selectCurrency(option.displayText),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Custom',
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _customCurrencyController,
+                cursorColor: theme.colorScheme.primary,
+                maxLength: 8,
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: 'e.g. AED, CHF, kr',
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.68,
+                    ),
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: theme.colorScheme.surface,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () =>
+                    _selectCurrency(_customCurrencyController.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text('Use'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectCurrency(String value) async {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return;
+    await CurrencySettingsService.instance.setCurrency(normalized);
+    if (!mounted) return;
+    Navigator.pop(context);
+    showAppToast(
+      context,
+      message:
+          'Currency set to ${CurrencySettingsService.instance.formatAmount(1200)}',
+      type: ToastificationType.success,
+    );
+  }
+
+  Widget _buildCurrencyChip(
+    ThemeData theme, {
+    required CurrencyOption option,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.32),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              option.displayText,
+              style: AppTheme.bodyMedium.copyWith(
+                color: selected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              option.name,
+              style: AppTheme.bodySmall.copyWith(
+                color: selected
+                    ? theme.colorScheme.onPrimary.withValues(alpha: 0.76)
+                    : theme.colorScheme.onSurfaceVariant,
+                fontSize: 11,
+              ),
+            ),
+          ],
         ),
       ),
     );

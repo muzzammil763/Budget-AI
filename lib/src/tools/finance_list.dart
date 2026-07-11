@@ -77,7 +77,7 @@ mixin FinanceListToolHandler {
       return {
         'ok': true,
         'count': limited.length,
-        'total': '${FinanceEntry.formatAmount(total)} Rs',
+        'total': FinanceEntry.money(total),
         'entries': limited
             .map(
               (e) => {

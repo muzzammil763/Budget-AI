@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
 import 'package:budget_ai/src/tools/tool_settings.dart';

@@ -74,17 +74,15 @@ mixin FinanceSummaryToolHandler {
         'to':
             '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}',
         'entry_count': entries.length,
-        'total': '${FinanceEntry.formatAmount(total)} Rs',
-        'income_total': '${FinanceEntry.formatAmount(incomeTotal)} Rs',
-        'expense_total': '${FinanceEntry.formatAmount(expenseTotal)} Rs',
+        'total': FinanceEntry.money(total),
+        'income_total': FinanceEntry.money(incomeTotal),
+        'expense_total': FinanceEntry.money(expenseTotal),
         'net_balance': _formatSignedAmount(incomeTotal - expenseTotal),
         'expense_by_category': expenseByCat.map(
-          (cat, amount) =>
-              MapEntry(cat, '${FinanceEntry.formatAmount(amount)} Rs'),
+          (cat, amount) => MapEntry(cat, FinanceEntry.money(amount)),
         ),
         'income_by_category': incomeByCat.map(
-          (cat, amount) =>
-              MapEntry(cat, '${FinanceEntry.formatAmount(amount)} Rs'),
+          (cat, amount) => MapEntry(cat, FinanceEntry.money(amount)),
         ),
       };
     } catch (e) {
@@ -93,7 +91,6 @@ mixin FinanceSummaryToolHandler {
   }
 
   String _formatSignedAmount(double amount) {
-    final prefix = amount < 0 ? '-' : '';
-    return '$prefix${FinanceEntry.formatAmount(amount.abs())} Rs';
+    return FinanceEntry.money(amount);
   }
 }

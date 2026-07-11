@@ -1,4 +1,5 @@
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 
 ToolDefinition buildLoanAddTool({
@@ -25,7 +26,8 @@ ToolDefinition buildLoanAddTool({
       },
       'amount': {
         'type': 'number',
-        'description': 'Principal amount in Pakistani Rupees.',
+        'description':
+            'Principal amount in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
       },
       'date': {
         'type': 'string',
@@ -51,7 +53,11 @@ ToolDefinition buildLoanPaymentAddTool({
         'type': 'string',
         'description': 'Loan ID. Use loan_list first if needed.',
       },
-      'amount': {'type': 'number', 'description': 'Payment amount in Rs.'},
+      'amount': {
+        'type': 'number',
+        'description':
+            'Payment amount in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
+      },
       'date': {
         'type': 'string',
         'description': 'Payment date in YYYY-MM-DD format. Omit for today.',
@@ -88,7 +94,8 @@ ToolDefinition buildLoanUpdateTool({
       },
       'amount': {
         'type': 'number',
-        'description': 'Updated principal amount in Pakistani Rupees.',
+        'description':
+            'Updated principal amount in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
       },
       'date': {
         'type': 'string',
@@ -117,7 +124,8 @@ ToolDefinition buildLoanPaymentUpdateTool({
       'payment_id': {'type': 'string', 'description': 'Payment ID to edit.'},
       'amount': {
         'type': 'number',
-        'description': 'Updated payment amount in Pakistani Rupees.',
+        'description':
+            'Updated payment amount in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
       },
       'date': {
         'type': 'string',
@@ -253,7 +261,7 @@ mixin LoanToolHandler {
         'loan': _loanToJson(updated),
         'payment': {
           'id': payment.id,
-          'amount': '${FinanceEntry.formatAmount(payment.amount)} Rs',
+          'amount': FinanceEntry.money(payment.amount),
           'date': payment.date.toIso8601String().split('T').first,
           'note': payment.note,
         },
@@ -429,10 +437,12 @@ mixin LoanToolHandler {
       return {
         'ok': true,
         'count': loans.length,
-        'borrowed_remaining':
-            '${FinanceEntry.formatAmount(LoanService.instance.totalRemaining(loans, LoanDirection.borrowed))} Rs',
-        'lent_remaining':
-            '${FinanceEntry.formatAmount(LoanService.instance.totalRemaining(loans, LoanDirection.lent))} Rs',
+        'borrowed_remaining': FinanceEntry.money(
+          LoanService.instance.totalRemaining(loans, LoanDirection.borrowed),
+        ),
+        'lent_remaining': FinanceEntry.money(
+          LoanService.instance.totalRemaining(loans, LoanDirection.lent),
+        ),
         'loans': loans.map(_loanToJson).toList(),
       };
     } catch (e) {
@@ -454,7 +464,7 @@ mixin LoanToolHandler {
         .map(
           (payment) => {
             'id': payment.id,
-            'amount': '${FinanceEntry.formatAmount(payment.amount)} Rs',
+            'amount': FinanceEntry.money(payment.amount),
             'date': payment.date.toIso8601String().split('T').first,
             'note': payment.note,
           },

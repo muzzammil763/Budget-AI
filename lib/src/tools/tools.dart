@@ -57,10 +57,8 @@ class ToolRegistry
         FinanceUpdateToolHandler,
         FinanceDeleteToolHandler,
         LoanToolHandler {
-  List<ToolDefinition>? _toolsCache;
-
   List<ToolDefinition> getAvailableTools() {
-    return _toolsCache ??= List.unmodifiable([
+    return List.unmodifiable([
       buildFinanceAddTool(handler: handleFinanceAddRequest),
       buildFinanceListTool(handler: handleFinanceListRequest),
       buildFinanceIncomeAddTool(handler: handleFinanceIncomeAddRequest),

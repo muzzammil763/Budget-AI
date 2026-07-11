@@ -1,4 +1,5 @@
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/tools/finance_entry_tool_helpers.dart';
 
@@ -18,7 +19,8 @@ ToolDefinition buildFinanceIncomeAddTool({
       },
       'amount': {
         'type': 'number',
-        'description': 'Income amount in Pakistani Rupees.',
+        'description':
+            'Income amount in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
       },
       'category': {
         'type': 'string',

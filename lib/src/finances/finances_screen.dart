@@ -375,7 +375,7 @@ class _FinancesScreenState extends State<FinancesScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${FinanceEntry.formatAmount(totalExpense)} Rs',
+                      FinanceEntry.money(totalExpense),
                       style: AppTheme.headingLarge.copyWith(
                         color: Colors.red,
                         fontSize: 24,
@@ -384,7 +384,7 @@ class _FinancesScreenState extends State<FinancesScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${FinanceEntry.formatAmount(totalIncome)} Rs',
+                      FinanceEntry.money(totalIncome),
                       style: AppTheme.headingLarge.copyWith(
                         color: Colors.green,
                         fontSize: 18,
@@ -401,7 +401,7 @@ class _FinancesScreenState extends State<FinancesScreen>
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                        '${e.key} · ${FinanceEntry.formatAmount(e.value)} Rs',
+                        '${e.key} · ${FinanceEntry.money(e.value)}',
                         style: TextStyle(
                           color: onCard.withValues(alpha: 0.85),
                           fontSize: 12,
@@ -416,7 +416,7 @@ class _FinancesScreenState extends State<FinancesScreen>
           if (!_isCurrentMonth && currentBalance > 0) ...[
             const SizedBox(height: 8),
             Text(
-              '${FinanceEntry.formatAmount(currentBalance)} Rs will be moved to the next month balance automatically.',
+              '${FinanceEntry.money(currentBalance)} will be moved to the next month balance automatically.',
               style: AppTheme.bodySmall.copyWith(
                 color: onCard.withValues(alpha: 0.82),
                 fontSize: 12,
@@ -435,7 +435,7 @@ class _FinancesScreenState extends State<FinancesScreen>
     final cardColor = theme.colorScheme.primary;
     final onCard = AppTheme.readableOn(cardColor);
     final isDark = theme.brightness == Brightness.dark;
-    final amount = '${FinanceEntry.formatAmount(balance)} Rs';
+    final amount = FinanceEntry.money(balance);
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -730,7 +730,7 @@ class _FinancesScreenState extends State<FinancesScreen>
                   ),
                   if (dayIncome > 0) ...[
                     Text(
-                      '+${FinanceEntry.formatAmount(dayIncome)} Rs',
+                      FinanceEntry.money(dayIncome, forceSign: true),
                       style: AppTheme.bodySmall.copyWith(
                         color: Colors.green,
                         fontWeight: FontWeight.bold,
@@ -740,7 +740,7 @@ class _FinancesScreenState extends State<FinancesScreen>
                   ],
                   if (dayExpense > 0 || dayIncome == 0)
                     Text(
-                      '-${FinanceEntry.formatAmount(dayExpense)} Rs',
+                      FinanceEntry.money(-dayExpense),
                       style: AppTheme.bodySmall.copyWith(
                         color: Colors.red,
                         fontWeight: FontWeight.bold,

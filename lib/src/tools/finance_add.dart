@@ -1,4 +1,5 @@
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/tools/finance_entry_tool_helpers.dart';
 
@@ -11,7 +12,7 @@ ToolDefinition buildFinanceAddTool({
       'Add a new expense entry. Use this by default for short entries like "200 fuel", and when the user mentions spending money, buying something, paying a bill, or asks to log an expense. '
       'Do not use for salary/income, borrowed/lent money, or loan repayments. Use income or loan tools for those. '
       'Infer the category from the description when not specified. '
-      'Date defaults to today if not provided. Amount is in Pakistani Rupees (Rs).',
+      'Date defaults to today if not provided. Amount is in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
   parameters: {
     'type': 'object',
     'properties': {
@@ -23,7 +24,7 @@ ToolDefinition buildFinanceAddTool({
       'amount': {
         'type': 'number',
         'description':
-            'Amount spent in Pakistani Rupees (numeric only, no currency symbol).',
+            'Amount spent in ${CurrencySettingsService.instance.promptDescription} (numeric only, no currency token).',
       },
       'category': {
         'type': 'string',

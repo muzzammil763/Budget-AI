@@ -101,9 +101,16 @@ String _buildDateTimeContextPrompt() {
       'Current date and time: $weekday, ${now.day} $month ${now.year} at $hour:$min (${now.timeZoneName}, UTC$sign$oh:$om).';
 }
 
+String _buildCurrencyContextPrompt() {
+  final currency = CurrencySettingsService.instance.current;
+  final sample = CurrencySettingsService.instance.formatAmount(1200);
+  return 'Currency setting: use "$currency" for monetary amounts. Example display: $sample.';
+}
+
 String _buildChatBaseSystemPrompt() {
   final segments = <String>[
     _buildBehaviorPrompt(),
+    _buildCurrencyContextPrompt(),
     _buildDateTimeContextPrompt(),
   ];
 
