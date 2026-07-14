@@ -107,7 +107,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       context,
       title: 'Delete All Chats?',
       message:
-          'This will permanently remove every chat session, all messages, and attachment files. This action cannot be undone.',
+          'This will permanently remove every chat session and all messages. This action cannot be undone.',
       icon: CupertinoIcons.trash,
       confirmLabel: 'Continue',
     );

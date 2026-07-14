@@ -358,7 +358,6 @@ class ChatMessage {
   final bool isThinkingComplete;
   final List<ToolCall>? toolCalls;
   final bool isToolCallsComplete;
-  final List<String>? imagePaths;
   final String? modelUsed;
   final int? tokensUsed;
   final double? tokensPerSec;
@@ -375,7 +374,6 @@ class ChatMessage {
     this.isThinkingComplete = false,
     this.toolCalls,
     this.isToolCallsComplete = false,
-    this.imagePaths,
     this.modelUsed,
     this.tokensUsed,
     this.tokensPerSec,
@@ -393,7 +391,6 @@ class ChatMessage {
     bool? isThinkingComplete,
     List<ToolCall>? toolCalls,
     bool? isToolCallsComplete,
-    List<String>? imagePaths,
     String? modelUsed,
     int? tokensUsed,
     double? tokensPerSec,
@@ -410,7 +407,6 @@ class ChatMessage {
       isThinkingComplete: isThinkingComplete ?? this.isThinkingComplete,
       toolCalls: toolCalls ?? this.toolCalls,
       isToolCallsComplete: isToolCallsComplete ?? this.isToolCallsComplete,
-      imagePaths: imagePaths ?? this.imagePaths,
       modelUsed: modelUsed ?? this.modelUsed,
       tokensUsed: tokensUsed ?? this.tokensUsed,
       tokensPerSec: tokensPerSec ?? this.tokensPerSec,
@@ -430,7 +426,6 @@ class ChatMessage {
       'isThinkingComplete': isThinkingComplete,
       'toolCalls': toolCalls?.map((tc) => tc.toJson()).toList(),
       'isToolCallsComplete': isToolCallsComplete,
-      'imagePaths': imagePaths,
       'modelUsed': modelUsed,
       'tokensUsed': tokensUsed,
       'tokensPerSec': tokensPerSec,
@@ -460,9 +455,6 @@ class ChatMessage {
         ?.map((tc) => ToolCall.fromJson(tc as Map<String, dynamic>))
         .toList();
 
-    final imagePathsJson = json['imagePaths'] as List<dynamic>?;
-    final imagePaths = imagePathsJson?.cast<String>();
-
     final responseTimeMs = json['responseTime'] as int?;
     final responseTime = responseTimeMs != null
         ? Duration(milliseconds: responseTimeMs)
@@ -484,7 +476,6 @@ class ChatMessage {
       isThinkingComplete: json['isThinkingComplete'] as bool? ?? false,
       toolCalls: toolCalls,
       isToolCallsComplete: json['isToolCallsComplete'] as bool? ?? false,
-      imagePaths: imagePaths,
       modelUsed: json['modelUsed'] as String?,
       tokensUsed: json['tokensUsed'] as int?,
       tokensPerSec: (json['tokensPerSec'] as num?)?.toDouble(),

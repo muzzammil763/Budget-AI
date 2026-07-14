@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/helpers/app_data_directory_service.dart';
-import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
 enum ChatSessionLifecycleState { idle }
@@ -192,20 +190,6 @@ class ChatContextItemRecord {
   }
 }
 
-class ChatAttachmentCopy {
-  final String storedPath;
-  final String originalPath;
-  final String mimeType;
-  final int sizeBytes;
-
-  const ChatAttachmentCopy({
-    required this.storedPath,
-    required this.originalPath,
-    required this.mimeType,
-    required this.sizeBytes,
-  });
-}
-
 class LoadedChatSession {
   final ChatSessionRecord session;
   final List<ChatTimelineEntryRecord> timelineEntries;
@@ -279,22 +263,6 @@ class ChatHistoryDatabase {
         await db.execute(
           'CREATE INDEX idx_context_session_active ON chat_context_items(session_id, is_active, generation, item_order)',
         );
-        await db.execute('''
-          CREATE TABLE chat_attachments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            timeline_entry_id INTEGER NOT NULL,
-            stored_path TEXT NOT NULL,
-            mime_type TEXT NOT NULL,
-            size_bytes INTEGER NOT NULL DEFAULT 0,
-            original_path TEXT NOT NULL,
-            FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
-            FOREIGN KEY(timeline_entry_id) REFERENCES chat_timeline_entries(id) ON DELETE CASCADE
-          )
-        ''');
-        await db.execute(
-          'CREATE INDEX idx_attachments_session_id ON chat_attachments(session_id, timeline_entry_id)',
-        );
       },
     );
     await next.execute('PRAGMA foreign_keys = ON');
@@ -363,24 +331,11 @@ class ChatSessionRepository {
     await db.delete('chat_sessions', where: 'id = ?', whereArgs: [sessionId]);
   }
 
-  /// Deletes ALL chat sessions, timeline entries, context items,
-  /// attachments (rows + stored files), and resets the database.
+  /// Deletes all chat sessions, timeline entries, and context items.
   Future<void> deleteAllSessions() async {
     final db = await ChatHistoryDatabase.instance.database;
 
-    // Delete stored attachment files on disk
-    try {
-      final attachmentsDir = await _attachmentsRootDirectory();
-      if (await attachmentsDir.exists()) {
-        await attachmentsDir.delete(recursive: true);
-        await attachmentsDir.create(recursive: true);
-      }
-    } catch (_) {
-      // Non-critical; continue even if file cleanup fails
-    }
-
-    // Delete all session rows (cascades to timeline_entries,
-    // context_items, and attachment records)
+    // Deleting session rows cascades to timeline entries and context items.
     await db.delete('chat_sessions');
   }
 
@@ -442,75 +397,18 @@ class ChatSessionRepository {
     );
   }
 
-  Future<ChatAttachmentCopy> copyAttachmentToSession({
-    required String sessionId,
-    required String originalPath,
-  }) async {
-    final sourceFile = File(originalPath);
-    if (!await sourceFile.exists()) {
-      return ChatAttachmentCopy(
-        storedPath: originalPath,
-        originalPath: originalPath,
-        mimeType: _guessMimeType(originalPath),
-        sizeBytes: 0,
-      );
-    }
-    final root = await _attachmentsRootDirectory();
-    final sessionDirectory = Directory(path.join(root.path, sessionId));
-    if (!await sessionDirectory.exists()) {
-      await sessionDirectory.create(recursive: true);
-    }
-    final fileName = path.basename(originalPath);
-    final destinationName =
-        '${DateTime.now().microsecondsSinceEpoch}_$fileName';
-    final destination = File(path.join(sessionDirectory.path, destinationName));
-    await sourceFile.copy(destination.path);
-    final stat = await destination.stat();
-    return ChatAttachmentCopy(
-      storedPath: destination.path,
-      originalPath: originalPath,
-      mimeType: _guessMimeType(originalPath),
-      sizeBytes: stat.size,
-    );
-  }
-
-  Future<List<ChatAttachmentCopy>> copyAttachmentsToSession({
-    required String sessionId,
-    required List<String> originalPaths,
-  }) async {
-    final results = <ChatAttachmentCopy>[];
-    for (final item in originalPaths) {
-      results.add(
-        await copyAttachmentToSession(sessionId: sessionId, originalPath: item),
-      );
-    }
-    return results;
-  }
-
   Future<int> appendMessageEntry({
     required String sessionId,
     required ChatTimelineEntryType type,
     required ChatMessage message,
-    required List<ChatAttachmentCopy> attachments,
   }) async {
     final db = await ChatHistoryDatabase.instance.database;
-    final entryId = await db.insert('chat_timeline_entries', {
+    return db.insert('chat_timeline_entries', {
       'session_id': sessionId,
       'type': type.name,
       'payload_json': jsonEncode(message.toJson()),
       'created_at': message.timestamp.toIso8601String(),
     });
-    for (final attachment in attachments) {
-      await db.insert('chat_attachments', {
-        'session_id': sessionId,
-        'timeline_entry_id': entryId,
-        'stored_path': attachment.storedPath,
-        'mime_type': attachment.mimeType,
-        'size_bytes': attachment.sizeBytes,
-        'original_path': attachment.originalPath,
-      });
-    }
-    return entryId;
   }
 
   Future<void> deleteTimelineEntry({required int entryId}) async {
@@ -577,10 +475,6 @@ class ChatSessionRepository {
       );
     });
   }
-
-  Future<Directory> _attachmentsRootDirectory() async {
-    return AppDataDirectoryService.childDirectory('chat_attachments');
-  }
 }
 
 DateTime _parseDateTime(String? rawValue) {
@@ -607,24 +501,6 @@ Map<String, dynamic>? _decodeJsonMap(String? rawValue) {
     debugPrint('[ChatSessionRepository] Could not decode JSON map: $error');
   }
   return null;
-}
-
-String _guessMimeType(String filePath) {
-  final extension = path.extension(filePath).toLowerCase();
-  switch (extension) {
-    case '.png':
-      return 'image/png';
-    case '.gif':
-      return 'image/gif';
-    case '.webp':
-      return 'image/webp';
-    case '.svg':
-      return 'image/svg+xml';
-    case '.jpg':
-    case '.jpeg':
-    default:
-      return 'image/jpeg';
-  }
 }
 
 String renderConversationStateForSummary(List<Map<String, dynamic>> items) {
@@ -656,8 +532,6 @@ String _stringifyConversationContent(Map<String, dynamic> item) {
       final type = part['type']?.toString();
       if (type == 'text') {
         sections.add(part['text']?.toString() ?? '');
-      } else if (type == 'image_url') {
-        sections.add('[image attachment]');
       } else {
         sections.add(jsonEncode(part));
       }

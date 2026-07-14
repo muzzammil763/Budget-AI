@@ -9,10 +9,7 @@ class ChatCompletionsProvider extends BaseChatProvider {
     : super(defaultSelectedModel: AIModels.defaultModelId);
 
   @override
-  Stream<String> sendMessageStream(
-    String message, {
-    List<String>? imagePaths,
-  }) async* {
+  Stream<String> sendMessageStream(String message) async* {
     if (_apiKey == null || _apiKey!.isEmpty) {
       throw _providerException(
         _providerName,
@@ -20,9 +17,7 @@ class ChatCompletionsProvider extends BaseChatProvider {
       );
     }
 
-    // Add user message to history with images if provided
-    final userMessage = await _buildUserMessage(message, imagePaths);
-    _chatHistory.add(userMessage);
+    _chatHistory.add({'role': 'user', 'content': message});
 
     debugPrint(
       '[$_providerName] Sending request to $_baseUrl/chat/completions',
@@ -106,7 +101,6 @@ class ChatCompletionsProvider extends BaseChatProvider {
   @override
   Stream<ChatStreamChunk> sendMessageStreamWithThinking(
     String message, {
-    List<String>? imagePaths,
     bool enableToolCalls = true,
   }) async* {
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -116,16 +110,9 @@ class ChatCompletionsProvider extends BaseChatProvider {
       );
     }
 
-    // Add user message to history with images if provided
-    final userMessage = await _buildUserMessage(message, imagePaths);
-    _chatHistory.add(userMessage);
+    _chatHistory.add({'role': 'user', 'content': message});
 
-    // Skip tools when images are attached; the provider endpoint can reject
-    // requests that combine vision content with tool calls.
-    final hasImages = imagePaths != null && imagePaths.isNotEmpty;
-    final tools = enableToolCalls && !hasImages
-        ? _toolRegistry.getAvailableTools()
-        : [];
+    final tools = enableToolCalls ? _toolRegistry.getAvailableTools() : [];
     final hasTools = tools.isNotEmpty;
 
     debugPrint(

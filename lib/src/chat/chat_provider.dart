@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
@@ -26,12 +25,11 @@ abstract class ChatProvider {
 
   Future<void> initialize();
 
-  Stream<String> sendMessageStream(String message, {List<String>? imagePaths});
+  Stream<String> sendMessageStream(String message);
 
   /// Enhanced stream with thinking/reasoning tokens
   Stream<ChatStreamChunk> sendMessageStreamWithThinking(
     String message, {
-    List<String>? imagePaths,
     bool enableToolCalls = true,
   });
 
@@ -207,24 +205,10 @@ Title:''';
     final nextState = <Map<String, dynamic>>[];
     _chatHistory.clear();
     for (var msg in messages) {
-      if (msg.isUser && msg.imagePaths != null && msg.imagePaths!.isNotEmpty) {
-        final content = <Map<String, dynamic>>[];
-
-        for (var i = 0; i < msg.imagePaths!.length; i++) {
-          content.add({
-            'type': 'image_url',
-            'image_url': {'url': 'data:image/jpeg;base64,placeholder'},
-          });
-        }
-
-        content.add({'type': 'text', 'text': msg.text});
-        nextState.add({'role': 'user', 'content': content});
-      } else {
-        nextState.add({
-          'role': msg.isUser ? 'user' : 'assistant',
-          'content': msg.text,
-        });
-      }
+      nextState.add({
+        'role': msg.isUser ? 'user' : 'assistant',
+        'content': msg.text,
+      });
     }
     loadConversationState(nextState);
   }
@@ -244,76 +228,6 @@ Title:''';
   @override
   void clearHistory() {
     _chatHistory.clear();
-  }
-
-  Future<Map<String, dynamic>> _buildUserMessage(
-    String message,
-    List<String>? imagePaths,
-  ) async {
-    if (imagePaths == null || imagePaths.isEmpty) {
-      return {'role': 'user', 'content': message};
-    }
-
-    final content = <Map<String, dynamic>>[];
-    final messageText = await _buildMessageTextWithSvgAttachments(
-      message,
-      imagePaths,
-    );
-
-    for (final path in imagePaths) {
-      if (_isSvgPath(path)) {
-        continue;
-      }
-      try {
-        final file = File(path);
-        if (await file.exists()) {
-          final bytes = await file.readAsBytes();
-          final base64Data = base64Encode(bytes);
-          final mimeType = _getMimeType(path);
-          content.add({
-            'type': 'image_url',
-            'image_url': {'url': 'data:$mimeType;base64,$base64Data'},
-          });
-        }
-      } catch (e) {
-        debugPrint('[$_providerName] Error reading image $path: $e');
-      }
-    }
-
-    content.add({'type': 'text', 'text': messageText});
-
-    return {'role': 'user', 'content': content};
-  }
-
-  String _getMimeType(String path) {
-    final ext = path.toLowerCase().split('.').last;
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      case 'svg':
-        return 'image/svg+xml';
-      case 'mp4':
-        return 'video/mp4';
-      case 'mov':
-        return 'video/quicktime';
-      case 'avi':
-        return 'video/x-msvideo';
-      case 'webm':
-        return 'video/webm';
-      case 'mkv':
-        return 'video/x-matroska';
-      case 'pdf':
-        return 'application/pdf';
-      default:
-        return 'image/jpeg';
-    }
   }
 
   @override

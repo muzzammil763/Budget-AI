@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
@@ -92,10 +91,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   bool _shouldFollowChatScroll = true;
   bool _isShowingLeaveConfirmation = false;
   bool _isShowingStopConfirmation = false;
-  final List<String> _attachedImages = [];
-  final List<String> _attachedVideos = [];
-  final List<String> _attachedPdfs = [];
-  String? _pendingWhatsAppFilePath;
   final ValueNotifier<int> _tokenUiRevision = ValueNotifier(0);
   List<ChatSessionSummary>? _cachedSessionSummaries;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -254,12 +249,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  void _resetComposerAndAttachments() {
+  void _resetComposer() {
     _messageController.clear();
-    _attachedImages.clear();
-    _attachedVideos.clear();
-    _attachedPdfs.clear();
-    _pendingWhatsAppFilePath = null;
   }
 
   Future<void> _resetToFreshDraft() async {
@@ -278,7 +269,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isReconnectingStream = false;
       _reconnectAttempt = 0;
       _isWaitingForNetwork = false;
-      _resetComposerAndAttachments();
+      _resetComposer();
     });
 
     _provider.clearHistory();
@@ -360,24 +351,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  void _removeProviderAssistantMessageFromHistory(String messageText) {
-    final normalizedMessage = messageText.trim();
-    if (normalizedMessage.isEmpty) return;
-
-    final nextState = _provider.exportConversationState();
-    for (var i = nextState.length - 1; i >= 0; i--) {
-      final item = nextState[i];
-      if (item['role'] != 'assistant') continue;
-      final content = item['content'];
-      final text = content is String ? content.trim() : '';
-      if (text == normalizedMessage) {
-        nextState.removeAt(i);
-        _provider.loadConversationState(nextState);
-        return;
-      }
-    }
-  }
-
   Future<void> _loadPersistedSession(
     String sessionId, {
     Future<LoadedChatSession?>? preloadFuture,
@@ -421,7 +394,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isReconnectingStream = false;
       _reconnectAttempt = 0;
       _isWaitingForNetwork = false;
-      _resetComposerAndAttachments();
+      _resetComposer();
     });
     _scrollToBottom(force: true);
   }
@@ -694,68 +667,25 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return distanceFromBottom > 1.0;
   }
 
-  List<String> _continuationSourceImagePaths({
-    required bool appendUserMessage,
-    required String? providerMessageOverride,
-    required int? replaceAssistantMessageIndex,
-  }) {
-    if (appendUserMessage || providerMessageOverride == null) {
-      return const [];
-    }
-
-    final startIndex = replaceAssistantMessageIndex != null
-        ? math.min(replaceAssistantMessageIndex - 1, _messages.length - 1)
-        : _messages.length - 1;
-    for (var i = startIndex; i >= 0; i--) {
-      final message = _messages[i];
-      final paths = message.imagePaths;
-      if (message.isUser && paths != null && paths.isNotEmpty) {
-        return paths
-            .map((path) => path.trim())
-            .where((path) => path.isNotEmpty)
-            .toList(growable: false);
-      }
-    }
-
-    return const [];
-  }
-
   Future<void> _sendMessage({
     bool appendUserMessage = true,
     String? providerMessageOverride,
-    List<String> providerImagePathsOverride = const [],
     bool removeProviderMessageFromHistory = false,
     int? replaceAssistantMessageIndex,
     int automaticToolContinuationDepth = 0,
     bool preserveTurnWallClock = false,
   }) async {
     final hasText = _messageController.text.trim().isNotEmpty;
-    final hasImages = _attachedImages.isNotEmpty;
-    final hasAttachments =
-        hasImages || _attachedVideos.isNotEmpty || _attachedPdfs.isNotEmpty;
 
-    if (!hasText && !hasAttachments && providerMessageOverride == null) return;
+    if (!hasText && providerMessageOverride == null) return;
 
     _unfocusComposer();
 
     final userMessageText = _messageController.text.trim();
 
-    final originalAttachedImages = List<String>.from(_attachedImages);
-    final originalAttachedVideos = List<String>.from(_attachedVideos);
-    final originalAttachedPdfs = List<String>.from(_attachedPdfs);
-    final allOriginalAttachments = [
-      ...originalAttachedImages,
-      ...originalAttachedVideos,
-      ...originalAttachedPdfs,
-    ];
-    final whatsappAttachedFile = _pendingWhatsAppFilePath;
-    var providerMessageText = providerMessageOverride == null
+    final providerMessageText = providerMessageOverride == null
         ? _prepareMessageForProvider(userMessageText)
         : _prepareProviderOverrideMessage(providerMessageOverride);
-    if (whatsappAttachedFile != null) {
-      providerMessageText +=
-          '\n\n[WhatsApp file attachment: $whatsappAttachedFile]';
-    }
     final visibleUserMessageText = userMessageText.isNotEmpty
         ? userMessageText
         : providerMessageText;
@@ -763,9 +693,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       text: visibleUserMessageText,
       isUser: true,
       timestamp: DateTime.now(),
-      imagePaths: allOriginalAttachments.isEmpty
-          ? null
-          : allOriginalAttachments,
     );
     int? userTimelineIndex;
     if (appendUserMessage) {
@@ -776,10 +703,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (appendUserMessage) {
         _appendTimelineMessage(provisionalUserMessage, entryId: null);
       }
-      _attachedImages.clear();
-      _attachedVideos.clear();
-      _attachedPdfs.clear();
-      _pendingWhatsAppFilePath = null;
     });
 
     _messageController.clear();
@@ -787,43 +710,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     final chatFlowPromptSnapshot = await _buildChatFlowPromptSnapshot();
     final session = await _ensureSessionCreated(provisionalUserMessage);
-    final storedAttachments = await _chatSessions.copyAttachmentsToSession(
-      sessionId: session.id,
-      originalPaths: allOriginalAttachments,
-    );
-    final storedImagePaths = storedAttachments
-        .map((attachment) => attachment.storedPath)
-        .toList();
-    final toolImagePaths = providerImagePathsOverride.isNotEmpty
-        ? providerImagePathsOverride
-        : storedImagePaths.isNotEmpty
-        ? storedImagePaths
-        : _continuationSourceImagePaths(
-            appendUserMessage: appendUserMessage,
-            providerMessageOverride: providerMessageOverride,
-            replaceAssistantMessageIndex: replaceAssistantMessageIndex,
-          );
-    final userMessage = provisionalUserMessage.copyWith(
-      imagePaths: storedImagePaths.isEmpty ? null : storedImagePaths,
-    );
     int? userEntryId;
     if (appendUserMessage) {
       userEntryId = await _chatSessions.appendMessageEntry(
         sessionId: session.id,
         type: ChatTimelineEntryType.userMessage,
-        message: userMessage,
-        attachments: storedAttachments,
+        message: provisionalUserMessage,
       );
     }
 
-    if (appendUserMessage &&
-        userTimelineIndex != null &&
-        (userEntryId != null || storedImagePaths.isNotEmpty)) {
+    if (appendUserMessage && userTimelineIndex != null && userEntryId != null) {
       setState(() {
-        _replaceTimelineMessageAt(userTimelineIndex!, userMessage);
-        if (userEntryId != null) {
-          _replaceTimelineEntryIdAt(userTimelineIndex, userEntryId);
-        }
+        _replaceTimelineEntryIdAt(userTimelineIndex!, userEntryId!);
       });
     }
 
@@ -912,7 +810,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           sessionId: session.id,
           type: ChatTimelineEntryType.assistantMessage,
           message: ChatMessage(text: '', isUser: false, timestamp: startTime),
-          attachments: const [],
         );
       }
       final activeAssistantEntryId = assistantEntryId;
@@ -942,16 +839,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         if (supportsReasoning || supportsToolCall) {
           return _provider.sendMessageStreamWithThinking(
             providerMessageText,
-            imagePaths: toolImagePaths.isNotEmpty ? toolImagePaths : null,
             enableToolCalls: supportsToolCall,
           );
         }
 
         return _provider
-            .sendMessageStream(
-              providerMessageText,
-              imagePaths: toolImagePaths.isNotEmpty ? toolImagePaths : null,
-            )
+            .sendMessageStream(providerMessageText)
             .map((content) => ChatStreamChunk(content: content));
       }
 
@@ -1686,12 +1579,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   bool get _canSubmitCurrentMessage {
     final hasText = _messageController.text.trim().isNotEmpty;
-    final hasAttachments =
-        _attachedImages.isNotEmpty ||
-        _attachedVideos.isNotEmpty ||
-        _attachedPdfs.isNotEmpty ||
-        _pendingWhatsAppFilePath != null;
-    return !_isStreaming && (hasText || hasAttachments);
+    return !_isStreaming && hasText;
   }
 
   bool get _isResponseInProgress => _isLoading || _isStreaming;
@@ -1702,11 +1590,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return _activeSession != null ||
         _messages.isNotEmpty ||
         _timelineItems.isNotEmpty ||
-        _messageController.text.trim().isNotEmpty ||
-        _attachedImages.isNotEmpty ||
-        _attachedVideos.isNotEmpty ||
-        _attachedPdfs.isNotEmpty ||
-        _pendingWhatsAppFilePath != null;
+        _messageController.text.trim().isNotEmpty;
   }
 
   Future<bool> _showLeaveWhileStreamingSheet() async {
