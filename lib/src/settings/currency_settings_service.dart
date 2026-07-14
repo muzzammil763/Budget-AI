@@ -38,25 +38,41 @@ class CurrencySettingsService {
 
   static final CurrencySettingsService instance = CurrencySettingsService._();
   static const String _currencyKey = 'budget_currency_display_text';
+  static const String _customCurrenciesKey = 'budget_custom_currencies';
 
   final ValueNotifier<String> currency = ValueNotifier<String>('Rs');
+  final ValueNotifier<List<String>> customCurrencies =
+      ValueNotifier<List<String>>(<String>[]);
   final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
 
   Future<void> initialize() async {
+    final savedCustomCurrencies =
+        await _preferences.getStringList(_customCurrenciesKey) ?? <String>[];
+    customCurrencies.value = _normalizeCustomCurrencies(savedCustomCurrencies);
     final saved = (await _preferences.getString(_currencyKey))?.trim();
     if (saved != null && saved.isNotEmpty) {
       currency.value = saved;
+      await _saveCustomCurrencyIfNeeded(saved);
     }
   }
 
   Future<void> setCurrency(String value) async {
     final normalized = value.trim();
     if (normalized.isEmpty) return;
+    await _saveCustomCurrencyIfNeeded(normalized);
     await _preferences.setString(_currencyKey, normalized);
     currency.value = normalized;
   }
 
   String get current => currency.value;
+
+  List<CurrencyOption> get availableOptions => [
+    ...kPresetCurrencyOptions,
+    ...customCurrencies.value.map(
+      (currency) =>
+          CurrencyOption(displayText: currency, name: 'Custom display'),
+    ),
+  ];
 
   String get promptDescription {
     CurrencyOption? preset;
@@ -95,5 +111,38 @@ class CurrencySettingsService {
       buf.write(str[i]);
     }
     return buf.toString();
+  }
+
+  Future<void> _saveCustomCurrencyIfNeeded(String value) async {
+    final isPreset = kPresetCurrencyOptions.any(
+      (option) => option.displayText.toLowerCase() == value.toLowerCase(),
+    );
+    final alreadySaved = customCurrencies.value.any(
+      (currency) => currency.toLowerCase() == value.toLowerCase(),
+    );
+    if (isPreset || alreadySaved) return;
+
+    final updated = [...customCurrencies.value, value];
+    customCurrencies.value = updated;
+    await _preferences.setStringList(_customCurrenciesKey, updated);
+  }
+
+  List<String> _normalizeCustomCurrencies(List<String> values) {
+    final normalized = <String>[];
+    for (final value in values) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty ||
+          kPresetCurrencyOptions.any(
+            (option) =>
+                option.displayText.toLowerCase() == trimmed.toLowerCase(),
+          ) ||
+          normalized.any(
+            (currency) => currency.toLowerCase() == trimmed.toLowerCase(),
+          )) {
+        continue;
+      }
+      normalized.add(trimmed);
+    }
+    return normalized;
   }
 }

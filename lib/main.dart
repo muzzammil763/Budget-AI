@@ -9,6 +9,7 @@ import 'package:budget_ai/src/helpers/app_route_observer.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
   await CurrencySettingsService.instance.initialize();
+  await ModelSettingsService.instance.initialize();
   await NotificationService.instance.initialize();
   unawaited(FinanceService.instance.applySavingsRollover());
   final preferences = SharedPreferencesAsync();

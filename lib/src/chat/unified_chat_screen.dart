@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
+import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
@@ -129,11 +130,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _initialize() async {
-    // Always start with flash on restart. Pro can be selected in-session.
     setState(() {
-      _selectedModel = AIModels.defaultModelId;
+      _selectedModel = ModelSettingsService.instance.current;
     });
     await _refreshProviderState();
+    _provider.updateModel(_selectedModel);
   }
 
   Future<void> _refreshChatConfiguration() async {
@@ -150,10 +151,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _loadSelectedModel() async {
-    // Always default to flash on restart. Pro selected in-session is temporary.
     setState(() {
-      _selectedModel = AIModels.defaultModelId;
+      _selectedModel = ModelSettingsService.instance.current;
     });
+    _provider.updateModel(_selectedModel);
   }
 
   Future<void> _changeModel(String newModel) async {
@@ -164,6 +165,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     });
 
     _provider.updateModel(newModel);
+    await ModelSettingsService.instance.setModel(newModel);
 
     if (_activeSession != null) {
       await _syncProviderStateToSession();
@@ -2812,15 +2814,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Widget _buildEmptyState() {
-    return ChatEmptyState(
-      onPromptTap: (prompt) {
-        _messageController.text = prompt;
-        _messageController.selection = TextSelection.collapsed(
-          offset: prompt.length,
-        );
-        _sendMessage();
-      },
+    return ChatEmptyState(onPromptTap: _submitSuggestedPrompt);
+  }
+
+  void _submitSuggestedPrompt(String prompt) {
+    _messageController.text = prompt;
+    _messageController.selection = TextSelection.collapsed(
+      offset: prompt.length,
     );
+    _sendMessage();
   }
 
   Widget _buildTimelineItem(_TimelineViewItem item) {

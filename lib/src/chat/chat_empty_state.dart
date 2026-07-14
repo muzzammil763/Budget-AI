@@ -1,12 +1,19 @@
+import 'dart:math';
+
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:flutter/material.dart';
 
-class ChatEmptyState extends StatelessWidget {
+class ChatEmptyState extends StatefulWidget {
   const ChatEmptyState({super.key, required this.onPromptTap});
 
   final ValueChanged<String> onPromptTap;
 
+  @override
+  State<ChatEmptyState> createState() => _ChatEmptyStateState();
+}
+
+class _ChatEmptyStateState extends State<ChatEmptyState> {
   static const _prompts = <(IconData, String)>[
     (Icons.pie_chart_outline_rounded, 'Break down my spending by category'),
     (Icons.savings_outlined, 'Help me plan a savings goal'),
@@ -22,6 +29,14 @@ class ChatEmptyState extends StatelessWidget {
     (Icons.manage_search_rounded, 'Find unusual transactions'),
     (Icons.credit_score_outlined, 'Make a debt payoff plan'),
   ];
+
+  late final List<(IconData, String)> _shuffledPrompts;
+
+  @override
+  void initState() {
+    super.initState();
+    _shuffledPrompts = List.of(_prompts)..shuffle(Random());
+  }
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -51,7 +66,6 @@ class ChatEmptyState extends StatelessWidget {
               builder: (context, t, _) {
                 final markT = _stagger(t, 0.0, 0.55);
                 final headT = _stagger(t, 0.15, 0.6);
-                _stagger(t, 0.25, 0.7);
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -100,12 +114,12 @@ class ChatEmptyState extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    for (var i = 0; i < _prompts.length; i++)
+                    for (var i = 0; i < _shuffledPrompts.length; i++)
                       _PromptCard(
-                        icon: _prompts[i].$1,
-                        label: _prompts[i].$2,
+                        icon: _shuffledPrompts[i].$1,
+                        label: _shuffledPrompts[i].$2,
                         reveal: _stagger(t, 0.38 + i * 0.045, 0.72 + i * 0.045),
-                        onTap: () => onPromptTap(_prompts[i].$2),
+                        onTap: () => widget.onPromptTap(_shuffledPrompts[i].$2),
                       ),
                   ],
                 );

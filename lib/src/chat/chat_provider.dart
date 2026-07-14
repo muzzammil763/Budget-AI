@@ -5,6 +5,7 @@ import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
 import 'package:budget_ai/src/tools/tool_settings.dart';
@@ -110,8 +111,7 @@ abstract class BaseChatProvider extends ChatProvider {
         ? AppConstants.deepSeekApiKey
         : null;
     _apiKeys = _apiKey != null ? [_apiKey!] : [];
-    // Always default to flash on startup. Pro can be selected in-session.
-    _selectedModel = AIModels.defaultModelId;
+    _selectedModel = ModelSettingsService.instance.current;
     _dio.options.headers = {'Accept': 'application/json'};
   }
 
