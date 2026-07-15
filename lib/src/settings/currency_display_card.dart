@@ -21,11 +21,34 @@ class CurrencyDisplayCard extends StatelessWidget {
       .replaceFirst(' symbol', '')
       .replaceFirst(' code', '');
 
+  String get _displayType {
+    final name = _selectedOption.name.toLowerCase();
+    if (name.contains('symbol')) return 'Currency symbol';
+    if (name.contains('code') ||
+        kPresetCurrencyOptions.any(
+          (option) => option.displayText == currency,
+        )) {
+      return 'Currency code';
+    }
+    return 'Custom display';
+  }
+
+  String get _placement {
+    const prefixSymbols = {r'$', '€', '£', '₹', '¥'};
+    return prefixSymbols.contains(currency)
+        ? 'Prefix display'
+        : 'Suffix display';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final foreground = theme.colorScheme.onPrimary;
     final preview = CurrencySettingsService.instance.formatAmount(12500);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final cardHeight = (screenHeight * 0.35).clamp(270.0, 310.0);
+    final contentPadding = (screenHeight * 0.016).clamp(12.0, 15.0);
+    final tokenSize = (screenHeight * 0.05).clamp(36.0, 44.0);
 
     return Material(
       color: Colors.transparent,
@@ -34,6 +57,7 @@ class CurrencyDisplayCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(34),
         child: Ink(
           width: double.infinity,
+          height: cardHeight,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(34),
             gradient: LinearGradient(
@@ -90,7 +114,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(contentPadding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -153,11 +177,11 @@ class CurrencyDisplayCard extends StatelessWidget {
                         currency,
                         maxLines: 1,
                         minFontSize: 24,
-                        maxFontSize: 40,
+                        maxFontSize: tokenSize,
                         stepGranularity: 0.5,
                         style: AppTheme.headingLarge.copyWith(
                           color: foreground,
-                          fontSize: 52,
+                          fontSize: tokenSize,
                           fontWeight: FontWeight.w900,
                           height: 0.95,
                           letterSpacing: 0.75,
@@ -172,9 +196,24 @@ class CurrencyDisplayCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _CurrencyCardBadge(
+                            label: _displayType,
+                            foreground: foreground,
+                          ),
+                          _CurrencyCardBadge(
+                            label: _placement,
+                            foreground: foreground,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
                       Divider(color: foreground.withValues(alpha: 0.25)),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Expanded(
@@ -221,7 +260,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const Spacer(),
                       Center(
                         child: Text(
                           'Finances  •  Insights  •  AI responses',
@@ -238,6 +277,33 @@ class CurrencyDisplayCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CurrencyCardBadge extends StatelessWidget {
+  const _CurrencyCardBadge({required this.label, required this.foreground});
+
+  final String label;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: foreground.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: foreground.withValues(alpha: 0.1)),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.bodySmall.copyWith(
+          color: foreground.withValues(alpha: 0.8),
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

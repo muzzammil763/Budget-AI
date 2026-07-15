@@ -52,9 +52,16 @@ String _buildCurrencyContextPrompt() {
   return 'Currency setting: use "$currency" for monetary amounts. Example display: $sample.';
 }
 
+String _buildUserNameContextPrompt() {
+  final userName = UserNameSettingsService.instance.current;
+  if (userName.isEmpty) return '';
+  return 'The user prefers to be called "$userName". Address them by this name naturally when appropriate, but do not repeat it in every response.';
+}
+
 String _buildChatBaseSystemPrompt() {
   final segments = <String>[
     _buildBehaviorPrompt(),
+    _buildUserNameContextPrompt(),
     _buildCurrencyContextPrompt(),
     _buildDateTimeContextPrompt(),
   ];

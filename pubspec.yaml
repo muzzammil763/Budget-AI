@@ -50,3 +50,7 @@ flutter:
     - family: Google Sans
       fonts:
         - asset: assets/fonts/GoogleSans.ttf
+
+    - family: Boldonse
+      fonts:
+        - asset: assets/fonts/Boldonse.ttf
