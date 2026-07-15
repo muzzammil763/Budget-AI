@@ -15,7 +15,6 @@ import 'package:budget_ai/src/helpers/notification_payload.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/vibration_manager.dart';
-import 'package:budget_ai/src/chat/model_picker_sheet.dart';
 import 'package:budget_ai/src/chat/chat_session_repository.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
@@ -155,30 +154,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _selectedModel = ModelSettingsService.instance.current;
     });
     _provider.updateModel(_selectedModel);
-  }
-
-  Future<void> _changeModel(String newModel) async {
-    final modelInfo = AIModels.getModelById(newModel);
-
-    setState(() {
-      _selectedModel = newModel;
-    });
-
-    _provider.updateModel(newModel);
-    await ModelSettingsService.instance.setModel(newModel);
-
-    if (_activeSession != null) {
-      await _syncProviderStateToSession();
-      await _handlePostTurnSessionState();
-    }
-
-    if (mounted) {
-      showAppToast(
-        context,
-        message: 'Model changed to ${modelInfo?.name ?? newModel}',
-        type: ToastificationType.success,
-      );
-    }
   }
 
   ChatSessionRepository get _chatSessions => ChatSessionRepository.instance;
@@ -2584,28 +2559,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                         onPressed: _openHistoryScreen,
                       ),
                       const Spacer(),
-                      _buildAppBarControlSurface(
+                      _buildFloatingAppBarButton(
                         theme,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildPillAppBarButton(
-                              theme,
-                              icon: CupertinoIcons.slider_horizontal_3,
-                              tooltip: 'Model',
-                              badge: ModelPickerSheet.badgeForModelId(
-                                _selectedModel,
-                              ),
-                              onPressed: _navigateToModelSelection,
-                            ),
-                            _buildPillAppBarButton(
-                              theme,
-                              icon: CupertinoIcons.settings,
-                              tooltip: 'Settings',
-                              onPressed: _openSettingsScreen,
-                            ),
-                          ],
-                        ),
+                        icon: CupertinoIcons.settings,
+                        tooltip: 'Settings',
+                        onPressed: _openSettingsScreen,
                       ),
                     ],
                   ),
@@ -2680,78 +2638,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           ],
           stops: const [0, 0.50, 1],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAppBarControlSurface(ThemeData theme, {required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      height: 48,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(
-          color: theme.brightness == Brightness.dark
-              ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
-              : theme.colorScheme.onSurface.withValues(alpha: 0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _buildPillAppBarButton(
-    ThemeData theme, {
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-    String? badge,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: badge == null
-            ? Icon(icon, color: theme.colorScheme.onSurface, size: 25)
-            : Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(icon, color: theme.colorScheme.onSurface, size: 25),
-                  Positioned(
-                    top: -4,
-                    right: -12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3.5,
-                        vertical: 1.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        badge,
-                        style: TextStyle(
-                          fontSize: 6.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.6,
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        splashRadius: 24,
       ),
     );
   }
@@ -3081,18 +2967,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       ),
     );
-  }
-
-  Future<void> _navigateToModelSelection() async {
-    _unfocusComposer();
-    final result = await ModelPickerSheet.show(
-      context,
-      selectedModel: _selectedModel,
-    );
-
-    if (result != null && result != _selectedModel) {
-      await _changeModel(result);
-    }
   }
 
   Widget _buildMessageBubble(ChatMessage message, {int? messageIndex}) {
