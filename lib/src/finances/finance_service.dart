@@ -28,6 +28,7 @@ const List<String> kFinanceCategories = [
   'Gift',
   'Charity',
   'Banking',
+  'Loans',
   'Savings',
   'Work',
   'Others',
@@ -205,6 +206,7 @@ class LoanPayment {
   final DateTime date;
   final double amount;
   final String note;
+  final String? financeEntryId;
   final DateTime createdAt;
 
   const LoanPayment({
@@ -212,6 +214,7 @@ class LoanPayment {
     required this.date,
     required this.amount,
     required this.note,
+    this.financeEntryId,
     required this.createdAt,
   });
 
@@ -234,6 +237,7 @@ class LoanPayment {
     date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
     amount: (json['amount'] as num?)?.toDouble() ?? 0,
     note: json['note'] as String? ?? '',
+    financeEntryId: json['finance_entry_id'] as String?,
     createdAt:
         DateTime.tryParse(json['created_at'] as String? ?? '') ??
         DateTime.now(),
@@ -244,17 +248,26 @@ class LoanPayment {
     'date': date.toIso8601String(),
     'amount': amount,
     'note': note,
+    if (financeEntryId != null) 'finance_entry_id': financeEntryId,
     'created_at': createdAt.toIso8601String(),
   };
 
-  LoanPayment copyWith({DateTime? date, double? amount, String? note}) =>
-      LoanPayment(
-        id: id,
-        date: date ?? this.date,
-        amount: amount ?? this.amount,
-        note: note ?? this.note,
-        createdAt: createdAt,
-      );
+  LoanPayment copyWith({
+    DateTime? date,
+    double? amount,
+    String? note,
+    String? financeEntryId,
+    bool clearFinanceEntryId = false,
+  }) => LoanPayment(
+    id: id,
+    date: date ?? this.date,
+    amount: amount ?? this.amount,
+    note: note ?? this.note,
+    financeEntryId: clearFinanceEntryId
+        ? null
+        : financeEntryId ?? this.financeEntryId,
+    createdAt: createdAt,
+  );
 }
 
 class LoanRecord {
@@ -265,6 +278,7 @@ class LoanRecord {
   final double principal;
   final DateTime date;
   final bool hasTime;
+  final String? financeEntryId;
   final DateTime createdAt;
   final List<LoanPayment> payments;
 
@@ -276,6 +290,7 @@ class LoanRecord {
     required this.principal,
     required this.date,
     required this.hasTime,
+    this.financeEntryId,
     required this.createdAt,
     this.payments = const [],
   });
@@ -308,6 +323,7 @@ class LoanRecord {
     principal: (json['principal'] as num?)?.toDouble() ?? 0,
     date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
     hasTime: json['has_time'] as bool? ?? false,
+    financeEntryId: json['finance_entry_id'] as String?,
     createdAt:
         DateTime.tryParse(json['created_at'] as String? ?? '') ??
         DateTime.now(),
@@ -330,6 +346,8 @@ class LoanRecord {
     double? principal,
     DateTime? date,
     bool? hasTime,
+    String? financeEntryId,
+    bool clearFinanceEntryId = false,
     List<LoanPayment>? payments,
   }) => LoanRecord(
     id: id,
@@ -339,6 +357,9 @@ class LoanRecord {
     principal: principal ?? this.principal,
     date: date ?? this.date,
     hasTime: hasTime ?? this.hasTime,
+    financeEntryId: clearFinanceEntryId
+        ? null
+        : financeEntryId ?? this.financeEntryId,
     createdAt: createdAt,
     payments: payments ?? this.payments,
   );
@@ -351,6 +372,7 @@ class LoanRecord {
     'principal': principal,
     'date': date.toIso8601String(),
     'has_time': hasTime,
+    if (financeEntryId != null) 'finance_entry_id': financeEntryId,
     'created_at': createdAt.toIso8601String(),
     'payments': payments.map((payment) => payment.toJson()).toList(),
   };
@@ -983,6 +1005,7 @@ class LoanService {
   static final LoanService instance = LoanService._();
 
   static const _storageFileName = 'loans.json';
+  static const loanFinanceCategory = 'Loans';
 
   List<LoanRecord>? _cache;
 
@@ -1019,10 +1042,13 @@ class LoanService {
 
   Future<LoanRecord> add(LoanRecord loan) async {
     await getAll();
-    _cache!.add(loan);
+    final stored = loan.direction == LoanDirection.lent
+        ? await _syncLentPrincipal(loan)
+        : loan;
+    _cache!.add(stored);
     _cache!.sort((a, b) => b.date.compareTo(a.date));
     await _persist();
-    return loan;
+    return stored;
   }
 
   Future<LoanRecord?> addPayment({
@@ -1033,7 +1059,10 @@ class LoanService {
     final index = loans.indexWhere((loan) => loan.id == loanId);
     if (index < 0) return null;
     final loan = loans[index];
-    final updatedPayments = [...loan.payments, payment]
+    final storedPayment = loan.direction == LoanDirection.lent
+        ? await _syncLentPayment(loan, payment)
+        : payment;
+    final updatedPayments = [...loan.payments, storedPayment]
       ..sort((a, b) => b.date.compareTo(a.date));
     final updated = loan.copyWith(payments: updatedPayments);
     loans[index] = updated;
@@ -1047,11 +1076,29 @@ class LoanService {
     final loans = List<LoanRecord>.from(await getAll());
     final index = loans.indexWhere((loan) => loan.id == updated.id);
     if (index < 0) return null;
-    loans[index] = updated;
+    final existing = loans[index];
+    final LoanRecord synced;
+    if (updated.direction == LoanDirection.lent) {
+      var withPrincipal = await _syncLentPrincipal(updated);
+      final payments = <LoanPayment>[];
+      for (final payment in withPrincipal.payments) {
+        payments.add(await _syncLentPayment(withPrincipal, payment));
+      }
+      synced = withPrincipal.copyWith(payments: payments);
+    } else {
+      await _deleteLinkedFinanceEntries(existing);
+      synced = updated.copyWith(
+        clearFinanceEntryId: true,
+        payments: updated.payments
+            .map((payment) => payment.copyWith(clearFinanceEntryId: true))
+            .toList(),
+      );
+    }
+    loans[index] = synced;
     loans.sort((a, b) => b.date.compareTo(a.date));
     _cache = loans;
     await _persist();
-    return updated;
+    return synced;
   }
 
   Future<LoanRecord?> updatePayment({
@@ -1064,8 +1111,16 @@ class LoanService {
     final loan = loans[loanIndex];
     final paymentIndex = loan.payments.indexWhere((p) => p.id == payment.id);
     if (paymentIndex < 0) return null;
+    final existingPayment = loan.payments[paymentIndex];
+    final LoanPayment syncedPayment;
+    if (loan.direction == LoanDirection.lent) {
+      syncedPayment = await _syncLentPayment(loan, payment);
+    } else {
+      await _deleteFinanceEntry(existingPayment.financeEntryId);
+      syncedPayment = payment.copyWith(clearFinanceEntryId: true);
+    }
     final payments = List<LoanPayment>.from(loan.payments);
-    payments[paymentIndex] = payment;
+    payments[paymentIndex] = syncedPayment;
     payments.sort((a, b) => b.date.compareTo(a.date));
     final updated = loan.copyWith(payments: payments);
     loans[loanIndex] = updated;
@@ -1083,10 +1138,18 @@ class LoanService {
     final loanIndex = loans.indexWhere((loan) => loan.id == loanId);
     if (loanIndex < 0) return null;
     final loan = loans[loanIndex];
+    LoanPayment? payment;
+    for (final item in loan.payments) {
+      if (item.id == paymentId) {
+        payment = item;
+        break;
+      }
+    }
+    if (payment == null) return null;
+    await _deleteFinanceEntry(payment.financeEntryId);
     final payments = loan.payments
         .where((payment) => payment.id != paymentId)
         .toList();
-    if (payments.length == loan.payments.length) return null;
     final updated = loan.copyWith(payments: payments);
     loans[loanIndex] = updated;
     _cache = loans;
@@ -1096,12 +1159,86 @@ class LoanService {
 
   Future<bool> delete(String id) async {
     final loans = List<LoanRecord>.from(await getAll());
-    final before = loans.length;
+    final index = loans.indexWhere((loan) => loan.id == id);
+    if (index < 0) return false;
+    await _deleteLinkedFinanceEntries(loans[index]);
     loans.removeWhere((loan) => loan.id == id);
-    if (loans.length == before) return false;
     _cache = loans;
     await _persist();
     return true;
+  }
+
+  Future<LoanRecord> _syncLentPrincipal(LoanRecord loan) async {
+    final entry = await _upsertFinanceEntry(
+      id: loan.financeEntryId,
+      type: FinanceEntryType.expense,
+      date: loan.date,
+      hasTime: loan.hasTime,
+      description: 'Loan Given to ${loan.person}',
+      amount: loan.principal,
+    );
+    return loan.copyWith(financeEntryId: entry.id);
+  }
+
+  Future<LoanPayment> _syncLentPayment(
+    LoanRecord loan,
+    LoanPayment payment,
+  ) async {
+    final entry = await _upsertFinanceEntry(
+      id: payment.financeEntryId,
+      type: FinanceEntryType.income,
+      date: payment.date,
+      hasTime: false,
+      description: 'Loan Repayment Income - ${loan.person}',
+      amount: payment.amount,
+    );
+    return payment.copyWith(financeEntryId: entry.id);
+  }
+
+  Future<FinanceEntry> _upsertFinanceEntry({
+    required String? id,
+    required FinanceEntryType type,
+    required DateTime date,
+    required bool hasTime,
+    required String description,
+    required double amount,
+  }) async {
+    if (id != null) {
+      final entries = await FinanceService.instance.getAll();
+      for (final existing in entries) {
+        if (existing.id != id) continue;
+        final updated = existing.copyWith(
+          type: type,
+          date: date,
+          hasTime: hasTime,
+          description: description,
+          amount: amount,
+          category: loanFinanceCategory,
+        );
+        return await FinanceService.instance.update(updated) ?? updated;
+      }
+    }
+    return FinanceService.instance.add(
+      FinanceEntry.create(
+        type: type,
+        date: date,
+        hasTime: hasTime,
+        description: description,
+        amount: amount,
+        category: loanFinanceCategory,
+      ),
+    );
+  }
+
+  Future<void> _deleteLinkedFinanceEntries(LoanRecord loan) async {
+    await _deleteFinanceEntry(loan.financeEntryId);
+    for (final payment in loan.payments) {
+      await _deleteFinanceEntry(payment.financeEntryId);
+    }
+  }
+
+  Future<void> _deleteFinanceEntry(String? id) async {
+    if (id != null) await FinanceService.instance.delete(id);
   }
 
   void invalidateCache() => _cache = null;

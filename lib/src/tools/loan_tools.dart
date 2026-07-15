@@ -8,7 +8,7 @@ ToolDefinition buildLoanAddTool({
 }) => ToolDefinition(
   name: 'loan_add',
   description:
-      'Add a loan separately from expenses. Use when the user borrowed money from someone or lent money to someone. Do not log loan principal as an expense.',
+      'Add a loan. Use when the user borrowed money from someone or lent money to someone. A lent loan automatically creates a linked Finance expense so the money is deducted from the current balance; do not call finance_add separately.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -45,7 +45,7 @@ ToolDefinition buildLoanPaymentAddTool({
 }) => ToolDefinition(
   name: 'loan_payment_add',
   description:
-      'Add a repayment/payment against an existing loan. Loan repayments are tracked in loans and should not be logged as expenses.',
+      'Add a repayment/payment against an existing loan. Repayment received for a lent loan automatically creates linked "Loan Repayment Income" in Finance; do not call an income or expense tool separately.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -225,8 +225,16 @@ mixin LoanToolHandler {
         date: DateTime(date.year, date.month, date.day),
         hasTime: false,
       );
-      await LoanService.instance.add(loan);
-      return _loanToJson(loan);
+      final saved = await LoanService.instance.add(loan);
+      return {
+        ..._loanToJson(saved),
+        if (saved.direction == LoanDirection.lent)
+          'finance_entry': {
+            'type': 'expense',
+            'title': 'Loan Given to ${saved.person}',
+            'amount': FinanceEntry.money(saved.principal),
+          },
+      };
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -265,6 +273,12 @@ mixin LoanToolHandler {
           'date': payment.date.toIso8601String().split('T').first,
           'note': payment.note,
         },
+        if (updated.direction == LoanDirection.lent)
+          'finance_entry': {
+            'type': 'income',
+            'title': 'Loan Repayment Income - ${updated.person}',
+            'amount': FinanceEntry.money(payment.amount),
+          },
       };
     } catch (e) {
       return {'error': e.toString()};

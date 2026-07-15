@@ -7,7 +7,7 @@ ToolDefinition buildFinanceSummaryTool({
 }) => ToolDefinition(
   name: 'finance_summary',
   description:
-      'Get a finance summary for a date range, including income, expenses, net balance, and category breakdowns. Use a type filter for income-only or expense-only questions. Loans are intentionally excluded.',
+      'Get a finance summary for a date range, including income, expenses, net balance, and category breakdowns. Use a type filter for income-only or expense-only questions. Linked lent-loan expenses and received repayment income are included because they affect the cash balance.',
   parameters: {
     'type': 'object',
     'properties': {

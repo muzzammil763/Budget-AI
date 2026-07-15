@@ -664,7 +664,7 @@ class _LoansScreenState extends State<LoansScreen> {
         Text(
           'Delete the ${loan.direction == LoanDirection.borrowed ? 'borrowed' : 'lent'} '
           'loan of ${loan.displayPrincipal} with ${loan.person}? '
-          'Its repayment history will also be removed.',
+          'Its repayment history${loan.direction == LoanDirection.lent ? ' and linked Finance entries' : ''} will also be removed.',
           style: AppTheme.bodyMedium.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 14,
