@@ -24,6 +24,7 @@ import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
+import 'package:budget_ai/src/chat/markdown_table_view.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -96,6 +97,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Timer? _streamingThrottleTimer;
   ChatMessage? _pendingStreamMessage;
   bool _scrollToBottomScheduled = false;
+  bool _historySwipeEligible = false;
+  double _historySwipeDistance = 0;
+  double _historySwipeVerticalDistance = 0;
+  int? _historySwipePointer;
+  bool _tableGestureActive = false;
   StreamSubscription<void>? _notificationActionSubscription;
 
   @override
@@ -2462,9 +2468,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         drawerScrimColor: Theme.of(
           context,
         ).colorScheme.primary.withValues(alpha: 0.18),
-        // Wide drag zone so a left-to-right swipe anywhere on the chat body
-        // opens the history drawer, mirroring the top-left chrome button.
-        drawerEdgeDragWidth: MediaQuery.sizeOf(context).width * 0.55,
+        // Opening is coordinated manually so horizontal tables can reserve
+        // their gestures without disabling the history swipe elsewhere.
+        drawerEnableOpenDragGesture: false,
         onDrawerChanged: (isOpened) {
           if (isOpened) {
             _ensureHistorySessionsFuture();
@@ -2472,21 +2478,69 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             _historySessionsFuture = null;
           }
         },
-        body: Stack(
-          children: [
-            Positioned.fill(child: _buildBody()),
-            _buildTopChrome(),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(child: _buildComposerFade()),
-            ),
-            Align(alignment: Alignment.bottomCenter, child: _buildInputArea()),
-          ],
+        body: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _handleHistoryPointerDown,
+          onPointerMove: _handleHistoryPointerMove,
+          onPointerUp: _handleHistoryPointerUp,
+          onPointerCancel: _handleHistoryPointerCancel,
+          child: Stack(
+            children: [
+              Positioned.fill(child: _buildBody()),
+              _buildTopChrome(),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: IgnorePointer(child: _buildComposerFade()),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildInputArea(),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _handleHistoryPointerDown(PointerDownEvent event) {
+    if (_historySwipePointer != null) return;
+    final drawerIsOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+    _historySwipePointer = event.pointer;
+    _historySwipeEligible = !drawerIsOpen && !_tableGestureActive;
+    _historySwipeDistance = 0;
+    _historySwipeVerticalDistance = 0;
+  }
+
+  void _handleHistoryPointerMove(PointerMoveEvent event) {
+    if (_historySwipePointer != event.pointer || !_historySwipeEligible) return;
+    _historySwipeDistance += event.delta.dx;
+    _historySwipeVerticalDistance += event.delta.dy;
+  }
+
+  void _handleHistoryPointerUp(PointerUpEvent event) {
+    if (_historySwipePointer != event.pointer) return;
+    final horizontalDistance = _historySwipeDistance;
+    final verticalDistance = _historySwipeVerticalDistance.abs();
+    final shouldOpen =
+        _historySwipeEligible &&
+        horizontalDistance >= 44 &&
+        horizontalDistance > verticalDistance * 1.2;
+    _resetHistorySwipe();
+    if (shouldOpen) unawaited(_openHistoryScreen());
+  }
+
+  void _handleHistoryPointerCancel(PointerCancelEvent event) {
+    if (_historySwipePointer == event.pointer) _resetHistorySwipe();
+  }
+
+  void _resetHistorySwipe() {
+    _historySwipePointer = null;
+    _historySwipeEligible = false;
+    _historySwipeDistance = 0;
+    _historySwipeVerticalDistance = 0;
   }
 
   Widget _buildTopChrome() {
@@ -2602,50 +2656,57 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (_timelineItems.isEmpty) {
       return _buildEmptyState();
     }
-    return Stack(
-      children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: _handleChatScrollNotification,
-          child: ListView.builder(
-            padding: const EdgeInsets.only(top: 120, bottom: 112),
-            controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            // Keep a modest cache around the viewport. Chat rows can contain
-            // expensive markdown and tool sections, so prebuilding several
-            // screens of them causes noticeable frame-time spikes.
-            scrollCacheExtent: const ScrollCacheExtent.pixels(700.0),
-            itemCount: _timelineItems.length,
-            itemBuilder: (context, index) {
-              final item = _timelineItems[index];
-              // ValueKey preserves widget state (e.g. expanded/collapsed tool
-              // sections) across rebuilds triggered by streaming setState calls.
-              // RepaintBoundary isolates each bubble so streaming updates to the
-              // last item don't repaint the entire visible list.
-              // ValueListenableBuilder for the active streaming bubble means chunk
-              // updates go directly to that one widget — no full-screen setState.
-              final isStreamingItem =
-                  item is _TimelineMessageItem &&
-                  item.messageIndex == _streamingMessageIndex;
-              return KeyedSubtree(
-                key: _timelineItemKey(item, index),
-                child: RepaintBoundary(
-                  child: isStreamingItem
-                      ? ValueListenableBuilder<ChatMessage?>(
-                          valueListenable: _streamingBubble,
-                          builder: (context, streamingMsg, _) {
-                            final effectiveItem = streamingMsg != null
-                                ? item.copyWith(message: streamingMsg)
-                                : item;
-                            return _buildTimelineItem(effectiveItem);
-                          },
-                        )
-                      : _buildTimelineItem(item),
-                ),
-              );
-            },
+    return NotificationListener<MarkdownTableGestureNotification>(
+      onNotification: (notification) {
+        _tableGestureActive = notification.isActive;
+        if (notification.isActive) _resetHistorySwipe();
+        return true;
+      },
+      child: Stack(
+        children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: _handleChatScrollNotification,
+            child: ListView.builder(
+              padding: const EdgeInsets.only(top: 120, bottom: 112),
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              // Keep a modest cache around the viewport. Chat rows can contain
+              // expensive markdown and tool sections, so prebuilding several
+              // screens of them causes noticeable frame-time spikes.
+              scrollCacheExtent: const ScrollCacheExtent.pixels(700.0),
+              itemCount: _timelineItems.length,
+              itemBuilder: (context, index) {
+                final item = _timelineItems[index];
+                // ValueKey preserves widget state (e.g. expanded/collapsed tool
+                // sections) across rebuilds triggered by streaming setState calls.
+                // RepaintBoundary isolates each bubble so streaming updates to the
+                // last item don't repaint the entire visible list.
+                // ValueListenableBuilder for the active streaming bubble means chunk
+                // updates go directly to that one widget — no full-screen setState.
+                final isStreamingItem =
+                    item is _TimelineMessageItem &&
+                    item.messageIndex == _streamingMessageIndex;
+                return KeyedSubtree(
+                  key: _timelineItemKey(item, index),
+                  child: RepaintBoundary(
+                    child: isStreamingItem
+                        ? ValueListenableBuilder<ChatMessage?>(
+                            valueListenable: _streamingBubble,
+                            builder: (context, streamingMsg, _) {
+                              final effectiveItem = streamingMsg != null
+                                  ? item.copyWith(message: streamingMsg)
+                                  : item;
+                              return _buildTimelineItem(effectiveItem);
+                            },
+                          )
+                        : _buildTimelineItem(item),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -2928,7 +2989,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Budget AI Is Working ...' ,
+            'Budget AI Is Working ...',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.start,

@@ -257,6 +257,9 @@ class ChatWorkingComposerFrame extends StatefulWidget {
 
 class _ChatWorkingComposerFrameState extends State<ChatWorkingComposerFrame>
     with SingleTickerProviderStateMixin {
+  static const _normalDuration = Duration(milliseconds: 3600);
+  static const _workingDuration = Duration(milliseconds: 1900);
+
   late final AnimationController _controller;
 
   @override
@@ -264,22 +267,17 @@ class _ChatWorkingComposerFrameState extends State<ChatWorkingComposerFrame>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1900),
-    );
-    if (widget.isWorking) _controller.repeat();
+      duration: widget.isWorking ? _workingDuration : _normalDuration,
+    )..repeat();
   }
 
   @override
   void didUpdateWidget(covariant ChatWorkingComposerFrame oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isWorking == widget.isWorking) return;
-    if (widget.isWorking) {
-      _controller.repeat();
-    } else {
-      _controller
-        ..stop()
-        ..value = 0;
-    }
+    _controller.duration = widget.isWorking
+        ? _workingDuration
+        : _normalDuration;
   }
 
   @override
@@ -302,6 +300,7 @@ class _ChatWorkingComposerFrameState extends State<ChatWorkingComposerFrame>
             borderRadius: widget.borderRadius,
             primary: theme.colorScheme.primary,
             accent: AppTheme.highlight,
+            normalAlpha: theme.brightness == Brightness.dark ? 0.12 : 0.055,
           ),
           child: child,
         );
@@ -317,6 +316,7 @@ class _WorkingComposerBorderPainter extends CustomPainter {
     required this.borderRadius,
     required this.primary,
     required this.accent,
+    required this.normalAlpha,
   });
 
   final double progress;
@@ -324,10 +324,11 @@ class _WorkingComposerBorderPainter extends CustomPainter {
   final double borderRadius;
   final Color primary;
   final Color accent;
+  final double normalAlpha;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (!isWorking || size.isEmpty) return;
+    if (size.isEmpty) return;
 
     final pulse = 0.5 + 0.5 * math.sin(progress * math.pi * 2);
     final rect = (Offset.zero & size).deflate(1.25);
@@ -336,23 +337,30 @@ class _WorkingComposerBorderPainter extends CustomPainter {
       Radius.circular(borderRadius - 1.25),
     );
 
-    final glowPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..color = primary.withValues(alpha: 0.045 + pulse * 0.035);
-    canvas.drawRRect(border, glowPaint);
+    if (isWorking) {
+      final glowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..color = primary.withValues(alpha: 0.045 + pulse * 0.035);
+      canvas.drawRRect(border, glowPaint);
+    }
+
+    final baseAlpha = isWorking ? 0.16 : normalAlpha * 0.35;
+    final highlightAlpha = isWorking ? 1.0 : normalAlpha;
+    final accentAlpha = isWorking ? 1.0 : normalAlpha * 0.82;
+    final tailAlpha = isWorking ? 0.20 : normalAlpha * 0.45;
 
     final borderPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7
+      ..strokeWidth = isWorking ? 1.7 : 1
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
         colors: [
-          primary.withValues(alpha: 0.16),
-          primary,
-          accent,
-          primary.withValues(alpha: 0.20),
-          primary.withValues(alpha: 0.16),
+          primary.withValues(alpha: baseAlpha),
+          primary.withValues(alpha: highlightAlpha),
+          accent.withValues(alpha: accentAlpha),
+          primary.withValues(alpha: tailAlpha),
+          primary.withValues(alpha: baseAlpha),
         ],
         stops: const [0, 0.26, 0.48, 0.76, 1],
         transform: GradientRotation(progress * math.pi * 2),
@@ -366,7 +374,8 @@ class _WorkingComposerBorderPainter extends CustomPainter {
         oldDelegate.isWorking != isWorking ||
         oldDelegate.borderRadius != borderRadius ||
         oldDelegate.primary != primary ||
-        oldDelegate.accent != accent;
+        oldDelegate.accent != accent ||
+        oldDelegate.normalAlpha != normalAlpha;
   }
 }
 
