@@ -193,8 +193,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return Scaffold(
       body: SafeArea(
-        bottom:
-            Platform.isAndroid || MediaQuery.viewPaddingOf(context).bottom == 0,
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),
           duration: const Duration(milliseconds: 1100),

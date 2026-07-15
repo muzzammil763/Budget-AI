@@ -402,7 +402,13 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
 
   Widget _buildIncomeExpenseCard(ThemeData theme, _FinanceInsights insights) {
     final monthNet = insights.currentMonthIncome - insights.currentMonthTotal;
-    final overallNet = insights.totalIncome - insights.total;
+    final scopedNet = insights.totalIncome - insights.total;
+    // Savings rollovers are transfers of an earlier month's leftover, not new
+    // income. Keep them in monthly income so the destination month's available
+    // balance is correct, but exclude them from all-time income/net to avoid
+    // counting the same money a second time.
+    final overallIncome = insights.totalIncome - insights.savingsRolloverIncome;
+    final overallNet = overallIncome - insights.total;
     final scope = _scopeMonth;
 
     return Container(
@@ -419,7 +425,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
               label: _monthLabel(scope),
               income: insights.totalIncome,
               expense: insights.total,
-              net: overallNet,
+              net: scopedNet,
             )
           else
             Row(
@@ -443,7 +449,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                   child: _buildIncomeExpenseColumn(
                     theme,
                     label: 'ALL TIME',
-                    income: insights.totalIncome,
+                    income: overallIncome,
                     expense: insights.total,
                     net: overallNet,
                   ),
@@ -1889,6 +1895,7 @@ class _FinanceInsights {
   final List<_DatedTotal> yearlyActivity;
   final double yearlyMaxDailyTotal;
   final double totalIncome;
+  final double savingsRolloverIncome;
   final double currentMonthIncome;
   final double selectedMonthIncome;
 
@@ -1921,6 +1928,7 @@ class _FinanceInsights {
     required this.yearlyActivity,
     required this.yearlyMaxDailyTotal,
     required this.totalIncome,
+    required this.savingsRolloverIncome,
     required this.currentMonthIncome,
     required this.selectedMonthIncome,
   });
@@ -1971,6 +1979,7 @@ class _FinanceInsights {
         yearlyActivity: [],
         yearlyMaxDailyTotal: 0,
         totalIncome: 0,
+        savingsRolloverIncome: 0,
         currentMonthIncome: 0,
         selectedMonthIncome: 0,
       );
@@ -2027,12 +2036,16 @@ class _FinanceInsights {
     }
 
     var totalIncome = 0.0;
+    var savingsRolloverIncome = 0.0;
     var currentMonthIncome = 0.0;
     var selectedMonthIncome = 0.0;
     for (final entry in incomeEntries) {
       final day = _dateOnly(entry.date);
       final month = DateTime(day.year, day.month);
       totalIncome += entry.amount;
+      if (_isSavingsRollover(entry)) {
+        savingsRolloverIncome += entry.amount;
+      }
       if (month == currentMonthStart) currentMonthIncome += entry.amount;
       if (month == selectedMonthStart) selectedMonthIncome += entry.amount;
     }
@@ -2116,9 +2129,16 @@ class _FinanceInsights {
       yearlyActivity: yearlyActivity,
       yearlyMaxDailyTotal: yearlyMaxDailyTotal,
       totalIncome: totalIncome,
+      savingsRolloverIncome: savingsRolloverIncome,
       currentMonthIncome: currentMonthIncome,
       selectedMonthIncome: selectedMonthIncome,
     );
+  }
+
+  static bool _isSavingsRollover(FinanceEntry entry) {
+    return entry.type == FinanceEntryType.income &&
+        entry.category == FinanceService.savingsCategory &&
+        entry.description.startsWith('Savings from');
   }
 
   static DateTime _dateOnly(DateTime date) =>
