@@ -12,6 +12,9 @@ class VibrationManager with WidgetsBindingObserver {
   }
 
   bool _isAppInForeground = true;
+  DateTime? _lastStreamingFeedbackAt;
+
+  static const _streamingFeedbackInterval = Duration(milliseconds: 140);
 
   bool get isAppInForeground => _isAppInForeground;
 
@@ -49,6 +52,13 @@ class VibrationManager with WidgetsBindingObserver {
   /// intrusive during long streams.
   Future<void> triggerStreamingFeedback({bool isForeground = true}) async {
     if (!isForeground || !shouldVibrate) return;
+    final now = DateTime.now();
+    final lastFeedbackAt = _lastStreamingFeedbackAt;
+    if (lastFeedbackAt != null &&
+        now.difference(lastFeedbackAt) < _streamingFeedbackInterval) {
+      return;
+    }
+    _lastStreamingFeedbackAt = now;
     HapticFeedback.selectionClick();
   }
 

@@ -31,7 +31,6 @@ import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:budget_ai/src/chat/streaming_text_reveal.dart';
 import 'package:toastification/toastification.dart';
 
 import 'package:uuid/uuid.dart';
@@ -77,12 +76,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   int? _streamingMessageIndex;
   bool _isStreaming = false;
   bool _isReconnectingStream = false;
-  int _reconnectAttempt = 0;
   bool _isWaitingForNetwork = false;
   DateTime? _suppressNetworkWaitingUntil;
   Timer? _streamingDurationTimer;
-  DateTime? _turnWallClockStart;
-  final Map<int, Duration> _turnWallClockDurations = {};
   String _selectedModel = '';
   ChatSessionRecord? _activeSession;
   final ValueNotifier<bool> _showScrollToBottomButton = ValueNotifier<bool>(
@@ -244,7 +240,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isLoading = false;
       _isStreaming = false;
       _isReconnectingStream = false;
-      _reconnectAttempt = 0;
       _isWaitingForNetwork = false;
       _resetComposer();
     });
@@ -369,7 +364,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ..addAll(timelineItems);
       _streamingMessageIndex = null;
       _isReconnectingStream = false;
-      _reconnectAttempt = 0;
       _isWaitingForNetwork = false;
       _resetComposer();
     });
@@ -527,11 +521,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         return;
       }
       tickCount++;
-      // Nudge only the streaming bubble to update the elapsed-time label.
-      // copyWith() returns a new instance so ValueListenableBuilder fires
-      // without a full-screen setState.
-      final msg = _streamingBubble.value;
-      if (msg != null) _streamingBubble.value = msg.copyWith();
       // Refresh the context-limit button every 2 seconds so token counts
       // stay visually current during long streaming responses.
       if (tickCount % 2 == 0) {
@@ -543,7 +532,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void _stopStreamingDurationTimer() {
     _streamingDurationTimer?.cancel();
     _streamingDurationTimer = null;
-    _turnWallClockStart = null;
     unawaited(AndroidBackgroundChatService.stop());
     unawaited(IosBackgroundTaskService.stop());
   }
@@ -650,7 +638,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     bool removeProviderMessageFromHistory = false,
     int? replaceAssistantMessageIndex,
     int automaticToolContinuationDepth = 0,
-    bool preserveTurnWallClock = false,
   }) async {
     final hasText = _messageController.text.trim().isNotEmpty;
 
@@ -677,6 +664,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     setState(() {
+      _isLoading = true;
       if (appendUserMessage) {
         _appendTimelineMessage(provisionalUserMessage, entryId: null);
       }
@@ -707,11 +695,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     String fullResponse = '';
     List<ChatMessageBlock> messageBlocks = [];
     DateTime startTime = DateTime.now();
-    if (automaticToolContinuationDepth == 0 && !preserveTurnWallClock) {
-      _turnWallClockStart = startTime;
-    } else {
-      _turnWallClockStart ??= startTime;
-    }
     int? responseTimeMs;
     int tokenCount = 0;
     Map<String, dynamic> responseMetadata = _buildChatFlowMetadata(
@@ -750,9 +733,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             _replaceTimelineMessageAt(aiTimelineIndex, checkpointMessage);
           }
           _streamingMessageIndex = aiMessageIndex;
+          _isLoading = false;
           _isStreaming = true;
           _isReconnectingStream = false;
-          _reconnectAttempt = 0;
           _isWaitingForNetwork = false;
         });
         _startStreamingDurationTimer(startTime);
@@ -776,9 +759,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             entryId: null,
           );
           _streamingMessageIndex = aiMessageIndex;
+          _isLoading = false;
           _isStreaming = true;
           _isReconnectingStream = false;
-          _reconnectAttempt = 0;
           _isWaitingForNetwork = false;
         });
         _startStreamingDurationTimer(startTime);
@@ -805,7 +788,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       bool firstChunk = true;
       int chunkCount = 0;
       String lastDisplayedText = '';
-      bool hasReceivedThinking = false;
       bool hasReceivedContent = false;
       bool hasReceivedToolCalls = false;
       const networkInactivityTimeout = Duration(seconds: 12);
@@ -866,7 +848,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               if (_isReconnectingStream) {
                 setState(() {
                   _isReconnectingStream = false;
-                  _reconnectAttempt = 0;
                   _isWaitingForNetwork = false;
                 });
               }
@@ -888,7 +869,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               }
 
               if (chunk.thinking != null && chunk.thinking!.isNotEmpty) {
-                hasReceivedThinking = true;
                 _appendThinkingBlock(messageBlocks, chunk.thinking!);
               }
 
@@ -911,9 +891,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
               bool shouldReplacePlaceholder = false;
               if (firstChunk) {
-                if (hasReceivedThinking) {
-                  shouldReplacePlaceholder = true;
-                } else if (hasReceivedToolCalls) {
+                if (hasReceivedToolCalls) {
                   shouldReplacePlaceholder = true;
                 } else if (hasReceivedContent) {
                   shouldReplacePlaceholder = true;
@@ -925,17 +903,21 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               }
 
               chunkCount++;
+              final hasUserVisibleUpdate =
+                  chunk.content.isNotEmpty || chunk.toolCall != null;
               final shouldUpdate =
-                  shouldReplacePlaceholder ||
-                  chunkCount % 3 == 0 ||
-                  chunk.content.length > 50 ||
-                  fullResponse.length - lastDisplayedText.length > 100 ||
-                  chunk.isThinkingComplete ||
-                  chunk.isToolCallComplete ||
-                  (chunk.toolCall != null &&
-                      (chunk.toolCall!.status == ToolCallStatus.calling ||
-                          chunk.toolCall!.status == ToolCallStatus.completed ||
-                          chunk.toolCall!.status == ToolCallStatus.failed));
+                  hasUserVisibleUpdate &&
+                  !shouldReplacePlaceholder &&
+                  (chunkCount % 3 == 0 ||
+                      chunk.content.length > 50 ||
+                      fullResponse.length - lastDisplayedText.length > 100 ||
+                      chunk.isToolCallComplete ||
+                      (chunk.toolCall != null &&
+                          (chunk.toolCall!.status == ToolCallStatus.calling ||
+                              chunk.toolCall!.status ==
+                                  ToolCallStatus.completed ||
+                              chunk.toolCall!.status ==
+                                  ToolCallStatus.failed)));
 
               if (shouldUpdate) {
                 lastDisplayedText = fullResponse;
@@ -1045,7 +1027,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           if (_isReconnectingStream) {
             setState(() {
               _isReconnectingStream = false;
-              _reconnectAttempt = 0;
               _isWaitingForNetwork = false;
             });
           }
@@ -1061,7 +1042,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             if (_isReconnectingStream) {
               setState(() {
                 _isReconnectingStream = false;
-                _reconnectAttempt = 0;
                 _isWaitingForNetwork = false;
               });
             }
@@ -1085,9 +1065,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           lastDisplayedText = fullResponse;
           firstChunk = true;
           chunkCount = 0;
-          hasReceivedThinking = messageBlocks.any(
-            (block) => block.type == ChatMessageBlockType.thinking,
-          );
           hasReceivedContent = fullResponse.trim().isNotEmpty;
           hasReceivedToolCalls = messageBlocks.any(
             (block) => block.type == ChatMessageBlockType.toolCall,
@@ -1105,7 +1082,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           _streamingBubble.value = checkpointMessage;
           setState(() {
             _isReconnectingStream = true;
-            _reconnectAttempt = reconnectAttempt;
             _isWaitingForNetwork = false;
           });
           _scheduleScrollToBottom();
@@ -1161,7 +1137,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           _streamingMessageIndex = null;
         }
         _isReconnectingStream = false;
-        _reconnectAttempt = 0;
         _isWaitingForNetwork = false;
       });
       // VLB is removed from the tree by the setState above; free the reference.
@@ -1169,11 +1144,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         if (mounted) _streamingBubble.value = null;
       });
       if (!willAutoContinueToolTurn) {
-        if (_turnWallClockStart != null) {
-          _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
-            _turnWallClockStart!,
-          );
-        }
         _stopStreamingDurationTimer();
         final shouldNotifyResponseComplete =
             _isAppInBackground || _isAppInactive || !_isOnChatScreen;
@@ -1247,17 +1217,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _isStreaming = false;
         _streamingMessageIndex = null;
         _isReconnectingStream = false;
-        _reconnectAttempt = 0;
         _isWaitingForNetwork = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _streamingBubble.value = null;
       });
-      if (aiMessageIndex != null && _turnWallClockStart != null) {
-        _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
-          _turnWallClockStart!,
-        );
-      }
       _stopStreamingDurationTimer();
       if (assistantEntryId != null) {
         await _chatSessions.updateMessageEntry(
@@ -1302,18 +1266,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _isStreaming = false;
         _streamingMessageIndex = null;
         _isReconnectingStream = false;
-        _reconnectAttempt = 0;
         _isWaitingForNetwork = false;
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _streamingBubble.value = null;
       });
-      if (aiMessageIndex != null && _turnWallClockStart != null) {
-        _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
-          _turnWallClockStart!,
-        );
-      }
       _stopStreamingDurationTimer();
       if (assistantEntryId != null) {
         await _chatSessions.updateMessageEntry(
@@ -1406,7 +1364,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           _streamingMessageIndex = null;
         }
         _isReconnectingStream = false;
-        _reconnectAttempt = 0;
         _isWaitingForNetwork = false;
       });
       if (streamingEndsNow) {
@@ -1415,11 +1372,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
       if (!shouldSilentlyContinueAfterToolError) {
-        if (aiMessageIndex != null && _turnWallClockStart != null) {
-          _turnWallClockDurations[aiMessageIndex] = DateTime.now().difference(
-            _turnWallClockStart!,
-          );
-        }
         _stopStreamingDurationTimer();
       }
       if (assistantEntryId != null) {
@@ -1455,7 +1407,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         removeProviderMessageFromHistory: true,
         replaceAssistantMessageIndex: aiMessageIndex,
         automaticToolContinuationDepth: automaticToolContinuationDepth + 1,
-        preserveTurnWallClock: true,
       );
       return;
     }
@@ -2027,7 +1978,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final isFinalInTurn =
         messageIndex == _messages.length - 1 ||
         _messages[messageIndex + 1].isUser;
-    final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn);
+    // Reasoning blocks remain in the message model for provider continuity,
+    // but are intentionally never rendered as user-facing chat content.
+    final blocks = _getEffectiveBlocks(
+      messageIndex,
+      isFinalInTurn,
+    ).where((block) => block.type != ChatMessageBlockType.thinking).toList();
     return _finalResponseTextFromBlocks(blocks);
   }
 
@@ -2654,12 +2610,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             padding: const EdgeInsets.only(top: 120, bottom: 112),
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
-            itemCount: _timelineItems.length + (_isLoading ? 1 : 0),
+            // Keep a modest cache around the viewport. Chat rows can contain
+            // expensive markdown and tool sections, so prebuilding several
+            // screens of them causes noticeable frame-time spikes.
+            scrollCacheExtent: const ScrollCacheExtent.pixels(700.0),
+            itemCount: _timelineItems.length,
             itemBuilder: (context, index) {
-              if (index == _timelineItems.length && _isLoading) {
-                return _buildLoadingMessage();
-              }
               final item = _timelineItems[index];
               // ValueKey preserves widget state (e.g. expanded/collapsed tool
               // sections) across rebuilds triggered by streaming setState calls.
@@ -2806,6 +2762,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     final double horizontalPadding = 32 - (32 - 8) * t;
     final double safeAreaBottom = 32 - (32 - 12) * t;
+    final isWorking = _isResponseInProgress;
 
     return SafeArea(
       top: false,
@@ -2815,90 +2772,174 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              constraints: const BoxConstraints(minHeight: 56, maxHeight: 148),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: theme.brightness == Brightness.dark
-                      ? theme.colorScheme.outline.withValues(alpha: 0.2)
-                      : theme.colorScheme.outline.withValues(alpha: 0.06),
-                  width: 1,
+            ChatWorkingComposerFrame(
+              isWorking: isWorking,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                constraints: const BoxConstraints(
+                  minHeight: 56,
+                  maxHeight: 148,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isWorking
+                        ? Colors.transparent
+                        : theme.brightness == Brightness.dark
+                        ? theme.colorScheme.outline.withValues(alpha: 0.2)
+                        : theme.colorScheme.outline.withValues(alpha: 0.06),
+                    width: 1,
                   ),
-                ],
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: IconButton(
-                      tooltip: 'Add',
-                      onPressed: () {},
-                      icon: Icon(
-                        CupertinoIcons.plus,
-                        size: 28,
-                        color: theme.colorScheme.onSurface,
-                      ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
                     ),
-                  ),
-                  const SizedBox(width: 2),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: TextField(
-                        focusNode: _messageFocusNode,
-                        scrollController: _messageInputScrollController,
-                        cursorColor: theme.colorScheme.primary,
-                        controller: _messageController,
-                        enabled: true,
-                        autofocus: false,
-                        decoration: InputDecoration(
-                          hoverColor: Colors.transparent,
-                          hintText: 'Ask Budget AI',
-                          hintStyle: TextStyle(
-                            color: hintColor.withValues(alpha: 0.72),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
+                  ],
+                ),
+                child: IgnorePointer(
+                  ignoring: isWorking,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    reverseDuration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      alignment: AlignmentDirectional.centerStart,
+                      children: [...previousChildren, ?currentChild],
+                    ),
+                    transitionBuilder: (child, animation) {
+                      final slide = Tween<Offset>(
+                        begin: const Offset(0.04, 0),
+                        end: Offset.zero,
+                      ).animate(animation);
+                      final scale = Tween<double>(
+                        begin: 0.96,
+                        end: 1,
+                      ).animate(animation);
+                      return ClipRect(
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: slide,
+                            child: ScaleTransition(
+                              alignment: Alignment.centerLeft,
+                              scale: scale,
+                              child: child,
+                            ),
                           ),
-                          border: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                          fillColor: Colors.transparent,
                         ),
-                        maxLines: 1,
-                        minLines: 1,
-                        textInputAction: TextInputAction.newline,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: TextStyle(fontSize: 16, color: textColor),
-                      ),
-                    ),
+                      );
+                    },
+                    child: isWorking
+                        ? _buildWorkingComposerContent(theme)
+                        : _buildNormalComposerContent(
+                            theme,
+                            textColor: textColor,
+                            hintColor: hintColor,
+                          ),
                   ),
-                  const SizedBox(width: 6),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _canSendNotifier,
-                    builder: (context, canSend, child) =>
-                        _buildComposerSendButton(theme),
-                  ),
-                ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNormalComposerContent(
+    ThemeData theme, {
+    required Color textColor,
+    required Color hintColor,
+  }) {
+    return Row(
+      key: const ValueKey('normal-composer'),
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: IconButton(
+            tooltip: 'Add',
+            onPressed: () {},
+            icon: Icon(
+              CupertinoIcons.plus,
+              size: 28,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+        const SizedBox(width: 2),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: TextField(
+              focusNode: _messageFocusNode,
+              scrollController: _messageInputScrollController,
+              cursorColor: theme.colorScheme.primary,
+              controller: _messageController,
+              enabled: true,
+              autofocus: false,
+              decoration: InputDecoration(
+                hoverColor: Colors.transparent,
+                hintText: 'Ask Budget AI',
+                hintStyle: TextStyle(
+                  color: hintColor.withValues(alpha: 0.72),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                ),
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                fillColor: Colors.transparent,
+              ),
+              maxLines: 1,
+              minLines: 1,
+              textInputAction: TextInputAction.newline,
+              textCapitalization: TextCapitalization.sentences,
+              style: TextStyle(fontSize: 16, color: textColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        ValueListenableBuilder<bool>(
+          valueListenable: _canSendNotifier,
+          builder: (context, canSend, child) => _buildComposerSendButton(theme),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWorkingComposerContent(ThemeData theme) {
+    return Row(
+      key: const ValueKey('working-composer'),
+      children: [
+        const SizedBox.square(
+          dimension: 44,
+          child: RepaintBoundary(child: ChatBudgetLoadingIndicator(size: 44)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Budget AI Is Working ...' ,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.start,
+            style: AppTheme.bodyMedium.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -3229,47 +3270,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return baseBlocks;
   }
 
-  Duration _getTurnDuration(int endIndex) {
-    var total = Duration.zero;
-    var startIndex = endIndex;
-    for (var i = endIndex; i >= 0; i--) {
-      if (_messages[i].isUser) {
-        startIndex = i + 1;
-        break;
-      }
-      startIndex = i;
-    }
-    for (var i = startIndex; i <= endIndex; i++) {
-      if (!_messages[i].isUser && _messages[i].responseTime != null) {
-        total += _messages[i].responseTime!;
-      }
-    }
-    return total;
-  }
-
-  bool _isTurnInProgress(int endIndex) {
-    if (_streamingMessageIndex == null) return false;
-
-    var startIndex = endIndex;
-    for (var i = endIndex; i >= 0; i--) {
-      if (_messages[i].isUser) {
-        startIndex = i + 1;
-        break;
-      }
-      startIndex = i;
-    }
-
-    var turnEndIndex = endIndex;
-    for (var i = endIndex + 1; i < _messages.length; i++) {
-      if (_messages[i].isUser) break;
-      turnEndIndex = i;
-    }
-
-    return _streamingMessageIndex! >= startIndex &&
-        _streamingMessageIndex! <= turnEndIndex &&
-        !_messages[_streamingMessageIndex!].isUser;
-  }
-
   Widget _buildToolMessageBody(
     ChatMessage message,
     int messageIndex,
@@ -3278,84 +3278,26 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     const double blockSpacing = 6;
     const double activityEntrySpacing = 3;
 
-    // Only show reconnecting UI for actual network issues:
-    // - When waiting for network to come back online
-    // - When all reconnection attempts have been exhausted (max reached)
-    // During normal retry attempts, show the cursor placeholder instead
-    final isReconnecting =
-        isCurrentlyStreaming &&
-        (_isWaitingForNetwork ||
-            (_isReconnectingStream &&
-                _reconnectAttempt >= _maxReconnectAttempts));
     final isFinalInTurn =
         messageIndex == _messages.length - 1 ||
         _messages[messageIndex + 1].isUser;
-    final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn);
+    // Keep model reasoning private. Tool progress and response blocks are the
+    // only assistant activity that belongs in the visible conversation.
+    final blocks = _getEffectiveBlocks(
+      messageIndex,
+      isFinalInTurn,
+    ).where((block) => block.type != ChatMessageBlockType.thinking).toList();
     final hasActivityBlocks = blocks.any(
       (block) => block.type != ChatMessageBlockType.response,
     );
-    final currentModel = AIModels.getModelById(_selectedModel);
-    final shouldRenderOpenResponseAsProcess =
-        isCurrentlyStreaming &&
-        isFinalInTurn &&
-        (currentModel?.supportsToolCall ?? false) &&
-        _hasOpenResponseBlock(blocks);
     if (!hasActivityBlocks) {
-      if (shouldRenderOpenResponseAsProcess) {
-        final turnInProgress = _isTurnInProgress(messageIndex);
-        final Duration duration;
-        if (turnInProgress && _turnWallClockStart != null) {
-          duration = DateTime.now().difference(_turnWallClockStart!);
-        } else if (_turnWallClockDurations.containsKey(messageIndex)) {
-          duration = _turnWallClockDurations[messageIndex]!;
-        } else {
-          duration = _getTurnDuration(messageIndex);
-        }
-
-        final children = <Widget>[
-          ChatActivitySection(
-            durationLabel: _formatWorkedDuration(
-              duration,
-              isInProgress: turnInProgress,
-            ),
-            initiallyExpanded: true,
-            isInProgress: turnInProgress,
-            detailsBuilder: (context) =>
-                ChatProcessTextSection(text: message.text),
-          ),
-        ];
-
-        if (isReconnecting) {
-          children
-            ..add(const SizedBox(height: blockSpacing))
-            ..add(const ChatBudgetLoadingIndicator(size: 48, reverse: true));
-        } else {
-          children
-            ..add(const SizedBox(height: blockSpacing))
-            ..add(_buildStreamingCursorPlaceholder());
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (message.text.trim().isNotEmpty)
-            _buildResponseMarkdown(
+      final responseStarted = message.text.trim().isNotEmpty;
+      return responseStarted
+          ? _buildResponseMarkdown(
               message.text,
               isStreaming: isCurrentlyStreaming,
-            ),
-          if (isReconnecting ||
-              (isCurrentlyStreaming && message.text.trim().isEmpty)) ...[
-            if (message.text.trim().isNotEmpty) const SizedBox(height: 6),
-            const ChatBudgetLoadingIndicator(size: 48, reverse: true),
-          ],
-        ],
-      );
+            )
+          : const SizedBox.shrink();
     }
 
     int streamingResponseIndex = -1;
@@ -3458,12 +3400,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     flushResponseBuffer();
 
-    final lastVisibleEntry = mergedEntries.isEmpty ? null : mergedEntries.last;
-    final lastVisibleEntryIsStreamingResponse =
-        lastVisibleEntry != null &&
-        lastVisibleEntry.type == ChatMessageBlockType.response &&
-        lastVisibleEntry.isStreaming;
-
     Widget buildEntries(
       List<
         ({
@@ -3474,9 +3410,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           bool isComplete,
         })
       >
-      entries, {
-      required bool responseAsProcess,
-    }) {
+      entries,
+    ) {
       final entryChildren = <Widget>[];
       int index = 0;
       while (index < entries.length) {
@@ -3539,12 +3474,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         }
 
         entryChildren.add(
-          responseAsProcess
-              ? ChatProcessTextSection(text: entry.text ?? '')
-              : _buildResponseMarkdown(
-                  entry.text ?? '',
-                  isStreaming: entry.isStreaming,
-                ),
+          _buildResponseMarkdown(
+            entry.text ?? '',
+            isStreaming: entry.isStreaming,
+          ),
         );
         index++;
       }
@@ -3563,7 +3496,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
     if (hasVisibleToolCalls || hasVisibleThinking) {
       // Show all entries inline (thinking + tool calls + response)
-      children.add(buildEntries(mergedEntries, responseAsProcess: false));
+      children.add(buildEntries(mergedEntries));
     } else {
       int index = 0;
       while (index < mergedEntries.length) {
@@ -3638,30 +3571,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
     }
 
-    if (isReconnecting) {
-      if (children.isNotEmpty) {
-        children.add(const SizedBox(height: blockSpacing));
-      }
-      children.add(const ChatBudgetLoadingIndicator(size: 48, reverse: true));
-    } else if (isCurrentlyStreaming && !lastVisibleEntryIsStreamingResponse) {
-      if (children.isNotEmpty) {
-        children.add(const SizedBox(height: blockSpacing));
-      }
-      children.add(_buildStreamingCursorPlaceholder());
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children,
-    );
-  }
-
-  bool _hasOpenResponseBlock(List<ChatMessageBlock> blocks) {
-    return blocks.any(
-      (block) =>
-          block.type == ChatMessageBlockType.response &&
-          !block.isComplete &&
-          (block.text?.trim().isNotEmpty ?? false),
     );
   }
 
@@ -3678,48 +3590,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   String? _thinkingTextSignature(String? text) {
     final normalized = (text ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
     return normalized.isEmpty ? null : normalized.toLowerCase();
-  }
-
-  String _formatWorkedDuration(
-    Duration duration, {
-    required bool isInProgress,
-  }) {
-    final prefix = isInProgress ? 'Working for' : 'Worked for';
-    final seconds = duration.inSeconds.clamp(0, 1 << 31);
-    if (seconds < 60) {
-      return '$prefix ${seconds}s';
-    }
-
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    if (minutes < 60) {
-      return remainingSeconds == 0
-          ? '$prefix ${minutes}m'
-          : '$prefix ${minutes}m ${remainingSeconds}s';
-    }
-
-    final hours = minutes ~/ 60;
-    final remainingMinutes = minutes % 60;
-    return remainingMinutes == 0
-        ? '$prefix ${hours}h'
-        : '$prefix ${hours}h ${remainingMinutes}m';
-  }
-
-  Widget _buildStreamingCursorPlaceholder() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: StreamingTextReveal(
-        text: '',
-        isStreaming: true,
-        textAlign: TextAlign.start,
-        style: AppTheme.bodyMedium.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-          fontSize: 16,
-          height: 1.5,
-        ),
-        cursorColor: Theme.of(context).colorScheme.primary,
-      ),
-    );
   }
 
   dynamic _decodeToolResult(String? rawResult) {
@@ -3906,13 +3776,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     return false;
-  }
-
-  Widget _buildLoadingMessage() {
-    return ChatLoadingMessage(
-      iconPath: widget.config.iconPath,
-      message: "Just a sec -- I'm thinking",
-    );
   }
 
   bool _shouldShowToolCall(ToolCall? toolCall) {

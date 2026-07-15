@@ -12,13 +12,13 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:device_preview/device_preview.dart';
-import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed';
-const _devicePreviewEnabled = true;
+// const _devicePreviewEnabled = true;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,12 +31,13 @@ Future<void> main() async {
   final preferences = SharedPreferencesAsync();
   final onboardingCompleted =
       await preferences.getBool(_onboardingCompletedKey) ?? false;
-  runApp(
-    DevicePreview(
-      enabled: kDebugMode && _devicePreviewEnabled,
-      builder: (_) => MyApp(showOnboarding: !onboardingCompleted),
-    ),
-  );
+  runApp(MyApp(showOnboarding: !onboardingCompleted));
+  // runApp(
+  //   DevicePreview(
+  //     enabled: kDebugMode && _devicePreviewEnabled,
+  //     builder: (_) => MyApp(showOnboarding: !onboardingCompleted),
+  //   ),
+  // );
 }
 
 class MyApp extends StatelessWidget {

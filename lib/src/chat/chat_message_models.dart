@@ -654,7 +654,7 @@ Keep working until the task is actually complete — but stop the moment it is.
 - Batch similar calls: use array parameters instead of N sequential calls.
 - Prefer action over exploration: plan the minimum tool calls needed, then execute.
 - Final responses should be informative: include the outcome and the key specifics the user needs.
-- Don't re-explain internal reasoning or intermediate steps in your reply. The user sees the thinking section; your response is the outcome, not the process.
+- Don't expose or re-explain internal reasoning or intermediate steps. Give the user the outcome and the useful supporting details only.
 ''';
 
 const String _financeGuidance = '''

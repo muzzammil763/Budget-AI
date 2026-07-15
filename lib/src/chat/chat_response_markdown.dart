@@ -106,24 +106,11 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) =>
-                FadeTransition(opacity: animation, child: child),
-            // Same ValueKey while streaming so per-chunk rebuilds don't
-            // re-trigger the transition; only the streaming→formatted flip
-            // changes the key and animates the swap.
-            child: KeyedSubtree(
-              key: ValueKey<bool>(widget.isStreaming),
-              child: _StandardChatResponseMarkdown(
-                text: normalizedText,
-                isStreaming: widget.isStreaming,
-                onLinkTap: widget.onLinkTap,
-                onTokenTap: widget.onTokenTap,
-              ),
-            ),
+          _StandardChatResponseMarkdown(
+            text: normalizedText,
+            isStreaming: widget.isStreaming,
+            onLinkTap: widget.onLinkTap,
+            onTokenTap: widget.onTokenTap,
           ),
           if (shouldPreview)
             _LargeResponsePreviewFooter(

@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:flutter/material.dart';
 
 class ChatShimmerBlock extends StatefulWidget {
   final double width;
@@ -96,41 +95,130 @@ class _SlidingGradientTransform extends GradientTransform {
 }
 
 class ChatLoadingMessage extends StatelessWidget {
-  final String iconPath;
   final String message;
+  final bool animateEntrance;
 
   const ChatLoadingMessage({
     super.key,
-    required this.iconPath,
     required this.message,
+    this.animateEntrance = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
+    final isDark = theme.brightness == Brightness.dark;
+    final content = Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 2, 12, 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: Semantics(
+          liveRegion: true,
+          excludeSemantics: true,
+          label: message,
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(19),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  primary.withValues(alpha: isDark ? 0.42 : 0.30),
+                  AppTheme.highlight.withValues(alpha: isDark ? 0.26 : 0.18),
+                  theme.colorScheme.outlineVariant.withValues(alpha: 0.18),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? primary.withValues(alpha: 0.08)
+                      : Colors.black.withValues(alpha: 0.055),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            child: SvgPicture.asset(
-              iconPath,
-              colorFilter: ColorFilter.mode(primary, BlendMode.srcIn),
-              width: 16,
-              height: 16,
+            child: Container(
+              margin: const EdgeInsets.all(1),
+              padding: const EdgeInsetsDirectional.fromSTEB(9, 8, 13, 8),
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(
+                  primary.withValues(alpha: isDark ? 0.07 : 0.035),
+                  theme.colorScheme.surface,
+                ),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const RepaintBoundary(
+                    child: ChatBudgetLoadingIndicator(size: 42),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          message,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 14,
+                            height: 1.15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Preparing our response',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.bodySmall.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 11,
+                            height: 1.15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          const ChatBudgetLoadingIndicator(size: 48),
-        ],
+        ),
       ),
+    );
+
+    if (!animateEntrance) return content;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      child: content,
+      builder: (context, progress, child) {
+        return ClipRect(
+          child: Align(
+            alignment: AlignmentDirectional.topStart,
+            heightFactor: progress,
+            child: Opacity(
+              opacity: progress,
+              child: Transform.scale(
+                scale: 0.97 + (0.03 * progress),
+                alignment: AlignmentDirectional.topStart,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -148,6 +236,138 @@ class ChatBudgetLoadingIndicator extends StatefulWidget {
   @override
   State<ChatBudgetLoadingIndicator> createState() =>
       _ChatBudgetLoadingIndicatorState();
+}
+
+class ChatWorkingComposerFrame extends StatefulWidget {
+  const ChatWorkingComposerFrame({
+    super.key,
+    required this.isWorking,
+    required this.child,
+    this.borderRadius = 28,
+  });
+
+  final bool isWorking;
+  final Widget child;
+  final double borderRadius;
+
+  @override
+  State<ChatWorkingComposerFrame> createState() =>
+      _ChatWorkingComposerFrameState();
+}
+
+class _ChatWorkingComposerFrameState extends State<ChatWorkingComposerFrame>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1900),
+    );
+    if (widget.isWorking) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatWorkingComposerFrame oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isWorking == widget.isWorking) return;
+    if (widget.isWorking) {
+      _controller.repeat();
+    } else {
+      _controller
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        return CustomPaint(
+          foregroundPainter: _WorkingComposerBorderPainter(
+            progress: _controller.value,
+            isWorking: widget.isWorking,
+            borderRadius: widget.borderRadius,
+            primary: theme.colorScheme.primary,
+            accent: AppTheme.highlight,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+class _WorkingComposerBorderPainter extends CustomPainter {
+  const _WorkingComposerBorderPainter({
+    required this.progress,
+    required this.isWorking,
+    required this.borderRadius,
+    required this.primary,
+    required this.accent,
+  });
+
+  final double progress;
+  final bool isWorking;
+  final double borderRadius;
+  final Color primary;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!isWorking || size.isEmpty) return;
+
+    final pulse = 0.5 + 0.5 * math.sin(progress * math.pi * 2);
+    final rect = (Offset.zero & size).deflate(1.25);
+    final border = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(borderRadius - 1.25),
+    );
+
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..color = primary.withValues(alpha: 0.045 + pulse * 0.035);
+    canvas.drawRRect(border, glowPaint);
+
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: [
+          primary.withValues(alpha: 0.16),
+          primary,
+          accent,
+          primary.withValues(alpha: 0.20),
+          primary.withValues(alpha: 0.16),
+        ],
+        stops: const [0, 0.26, 0.48, 0.76, 1],
+        transform: GradientRotation(progress * math.pi * 2),
+      ).createShader(rect);
+    canvas.drawRRect(border, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WorkingComposerBorderPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.isWorking != isWorking ||
+        oldDelegate.borderRadius != borderRadius ||
+        oldDelegate.primary != primary ||
+        oldDelegate.accent != accent;
+  }
 }
 
 class _ChatBudgetLoadingIndicatorState extends State<ChatBudgetLoadingIndicator>
