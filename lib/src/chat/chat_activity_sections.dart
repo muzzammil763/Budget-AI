@@ -192,6 +192,8 @@ class ChatToolCallSection extends StatelessWidget {
   final ToolCall toolCall;
   final Color themeColor;
   final bool isInProgress;
+  final double displayScale;
+  final double horizontalPadding;
   final String Function(String text)? markdownNormalizer;
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
@@ -201,6 +203,8 @@ class ChatToolCallSection extends StatelessWidget {
     required this.toolCall,
     required this.themeColor,
     required this.isInProgress,
+    this.displayScale = 1,
+    this.horizontalPadding = 12,
     this.markdownNormalizer,
     this.onLinkTap,
     this.linkBuilder,
@@ -212,6 +216,8 @@ class ChatToolCallSection extends StatelessWidget {
       toolCall: toolCall,
       themeColor: themeColor,
       isInProgress: isInProgress,
+      displayScale: displayScale,
+      horizontalPadding: horizontalPadding,
       markdownNormalizer: markdownNormalizer,
       onLinkTap: onLinkTap,
       linkBuilder: linkBuilder,
@@ -579,6 +585,8 @@ class _SingleToolCallSection extends StatefulWidget {
   final ToolCall toolCall;
   final Color themeColor;
   final bool isInProgress;
+  final double displayScale;
+  final double horizontalPadding;
   final String Function(String text)? markdownNormalizer;
   final MarkdownLinkTap? onLinkTap;
   final LinkBuilder? linkBuilder;
@@ -587,6 +595,8 @@ class _SingleToolCallSection extends StatefulWidget {
     required this.toolCall,
     required this.themeColor,
     this.isInProgress = false,
+    this.displayScale = 1,
+    this.horizontalPadding = 12,
     this.markdownNormalizer,
     this.onLinkTap,
     this.linkBuilder,
@@ -620,7 +630,9 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     final shouldRenderArguments = _shouldRenderArguments();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.horizontalPadding * widget.displayScale,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -632,9 +644,9 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: EdgeInsets.symmetric(vertical: 4 * widget.displayScale),
               child: Row(
-                spacing: 4,
+                spacing: 4 * widget.displayScale,
                 children: [
                   Icon(
                     isSuccess
@@ -644,7 +656,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                         : isRunning
                         ? Icons.pending_outlined
                         : CupertinoIcons.info_circle,
-                    size: 20,
+                    size: 20 * widget.displayScale,
                     color: isSuccess
                         ? Colors.green
                         : isFailed
@@ -658,7 +670,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                       formatToolNameForUi(widget.toolCall.name),
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13.5,
+                        fontSize: 13.5 * widget.displayScale,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
@@ -666,10 +678,10 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
 
                   if (widget.isInProgress) ...[
                     SizedBox(
-                      width: 12,
-                      height: 12,
+                      width: 12 * widget.displayScale,
+                      height: 12 * widget.displayScale,
                       child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
+                        strokeWidth: 1.5 * widget.displayScale,
                         valueColor: AlwaysStoppedAnimation(widget.themeColor),
                       ),
                     ),
@@ -679,7 +691,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                     duration: const Duration(milliseconds: 200),
                     child: Icon(
                       Icons.keyboard_arrow_down,
-                      size: 22,
+                      size: 22 * widget.displayScale,
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
@@ -690,7 +702,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+              padding: EdgeInsets.fromLTRB(0, 0, 0, 8 * widget.displayScale),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

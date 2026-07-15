@@ -193,6 +193,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return Scaffold(
       body: SafeArea(
+        bottom:
+            Platform.isAndroid || MediaQuery.viewPaddingOf(context).bottom == 0,
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),
           duration: const Duration(milliseconds: 1100),
@@ -346,26 +348,79 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Row(
         children: [
           if (widget.isReplay)
-            IconButton(
+            _buildHeaderChromeButton(
+              theme,
+              width: 48,
+              tooltip: 'Back',
               onPressed: Navigator.of(context).pop,
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+              child: Icon(
+                CupertinoIcons.back,
+                color: theme.colorScheme.onSurface,
+                size: 25,
+              ),
             ),
           const Spacer(),
           AnimatedOpacity(
             opacity: _isLastPage ? 0 : 1,
             duration: const Duration(milliseconds: 200),
-            child: TextButton(
+            child: _buildHeaderChromeButton(
+              theme,
+              width: 76,
+              tooltip: 'Skip onboarding',
               onPressed: _isLastPage ? null : () => _goToPage(_pageCount - 1),
               child: Text(
                 'Skip',
                 style: AppTheme.bodyMedium.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderChromeButton(
+    ThemeData theme, {
+    required double width,
+    double height = 48,
+    required String tooltip,
+    required VoidCallback? onPressed,
+    required Widget child,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(32),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(32),
+          child: Tooltip(
+            message: tooltip,
+            child: Center(child: child),
+          ),
+        ),
       ),
     );
   }
@@ -382,9 +437,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final backSlotGap = screenSize.width * 0.021;
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: verticalPadding,
+      padding: EdgeInsets.only(
+        top: horizontalPadding / 2,
+        left: horizontalPadding,
+        right: horizontalPadding,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -442,25 +498,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         SizedBox(
                           width: controlSize,
                           height: controlSize,
-                          child: OutlinedButton(
+                          child: _buildHeaderChromeButton(
+                            theme,
+                            width: controlSize,
+                            height: controlSize,
+                            tooltip: 'Previous page',
                             onPressed: _currentPage == 0
                                 ? null
                                 : () => _goToPage(_currentPage - 1),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: theme.colorScheme.primary,
-                              backgroundColor: Colors.transparent,
-                              side: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: screenSize.shortestSide * 0.0036,
-                              ),
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                            ),
                             child: Icon(
-                              Icons.arrow_back_ios_new,
-                              size: screenSize.shortestSide * 0.044,
+                              CupertinoIcons.back,
+                              color: theme.colorScheme.onSurface,
+                              size: screenSize.shortestSide * 0.052,
                             ),
                           ),
                         ),
@@ -566,7 +615,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description:
           'Chat naturally — the AI adds entries, searches your history and builds summaries for you.',
       items: const [],
-      extra: _ChatPreview(currency: CurrencySettingsService.instance.current),
+      extra: _ChatPreview(
+        currency: CurrencySettingsService.instance.current,
+        animate: _currentPage == 3,
+      ),
     );
   }
 
@@ -614,48 +666,41 @@ class _CurrencySelectorPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: constraints.maxWidth,
-            child: Column(
-              children: [
-                CurrencyDisplayCard(
-                  currency: selectedCurrency,
-                  onTap: onCustomRequested,
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: onCustomRequested,
-                  iconAlignment: IconAlignment.end,
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.onSurface,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  icon: const Icon(CupertinoIcons.chevron_right, size: 13),
-                  label: Text(
-                    'Tap the card to choose more or add your own',
-                    textAlign: TextAlign.center,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: CurrencyDisplayCard(
+              currency: selectedCurrency,
+              onTap: onCustomRequested,
+              height: double.infinity,
             ),
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: onCustomRequested,
+            iconAlignment: IconAlignment.end,
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurface,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: const Icon(CupertinoIcons.chevron_right, size: 13),
+            label: Text(
+              'Tap the card to choose more or add your own',
+              textAlign: TextAlign.center,
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -691,7 +736,7 @@ class _OnboardingPage extends StatelessWidget {
     final verticalPadding = screenSize.height * 0.009;
     final titleFontSize = screenSize.shortestSide * 0.066;
     final emphasizedTitleFontSize = screenSize.shortestSide * 0.103;
-    final descriptionFontSize = screenSize.shortestSide * 0.043;
+    final descriptionFontSize = screenSize.shortestSide * 0.04;
     final titleToBodyGap = screenSize.height * 0.009;
     final bodyToExtraGap = screenSize.height * 0.014;
     final minimumTitleFontSize = ((titleFontSize * 0.72) * 2).floor() / 2;
@@ -987,6 +1032,8 @@ class _InsightsShowcase extends StatefulWidget {
 }
 
 class _InsightsShowcaseState extends State<_InsightsShowcase> {
+  static const _sideCardScale = 0.84;
+
   int _front = 0;
   int _left = 1;
   int _right = 2;
@@ -1038,9 +1085,22 @@ class _InsightsShowcaseState extends State<_InsightsShowcase> {
       height: showcaseHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final sideShift = constraints.maxWidth * 0.29;
-          final cardWidth = (constraints.maxWidth * 0.52).clamp(164.0, 196.0);
+          final cardWidth = (constraints.maxWidth * 0.49).clamp(156.0, 188.0);
           final cardHeight = showcaseHeight + 16;
+          const sideRotation = 0.13;
+          const edgeMargin = 4.0;
+          final sideVisualHalfWidth =
+              _sideCardScale *
+              ((cardWidth / 2) * math.cos(sideRotation) +
+                  (cardHeight / 2) * math.sin(sideRotation));
+          final maximumSideShift = math.max(
+            0.0,
+            (constraints.maxWidth / 2) - sideVisualHalfWidth - edgeMargin,
+          );
+          final sideShift = math.min(
+            constraints.maxWidth * 0.29,
+            maximumSideShift,
+          );
           return Stack(
             alignment: Alignment.topCenter,
             children: [
@@ -1060,11 +1120,16 @@ class _InsightsShowcaseState extends State<_InsightsShowcase> {
       key: ValueKey(item),
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeInOutCubic,
-      transformAlignment: Alignment.topCenter,
+      transformAlignment: Alignment.bottomCenter,
       transform: Matrix4.identity()
-        ..translateByDouble(dx, isFront ? 0 : 10, 0, 1)
+        ..translateByDouble(dx, 0, 0, 1)
         ..rotateZ(isFront ? 0 : (dx < 0 ? -0.13 : 0.13))
-        ..scaleByDouble(isFront ? 1 : 0.92, isFront ? 1 : 0.92, 1, 1),
+        ..scaleByDouble(
+          isFront ? 1 : _sideCardScale,
+          isFront ? 1 : _sideCardScale,
+          1,
+          1,
+        ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _bringToFront(item),
@@ -1108,7 +1173,6 @@ class _InsightPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1117,13 +1181,6 @@ class _InsightPreviewCard extends StatelessWidget {
         border: Border.all(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1219,7 +1276,7 @@ class _OverviewGraphic extends StatelessWidget {
     return Container(
       key: ValueKey(currency),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
         borderRadius: BorderRadius.circular(16),
@@ -1236,137 +1293,120 @@ class _OverviewGraphic extends StatelessWidget {
           final budgetProgress = 0.62 * value;
           return LayoutBuilder(
             builder: (context, constraints) {
-              return FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              final contentScale = math
+                  .min(constraints.maxWidth / 125, constraints.maxHeight / 128)
+                  .clamp(0.72, 1.0);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            'DEMO · THIS MONTH',
-                            style: AppTheme.bodySmall.copyWith(
-                              color: onCard.withValues(alpha: 0.62),
-                              fontSize: 7,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: onCard.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Text(
-                              'ON TRACK',
-                              style: AppTheme.bodySmall.copyWith(
-                                color: onCard,
-                                fontSize: 6,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
                       Text(
-                        'Total spent',
+                        'DEMO · THIS MONTH',
                         style: AppTheme.bodySmall.copyWith(
-                          color: onCard.withValues(alpha: 0.68),
-                          fontSize: 7,
-                          fontWeight: FontWeight.w700,
+                          color: onCard.withValues(alpha: 0.62),
+                          fontSize: 7 * contentScale,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8 * contentScale,
                         ),
                       ),
-                      Text(
-                        CurrencySettingsService.instance.formatAmount(spent),
-                        style: AppTheme.headingSmall.copyWith(
-                          color: onCard,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                      const Spacer(),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 5 * contentScale,
+                          vertical: 2 * contentScale,
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _OverviewAmount(
-                              label: 'Income',
-                              value: CurrencySettingsService.instance
-                                  .formatAmount(income),
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: _OverviewAmount(
-                              label: 'Remaining',
-                              value: CurrencySettingsService.instance
-                                  .formatAmount(remaining),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 7),
-                      Row(
-                        children: [
-                          Text(
-                            'Monthly budget',
-                            style: AppTheme.bodySmall.copyWith(
-                              color: onCard.withValues(alpha: 0.68),
-                              fontSize: 7,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${(budgetProgress * 100).round()}% used',
-                            style: AppTheme.bodySmall.copyWith(
-                              color: onCard,
-                              fontSize: 7,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(100),
-                        child: LinearProgressIndicator(
-                          value: budgetProgress,
-                          minHeight: 4,
-                          backgroundColor: onCard.withValues(alpha: 0.18),
-                          valueColor: AlwaysStoppedAnimation<Color>(onCard),
+                        decoration: BoxDecoration(
+                          color: onCard.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(100),
                         ),
-                      ),
-                      const SizedBox(height: 7),
-                      Row(
-                        children: [
-                          _OverviewStat(
-                            label: 'Entries',
-                            value: '${(18 * value).round()}',
+                        child: Text(
+                          'ON TRACK',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: onCard,
+                            fontSize: 6 * contentScale,
+                            fontWeight: FontWeight.w900,
                           ),
-                          _OverviewStat(
-                            label: 'Daily avg',
-                            value: CurrencySettingsService.instance
-                                .formatAmount(1300 * value),
-                          ),
-                          const _OverviewStat(
-                            label: 'Top category',
-                            value: 'Groceries',
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
-                ),
+                  SizedBox(height: 4 * contentScale),
+                  Text(
+                    'Total spent',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: onCard.withValues(alpha: 0.68),
+                      fontSize: 7 * contentScale,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    CurrencySettingsService.instance.formatAmount(spent),
+                    style: AppTheme.headingSmall.copyWith(
+                      color: onCard,
+                      fontSize: 18 * contentScale,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 6 * contentScale),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _OverviewAmount(
+                          label: 'Income',
+                          scale: contentScale,
+                          value: CurrencySettingsService.instance.formatAmount(
+                            income,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 5 * contentScale),
+                      Expanded(
+                        child: _OverviewAmount(
+                          label: 'Remaining',
+                          scale: contentScale,
+                          value: CurrencySettingsService.instance.formatAmount(
+                            remaining,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 7 * contentScale),
+                  Row(
+                    children: [
+                      Text(
+                        'Monthly budget',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: onCard.withValues(alpha: 0.68),
+                          fontSize: 7 * contentScale,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${(budgetProgress * 100).round()}% used',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: onCard,
+                          fontSize: 7 * contentScale,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 3 * contentScale),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(100),
+                    child: LinearProgressIndicator(
+                      value: budgetProgress,
+                      minHeight: 4 * contentScale,
+                      backgroundColor: onCard.withValues(alpha: 0.18),
+                      valueColor: AlwaysStoppedAnimation<Color>(onCard),
+                    ),
+                  ),
+                ],
               );
             },
           );
@@ -1377,16 +1417,21 @@ class _OverviewGraphic extends StatelessWidget {
 }
 
 class _OverviewAmount extends StatelessWidget {
-  const _OverviewAmount({required this.label, required this.value});
+  const _OverviewAmount({
+    required this.label,
+    required this.value,
+    required this.scale,
+  });
 
   final String label;
   final String value;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
     final onCard = Theme.of(context).colorScheme.onPrimary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      padding: EdgeInsets.symmetric(horizontal: 7 * scale, vertical: 5 * scale),
       decoration: BoxDecoration(
         color: onCard.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
@@ -1398,7 +1443,7 @@ class _OverviewAmount extends StatelessWidget {
             label,
             style: AppTheme.bodySmall.copyWith(
               color: onCard.withValues(alpha: 0.62),
-              fontSize: 7,
+              fontSize: 7 * scale,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1408,7 +1453,7 @@ class _OverviewAmount extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppTheme.bodySmall.copyWith(
               color: onCard,
-              fontSize: 8,
+              fontSize: 8 * scale,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1419,10 +1464,15 @@ class _OverviewAmount extends StatelessWidget {
 }
 
 class _OverviewStat extends StatelessWidget {
-  const _OverviewStat({required this.label, required this.value});
+  const _OverviewStat({
+    required this.label,
+    required this.value,
+    required this.scale,
+  });
 
   final String label;
   final String value;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
@@ -1436,15 +1486,17 @@ class _OverviewStat extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppTheme.bodySmall.copyWith(
               color: onCard,
-              fontSize: 8,
+              fontSize: 8 * scale,
               fontWeight: FontWeight.w900,
             ),
           ),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTheme.bodySmall.copyWith(
               color: onCard.withValues(alpha: 0.58),
-              fontSize: 7,
+              fontSize: 7 * scale,
             ),
           ),
         ],
@@ -1567,29 +1619,60 @@ class _ActivityGraphic extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: animate ? 0 : 1, end: 1),
-      duration: const Duration(milliseconds: 1900),
-      curve: Curves.easeOutCubic,
-      builder: (context, progress, _) => Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: [
-          for (final level in _levels)
-            Container(
-              width: 14,
-              height: 13,
-              decoration: BoxDecoration(
-                color: level == 0
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : theme.colorScheme.primary.withValues(
-                        alpha: (0.12 + level * 0.82) * progress,
-                      ),
-                borderRadius: BorderRadius.circular(4),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final availableHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : availableWidth;
+        final gap = (math.min(availableWidth, availableHeight) * 0.022).clamp(
+          1.5,
+          4.0,
+        );
+
+        var squareSize = 0.0;
+        for (var columns = 1; columns <= _levels.length; columns++) {
+          final rows = (_levels.length / columns).ceil();
+          final widthForSquares = availableWidth - gap * (columns - 1);
+          final heightForSquares = availableHeight - gap * (rows - 1);
+          final candidateSize = math.min(
+            widthForSquares / columns,
+            heightForSquares / rows,
+          );
+          if (candidateSize > squareSize) {
+            squareSize = candidateSize;
+          }
+        }
+        squareSize = math.max(0, squareSize - 0.1);
+
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: animate ? 0 : 1, end: 1),
+          duration: const Duration(milliseconds: 1900),
+          curve: Curves.easeOutCubic,
+          builder: (context, progress, _) => Align(
+            alignment: Alignment.topCenter,
+            child: Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final level in _levels)
+                  Container(
+                    width: squareSize,
+                    height: squareSize,
+                    decoration: BoxDecoration(
+                      color: level == 0
+                          ? theme.colorScheme.surfaceContainerHighest
+                          : theme.colorScheme.primary.withValues(
+                              alpha: (0.12 + level * 0.82) * progress,
+                            ),
+                      borderRadius: BorderRadius.circular(squareSize * 0.28),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1656,20 +1739,164 @@ class _RecentDaysGraphic extends StatelessWidget {
   }
 }
 
-class _ChatPreview extends StatelessWidget {
-  const _ChatPreview({required this.currency});
+class _ChatPreview extends StatefulWidget {
+  const _ChatPreview({required this.currency, required this.animate});
 
   final String currency;
+  final bool animate;
+
+  @override
+  State<_ChatPreview> createState() => _ChatPreviewState();
+}
+
+class _ChatPreviewState extends State<_ChatPreview> {
+  static const _userMessage =
+      'I just spent 100 on groceries and 100 on a Budget AI subscription';
+
+  final ScrollController _scrollController = ScrollController();
+  Timer? _typingTimer;
+  Completer<void>? _typingCompleter;
+  int _sequence = 0;
+  int _typedCharacters = 0;
+  bool _showUserBubble = false;
+  bool _showFirstResponse = false;
+  bool _showFirstToolCall = false;
+  bool _showSecondToolCall = false;
+  bool _showFinalResponse = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _playSequence());
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !oldWidget.animate) {
+      _playSequence();
+    } else if (!widget.animate && oldWidget.animate) {
+      _resetSequence();
+    }
+  }
+
+  @override
+  void dispose() {
+    _sequence++;
+    _typingTimer?.cancel();
+    if (!(_typingCompleter?.isCompleted ?? true)) {
+      _typingCompleter?.complete();
+    }
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _resetSequence() {
+    _sequence++;
+    _typingTimer?.cancel();
+    if (!(_typingCompleter?.isCompleted ?? true)) {
+      _typingCompleter?.complete();
+    }
+    if (!mounted) return;
+    setState(() {
+      _typedCharacters = 0;
+      _showUserBubble = false;
+      _showFirstResponse = false;
+      _showFirstToolCall = false;
+      _showSecondToolCall = false;
+      _showFinalResponse = false;
+    });
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
+
+  Future<void> _playSequence() async {
+    _resetSequence();
+    final sequence = _sequence;
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!_isCurrent(sequence)) return;
+    setState(() => _showUserBubble = true);
+
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!_isCurrent(sequence)) return;
+    await _typeUserMessage(sequence);
+
+    if (!await _revealAfter(sequence, const Duration(milliseconds: 100), () {
+      _showFirstResponse = true;
+    })) {
+      return;
+    }
+    if (!await _revealAfter(sequence, const Duration(milliseconds: 320), () {
+      _showFirstToolCall = true;
+    })) {
+      return;
+    }
+    if (!await _revealAfter(sequence, const Duration(milliseconds: 260), () {
+      _showSecondToolCall = true;
+    })) {
+      return;
+    }
+    await _revealAfter(sequence, const Duration(milliseconds: 300), () {
+      _showFinalResponse = true;
+    });
+  }
+
+  bool _isCurrent(int sequence) =>
+      mounted && widget.animate && sequence == _sequence;
+
+  Future<void> _typeUserMessage(int sequence) {
+    final completer = Completer<void>();
+    _typingCompleter = completer;
+    _typingTimer = Timer.periodic(const Duration(milliseconds: 9), (timer) {
+      if (!_isCurrent(sequence)) {
+        timer.cancel();
+        if (!completer.isCompleted) completer.complete();
+      } else if (_typedCharacters < _userMessage.length) {
+        setState(() => _typedCharacters++);
+      } else {
+        timer.cancel();
+        if (!completer.isCompleted) completer.complete();
+      }
+    });
+    return completer.future;
+  }
+
+  Future<bool> _revealAfter(
+    int sequence,
+    Duration delay,
+    VoidCallback reveal,
+  ) async {
+    await Future<void>.delayed(delay);
+    if (!_isCurrent(sequence)) return false;
+    setState(reveal);
+    _scrollToLatest();
+    return true;
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients || !widget.animate) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
     final screenSize = MediaQuery.sizeOf(context);
-    final horizontalInset = screenSize.width * 0.031;
-    final verticalGap = screenSize.height * 0.014;
-    final smallGap = screenSize.height * 0.007;
-    final bodyFontSize = screenSize.shortestSide * 0.043;
+    final displayScale = math
+        .min(screenSize.shortestSide / 390, screenSize.height / 844)
+        .clamp(0.78, 1.15);
+    final horizontalInset = 12.0 * displayScale;
+    final verticalGap = 12.0 * displayScale;
+    final smallGap = 6.0 * displayScale;
+    final bodyFontSize = 15 * displayScale;
     final groceriesAmount = CurrencySettingsService.instance.formatAmount(100);
     final subscriptionAmount = CurrencySettingsService.instance.formatAmount(
       100,
@@ -1711,140 +1938,155 @@ class _ChatPreview extends StatelessWidget {
       status: ToolCallStatus.completed,
     );
 
-    return Container(
-      key: ValueKey(currency),
-      width: double.infinity,
-
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onPrimary,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: onSurface.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: verticalGap),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: horizontalInset),
-            child: Align(
-              alignment: Alignment.centerRight,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: verticalGap),
+        Align(
+          alignment: Alignment.centerRight,
+          child: AnimatedSlide(
+            offset: _showUserBubble ? Offset.zero : const Offset(0, 0.4),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+            child: AnimatedOpacity(
+              opacity: _showUserBubble ? 1 : 0,
+              duration: const Duration(milliseconds: 300),
               child: Container(
+                margin: const EdgeInsets.only(left: 24),
                 padding: EdgeInsets.symmetric(
-                  horizontal: screenSize.width * 0.036,
-                  vertical: screenSize.height * 0.012,
+                  horizontal: 14 * displayScale,
+                  vertical: 10 * displayScale,
                 ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(screenSize.shortestSide * 0.061),
-                    topRight: Radius.circular(screenSize.shortestSide * 0.061),
-                    bottomLeft: Radius.circular(
-                      screenSize.shortestSide * 0.061,
-                    ),
-                    bottomRight: Radius.circular(
-                      screenSize.shortestSide * 0.018,
-                    ),
+                    topLeft: Radius.circular(24 * displayScale),
+                    topRight: Radius.circular(24 * displayScale),
+                    bottomLeft: Radius.circular(24 * displayScale),
+                    bottomRight: Radius.circular(7 * displayScale),
                   ),
                   border: Border.all(
                     color: theme.colorScheme.primary.withValues(alpha: 0.25),
                   ),
                 ),
-                child: Text(
-                  'I just spent 100 on groceries and 100 on a Budget AI subscription',
-                  style: AppTheme.bodyMedium.copyWith(
-                    color: onSurface,
-                    fontSize: bodyFontSize,
-                    fontWeight: FontWeight.w500,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 100),
+                  alignment: Alignment.topRight,
+                  child: Text(
+                    _userMessage.substring(0, _typedCharacters),
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: onSurface,
+                      fontSize: bodyFontSize,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          SizedBox(height: smallGap),
-          Expanded(
-            child: Scrollbar(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: smallGap),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: horizontalInset,
-                      ),
-                      child: Text(
-                        'I’ll add both expenses for today — groceries and your Budget AI subscription.',
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: onSurface,
-                          fontSize: bodyFontSize,
-                          height: 1.4,
-                        ),
+        ),
+        SizedBox(height: smallGap),
+        Expanded(
+          child: Scrollbar(
+            controller: _scrollController,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: EdgeInsets.only(bottom: smallGap),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ChatPreviewReveal(
+                    visible: _showFirstResponse,
+                    child: Text(
+                      'I’ll add both expenses for today — groceries and your Budget AI subscription.',
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: onSurface,
+                        fontSize: bodyFontSize,
+                        height: 1.4,
                       ),
                     ),
-                    ChatToolCallSection(
+                  ),
+                  _ChatPreviewReveal(
+                    visible: _showFirstToolCall,
+                    child: ChatToolCallSection(
+                      horizontalPadding: 0,
                       toolCall: groceriesToolCall,
                       themeColor: theme.colorScheme.primary,
                       isInProgress: false,
+                      displayScale: displayScale,
                     ),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalInset,
-                        0,
-                        horizontalInset,
-                        smallGap,
-                      ),
-                      child: Text(
-                        'The grocery expense is added.',
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: onSurface,
-                          fontSize: bodyFontSize,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                    ChatToolCallSection(
+                  ),
+                  _ChatPreviewReveal(
+                    visible: _showSecondToolCall,
+                    child: ChatToolCallSection(
+                      horizontalPadding: 0,
                       toolCall: subscriptionToolCall,
                       themeColor: theme.colorScheme.primary,
                       isInProgress: false,
+                      displayScale: displayScale,
                     ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: horizontalInset,
+                  ),
+                  _ChatPreviewReveal(
+                    visible: _showFinalResponse,
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(
+                            text:
+                                'Both expenses are recorded for today:\n'
+                                '• Groceries\n'
+                                '• Budget AI subscription\n\n',
+                          ),
+                          TextSpan(
+                            text:
+                                'Done — I added 2 entries totaling $totalAmount.',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: bodyFontSize,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(
-                              text:
-                                  'Both expenses are recorded for today:\n'
-                                  '• Groceries\n'
-                                  '• Budget AI subscription\n\n',
-                            ),
-                            TextSpan(
-                              text:
-                                  'Done — I added 2 entries totaling $totalAmount.',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-
-                                fontSize: bodyFontSize,
-                              ),
-                            ),
-                          ],
-                        ),
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: onSurface,
-                          fontSize: bodyFontSize,
-                          height: 1.4,
-                        ),
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: onSurface,
+                        fontSize: bodyFontSize,
+                        height: 1.4,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-          SizedBox(height: smallGap),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatPreviewReveal extends StatelessWidget {
+  const _ChatPreviewReveal({required this.visible, required this.child});
+
+  final bool visible;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: ClipRect(
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, 0.18),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          child: AnimatedOpacity(
+            opacity: visible ? 1 : 0,
+            duration: const Duration(milliseconds: 300),
+            child: visible ? child : const SizedBox.shrink(),
+          ),
+        ),
       ),
     );
   }
@@ -1896,6 +2138,12 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
     if (_keyboardVisible) return;
     setState(() => _keyboardVisible = true);
     _nameFocusNode.requestFocus();
+  }
+
+  void _hideKeyboard() {
+    if (!_keyboardVisible || _isSaving) return;
+    _nameFocusNode.unfocus();
+    setState(() => _keyboardVisible = false);
   }
 
   void _enterLetter(String letter) {
@@ -1992,7 +2240,7 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
                         ? Padding(
                             key: const ValueKey('name-keyboard-visible'),
                             padding: EdgeInsets.only(top: gap),
-                            child: _InlineNameKeyboard(
+                            child: InlineNameKeyboard(
                               onLetter: _enterLetter,
                               onPeriod: _enterPeriod,
                               onSpace: _enterSpace,
@@ -2037,6 +2285,33 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
                         ],
                       ),
                     ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: permissionsEnabled
+                        ? Padding(
+                            padding: EdgeInsets.only(
+                              top: gap * 1.5,
+                              left: screenSize.width * 0.06,
+                              right: screenSize.width * 0.06,
+                            ),
+                            child: Text(
+                              'You can update your name and manage permissions anytime in app Settings.',
+                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                              style: AppTheme.bodySmall.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: screenSize.shortestSide * 0.031,
+                                height: 1.45,
+                              ),
+                            ),
+                          )
+                        : const SizedBox(
+                            width: double.infinity,
+                            key: ValueKey('settings-reassurance-hidden'),
+                          ),
                   ),
                 ],
               ),
@@ -2210,7 +2485,22 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
                           ),
                         )
                       : _keyboardVisible
-                      ? const SizedBox(key: ValueKey('name-action-hidden'))
+                      ? Material(
+                          key: const ValueKey('close-name-keyboard'),
+                          color: theme.colorScheme.primary,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: _hideKeyboard,
+                            customBorder: const CircleBorder(),
+                            child: Center(
+                              child: Icon(
+                                CupertinoIcons.xmark,
+                                color: theme.colorScheme.onPrimary,
+                                size: actionSize * 0.48,
+                              ),
+                            ),
+                          ),
+                        )
                       : Material(
                           key: const ValueKey('edit-name'),
                           color: theme.colorScheme.primary,
@@ -2237,8 +2527,9 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
   }
 }
 
-class _InlineNameKeyboard extends StatelessWidget {
-  const _InlineNameKeyboard({
+class InlineNameKeyboard extends StatelessWidget {
+  const InlineNameKeyboard({
+    super.key,
     required this.onLetter,
     required this.onPeriod,
     required this.onSpace,
@@ -2585,7 +2876,7 @@ class _InlineKeyboardKeyState extends State<_InlineKeyboardKey> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final screenSize = MediaQuery.sizeOf(context);
-    final keyHeight = screenSize.shortestSide * 0.082;
+    final keyHeight = screenSize.shortestSide * 0.09;
     final popupGap = screenSize.shortestSide * 0.01;
     final popupExpansion = screenSize.shortestSide * 0.006;
     final foreground = widget.emphasized
@@ -2988,17 +3279,17 @@ class _AppShowcaseState extends State<_AppShowcase> {
             color: const Color(0xFF17171A),
             borderRadius: BorderRadius.circular(16 + bezel),
             border: Border.all(color: const Color(0xFF3E3E42), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: isDark
-                    ? AppTheme.highlight.withValues(
-                        alpha: isFront ? 0.12 : 0.05,
-                      )
-                    : Colors.black.withValues(alpha: isFront ? 0.16 : 0.08),
-                blurRadius: isFront ? 18 : 10,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            // boxShadow: [
+            //   BoxShadow(
+            //     color: isDark
+            //         ? AppTheme.highlight.withValues(
+            //             alpha: isFront ? 0.12 : 0.05,
+            //           )
+            //         : Colors.black.withValues(alpha: isFront ? 0.16 : 0.08),
+            //     blurRadius: isFront ? 18 : 10,
+            //     offset: const Offset(0, 8),
+            //   ),
+            // ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),

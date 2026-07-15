@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
@@ -18,6 +19,7 @@ import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
+import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:toastification/toastification.dart';
 
@@ -71,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         children: [
+          const _SettingsNameEditor(),
           _buildNavTile(
             theme,
             icon: CupertinoIcons.money_dollar_circle,
@@ -419,5 +422,352 @@ class _SettingsScreenState extends State<SettingsScreen> {
         type: ToastificationType.error,
       );
     }
+  }
+}
+
+class _SettingsNameEditor extends StatefulWidget {
+  const _SettingsNameEditor();
+
+  @override
+  State<_SettingsNameEditor> createState() => _SettingsNameEditorState();
+}
+
+class _SettingsNameEditorState extends State<_SettingsNameEditor> {
+  late final TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+  bool _isEditing = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: UserNameSettingsService.instance.current,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _startEditing() {
+    if (_isEditing || _isSaving) return;
+    final currentName = UserNameSettingsService.instance.current;
+    _controller.value = TextEditingValue(
+      text: currentName,
+      selection: TextSelection.collapsed(offset: currentName.length),
+    );
+    setState(() => _isEditing = true);
+    _focusNode.requestFocus();
+  }
+
+  void _closeKeyboard() {
+    if (!_isEditing || _isSaving) return;
+    _focusNode.unfocus();
+    setState(() => _isEditing = false);
+  }
+
+  void _enterLetter(String letter) {
+    if (_controller.text.length >= 28) return;
+    final current = _controller.text;
+    final shouldCapitalize =
+        current.isEmpty || current.endsWith(' ') || current.endsWith('.');
+    _appendText(shouldCapitalize ? letter : letter.toLowerCase());
+  }
+
+  void _enterPeriod() {
+    final current = _controller.text;
+    if (current.isEmpty ||
+        current.endsWith(' ') ||
+        current.endsWith('.') ||
+        current.length >= 28) {
+      return;
+    }
+    _appendText('.');
+  }
+
+  void _enterSpace() {
+    final current = _controller.text;
+    if (current.isEmpty || current.endsWith(' ') || current.length >= 28) {
+      return;
+    }
+    _appendText(' ');
+  }
+
+  void _backspace() {
+    final current = _controller.text;
+    if (current.isEmpty) return;
+    final updated = current.substring(0, current.length - 1);
+    _controller.value = TextEditingValue(
+      text: updated,
+      selection: TextSelection.collapsed(offset: updated.length),
+    );
+    setState(() {});
+  }
+
+  void _appendText(String addition) {
+    final updated = '${_controller.text}$addition';
+    _controller.value = TextEditingValue(
+      text: updated,
+      selection: TextSelection.collapsed(offset: updated.length),
+    );
+    setState(() {});
+  }
+
+  Future<void> _saveName() async {
+    if (_isSaving) return;
+    final name = _controller.text.trim();
+    setState(() => _isSaving = true);
+    await Future.wait([
+      UserNameSettingsService.instance.setUserName(name),
+      Future<void>.delayed(const Duration(milliseconds: 280)),
+    ]);
+    if (!mounted) return;
+    _focusNode.unfocus();
+    setState(() {
+      _isSaving = false;
+      _isEditing = false;
+    });
+    HapticFeedback.lightImpact();
+    showAppToast(
+      context,
+      message: name.isEmpty ? 'Name cleared' : 'Name updated to $name',
+      type: ToastificationType.success,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final screenSize = MediaQuery.sizeOf(context);
+    final savedName = UserNameSettingsService.instance.current;
+    final firstName = savedName.split(RegExp(r'\s+')).firstOrNull ?? '';
+    final showSavedSummary = savedName.isNotEmpty && !_isEditing;
+    final iconContainerSize = screenSize.shortestSide * 0.123;
+    final actionSize = screenSize.shortestSide * 0.097;
+    final horizontalInset = screenSize.width * 0.031;
+    final verticalInset = screenSize.height * 0.014;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _startEditing,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalInset,
+                vertical: verticalInset,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(screenSize.shortestSide),
+                border: Border.all(color: theme.colorScheme.outline),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: iconContainerSize,
+                    height: iconContainerSize,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      CupertinoIcons.person_fill,
+                      size: screenSize.shortestSide * 0.051,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                  SizedBox(width: horizontalInset),
+                  Expanded(
+                    child: SizedBox(
+                      height: iconContainerSize,
+                      child: Center(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: showSavedSummary
+                              ? Align(
+                                  key: const ValueKey(
+                                    'settings-saved-name-summary',
+                                  ),
+                                  alignment: Alignment.centerLeft,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              savedName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: AppTheme.headingSmall
+                                                  .copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurface,
+                                                    fontSize:
+                                                        screenSize
+                                                            .shortestSide *
+                                                        0.04,
+                                                  ),
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            width: screenSize.width * 0.01,
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 2,
+                                            ),
+                                            child: Icon(
+                                              CupertinoIcons.pencil,
+                                              color: theme.colorScheme.primary,
+                                              size:
+                                                  screenSize.shortestSide *
+                                                  0.04,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        'I’ll call you $firstName',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTheme.bodySmall.copyWith(
+                                          color: theme
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                          fontSize:
+                                              screenSize.shortestSide * 0.032,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : TextField(
+                                  key: const ValueKey(
+                                    'settings-name-edit-field',
+                                  ),
+                                  controller: _controller,
+                                  focusNode: _focusNode,
+                                  readOnly: true,
+                                  showCursor: _isEditing,
+                                  enableInteractiveSelection: false,
+                                  maxLines: 1,
+                                  textAlignVertical: TextAlignVertical.center,
+                                  cursorColor: theme.colorScheme.primary,
+                                  cursorWidth: screenSize.shortestSide * 0.0075,
+                                  cursorHeight: screenSize.shortestSide * 0.07,
+                                  cursorRadius: const Radius.circular(32),
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface,
+                                    fontFamily: 'Boldonse',
+                                    fontSize: screenSize.shortestSide * 0.046,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'What should I call you?',
+                                    hintStyle: TextStyle(
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.3),
+                                      fontFamily: 'Boldonse',
+                                      fontSize: screenSize.shortestSide * 0.04,
+                                    ),
+                                    isDense: true,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!showSavedSummary) ...[
+                    SizedBox(width: screenSize.width * 0.021),
+                    SizedBox(
+                      width: actionSize,
+                      height: actionSize,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: _isSaving
+                            ? Material(
+                                key: const ValueKey('settings-name-saving'),
+                                color: theme.colorScheme.primary,
+                                shape: const CircleBorder(),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: actionSize * 0.42,
+                                    height: actionSize * 0.42,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth:
+                                          screenSize.shortestSide * 0.005,
+                                      color: theme.colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Material(
+                                key: ValueKey(
+                                  _isEditing
+                                      ? 'settings-name-close'
+                                      : 'settings-name-edit',
+                                ),
+                                color: theme.colorScheme.primary,
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  onTap: _isEditing
+                                      ? _closeKeyboard
+                                      : _startEditing,
+                                  customBorder: const CircleBorder(),
+                                  child: Center(
+                                    child: Icon(
+                                      _isEditing
+                                          ? CupertinoIcons.xmark
+                                          : CupertinoIcons.pencil,
+                                      color: theme.colorScheme.onPrimary,
+                                      size: actionSize * 0.48,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: _isEditing
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: InlineNameKeyboard(
+                      onLetter: _enterLetter,
+                      onPeriod: _enterPeriod,
+                      onSpace: _enterSpace,
+                      onBackspace: _backspace,
+                      onDone: _saveName,
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
   }
 }
