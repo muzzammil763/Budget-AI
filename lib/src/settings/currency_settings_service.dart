@@ -40,7 +40,7 @@ class CurrencySettingsService {
   static const String _currencyKey = 'budget_currency_display_text';
   static const String _customCurrenciesKey = 'budget_custom_currencies';
 
-  final ValueNotifier<String> currency = ValueNotifier<String>('Rs');
+  final ValueNotifier<String> currency = ValueNotifier<String>('USD');
   final ValueNotifier<List<String>> customCurrencies =
       ValueNotifier<List<String>>(<String>[]);
   final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
