@@ -10,7 +10,6 @@ import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
-import 'package:budget_ai/src/loan/loans_screen.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/app_backup_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_sheet.dart';
@@ -82,16 +81,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FinancesScreen()),
-            ),
-          ),
-          _buildNavTile(
-            theme,
-            icon: Icons.handshake_outlined,
-            title: 'Loans',
-            subtitle: 'Borrowed and lent money with repayments',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LoansScreen()),
             ),
           ),
           _buildNavTile(

@@ -28,10 +28,20 @@ const List<String> kFinanceCategories = [
   'Gift',
   'Charity',
   'Banking',
-  'Loans',
+  'Loan',
   'Savings',
   'Work',
-  'Others',
+];
+
+const List<String> kIncomeCategories = [
+  'Salary',
+  'Freelance',
+  'Business',
+  'Bonus',
+  'Refund',
+  'Gift',
+  'Loan',
+  'Savings',
 ];
 
 enum FinanceEntryType {
@@ -185,197 +195,6 @@ class FinanceEntry {
   static String _generateId() {
     return 'fin_${DateTime.now().microsecondsSinceEpoch}';
   }
-}
-
-enum LoanDirection {
-  borrowed,
-  lent;
-
-  String get storageValue => name;
-
-  static LoanDirection fromJson(String? value) {
-    return switch ((value ?? '').toLowerCase().trim()) {
-      'lent' => LoanDirection.lent,
-      _ => LoanDirection.borrowed,
-    };
-  }
-}
-
-class LoanPayment {
-  final String id;
-  final DateTime date;
-  final double amount;
-  final String note;
-  final String? financeEntryId;
-  final DateTime createdAt;
-
-  const LoanPayment({
-    required this.id,
-    required this.date,
-    required this.amount,
-    required this.note,
-    this.financeEntryId,
-    required this.createdAt,
-  });
-
-  factory LoanPayment.create({
-    required DateTime date,
-    required double amount,
-    String note = '',
-  }) => LoanPayment(
-    id: 'loan_pay_${DateTime.now().microsecondsSinceEpoch}',
-    date: date,
-    amount: amount,
-    note: note,
-    createdAt: DateTime.now(),
-  );
-
-  factory LoanPayment.fromJson(Map<String, dynamic> json) => LoanPayment(
-    id:
-        json['id'] as String? ??
-        'loan_pay_${DateTime.now().microsecondsSinceEpoch}',
-    date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
-    amount: (json['amount'] as num?)?.toDouble() ?? 0,
-    note: json['note'] as String? ?? '',
-    financeEntryId: json['finance_entry_id'] as String?,
-    createdAt:
-        DateTime.tryParse(json['created_at'] as String? ?? '') ??
-        DateTime.now(),
-  );
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'date': date.toIso8601String(),
-    'amount': amount,
-    'note': note,
-    if (financeEntryId != null) 'finance_entry_id': financeEntryId,
-    'created_at': createdAt.toIso8601String(),
-  };
-
-  LoanPayment copyWith({
-    DateTime? date,
-    double? amount,
-    String? note,
-    String? financeEntryId,
-    bool clearFinanceEntryId = false,
-  }) => LoanPayment(
-    id: id,
-    date: date ?? this.date,
-    amount: amount ?? this.amount,
-    note: note ?? this.note,
-    financeEntryId: clearFinanceEntryId
-        ? null
-        : financeEntryId ?? this.financeEntryId,
-    createdAt: createdAt,
-  );
-}
-
-class LoanRecord {
-  final String id;
-  final LoanDirection direction;
-  final String person;
-  final String description;
-  final double principal;
-  final DateTime date;
-  final bool hasTime;
-  final String? financeEntryId;
-  final DateTime createdAt;
-  final List<LoanPayment> payments;
-
-  const LoanRecord({
-    required this.id,
-    required this.direction,
-    required this.person,
-    required this.description,
-    required this.principal,
-    required this.date,
-    required this.hasTime,
-    this.financeEntryId,
-    required this.createdAt,
-    this.payments = const [],
-  });
-
-  factory LoanRecord.create({
-    required LoanDirection direction,
-    required String person,
-    required String description,
-    required double principal,
-    required DateTime date,
-    required bool hasTime,
-  }) => LoanRecord(
-    id: 'loan_${DateTime.now().microsecondsSinceEpoch}',
-    direction: direction,
-    person: person,
-    description: description,
-    principal: principal,
-    date: date,
-    hasTime: hasTime,
-    createdAt: DateTime.now(),
-  );
-
-  factory LoanRecord.fromJson(Map<String, dynamic> json) => LoanRecord(
-    id:
-        json['id'] as String? ??
-        'loan_${DateTime.now().microsecondsSinceEpoch}',
-    direction: LoanDirection.fromJson(json['direction'] as String?),
-    person: json['person'] as String? ?? '',
-    description: json['description'] as String? ?? '',
-    principal: (json['principal'] as num?)?.toDouble() ?? 0,
-    date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
-    hasTime: json['has_time'] as bool? ?? false,
-    financeEntryId: json['finance_entry_id'] as String?,
-    createdAt:
-        DateTime.tryParse(json['created_at'] as String? ?? '') ??
-        DateTime.now(),
-    payments: (json['payments'] as List<dynamic>? ?? const [])
-        .map((e) => LoanPayment.fromJson(e as Map<String, dynamic>))
-        .toList(),
-  );
-
-  double get paidAmount =>
-      payments.fold(0.0, (sum, payment) => sum + payment.amount);
-  double get remainingAmount => (principal - paidAmount).clamp(0.0, principal);
-  String get displayPrincipal => FinanceEntry.money(principal);
-  String get displayPaid => FinanceEntry.money(paidAmount);
-  String get displayRemaining => FinanceEntry.money(remainingAmount);
-
-  LoanRecord copyWith({
-    LoanDirection? direction,
-    String? person,
-    String? description,
-    double? principal,
-    DateTime? date,
-    bool? hasTime,
-    String? financeEntryId,
-    bool clearFinanceEntryId = false,
-    List<LoanPayment>? payments,
-  }) => LoanRecord(
-    id: id,
-    direction: direction ?? this.direction,
-    person: person ?? this.person,
-    description: description ?? this.description,
-    principal: principal ?? this.principal,
-    date: date ?? this.date,
-    hasTime: hasTime ?? this.hasTime,
-    financeEntryId: clearFinanceEntryId
-        ? null
-        : financeEntryId ?? this.financeEntryId,
-    createdAt: createdAt,
-    payments: payments ?? this.payments,
-  );
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'direction': direction.storageValue,
-    'person': person,
-    'description': description,
-    'principal': principal,
-    'date': date.toIso8601String(),
-    'has_time': hasTime,
-    if (financeEntryId != null) 'finance_entry_id': financeEntryId,
-    'created_at': createdAt.toIso8601String(),
-    'payments': payments.map((payment) => payment.toJson()).toList(),
-  };
 }
 
 class FinanceService {
@@ -772,10 +591,65 @@ class FinanceService {
     'December',
   ];
 
-  /// Carries each month's leftover (income - expenses) forward as an income
-  /// entry dated the 1st of the next month at 1:00 AM. Catches up on any
-  /// month boundaries missed while the app was closed, in chronological
-  /// order so consecutive months compound correctly.
+  static String rolloverEntryIdForMonth(DateTime sourceMonth) {
+    final targetMonth = DateTime(sourceMonth.year, sourceMonth.month + 1);
+    String part(DateTime value) =>
+        '${value.year}_${value.month.toString().padLeft(2, '0')}';
+    return 'fin_rollover_${part(sourceMonth)}_to_${part(targetMonth)}';
+  }
+
+  static bool hasRolloverForMonth(
+    List<FinanceEntry> entries,
+    DateTime sourceMonth,
+  ) {
+    final source = DateTime(sourceMonth.year, sourceMonth.month);
+    final target = DateTime(source.year, source.month + 1);
+    final sourceLabel =
+        '${_rolloverMonthNames[source.month - 1]} ${source.year}'.toLowerCase();
+    final deterministicId = rolloverEntryIdForMonth(source);
+
+    return entries.any((entry) {
+      if (entry.id == deterministicId) return true;
+      if (entry.category.toLowerCase() != savingsCategory.toLowerCase() ||
+          entry.date.year != target.year ||
+          entry.date.month != target.month) {
+        return false;
+      }
+      final description = entry.description.toLowerCase();
+      return (description.startsWith('savings from ') ||
+              description.startsWith('overspending from ')) &&
+          description.endsWith(sourceLabel);
+    });
+  }
+
+  @visibleForTesting
+  static FinanceEntry? buildRolloverEntry({
+    required DateTime sourceMonth,
+    required double closingBalance,
+    DateTime? createdAt,
+  }) {
+    if (closingBalance == 0) return null;
+    final source = DateTime(sourceMonth.year, sourceMonth.month);
+    final target = DateTime(source.year, source.month + 1);
+    final isSaved = closingBalance > 0;
+    return FinanceEntry(
+      id: rolloverEntryIdForMonth(source),
+      type: isSaved ? FinanceEntryType.income : FinanceEntryType.expense,
+      date: target,
+      hasTime: true,
+      description: isSaved
+          ? 'Savings From ${_rolloverMonthNames[source.month - 1]} ${source.year}'
+          : 'Overspending From ${_rolloverMonthNames[source.month - 1]} ${source.year}',
+      amount: closingBalance.abs(),
+      category: savingsCategory,
+      createdAt: createdAt ?? DateTime.now(),
+    );
+  }
+
+  /// Carries a month's closing result into the next month at midnight.
+  /// Positive results become Savings income; negative results become a
+  /// Savings expense. A deterministic ID makes every month transition
+  /// independently idempotent while allowing later months to roll forward.
   Future<int> applySavingsRollover({DateTime? now}) async {
     final current = now ?? DateTime.now();
     final all = await getAll();
@@ -787,39 +661,26 @@ class FinanceService {
     var added = 0;
 
     while (!month.isAfter(currentMonth)) {
-      final rolloverMoment = DateTime(month.year, month.month, 1, 1);
+      final rolloverMoment = DateTime(month.year, month.month, 1);
       if (current.isBefore(rolloverMoment)) break;
 
-      final alreadyRolled = _cache!.any(
-        (e) =>
-            e.type == FinanceEntryType.income &&
-            e.category == savingsCategory &&
-            e.description.startsWith('Savings from') &&
-            e.date.year == month.year &&
-            e.date.month == month.month,
-      );
+      final prev = DateTime(month.year, month.month - 1);
+      final alreadyRolled = hasRolloverForMonth(_cache!, prev);
       if (!alreadyRolled) {
-        final prev = DateTime(month.year, month.month - 1);
         final prevEntries = _cache!
             .where(
               (e) => e.date.year == prev.year && e.date.month == prev.month,
             )
             .toList();
-        final savings =
+        final closingBalance =
             totalAmount(prevEntries, type: FinanceEntryType.income) -
             totalAmount(prevEntries, type: FinanceEntryType.expense);
-        if (prevEntries.isNotEmpty && savings > 0) {
-          _cache!.add(
-            FinanceEntry.create(
-              type: FinanceEntryType.income,
-              date: rolloverMoment,
-              hasTime: true,
-              description:
-                  'Savings from ${_rolloverMonthNames[prev.month - 1]} ${prev.year}',
-              amount: savings,
-              category: savingsCategory,
-            ),
-          );
+        final rollover = buildRolloverEntry(
+          sourceMonth: prev,
+          closingBalance: closingBalance,
+        );
+        if (prevEntries.isNotEmpty && rollover != null) {
+          _cache!.add(rollover);
           added++;
         }
       }
@@ -997,322 +858,5 @@ class FinanceService {
         subject: 'OpenGate Finances Export',
       ),
     );
-  }
-}
-
-class LoanService {
-  LoanService._();
-  static final LoanService instance = LoanService._();
-
-  static const _storageFileName = 'loans.json';
-  static const loanFinanceCategory = 'Loans';
-
-  List<LoanRecord>? _cache;
-
-  Future<File> _storageFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File('${dir.path}/$_storageFileName');
-  }
-
-  Future<List<LoanRecord>> getAll() async {
-    if (_cache != null) return List.unmodifiable(_cache!);
-    try {
-      final file = await _storageFile();
-      if (!await file.exists()) {
-        _cache = [];
-        return const [];
-      }
-      final raw = await file.readAsString();
-      if (raw.trim().isEmpty) {
-        _cache = [];
-        return const [];
-      }
-      final list = jsonDecode(raw) as List<dynamic>;
-      _cache = list
-          .map((entry) => LoanRecord.fromJson(entry as Map<String, dynamic>))
-          .toList();
-      _cache!.sort((a, b) => b.date.compareTo(a.date));
-      return List.unmodifiable(_cache!);
-    } catch (e) {
-      debugPrint('[LoanService] Failed to read loans: $e');
-      _cache = [];
-      return const [];
-    }
-  }
-
-  Future<LoanRecord> add(LoanRecord loan) async {
-    await getAll();
-    final stored = loan.direction == LoanDirection.lent
-        ? await _syncLentPrincipal(loan)
-        : loan;
-    _cache!.add(stored);
-    _cache!.sort((a, b) => b.date.compareTo(a.date));
-    await _persist();
-    return stored;
-  }
-
-  Future<LoanRecord?> addPayment({
-    required String loanId,
-    required LoanPayment payment,
-  }) async {
-    final loans = List<LoanRecord>.from(await getAll());
-    final index = loans.indexWhere((loan) => loan.id == loanId);
-    if (index < 0) return null;
-    final loan = loans[index];
-    final storedPayment = loan.direction == LoanDirection.lent
-        ? await _syncLentPayment(loan, payment)
-        : payment;
-    final updatedPayments = [...loan.payments, storedPayment]
-      ..sort((a, b) => b.date.compareTo(a.date));
-    final updated = loan.copyWith(payments: updatedPayments);
-    loans[index] = updated;
-    loans.sort((a, b) => b.date.compareTo(a.date));
-    _cache = loans;
-    await _persist();
-    return updated;
-  }
-
-  Future<LoanRecord?> update(LoanRecord updated) async {
-    final loans = List<LoanRecord>.from(await getAll());
-    final index = loans.indexWhere((loan) => loan.id == updated.id);
-    if (index < 0) return null;
-    final existing = loans[index];
-    final LoanRecord synced;
-    if (updated.direction == LoanDirection.lent) {
-      var withPrincipal = await _syncLentPrincipal(updated);
-      final payments = <LoanPayment>[];
-      for (final payment in withPrincipal.payments) {
-        payments.add(await _syncLentPayment(withPrincipal, payment));
-      }
-      synced = withPrincipal.copyWith(payments: payments);
-    } else {
-      await _deleteLinkedFinanceEntries(existing);
-      synced = updated.copyWith(
-        clearFinanceEntryId: true,
-        payments: updated.payments
-            .map((payment) => payment.copyWith(clearFinanceEntryId: true))
-            .toList(),
-      );
-    }
-    loans[index] = synced;
-    loans.sort((a, b) => b.date.compareTo(a.date));
-    _cache = loans;
-    await _persist();
-    return synced;
-  }
-
-  Future<LoanRecord?> updatePayment({
-    required String loanId,
-    required LoanPayment payment,
-  }) async {
-    final loans = List<LoanRecord>.from(await getAll());
-    final loanIndex = loans.indexWhere((loan) => loan.id == loanId);
-    if (loanIndex < 0) return null;
-    final loan = loans[loanIndex];
-    final paymentIndex = loan.payments.indexWhere((p) => p.id == payment.id);
-    if (paymentIndex < 0) return null;
-    final existingPayment = loan.payments[paymentIndex];
-    final LoanPayment syncedPayment;
-    if (loan.direction == LoanDirection.lent) {
-      syncedPayment = await _syncLentPayment(loan, payment);
-    } else {
-      await _deleteFinanceEntry(existingPayment.financeEntryId);
-      syncedPayment = payment.copyWith(clearFinanceEntryId: true);
-    }
-    final payments = List<LoanPayment>.from(loan.payments);
-    payments[paymentIndex] = syncedPayment;
-    payments.sort((a, b) => b.date.compareTo(a.date));
-    final updated = loan.copyWith(payments: payments);
-    loans[loanIndex] = updated;
-    loans.sort((a, b) => b.date.compareTo(a.date));
-    _cache = loans;
-    await _persist();
-    return updated;
-  }
-
-  Future<LoanRecord?> deletePayment({
-    required String loanId,
-    required String paymentId,
-  }) async {
-    final loans = List<LoanRecord>.from(await getAll());
-    final loanIndex = loans.indexWhere((loan) => loan.id == loanId);
-    if (loanIndex < 0) return null;
-    final loan = loans[loanIndex];
-    LoanPayment? payment;
-    for (final item in loan.payments) {
-      if (item.id == paymentId) {
-        payment = item;
-        break;
-      }
-    }
-    if (payment == null) return null;
-    await _deleteFinanceEntry(payment.financeEntryId);
-    final payments = loan.payments
-        .where((payment) => payment.id != paymentId)
-        .toList();
-    final updated = loan.copyWith(payments: payments);
-    loans[loanIndex] = updated;
-    _cache = loans;
-    await _persist();
-    return updated;
-  }
-
-  Future<bool> delete(String id) async {
-    final loans = List<LoanRecord>.from(await getAll());
-    final index = loans.indexWhere((loan) => loan.id == id);
-    if (index < 0) return false;
-    await _deleteLinkedFinanceEntries(loans[index]);
-    loans.removeWhere((loan) => loan.id == id);
-    _cache = loans;
-    await _persist();
-    return true;
-  }
-
-  Future<LoanRecord> _syncLentPrincipal(LoanRecord loan) async {
-    final entry = await _upsertFinanceEntry(
-      id: loan.financeEntryId,
-      type: FinanceEntryType.expense,
-      date: loan.date,
-      hasTime: loan.hasTime,
-      description: 'Loan Given to ${loan.person}',
-      amount: loan.principal,
-    );
-    return loan.copyWith(financeEntryId: entry.id);
-  }
-
-  Future<LoanPayment> _syncLentPayment(
-    LoanRecord loan,
-    LoanPayment payment,
-  ) async {
-    final entry = await _upsertFinanceEntry(
-      id: payment.financeEntryId,
-      type: FinanceEntryType.income,
-      date: payment.date,
-      hasTime: false,
-      description: 'Loan Repayment Income - ${loan.person}',
-      amount: payment.amount,
-    );
-    return payment.copyWith(financeEntryId: entry.id);
-  }
-
-  Future<FinanceEntry> _upsertFinanceEntry({
-    required String? id,
-    required FinanceEntryType type,
-    required DateTime date,
-    required bool hasTime,
-    required String description,
-    required double amount,
-  }) async {
-    if (id != null) {
-      final entries = await FinanceService.instance.getAll();
-      for (final existing in entries) {
-        if (existing.id != id) continue;
-        final updated = existing.copyWith(
-          type: type,
-          date: date,
-          hasTime: hasTime,
-          description: description,
-          amount: amount,
-          category: loanFinanceCategory,
-        );
-        return await FinanceService.instance.update(updated) ?? updated;
-      }
-    }
-    return FinanceService.instance.add(
-      FinanceEntry.create(
-        type: type,
-        date: date,
-        hasTime: hasTime,
-        description: description,
-        amount: amount,
-        category: loanFinanceCategory,
-      ),
-    );
-  }
-
-  Future<void> _deleteLinkedFinanceEntries(LoanRecord loan) async {
-    await _deleteFinanceEntry(loan.financeEntryId);
-    for (final payment in loan.payments) {
-      await _deleteFinanceEntry(payment.financeEntryId);
-    }
-  }
-
-  Future<void> _deleteFinanceEntry(String? id) async {
-    if (id != null) await FinanceService.instance.delete(id);
-  }
-
-  void invalidateCache() => _cache = null;
-
-  Future<void> _persist() async {
-    try {
-      final file = await _storageFile();
-      final json = jsonEncode(_cache!.map((loan) => loan.toJson()).toList());
-      await file.writeAsString(json);
-    } catch (e) {
-      debugPrint('[LoanService] Failed to persist loans: $e');
-    }
-  }
-
-  double totalRemaining(List<LoanRecord> loans, LoanDirection direction) {
-    return loans
-        .where((loan) => loan.direction == direction)
-        .fold(0.0, (sum, loan) => sum + loan.remainingAmount);
-  }
-
-  String buildContextText(List<LoanRecord> loans) {
-    if (loans.isEmpty) return '';
-    final borrowed = totalRemaining(loans, LoanDirection.borrowed);
-    final lent = totalRemaining(loans, LoanDirection.lent);
-    final openLoans = loans.where((loan) => loan.remainingAmount > 0).length;
-    final lines = <String>[
-      'Loans ledger: $openLoans open loan${openLoans == 1 ? '' : 's'}.',
-      '  - Borrowed remaining: ${FinanceEntry.money(borrowed)}',
-      '  - Lent remaining: ${FinanceEntry.money(lent)}',
-    ];
-    for (final loan
-        in loans.where((loan) => loan.remainingAmount > 0).take(5)) {
-      final direction = loan.direction == LoanDirection.borrowed
-          ? 'borrowed from'
-          : 'lent to';
-      lines.add(
-        '  - ${loan.displayRemaining} remaining, $direction ${loan.person}'
-        '${loan.description.isEmpty ? '' : ' (${loan.description})'}',
-      );
-    }
-    return lines.join('\n');
-  }
-
-  Future<int> importFromJson(String rawJson) async {
-    await getAll();
-    final decoded = jsonDecode(rawJson);
-    final List<dynamic> rawList;
-    if (decoded is Map && decoded['loans'] is List) {
-      rawList = decoded['loans'] as List<dynamic>;
-    } else if (decoded is List) {
-      rawList = decoded;
-    } else {
-      throw const FormatException('Invalid loan bundle format');
-    }
-
-    final incoming = rawList
-        .map((entry) => LoanRecord.fromJson(entry as Map<String, dynamic>))
-        .toList();
-
-    var affected = 0;
-    for (final loan in incoming) {
-      final existingIndex = _cache!.indexWhere((item) => item.id == loan.id);
-      if (existingIndex >= 0) {
-        _cache![existingIndex] = loan;
-      } else {
-        _cache!.add(loan);
-      }
-      affected++;
-    }
-
-    if (affected > 0) {
-      _cache!.sort((a, b) => b.date.compareTo(a.date));
-      await _persist();
-    }
-    return affected;
   }
 }

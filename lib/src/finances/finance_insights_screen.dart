@@ -109,7 +109,6 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                             const SizedBox(height: 12),
                             _buildIncomeExpenseCard(theme, insights),
                             const SizedBox(height: 12),
-                            _buildLoansCard(theme),
                             _buildMetricGrid(theme, insights),
                             const SizedBox(height: 12),
                             _buildProgressPanel(theme, insights),
@@ -535,97 +534,6 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildLoansCard(ThemeData theme) {
-    return FutureBuilder<List<LoanRecord>>(
-      future: LoanService.instance.getAll(),
-      builder: (context, snapshot) {
-        final loans = snapshot.data ?? const <LoanRecord>[];
-        if (loans.isEmpty) return const SizedBox.shrink();
-
-        final borrowedRemaining = LoanService.instance.totalRemaining(
-          loans,
-          LoanDirection.borrowed,
-        );
-        final lentRemaining = LoanService.instance.totalRemaining(
-          loans,
-          LoanDirection.lent,
-        );
-        final openLoans = loans
-            .where((loan) => loan.remainingAmount > 0)
-            .toList();
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: _cardDecoration(theme),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: _sectionTitle(theme, 'Loans')),
-                    Text(
-                      openLoans.length == 1
-                          ? '1 OPEN'
-                          : '${openLoans.length} OPEN',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildIncomeExpenseRow(
-                  theme,
-                  'To pay back (borrowed)',
-                  '-${_money(borrowedRemaining)}',
-                  Colors.red,
-                ),
-                const SizedBox(height: 6),
-                _buildIncomeExpenseRow(
-                  theme,
-                  'To receive (lent)',
-                  '+${_money(lentRemaining)}',
-                  Colors.green,
-                ),
-                if (openLoans.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    height: 1,
-                    color: theme.dividerColor.withValues(alpha: 0.18),
-                  ),
-                  const SizedBox(height: 10),
-                  ...openLoans
-                      .take(5)
-                      .map(
-                        (loan) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: _buildIncomeExpenseRow(
-                            theme,
-                            loan.direction == LoanDirection.borrowed
-                                ? 'Owed to ${loan.person}'
-                                : '${loan.person} owes you',
-                            '${loan.direction == LoanDirection.borrowed ? '-' : '+'}'
-                            '${_money(loan.remainingAmount)}',
-                            loan.direction == LoanDirection.borrowed
-                                ? Colors.red
-                                : Colors.green,
-                          ),
-                        ),
-                      ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -2138,7 +2046,7 @@ class _FinanceInsights {
   static bool _isSavingsRollover(FinanceEntry entry) {
     return entry.type == FinanceEntryType.income &&
         entry.category == FinanceService.savingsCategory &&
-        entry.description.startsWith('Savings from');
+        entry.description.toLowerCase().startsWith('savings from');
   }
 
   static DateTime _dateOnly(DateTime date) =>

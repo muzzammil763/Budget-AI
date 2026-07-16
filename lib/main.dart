@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/unified_chat_screen.dart';
@@ -27,7 +25,7 @@ Future<void> main() async {
   await ModelSettingsService.instance.initialize();
   await UserNameSettingsService.instance.initialize();
   await NotificationService.instance.initialize();
-  unawaited(FinanceService.instance.applySavingsRollover());
+  await FinanceService.instance.applySavingsRollover();
   final preferences = SharedPreferencesAsync();
   final onboardingCompleted =
       await preferences.getBool(_onboardingCompletedKey) ?? false;

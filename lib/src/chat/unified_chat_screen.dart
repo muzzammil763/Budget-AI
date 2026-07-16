@@ -2865,7 +2865,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                     ),
@@ -3089,7 +3089,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             : _messages.indexWhere((m) => identical(m, message)));
 
     if (message.isUser) {
-      final userTextColor = theme.colorScheme.onSurface;
+      final userTextColor = theme.colorScheme.onPrimary;
 
       Widget buildContent() {
         return Column(
@@ -3116,23 +3116,25 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               : () => _copyMessage(message.text),
           child: Container(
             margin: const EdgeInsets.only(left: 12, right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.82,
             ),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: theme.colorScheme.primary,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(32),
-                topRight: Radius.circular(32),
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(8),
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(4),
               ),
-              border: Border.all(
-                color: theme.colorScheme.primary.withValues(
-                  alpha: theme.brightness == Brightness.dark ? 0.3 : 0.25,
-                ),
-              ),
+              boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
             ),
             child: buildContent(),
           ),

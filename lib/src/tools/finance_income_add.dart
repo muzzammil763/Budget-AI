@@ -9,7 +9,7 @@ ToolDefinition buildFinanceIncomeAddTool({
 }) => ToolDefinition(
   name: 'finance_income_add',
   description:
-      'Add an income entry. Use this only when the user clearly says they received money, salary, freelance income, refund, gift money, or other income. If unclear, ask whether it is income or expense.',
+      'Add money received, including salary, freelance income, refunds, gifts, money borrowed, and loan repayments received. Generate a concise income type such as Salary, Freelance, Refund, Gift, or Loan; create a new specific type when needed and never use Other or Others. Format the entry title in title case and use "&" instead of the word "and". If unclear whether money was received or paid, ask one short question.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -25,7 +25,7 @@ ToolDefinition buildFinanceIncomeAddTool({
       'category': {
         'type': 'string',
         'description':
-            'Income category/source. Examples: Salary, Freelance, Business, Refund, Gift, Bonus, Other.',
+            'A concise, title-cased income type generated from the source, such as Salary, Freelance, Business, Refund, Gift, Bonus, or Loan. Never return Other or Others.',
       },
       'date': {
         'type': 'string',

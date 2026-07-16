@@ -179,7 +179,7 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
           color: textColor,
         ),
         titleSmall: AppTheme.bodySmall.copyWith(
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),

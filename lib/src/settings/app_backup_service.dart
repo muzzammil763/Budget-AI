@@ -9,7 +9,7 @@ class AppBackupService {
   AppBackupService._();
   static final AppBackupService instance = AppBackupService._();
 
-  static const _backupVersion = 2;
+  static const _backupVersion = 3;
 
   String _backupFileName(DateTime exportedAt) {
     final hour = exportedAt.hour == 0
@@ -26,16 +26,12 @@ class AppBackupService {
 
   Future<Map<String, dynamic>> createBackup() async {
     final finances = await FinanceService.instance.getAll();
-    final loans = await LoanService.instance.getAll();
 
     final backup = {
       'version': _backupVersion,
       'exported_at': DateTime.now().toIso8601String(),
       'app': 'Budget AI',
-      'data': {
-        'finances': finances.map((e) => e.toJson()).toList(),
-        'loans': loans.map((loan) => loan.toJson()).toList(),
-      },
+      'data': {'finances': finances.map((e) => e.toJson()).toList()},
     };
 
     return backup;
@@ -97,18 +93,6 @@ class AppBackupService {
       }
       if (financeCount > 0) {
         restoredItems.add('$financeCount finances');
-      }
-
-      // Restore loans.
-      final loansList = _extractBackupList(backup, 'loans', data: data);
-      var loanCount = 0;
-      if (loansList.isNotEmpty) {
-        loanCount = await LoanService.instance.importFromJson(
-          jsonEncode({'loans': loansList}),
-        );
-      }
-      if (loanCount > 0) {
-        restoredItems.add('$loanCount loans');
       }
 
       if (restoredItems.isEmpty) {

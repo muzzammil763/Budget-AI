@@ -4,17 +4,22 @@ Future<dynamic> addFinanceEntryFromToolArgs(
   Map<String, dynamic> args, {
   required FinanceEntryType type,
 }) async {
-  final description = (args['description'] as String? ?? '').trim();
+  final rawDescription = (args['description'] as String? ?? '').trim();
   final amount = (args['amount'] as num?)?.toDouble() ?? 0.0;
-  final category = (args['category'] as String? ?? '').trim();
+  final rawCategory = (args['category'] as String? ?? '').trim();
   final dateStr = (args['date'] as String? ?? '').trim();
   final timeStr = (args['time'] as String? ?? '').trim();
 
-  if (description.isEmpty) return {'error': 'description is required'};
+  if (rawDescription.isEmpty) return {'error': 'description is required'};
   if (amount <= 0) return {'error': 'amount must be greater than 0'};
-  if (category.isEmpty) return {'error': 'category is required'};
+  if (rawCategory.isEmpty) return {'error': 'category is required'};
 
   try {
+    final description = normalizeNewFinanceLabel(rawDescription);
+    final category = normalizeNewFinanceCategory(
+      rawCategory,
+      description: description,
+    );
     final date = _toolEntryDate(dateStr: dateStr, timeStr: timeStr);
     final entry = FinanceEntry.create(
       type: type,
@@ -41,6 +46,31 @@ Future<dynamic> addFinanceEntryFromToolArgs(
   } catch (e) {
     return {'error': e.toString()};
   }
+}
+
+String normalizeNewFinanceLabel(String value) {
+  final withAmpersand = value.replaceAll(
+    RegExp(r'\band\b', caseSensitive: false),
+    '&',
+  );
+  final words = withAmpersand.replaceAll(RegExp(r'\s+'), ' ').trim().split(' ');
+  return words
+      .map((word) {
+        if (word.isEmpty || word == '&') return word;
+        return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+      })
+      .join(' ');
+}
+
+String normalizeNewFinanceCategory(
+  String value, {
+  required String description,
+}) {
+  final category = normalizeNewFinanceLabel(value);
+  final normalized = category.toLowerCase();
+  return normalized == 'other' || normalized == 'others'
+      ? description
+      : category;
 }
 
 DateTime _toolEntryDate({required String dateStr, required String timeStr}) {

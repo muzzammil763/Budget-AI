@@ -37,8 +37,7 @@ class ToolSettings {
     ToolCollectionDefinition(
       id: finance,
       title: 'Finance Tools',
-      description:
-          'Add, list, edit, summarize, and delete finance and loan records',
+      description: 'Add, list, edit, summarize, and delete finance records',
       tools: [
         ToolItemDefinition(
           name: 'finance_add',
@@ -68,42 +67,8 @@ class ToolSettings {
         ToolItemDefinition(
           name: 'finance_delete',
           title: 'Delete Finances',
-          description: 'Delete one or more income or expense entries',
-        ),
-        ToolItemDefinition(
-          name: 'loan_add',
-          title: 'Add Loan',
-          description: 'Record a borrowed or lent loan',
-        ),
-        ToolItemDefinition(
-          name: 'loan_payment_add',
-          title: 'Add Loan Payment',
-          description: 'Record a repayment against a loan',
-        ),
-        ToolItemDefinition(
-          name: 'loan_update',
-          title: 'Edit Loan',
-          description: 'Update an existing loan',
-        ),
-        ToolItemDefinition(
-          name: 'loan_payment_update',
-          title: 'Edit Loan Payment',
-          description: 'Update an existing loan repayment',
-        ),
-        ToolItemDefinition(
-          name: 'loan_payment_delete',
-          title: 'Delete Loan Payment',
-          description: 'Delete a repayment from a loan',
-        ),
-        ToolItemDefinition(
-          name: 'loan_delete',
-          title: 'Delete Loan',
-          description: 'Delete an existing loan',
-        ),
-        ToolItemDefinition(
-          name: 'loan_list',
-          title: 'List Loans',
-          description: 'List loans and their repayments',
+          description:
+              'Delete entries by ID or a filtered inclusive date range',
         ),
       ],
     ),

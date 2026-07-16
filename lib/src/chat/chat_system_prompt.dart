@@ -102,11 +102,6 @@ Future<List<String>> _buildSystemContextSections() async {
       sections.add('Current finance snapshot:\n$financeContext');
     }
 
-    final loans = await LoanService.instance.getAll();
-    final loanContext = LoanService.instance.buildContextText(loans);
-    if (loanContext.trim().isNotEmpty) {
-      sections.add('Current loan snapshot:\n$loanContext');
-    }
   } catch (e) {
     debugPrint('[ChatProvider] Failed to build finance context: $e');
   }

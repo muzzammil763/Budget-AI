@@ -42,7 +42,7 @@ class MarkdownTableView extends StatelessWidget {
       return Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         border: TableBorder(
-          horizontalInside: BorderSide(color: dividerColor, width: 1),
+          horizontalInside: BorderSide(color: dividerColor, width: 1.5),
         ),
         columnWidths: columnWidths,
         children: [
@@ -52,13 +52,19 @@ class MarkdownTableView extends StatelessWidget {
                   .map((field) => _buildCell(context, field, true))
                   .toList(),
             ),
-          ...bodyRows.map(
-            (row) => TableRow(
-              children: row.fields
-                  .map((field) => _buildCell(context, field, false))
+          for (var index = 0; index < bodyRows.length; index++)
+            TableRow(
+              children: bodyRows[index].fields
+                  .map(
+                    (field) => _buildCell(
+                      context,
+                      field,
+                      index == bodyRows.length - 1 &&
+                          _isSummaryRow(bodyRows[index]),
+                    ),
+                  )
                   .toList(),
             ),
-          ),
         ],
       );
     }
@@ -97,11 +103,8 @@ class MarkdownTableView extends StatelessWidget {
     final theme = Theme.of(context);
     final cellTextStyle = textStyle.copyWith(
       color: theme.colorScheme.onSurface,
-      fontWeight: isHeader ? FontWeight.w500 : FontWeight.w400,
-      fontSize: isHeader ? 10 : (textStyle.fontSize ?? 16),
-      height: 1.35,
-      fontFamily: isHeader ? "Boldonse" : "GoogleSans",
-      letterSpacing: isHeader ? 0.7 : null,
+      fontWeight: isHeader ? FontWeight.bold : FontWeight.w400,
+      fontSize: isHeader ? 16 : (textStyle.fontSize ?? 16),
     );
     final trimmedData = field.data.trim();
     final textAlign = field.alignment;
@@ -113,10 +116,10 @@ class MarkdownTableView extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(
-        10,
-        isHeader ? 13 : 16,
-        22,
-        isHeader ? 13 : 16,
+        0,
+        isHeader ? 12 : 12,
+        0,
+        isHeader ? 12 : 12,
       ),
       child: Align(
         alignment: alignment,
@@ -157,11 +160,14 @@ class MarkdownTableView extends StatelessWidget {
     const maxColumnWidth = 300.0;
     var widestCell = 0.0;
 
-    for (final row in rows) {
+    for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      final row = rows[rowIndex];
       if (columnIndex >= row.fields.length) continue;
       final text = row.fields[columnIndex].data.trim();
-      final fontSize = row.isHeader ? 16.0 : (textStyle.fontSize ?? 16.0);
-      final fontWeight = row.isHeader ? FontWeight.w700 : FontWeight.w400;
+      final usesHeaderStyle =
+          row.isHeader || (rowIndex == rows.length - 1 && _isSummaryRow(row));
+      final fontSize = usesHeaderStyle ? 11.0 : (textStyle.fontSize ?? 16.0);
+      final fontWeight = usesHeaderStyle ? FontWeight.w500 : FontWeight.w400;
       final painter = TextPainter(
         text: TextSpan(
           text: text,
@@ -182,6 +188,17 @@ class MarkdownTableView extends StatelessWidget {
 
   bool _containsMarkdownSyntax(String text) {
     return RegExp(r'[`*_~\[\]<>#]|https?://').hasMatch(text);
+  }
+
+  bool _isSummaryRow(CustomTableRow row) {
+    final text = row.fields
+        .map((field) => field.data)
+        .join(' ')
+        .replaceAll(RegExp(r'[`*_~#]'), ' ')
+        .toLowerCase();
+    return RegExp(
+      r'\b(total|subtotal|remaining|balance|net|saved|overspent|summary|result)\b',
+    ).hasMatch(text);
   }
 }
 

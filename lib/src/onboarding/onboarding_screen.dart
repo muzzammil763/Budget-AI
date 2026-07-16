@@ -596,9 +596,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildTrackPage(ThemeData theme) {
     return _OnboardingPage(
       kicker: 'STAY ON TOP',
-      title: 'Track Every Expense,\nIncome & Loan',
+      title: 'Track Every Expense\n& Income',
       description:
-          'Log expenses and income, manage borrowed and lent money, and see where your month went.',
+          'Log every kind of income and expense, including loan cashflows, and see where your month went.',
       items: const [],
       extra: _InsightsShowcase(
         currency: CurrencySettingsService.instance.current,

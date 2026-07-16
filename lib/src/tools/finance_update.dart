@@ -1,5 +1,6 @@
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/tools/finance_entry_tool_helpers.dart';
 
 ToolDefinition buildFinanceUpdateTool({
   ToolDefinitionContext context = ToolDefinitionContext.standard,
@@ -12,6 +13,11 @@ ToolDefinition buildFinanceUpdateTool({
     'type': 'object',
     'properties': {
       'id': {'type': 'string', 'description': 'Finance entry ID.'},
+      'type': {
+        'type': 'string',
+        'enum': ['income', 'expense'],
+        'description': 'Change the entry between income and expense.',
+      },
       'description': {'type': 'string'},
       'amount': {'type': 'number'},
       'category': {'type': 'string'},
@@ -41,6 +47,18 @@ mixin FinanceUpdateToolHandler {
       final index = entries.indexWhere((entry) => entry.id == id);
       if (index < 0) return {'ok': false, 'error': 'Finance entry not found'};
       final existing = entries[index];
+
+      final typeRaw = (args['type'] as String? ?? '').trim().toLowerCase();
+      if (typeRaw.isNotEmpty && typeRaw != 'income' && typeRaw != 'expense') {
+        return {'ok': false, 'error': 'type must be income or expense'};
+      }
+      final updatedType = typeRaw.isEmpty
+          ? existing.type
+          : FinanceEntryType.fromJson(typeRaw);
+      final requestedAmount = (args['amount'] as num?)?.toDouble();
+      if (requestedAmount != null && requestedAmount <= 0) {
+        return {'ok': false, 'error': 'amount must be greater than zero'};
+      }
 
       var date = existing.date;
       var hasTime = existing.hasTime;
@@ -72,22 +90,32 @@ mixin FinanceUpdateToolHandler {
       }
 
       final updated = existing.copyWith(
+        type: updatedType,
         date: date,
         hasTime: hasTime,
         description: (args['description'] as String?)?.trim().isNotEmpty == true
-            ? (args['description'] as String).trim()
+            ? normalizeNewFinanceLabel((args['description'] as String).trim())
             : null,
-        amount: (args['amount'] as num?)?.toDouble(),
+        amount: requestedAmount,
         category: (args['category'] as String?)?.trim().isNotEmpty == true
-            ? (args['category'] as String).trim()
+            ? normalizeNewFinanceCategory(
+                (args['category'] as String).trim(),
+                description:
+                    (args['description'] as String?)?.trim().isNotEmpty == true
+                    ? normalizeNewFinanceLabel(
+                        (args['description'] as String).trim(),
+                      )
+                    : existing.description,
+              )
             : null,
       );
       final saved = await FinanceService.instance.update(updated);
       return {
         'ok': saved != null,
         'id': updated.id,
+        'type': updated.type.storageValue,
         'description': updated.description,
-        'amount': updated.displayAmount,
+        'amount': updated.amount,
         'category': updated.category,
         'date': updated.displayDate,
       };

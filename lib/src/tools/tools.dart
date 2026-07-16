@@ -6,7 +6,6 @@ import 'package:budget_ai/src/tools/finance_income_add.dart';
 import 'package:budget_ai/src/tools/finance_list.dart';
 import 'package:budget_ai/src/tools/finance_summary.dart';
 import 'package:budget_ai/src/tools/finance_update.dart';
-import 'package:budget_ai/src/tools/loan_tools.dart';
 import 'package:flutter/foundation.dart';
 
 enum ToolDefinitionContext { standard }
@@ -55,8 +54,7 @@ class ToolRegistry
         FinanceListToolHandler,
         FinanceSummaryToolHandler,
         FinanceUpdateToolHandler,
-        FinanceDeleteToolHandler,
-        LoanToolHandler {
+        FinanceDeleteToolHandler {
   List<ToolDefinition> getAvailableTools() {
     return List.unmodifiable([
       buildFinanceAddTool(handler: handleFinanceAddRequest),
@@ -65,13 +63,6 @@ class ToolRegistry
       buildFinanceSummaryTool(handler: handleFinanceSummaryRequest),
       buildFinanceUpdateTool(handler: handleFinanceUpdateRequest),
       buildFinanceDeleteTool(handler: handleFinanceDeleteRequest),
-      buildLoanAddTool(handler: handleLoanAddRequest),
-      buildLoanPaymentAddTool(handler: handleLoanPaymentAddRequest),
-      buildLoanUpdateTool(handler: handleLoanUpdateRequest),
-      buildLoanPaymentUpdateTool(handler: handleLoanPaymentUpdateRequest),
-      buildLoanPaymentDeleteTool(handler: handleLoanPaymentDeleteRequest),
-      buildLoanDeleteTool(handler: handleLoanDeleteRequest),
-      buildLoanListTool(handler: handleLoanListRequest),
     ]);
   }
 
