@@ -103,6 +103,22 @@ abstract class BaseChatProvider extends ChatProvider {
 
   String get _baseUrl;
 
+  Map<String, dynamic> get _modelThinkingOptions {
+    switch (_selectedModel) {
+      case 'deepseek-v4-flash':
+        return const {
+          'thinking': {'type': 'disabled'},
+        };
+      case 'deepseek-v4-pro':
+        return const {
+          'thinking': {'type': 'enabled'},
+          'reasoning_effort': 'high',
+        };
+      default:
+        return const {};
+    }
+  }
+
   @override
   Map<String, dynamic>? get lastResponseMetadata => _lastResponseMetadata;
 
@@ -144,6 +160,7 @@ abstract class BaseChatProvider extends ChatProvider {
         providerName: _providerName,
         data: {
           'model': _selectedModel,
+          ..._modelThinkingOptions,
           'messages': [
             {'role': 'user', 'content': prompt},
           ],

@@ -194,7 +194,9 @@ Map<String, dynamic> _extractResponseMetadata(
     addNumber('promptTokens', normalizedUsage['prompt_tokens']);
     addNumber('completionTokens', normalizedUsage['completion_tokens']);
     addNumber('totalTokens', normalizedUsage['total_tokens']);
+    addNumber('cacheMissTokens', normalizedUsage['prompt_cache_miss_tokens']);
     addFirstNumber('cacheReadTokens', [
+      normalizedUsage['prompt_cache_hit_tokens'],
       normalizedUsage['cache_read_input_tokens'],
       normalizedUsage['cached_input_tokens'],
       normalizedUsage['cached_tokens'],
@@ -282,6 +284,10 @@ Map<String, dynamic> mergeResponseMetadata(
     rounds,
     'cacheReadTokens',
   );
+  merged['workflowCacheMissTokens'] = _sumRoundNumbers(
+    rounds,
+    'cacheMissTokens',
+  );
   merged['workflowCacheWriteTokens'] = _sumRoundNumbers(
     rounds,
     'cacheWriteTokens',
@@ -299,6 +305,7 @@ Map<String, dynamic>? _usageRoundFromMetadata(Map<String, dynamic> metadata) {
   final total = metadata['totalTokens'];
   final reasoning = metadata['reasoningTokens'];
   final cacheRead = metadata['cacheReadTokens'];
+  final cacheMiss = metadata['cacheMissTokens'];
   final cacheWrite = metadata['cacheWriteTokens'];
   final cost = metadata['cost'];
 
@@ -308,6 +315,7 @@ Map<String, dynamic>? _usageRoundFromMetadata(Map<String, dynamic> metadata) {
       total is num ||
       reasoning is num ||
       cacheRead is num ||
+      cacheMiss is num ||
       cacheWrite is num ||
       cost is num;
   if (!hasUsage) return null;
@@ -323,6 +331,7 @@ Map<String, dynamic>? _usageRoundFromMetadata(Map<String, dynamic> metadata) {
     if (total is num) 'totalTokens': total,
     if (reasoning is num) 'reasoningTokens': reasoning,
     if (cacheRead is num) 'cacheReadTokens': cacheRead,
+    if (cacheMiss is num) 'cacheMissTokens': cacheMiss,
     if (cacheWrite is num) 'cacheWriteTokens': cacheWrite,
     if (cost is num) 'cost': cost,
   };

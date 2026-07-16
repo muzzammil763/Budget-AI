@@ -36,11 +36,13 @@ class ChatCompletionsProvider extends BaseChatProvider {
         providerName: _providerName,
         data: {
           'model': _selectedModel,
+          ..._modelThinkingOptions,
           'messages': await _buildMessagesWithContext(
             _chatHistory,
             preserveReasoningContent: _preserveReasoningContentForHistory,
           ),
           'stream': true,
+          'stream_options': {'include_usage': true},
         },
         cancelToken: _cancelToken,
         onKeySelected: (apiKey) => _apiKey = apiKey,
@@ -149,11 +151,13 @@ class ChatCompletionsProvider extends BaseChatProvider {
 
         final requestData = <String, dynamic>{
           'model': _selectedModel,
+          ..._modelThinkingOptions,
           'messages': await _buildToolEnabledMessages(
             _chatHistory,
             preserveReasoningContent: _preserveReasoningContentForHistory,
           ),
           'stream': true,
+          'stream_options': {'include_usage': true},
         };
 
         if (hasTools) {
