@@ -12,7 +12,7 @@ import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/app_backup_service.dart';
-import 'package:budget_ai/src/settings/currency_picker_sheet.dart';
+import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
@@ -99,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'Currency display',
                 subtitle:
                     'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
-                onTap: _showCurrencySheet,
+                onTap: _showCurrencyScreen,
               );
             },
           ),
@@ -226,10 +226,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _showCurrencySheet() async {
-    final selected = await CurrencyPickerSheet.show(context);
-    if (selected == null) return;
-    await _selectCurrency(selected);
+  Future<void> _showCurrencyScreen() async {
+    await CurrencyPickerScreen.show(context);
   }
 
   Future<void> _showModelSheet() async {
@@ -239,19 +237,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (selected == null) return;
     await ModelSettingsService.instance.setModel(selected);
-  }
-
-  Future<void> _selectCurrency(String value) async {
-    final normalized = value.trim();
-    if (normalized.isEmpty) return;
-    await CurrencySettingsService.instance.setCurrency(normalized);
-    if (!mounted) return;
-    showAppToast(
-      context,
-      message:
-          'Currency set to ${CurrencySettingsService.instance.formatAmount(1200)}',
-      type: ToastificationType.success,
-    );
   }
 
   Future<void> _showBackupRestoreSheet() async {

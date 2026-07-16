@@ -15,7 +15,7 @@ import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/chat/unified_chat_screen.dart';
 import 'package:budget_ai/src/settings/currency_display_card.dart';
-import 'package:budget_ai/src/settings/currency_picker_sheet.dart';
+import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -588,7 +588,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       items: const [],
       extra: _CurrencySelectorPanel(
         selectedCurrency: CurrencySettingsService.instance.current,
-        onCustomRequested: _showOnboardingCurrencySheet,
+        onCustomRequested: _showOnboardingCurrencyScreen,
       ),
     );
   }
@@ -620,18 +620,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Future<void> _selectOnboardingCurrency(String value) async {
-    final normalized = value.trim();
-    if (normalized.isEmpty) return;
-    await CurrencySettingsService.instance.setCurrency(normalized);
-    if (!mounted) return;
-    setState(() {});
-  }
-
-  Future<void> _showOnboardingCurrencySheet() async {
-    final selected = await CurrencyPickerSheet.show(context);
-    if (selected == null) return;
-    await _selectOnboardingCurrency(selected);
+  Future<void> _showOnboardingCurrencyScreen() async {
+    await CurrencyPickerScreen.show(context);
+    if (mounted) setState(() {});
   }
 
   Widget _buildPermissionsPage(ThemeData theme) {

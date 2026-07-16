@@ -1,42 +1,52 @@
 import 'dart:async';
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
+import 'package:budget_ai/src/settings/currency_display_card.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class CurrencyPickerSheet {
-  const CurrencyPickerSheet._();
+class CurrencyPickerScreen extends StatelessWidget {
+  const CurrencyPickerScreen({super.key});
 
-  static Future<String?> show(BuildContext context) {
-    final theme = Theme.of(context);
-    return ResponsiveInfoSheet.show<String>(
-      context,
-      title: 'Choose currency display',
-      headerIcon: Icon(
-        CupertinoIcons.money_dollar_circle,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
+  static Future<void> show(BuildContext context) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const CurrencyPickerScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: Navigator.of(context).pop,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+        ),
+        title: const Text('Choose currency display'),
       ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: const [_CurrencySheetContent()],
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: const _CurrencyScreenContent(),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _CurrencySheetContent extends StatefulWidget {
-  const _CurrencySheetContent();
+class _CurrencyScreenContent extends StatefulWidget {
+  const _CurrencyScreenContent();
 
   @override
-  State<_CurrencySheetContent> createState() => _CurrencySheetContentState();
+  State<_CurrencyScreenContent> createState() => _CurrencyScreenContentState();
 }
 
-class _CurrencySheetContentState extends State<_CurrencySheetContent> {
+class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
   final TextEditingController _customController = TextEditingController();
   final FocusNode _customFocusNode = FocusNode();
   final GlobalKey _keyboardKey = GlobalKey();
@@ -117,20 +127,34 @@ class _CurrencySheetContentState extends State<_CurrencySheetContent> {
     setState(() {});
   }
 
-  void _submitCustom(String value) {
+  Future<void> _selectCurrency(String value) async {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return;
+    await CurrencySettingsService.instance.setCurrency(normalized);
+  }
+
+  Future<void> _submitCustom(String value) async {
     final normalized = value.trim();
     if (normalized.isEmpty) return;
     _customFocusNode.unfocus();
-    Navigator.pop(context, normalized);
+    _keyboardTransition++;
+    setState(() => _keyboardVisible = false);
+    _customController.clear();
+    await _selectCurrency(normalized);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
+        ValueListenableBuilder<String>(
+          valueListenable: CurrencySettingsService.instance.currency,
+          builder: (context, currency, _) =>
+              CurrencyDisplayCard(currency: currency, height: MediaQuery.sizeOf(context).height * 0.30,),
+        ),
+        const SizedBox(height: 12),
         ValueListenableBuilder<List<String>>(
           valueListenable: CurrencySettingsService.instance.customCurrencies,
           builder: (context, customCurrencies, _) => ValueListenableBuilder<String>(
@@ -166,8 +190,7 @@ class _CurrencySheetContentState extends State<_CurrencySheetContent> {
                         _CurrencyOptionChip(
                           option: option,
                           selected: option.displayText == selectedCurrency,
-                          onTap: () =>
-                              Navigator.pop(context, option.displayText),
+                          onTap: () => _selectCurrency(option.displayText),
                         ),
                     ],
                   ),
