@@ -47,6 +47,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _animateChatPreview = false;
   bool _isFinishing = false;
 
   bool? _notificationGranted;
@@ -149,6 +150,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
+  bool _handlePageScrollNotification(ScrollNotification notification) {
+    if (notification is! ScrollEndNotification || !_pageController.hasClients) {
+      return false;
+    }
+
+    final settledPage = (_pageController.page ?? _currentPage.toDouble())
+        .round();
+    final shouldAnimate = settledPage == 3;
+    if (_animateChatPreview != shouldAnimate) {
+      setState(() => _animateChatPreview = shouldAnimate);
+    }
+    return false;
+  }
+
   Future<void> _finish() async {
     if (_isFinishing) return;
     setState(() => _isFinishing = true);
@@ -196,20 +211,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),
           duration: const Duration(milliseconds: 1100),
-          child: PageView(
-            controller: _pageController,
-            physics: const ClampingScrollPhysics(),
-            onPageChanged: (page) {
-              HapticFeedback.selectionClick();
-              setState(() => _currentPage = page);
-            },
-            children: [
-              _buildWelcomePage(theme),
-              _buildCurrencyPage(theme),
-              _buildTrackPage(theme),
-              _buildChatPage(theme),
-              _buildPermissionsPage(theme),
-            ],
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _handlePageScrollNotification,
+            child: PageView(
+              controller: _pageController,
+              physics: const ClampingScrollPhysics(),
+              onPageChanged: (page) {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _currentPage = page;
+                  if (page == 3) _animateChatPreview = true;
+                });
+              },
+              children: [
+                _buildWelcomePage(theme),
+                _buildCurrencyPage(theme),
+                _buildTrackPage(theme),
+                _buildChatPage(theme),
+                _buildPermissionsPage(theme),
+              ],
+            ),
           ),
           builder: (context, t, pageView) {
             final headerT = _introStagger(t, 0.35, 0.75);
@@ -615,7 +636,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       items: const [],
       extra: _ChatPreview(
         currency: CurrencySettingsService.instance.current,
-        animate: _currentPage == 3,
+        animate: _animateChatPreview,
       ),
     );
   }
