@@ -1877,7 +1877,7 @@ class _ChatPreviewState extends State<_ChatPreview> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
+    final onPrimary = theme.colorScheme.onPrimary;
     final screenSize = MediaQuery.sizeOf(context);
     final displayScale = math
         .min(screenSize.shortestSide / 390, screenSize.height / 844)
@@ -1947,12 +1947,12 @@ class _ChatPreviewState extends State<_ChatPreview> {
                   vertical: 10 * displayScale,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
+                  color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24 * displayScale),
-                    topRight: Radius.circular(24 * displayScale),
-                    bottomLeft: Radius.circular(24 * displayScale),
-                    bottomRight: Radius.circular(7 * displayScale),
+                    topLeft: Radius.circular(4 * displayScale),
+                    topRight: Radius.circular(16 * displayScale),
+                    bottomLeft: Radius.circular(16 * displayScale),
+                    bottomRight: Radius.circular(4 * displayScale),
                   ),
                   border: Border.all(
                     color: theme.colorScheme.primary.withValues(alpha: 0.25),
@@ -1964,7 +1964,7 @@ class _ChatPreviewState extends State<_ChatPreview> {
                   child: Text(
                     _userMessage.substring(0, _typedCharacters),
                     style: AppTheme.bodyMedium.copyWith(
-                      color: onSurface,
+                      color: onPrimary,
                       fontSize: bodyFontSize,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1989,7 +1989,7 @@ class _ChatPreviewState extends State<_ChatPreview> {
                     child: Text(
                       'I’ll add both expenses for today — groceries and your Budget AI subscription.',
                       style: AppTheme.bodyMedium.copyWith(
-                        color: onSurface,
+                        color: theme.colorScheme.primary,
                         fontSize: bodyFontSize,
                         height: 1.4,
                       ),
@@ -2037,7 +2037,7 @@ class _ChatPreviewState extends State<_ChatPreview> {
                         ],
                       ),
                       style: AppTheme.bodyMedium.copyWith(
-                        color: onSurface,
+                        color: theme.colorScheme.primary,
                         fontSize: bodyFontSize,
                         height: 1.4,
                       ),
