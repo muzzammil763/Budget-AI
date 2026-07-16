@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
@@ -85,7 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _buildNavTile(
             theme,
-            icon: Icons.insights_rounded,
+            leading: const BudgetMarkIcon(size: 30),
             title: 'Finance Insights',
             subtitle: 'Overall and monthly spending insights',
             onTap: _openInsights,
@@ -95,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (context, currency, _) {
               return _buildNavTile(
                 theme,
-                icon: CupertinoIcons.money_dollar,
+                leading: _buildCurrencyLeading(theme, currency),
                 title: 'Currency display',
                 subtitle:
                     'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
@@ -152,11 +154,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildNavTile(
     ThemeData theme, {
-    required IconData icon,
+    IconData? icon,
+    Widget? leading,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    assert(icon != null || leading != null);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -172,7 +176,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 24, color: theme.colorScheme.primary),
+              SizedBox(
+                width: 32,
+                child: Center(
+                  child:
+                      leading ??
+                      Icon(icon, size: 24, color: theme.colorScheme.primary),
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -205,6 +216,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrencyLeading(ThemeData theme, String currency) {
+    return Tooltip(
+      message: currency,
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        child: AutoSizeText(
+          currency,
+          maxLines: 1,
+          maxFontSize: 22,
+          minFontSize: 14,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),

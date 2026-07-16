@@ -7,7 +7,7 @@ ToolDefinition buildFinanceListTool({
 }) => ToolDefinition(
   name: 'finance_list',
   description:
-      'List finance entries with optional filters across income and expenses. Use a type filter for spending-only or income-only questions. Use this before finance_update or finance_delete when you need to find an entry ID.',
+      'List finance entries with optional date, type, category, and amount filters. Can sort by largest amount for biggest or heavy expense questions. Use this before finance_update or finance_delete when you need to find an entry ID.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -29,6 +29,18 @@ ToolDefinition buildFinanceListTool({
         'type': 'string',
         'description':
             'Optional entry type filter: expense or income. Omit to include both income and expenses.',
+        'enum': ['expense', 'income'],
+      },
+      'amount_greater_than': {
+        'type': 'number',
+        'description':
+            'Return only entries whose amount is strictly greater than this value. For example, use 1000 for "expenses more than 1000".',
+      },
+      'sort_by': {
+        'type': 'string',
+        'description':
+            'Sort matching entries by newest date or by largest amount. Use amount_desc for heavy, biggest, largest, or highest expenses.',
+        'enum': ['date_desc', 'amount_desc'],
       },
       'limit': {
         'type': 'integer',
@@ -47,9 +59,18 @@ mixin FinanceListToolHandler {
     final category = (args['category'] as String? ?? '').trim().toLowerCase();
     final typeRaw = (args['type'] as String? ?? '').trim();
     final type = typeRaw.isNotEmpty ? FinanceEntryType.fromJson(typeRaw) : null;
-    final limit = (args['limit'] as int?) ?? 50;
+    final amountGreaterThan = (args['amount_greater_than'] as num?)?.toDouble();
+    final sortBy = (args['sort_by'] as String? ?? 'date_desc').trim();
+    final limit = ((args['limit'] as num?)?.toInt() ?? 50).clamp(1, 200);
 
     try {
+      if (amountGreaterThan != null && amountGreaterThan < 0) {
+        return {'error': 'amount_greater_than must be zero or greater'};
+      }
+      if (sortBy != 'date_desc' && sortBy != 'amount_desc') {
+        return {'error': 'sort_by must be date_desc or amount_desc'};
+      }
+
       List<FinanceEntry> entries;
 
       if (fromStr.isNotEmpty) {
@@ -62,14 +83,13 @@ mixin FinanceListToolHandler {
         entries = List.from(await FinanceService.instance.getAll());
       }
 
-      if (category.isNotEmpty) {
-        entries = entries
-            .where((e) => e.category.toLowerCase() == category)
-            .toList();
-      }
-      if (type != null) {
-        entries = entries.where((e) => e.type == type).toList();
-      }
+      entries = filterFinanceEntriesForList(
+        entries,
+        category: category,
+        type: type,
+        amountGreaterThan: amountGreaterThan,
+        sortBy: sortBy,
+      );
 
       final limited = entries.take(limit).toList();
       final total = FinanceService.instance.totalAmount(limited);
@@ -95,4 +115,38 @@ mixin FinanceListToolHandler {
       return {'error': e.toString()};
     }
   }
+}
+
+List<FinanceEntry> filterFinanceEntriesForList(
+  Iterable<FinanceEntry> source, {
+  String category = '',
+  FinanceEntryType? type,
+  double? amountGreaterThan,
+  String sortBy = 'date_desc',
+}) {
+  var entries = source.toList();
+  if (category.isNotEmpty) {
+    final normalizedCategory = category.trim().toLowerCase();
+    entries = entries
+        .where((entry) => entry.category.toLowerCase() == normalizedCategory)
+        .toList();
+  }
+  if (type != null) {
+    entries = entries.where((entry) => entry.type == type).toList();
+  }
+  if (amountGreaterThan != null) {
+    entries = entries
+        .where((entry) => entry.amount > amountGreaterThan)
+        .toList();
+  }
+
+  entries.sort(
+    sortBy == 'amount_desc'
+        ? (a, b) {
+            final amountOrder = b.amount.compareTo(a.amount);
+            return amountOrder != 0 ? amountOrder : b.date.compareTo(a.date);
+          }
+        : (a, b) => b.date.compareTo(a.date),
+  );
+  return entries;
 }

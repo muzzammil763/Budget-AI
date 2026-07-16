@@ -485,7 +485,7 @@ class _SplashPainter extends CustomPainter {
     final coinSeconds = math.max(0.0, time - 0.95);
     if (coinSeconds > 0) {
       final drop = _spring(coinSeconds, zeta: 0.30, omega: 12);
-      final coinX = barsLeft + 2 * (barWidth + gap) + barWidth / 2;
+      final coinX = barsLeft + 2 * (barWidth + gap) + barWidth / 2 + 1;
       final restY = baseline - maxHeights[2] - cardSize * 0.115;
       final coinY = restY - (1 - drop) * cardSize * 0.36;
       canvas.drawCircle(

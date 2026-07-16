@@ -72,7 +72,7 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
                     Opacity(
                       opacity: markT,
                       child: CustomPaint(
-                        size: const Size(96, 96),
+                        size: const Size(120, 120),
                         painter: BudgetMarkPainter(
                           progress: t,
                           primary: theme.colorScheme.primary,
@@ -82,7 +82,7 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Opacity(
                       opacity: headT,
                       child: Transform.translate(
@@ -90,23 +90,14 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
                         child: Column(
                           children: [
                             Text(
-                              _greeting.toUpperCase(),
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.highlight,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 3,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
                               'Let\'s make your money\nmake sense',
                               textAlign: TextAlign.center,
                               style: AppTheme.headingLarge.copyWith(
                                 color: theme.colorScheme.onSurface,
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
-                                height: 1.22,
+                                height: 1.6,
+                                fontFamily: "Boldonse"
                               ),
                             ),
                           ],
@@ -168,7 +159,14 @@ class _PromptCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: onSurface.withValues(alpha: 0.08)),
+                  border: Border.all(color: onSurface.withValues(alpha: 0.1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(2, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [

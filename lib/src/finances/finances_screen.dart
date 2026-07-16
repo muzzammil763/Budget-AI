@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/pill_nav_bar.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
@@ -24,6 +25,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
   List<FinanceEntry> _allEntries = [];
   List<FinanceEntry> _monthEntries = [];
   bool _isLoading = true;
+  bool _isOverall = false;
   late DateTime _selectedMonth;
 
   @override
@@ -63,11 +65,18 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   Future<void> _selectMonth(DateTime month) async {
     if (month.year == _selectedMonth.year &&
+        month.month == _selectedMonth.month &&
+        !_isOverall) {
+      return;
+    }
+    if (month.year == _selectedMonth.year &&
         month.month == _selectedMonth.month) {
+      setState(() => _isOverall = false);
       return;
     }
     setState(() {
       _selectedMonth = month;
+      _isOverall = false;
       _isLoading = true;
     });
     final entries = await FinanceService.instance.getByMonth(
@@ -80,6 +89,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _selectOverall() {
+    if (_isOverall) return;
+    setState(() => _isOverall = true);
   }
 
   List<DateTime> _availableMonths() {
@@ -96,20 +110,39 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   bool get _isSearchFieldActive => _searchFocusNode.hasFocus || _isSearching;
 
+  List<FinanceEntry> get _scopedEntries =>
+      _isOverall ? _allEntries : _monthEntries;
+
+  List<FinanceEntry> get _currentMonthEntries {
+    final now = DateTime.now();
+    return _allEntries
+        .where(
+          (entry) =>
+              entry.date.year == now.year && entry.date.month == now.month,
+        )
+        .toList();
+  }
+
   List<FinanceEntry> get _visibleEntries {
     final query = _searchController.text.trim();
-    if (query.isEmpty) return _monthEntries;
+    if (query.isEmpty) return _scopedEntries;
 
     final terms = _searchTerms(query);
-    if (terms.isEmpty) return _monthEntries;
+    if (terms.isEmpty) return _scopedEntries;
 
-    return _monthEntries.where((entry) {
-      final searchable = _searchTextForEntry(entry);
-      final normalized = _normalizeSearchText(searchable);
-      final normalizedQuery = _normalizeSearchText(query);
-      return normalized.contains(normalizedQuery) ||
-          terms.any(normalized.contains);
-    }).toList();
+    final normalizedQuery = _normalizeSearchText(query);
+    final matches = <({FinanceEntry entry, int score})>[];
+    for (final entry in _scopedEntries) {
+      final score = _searchScore(entry, normalizedQuery, terms);
+      if (score > 0) matches.add((entry: entry, score: score));
+    }
+    final primaryMatches = matches.where((match) => match.score > 120).toList();
+    final results = primaryMatches.isEmpty ? matches : primaryMatches;
+    results.sort((a, b) {
+      final relevance = b.score.compareTo(a.score);
+      return relevance != 0 ? relevance : b.entry.date.compareTo(a.entry.date);
+    });
+    return results.map((match) => match.entry).toList();
   }
 
   void _handleSearchFocusChanged() {
@@ -135,23 +168,33 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final theme = Theme.of(context);
     final months = _availableMonths();
     final visibleEntries = _visibleEntries;
+    final scopedEntries = _scopedEntries;
+    final balanceEntries = _isOverall ? _currentMonthEntries : scopedEntries;
     final isSearching = _isSearching;
     final isSearchFieldActive = _isSearchFieldActive;
     final hasAnyEntries = _allEntries.isNotEmpty;
-    final hasMonthEntries = _monthEntries.isNotEmpty;
+    final hasScopedEntries = scopedEntries.isNotEmpty;
     final shouldShowSearchField =
         !_isLoading &&
         hasAnyEntries &&
-        (hasMonthEntries || isSearchFieldActive);
+        (hasScopedEntries || isSearchFieldActive);
     final totalExpense = FinanceService.instance.totalAmount(
-      _monthEntries,
+      scopedEntries,
       type: FinanceEntryType.expense,
     );
     final totalIncome = FinanceService.instance.totalAmount(
-      _monthEntries,
+      scopedEntries,
       type: FinanceEntryType.income,
     );
-    final currentBalance = totalIncome - totalExpense;
+    final currentBalance =
+        FinanceService.instance.totalAmount(
+          balanceEntries,
+          type: FinanceEntryType.income,
+        ) -
+        FinanceService.instance.totalAmount(
+          balanceEntries,
+          type: FinanceEntryType.expense,
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -173,7 +216,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.insights_rounded),
+            icon: const BudgetMarkIcon(size: 28),
           ),
         ],
       ),
@@ -184,13 +227,18 @@ class _FinancesScreenState extends State<FinancesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 PillNavBar(
-                  items: months.map((m) => _monthLabel(m)).toList(),
-                  selectedIndex: months.indexWhere(
-                    (m) =>
-                        m.year == _selectedMonth.year &&
-                        m.month == _selectedMonth.month,
-                  ),
-                  onSelected: (index) => _selectMonth(months[index]),
+                  items: ['Overall', ...months.map(_monthLabel)],
+                  selectedIndex: _isOverall
+                      ? 0
+                      : months.indexWhere(
+                              (m) =>
+                                  m.year == _selectedMonth.year &&
+                                  m.month == _selectedMonth.month,
+                            ) +
+                            1,
+                  onSelected: (index) => index == 0
+                      ? _selectOverall()
+                      : _selectMonth(months[index - 1]),
                 ),
                 const SizedBox(height: 12),
                 if (!_isLoading)
@@ -199,13 +247,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
                     currentBalance,
                     totalIncome,
                     totalExpense,
+                    isOverall: _isOverall,
                   ),
                 if (!_isLoading && isSearching)
                   _buildSearchResultsHeader(theme, visibleEntries.length),
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : _monthEntries.isEmpty
+                      : scopedEntries.isEmpty
                       ? _buildEmpty(theme)
                       : visibleEntries.isEmpty
                       ? _buildNoSearchResults(theme)
@@ -228,15 +277,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
     ThemeData theme,
     double balance,
     double totalIncome,
-    double totalExpense,
-  ) {
+    double totalExpense, {
+    required bool isOverall,
+  }) {
     final cardColor = theme.colorScheme.primary;
     final onCard = AppTheme.readableOn(cardColor);
     final isDark = theme.brightness == Brightness.dark;
     final now = DateTime.now();
     final currentMonth = DateTime(now.year, now.month);
     final selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
-    final isPreviousMonth = selectedMonth.isBefore(currentMonth);
+    final isPreviousMonth = !isOverall && selectedMonth.isBefore(currentMonth);
     final isSaved = balance >= 0;
     final wasTransferred =
         isPreviousMonth &&
@@ -276,7 +326,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
             end: Alignment.bottomRight,
             colors: [
               cardColor,
-              Color.lerp(cardColor, theme.colorScheme.secondary, 0.28)!,
+              Color.lerp(cardColor, AppTheme.highlight, 0.28)!,
             ],
           ),
           boxShadow: [
@@ -312,12 +362,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
               overflow: TextOverflow.ellipsis,
               style: AppTheme.headingLarge.copyWith(
                 color: balanceColor,
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
+                fontSize: isSaved ? 20 : 28,
+                fontWeight: FontWeight.w600,
+                fontFamily: "Boldonse",
+                letterSpacing: 1.2,
               ),
             ),
             if (wasTransferred) ...[
-            
+              SizedBox(height: 4),
               Row(
                 children: [
                   Icon(
@@ -327,12 +379,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'TRANSFERRED TO NEXT MONTH',
+                    'Transferred To Next Month',
                     style: AppTheme.bodySmall.copyWith(
                       color: onCard.withValues(alpha: 0.76),
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
                     ),
                   ),
                 ],
@@ -404,8 +455,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: AppTheme.bodyMedium.copyWith(
                   color: amountColor,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: "Boldonse",
+                  letterSpacing: 1,
                 ),
               ),
             ],
@@ -447,7 +500,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$resultCount $label in ${_monthLabel(_selectedMonth)}',
+              '$resultCount $label in ${_isOverall ? 'overall finances' : _monthLabel(_selectedMonth)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTheme.bodySmall.copyWith(
@@ -482,7 +535,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
           ),
           const SizedBox(height: 18),
           Text(
-            'No entries for ${_monthLabel(_selectedMonth)}',
+            _isOverall
+                ? 'No finance entries yet'
+                : 'No entries for ${_monthLabel(_selectedMonth)}',
             style: AppTheme.headingSmall.copyWith(
               color: theme.colorScheme.onSurface,
               fontSize: 17,
@@ -533,7 +588,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Try another word, category, amount,\nor transaction type.',
+            'Try another title, category, amount,\nor date.',
             textAlign: TextAlign.center,
             style: AppTheme.bodySmall.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -1145,14 +1200,106 @@ class _FinancesScreenState extends State<FinancesScreen> {
     ).split(RegExp(r'\s+')).where((term) => term.isNotEmpty).toList();
   }
 
-  String _searchTextForEntry(FinanceEntry entry) {
+  int _searchScore(
+    FinanceEntry entry,
+    String normalizedQuery,
+    List<String> terms,
+  ) {
+    final title = _normalizeSearchText(entry.description);
+    final category = _normalizeSearchText(entry.category);
+
+    final titleScore = _fieldSearchScore(
+      title,
+      normalizedQuery,
+      terms,
+      exact: 600,
+      startsWith: 560,
+      phrase: 520,
+      allTerms: 480,
+      eachTerm: 450,
+    );
+    if (titleScore > 0) return titleScore;
+
+    final categoryScore = _fieldSearchScore(
+      category,
+      normalizedQuery,
+      terms,
+      exact: 400,
+      startsWith: 370,
+      phrase: 340,
+      allTerms: 310,
+      eachTerm: 280,
+    );
+    if (categoryScore > 0) return categoryScore;
+
+    final amountText = _normalizeSearchText(
+      [
+        entry.amount.toString(),
+        FinanceEntry.formatAmount(entry.amount),
+        entry.displayAmount,
+        entry.displaySignedAmount,
+      ].join(' '),
+    );
+    final amountScore = _fieldSearchScore(
+      amountText,
+      normalizedQuery,
+      terms,
+      exact: 260,
+      startsWith: 250,
+      phrase: 240,
+      allTerms: 230,
+      eachTerm: 180,
+    );
+    if (amountScore > 0) return amountScore;
+
+    final dateScore = _fieldSearchScore(
+      _normalizeSearchText(_searchDateTextForEntry(entry)),
+      normalizedQuery,
+      terms,
+      exact: 120,
+      startsWith: 110,
+      phrase: 100,
+      allTerms: 90,
+      eachTerm: 20,
+    );
+    if (dateScore > 0) return dateScore;
+
     final type = entry.type == FinanceEntryType.income ? 'income' : 'expense';
-    return [
-      entry.description,
-      entry.category,
+    return _fieldSearchScore(
       type,
-      entry.displayAmount,
-      entry.displaySignedAmount,
+      normalizedQuery,
+      terms,
+      exact: 60,
+      startsWith: 55,
+      phrase: 50,
+      allTerms: 45,
+      eachTerm: 30,
+    );
+  }
+
+  int _fieldSearchScore(
+    String field,
+    String query,
+    List<String> terms, {
+    required int exact,
+    required int startsWith,
+    required int phrase,
+    required int allTerms,
+    required int eachTerm,
+  }) {
+    if (field == query) return exact;
+    if (field.startsWith(query)) return startsWith;
+    if (field.contains(query)) return phrase;
+    final matchedTerms = terms.where(field.contains).length;
+    if (matchedTerms == terms.length) return allTerms;
+    if (matchedTerms == 0) return 0;
+    final termScore = eachTerm + matchedTerms;
+    return termScore < allTerms ? termScore : allTerms - 1;
+  }
+
+  String _searchDateTextForEntry(FinanceEntry entry) {
+    return [
+      entry.date.toIso8601String(),
       entry.displayDate,
       _dayLabel(entry.date),
       _monthLabel(DateTime(entry.date.year, entry.date.month)),

@@ -262,10 +262,10 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     final onCard = AppTheme.readableOn(cardColor);
     final scope = _scopeMonth;
     final range = scope != null
-        ? 'MONTH · ${_monthLabel(scope)}'
+        ? 'Month · ${_monthLabel(scope)}'
         : insights.firstDate == null
         ? 'Until today'
-        : 'FROM ${_compactDate(insights.firstDate!)} TO TODAY';
+        : 'From ${_compactDate(insights.firstDate!)} To Today';
 
     return Container(
       width: double.infinity,
@@ -274,10 +274,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            cardColor,
-            Color.lerp(cardColor, theme.colorScheme.secondary, 0.34)!,
-          ],
+          colors: [cardColor, Color.lerp(cardColor, AppTheme.highlight, 0.28)!],
         ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
@@ -325,7 +322,9 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
             style: AppTheme.headingLarge.copyWith(
               color: onCard,
               fontSize: 32,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w500,
+              fontFamily: "Boldonse",
+              letterSpacing: 1.2,
             ),
           ),
           const SizedBox(height: 2),
@@ -335,7 +334,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                 : 'Total spent until today',
             style: AppTheme.bodySmall.copyWith(
               color: onCard.withValues(alpha: 0.72),
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),

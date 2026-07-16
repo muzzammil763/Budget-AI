@@ -2,6 +2,32 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:budget_ai/src/helpers/app_theme.dart';
+
+/// A compact, fully revealed version of the Budget AI brand mark for controls
+/// such as app-bar actions.
+class BudgetMarkIcon extends StatelessWidget {
+  const BudgetMarkIcon({super.key, this.size = 28});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox.square(
+      dimension: size,
+      child: CustomPaint(
+        painter: BudgetMarkPainter(
+          progress: 1,
+          primary: theme.colorScheme.primary,
+          surface: theme.colorScheme.surface,
+          accent: AppTheme.highlight,
+          isDark: theme.brightness == Brightness.dark,
+        ),
+      ),
+    );
+  }
+}
 
 /// The animated Budget AI brand mark (gradient card, growing bars, coin and
 /// spark) shared by the chat empty state and onboarding.
@@ -127,7 +153,7 @@ class BudgetMarkPainter extends CustomPainter {
     if (coinT > 0) {
       canvas.drawCircle(
         Offset(
-          barsLeft + 2 * (barWidth + gap) + barWidth / 2,
+          barsLeft + 2 * (barWidth + gap) + barWidth / 2 + 1,
           baseline - maxHeights[2] - cardSize * 0.115,
         ),
         cardSize * 0.052 * coinT,

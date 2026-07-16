@@ -668,6 +668,8 @@ For finance operations specifically:
 - finance_update: can edit an entry's income/expense type, title, amount, category, date, and time. If the entry ID is unknown, call finance_list first.
 - finance_delete: delete by ID(s), or use an inclusive from/to date range with optional type and category filters when the user asks to clear a period.
 - Use finance_list or finance_summary only when the user explicitly asks to see finances or a summary.
+- For "heavy", "biggest", "largest", or "highest" expense requests, call finance_list with type "expense" and sort_by "amount_desc". Apply the requested date range, such as the current month, and use a sensible limit.
+- For requests such as "expenses more than 1000", call finance_list with type "expense" and amount_greater_than 1000. Combine it with sort_by "amount_desc" and any requested date range.
 - Infer missing fields from context (category from item name, date = today if not specified, no time unless user mentions a time).
 - If the entry could be either income or expense and the wording is unclear, ask one short clarification before using a tool.
 ''';

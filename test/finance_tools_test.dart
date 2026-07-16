@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/tools/finance_delete.dart';
+import 'package:budget_ai/src/tools/finance_list.dart';
 import 'package:budget_ai/src/tools/finance_update.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -111,6 +112,50 @@ void main() {
       );
     },
   );
+
+  test(
+    'finance_list filters above an amount and sorts largest first',
+    () async {
+      final entries = [
+        _entry(
+          id: 'small',
+          type: FinanceEntryType.expense,
+          date: DateTime(2026, 7, 12),
+          category: 'Food',
+          amount: 1000,
+        ),
+        _entry(
+          id: 'medium',
+          type: FinanceEntryType.expense,
+          date: DateTime(2026, 7, 11),
+          category: 'Bills',
+          amount: 2500,
+        ),
+        _entry(
+          id: 'large',
+          type: FinanceEntryType.expense,
+          date: DateTime(2026, 7, 10),
+          category: 'Shopping',
+          amount: 30000,
+        ),
+        _entry(
+          id: 'income',
+          type: FinanceEntryType.income,
+          date: DateTime(2026, 7, 9),
+          category: 'Salary',
+          amount: 50000,
+        ),
+      ];
+      final listed = filterFinanceEntriesForList(
+        entries,
+        type: FinanceEntryType.expense,
+        amountGreaterThan: 1000,
+        sortBy: 'amount_desc',
+      );
+
+      expect(listed.map((entry) => entry.id), ['large', 'medium']);
+    },
+  );
 }
 
 FinanceEntry _entry({
@@ -118,6 +163,7 @@ FinanceEntry _entry({
   required FinanceEntryType type,
   required DateTime date,
   required String category,
+  double amount = 100,
 }) {
   return FinanceEntry(
     id: id,
@@ -125,7 +171,7 @@ FinanceEntry _entry({
     date: date,
     hasTime: false,
     description: 'Test Entry',
-    amount: 100,
+    amount: amount,
     category: category,
     createdAt: date,
   );
