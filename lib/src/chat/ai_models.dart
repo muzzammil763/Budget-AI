@@ -14,16 +14,6 @@ class AIModel {
     this.supportsThinking = false,
     this.contextLength,
   });
-
-  String get formattedContextLength {
-    if (contextLength == null) return 'Unknown';
-    if (contextLength! >= 1000000) {
-      return '${(contextLength! / 1000000).toStringAsFixed(1)}M';
-    } else if (contextLength! >= 1000) {
-      return '${(contextLength! / 1000).round()}K';
-    }
-    return contextLength.toString();
-  }
 }
 
 const List<AIModel> _deepseekModels = [

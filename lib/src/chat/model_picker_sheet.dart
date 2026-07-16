@@ -121,7 +121,7 @@ class ModelPickerSheet {
                   if (model.contextLength != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Context: ${model.formattedContextLength}',
+                      'Context: 1 M',
                       style: AppTheme.bodySmall.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontSize: 11,
