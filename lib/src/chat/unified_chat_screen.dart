@@ -23,11 +23,11 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
-import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/chat/markdown_table_view.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
+import 'package:budget_ai/src/finances/finances_screen.dart';
 
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/material.dart';
@@ -549,18 +549,31 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _scrollToBottomScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottomScheduled = false;
-      if (mounted) _scrollToBottom();
+      if (mounted) _scrollToBottom(animate: true);
     });
   }
 
-  void _scrollToBottom({bool force = false}) {
+  void _scrollToBottom({bool force = false, bool animate = false}) {
     if (force) {
       _shouldFollowChatScroll = true;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       if (!_shouldScrollChatToBottom(force: force)) return;
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      final bottom = _scrollController.position.maxScrollExtent;
+      if (animate && !force) {
+        unawaited(
+          _scrollController
+              .animateTo(
+                bottom,
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOutCubic,
+              )
+              .catchError((_) {}),
+        );
+        return;
+      }
+      _scrollController.jumpTo(bottom);
       // Second pass: lazy ListView may not have measured all items in the
       // first frame, so the initial jumpTo can undershoot. Check again before
       // moving because the user may have started scrolling in between frames.
@@ -1132,20 +1145,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       // Stop the throttle timer so no buffered chunk overwrites the final
       // message after we push it below.
       _stopStreamingThrottleTimer();
-      // Push the final message through the VLB before the setState that removes
-      // _streamingMessageIndex — this way there is no frame where the bubble
-      // briefly shows stale content from _timelineItems.
+      // Push the final message through the VLB before updating timeline state
+      // so the typewriter always receives the complete response target.
       _streamingBubble.value = finalAssistantMessage;
       setState(() {
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
         if (!willAutoContinueToolTurn) {
           _isStreaming = false;
-          _streamingMessageIndex = null;
         }
         _isReconnectingStream = false;
         _isWaitingForNetwork = false;
       });
-      // VLB is removed from the tree by the setState above; free the reference.
+      // The timeline now owns the final message; the VLB stays mounted only
+      // until the buffered typewriter reveal catches up.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _streamingBubble.value = null;
       });
@@ -1221,7 +1233,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
         _isLoading = false;
         _isStreaming = false;
-        _streamingMessageIndex = null;
         _isReconnectingStream = false;
         _isWaitingForNetwork = false;
       });
@@ -1270,7 +1281,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       setState(() {
         _isLoading = false;
         _isStreaming = false;
-        _streamingMessageIndex = null;
         _isReconnectingStream = false;
         _isWaitingForNetwork = false;
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
@@ -1367,7 +1377,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           _streamingMessageIndex = aiMessageIndex;
         } else if (streamingEndsNow) {
           _isStreaming = false;
-          _streamingMessageIndex = null;
         }
         _isReconnectingStream = false;
         _isWaitingForNetwork = false;
@@ -2555,7 +2564,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+              padding:  EdgeInsets.fromLTRB(12, Platform.isIOS ? 0 : 12, 12, 0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2667,7 +2676,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           NotificationListener<ScrollNotification>(
             onNotification: _handleChatScrollNotification,
             child: ListView.builder(
-              padding: const EdgeInsets.only(top: 120, bottom: 112),
+              padding: EdgeInsets.only(top: Platform.isIOS ? 120 : 100, bottom: 112),
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               // Keep a modest cache around the viewport. Chat rows can contain
@@ -2988,11 +2997,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            'Budget AI Is Working ...',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.start,
+          child: ChatShimmerText(
+            text: 'Budget AI Is Working',
             style: AppTheme.bodyMedium.copyWith(
               color: theme.colorScheme.onSurface,
               fontSize: 16,
@@ -3141,8 +3147,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       );
     } else {
+      // Keep the final bubble on its streaming widget path until its buffered
+      // typewriter reveal has caught up, even if the network stream ended.
       final isCurrentlyStreaming =
-          _isStreaming && resolvedMessageIndex == _streamingMessageIndex;
+          resolvedMessageIndex == _streamingMessageIndex;
       final isFollowedByAssistant =
           resolvedMessageIndex < _messages.length - 1 &&
           !_messages[resolvedMessageIndex + 1].isUser;
@@ -3336,306 +3344,71 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     int messageIndex,
     bool isCurrentlyStreaming,
   ) {
-    const double blockSpacing = 6;
-    const double activityEntrySpacing = 3;
-
     final isFinalInTurn =
         messageIndex == _messages.length - 1 ||
         _messages[messageIndex + 1].isUser;
-    // Keep model reasoning private. Tool progress and response blocks are the
-    // only assistant activity that belongs in the visible conversation.
-    final blocks = _getEffectiveBlocks(
-      messageIndex,
-      isFinalInTurn,
-    ).where((block) => block.type != ChatMessageBlockType.thinking).toList();
-    final hasActivityBlocks = blocks.any(
-      (block) => block.type != ChatMessageBlockType.response,
-    );
-    if (!hasActivityBlocks) {
-      final responseStarted = message.text.trim().isNotEmpty;
-      return responseStarted
-          ? _buildResponseMarkdown(
-              message.text,
-              isStreaming: isCurrentlyStreaming,
-            )
-          : const SizedBox.shrink();
-    }
-
-    int streamingResponseIndex = -1;
-    if (isCurrentlyStreaming) {
-      for (int i = blocks.length - 1; i >= 0; i--) {
-        if (blocks[i].type == ChatMessageBlockType.response &&
-            !blocks[i].isComplete) {
-          streamingResponseIndex = i;
-          break;
-        }
-      }
-    }
-
-    final visibleBlocks = <ChatMessageBlock>[];
-    final seenThinkingTexts = <String>{};
-
-    for (var i = 0; i < blocks.length; i++) {
-      final block = blocks[i];
-      if (block.type == ChatMessageBlockType.thinking) {
-        if (_isPlaceholderThinkingText(block.text)) {
-          continue;
-        }
-        final thinkingSignature = _thinkingTextSignature(block.text);
-        if (thinkingSignature != null &&
-            seenThinkingTexts.contains(thinkingSignature)) {
-          continue;
-        }
-        if (block.text?.isNotEmpty ?? false) {
-          if (thinkingSignature != null) {
-            seenThinkingTexts.add(thinkingSignature);
-          }
-          visibleBlocks.add(block);
-        }
-        continue;
-      }
-      if (block.type == ChatMessageBlockType.toolCall) {
-        if (!_shouldShowToolCall(block.toolCall)) {
-          continue;
-        }
-        visibleBlocks.add(block);
-        continue;
-      }
-      if (block.text?.isNotEmpty ?? false) {
-        visibleBlocks.add(block);
-      }
-    }
-
-    final children = <Widget>[];
-    final mergedEntries =
-        <
-          ({
-            String? text,
-            bool isStreaming,
-            ToolCall? toolCall,
-            ChatMessageBlockType type,
-            bool isComplete,
-          })
-        >[];
+    final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn);
     final responseBuffer = StringBuffer();
-    bool mergedStreaming = false;
-
-    void flushResponseBuffer() {
-      final text = responseBuffer.toString();
-      if (text.isEmpty) {
-        return;
-      }
-      mergedEntries.add((
-        text: text,
-        isStreaming: mergedStreaming,
-        toolCall: null,
-        type: ChatMessageBlockType.response,
-        isComplete: !mergedStreaming,
-      ));
-      responseBuffer.clear();
-      mergedStreaming = false;
-    }
-
-    for (int index = 0; index < visibleBlocks.length; index++) {
-      final block = visibleBlocks[index];
-      final originalIndex = blocks.indexOf(block);
-
+    for (final block in blocks) {
       if (block.type == ChatMessageBlockType.response) {
         responseBuffer.write(block.text ?? '');
-        mergedStreaming =
-            mergedStreaming ||
-            (isCurrentlyStreaming && originalIndex == streamingResponseIndex);
-        continue;
-      }
-
-      flushResponseBuffer();
-
-      mergedEntries.add((
-        text: block.text,
-        isStreaming: false,
-        toolCall: block.toolCall,
-        type: block.type,
-        isComplete: block.isComplete,
-      ));
-    }
-
-    flushResponseBuffer();
-
-    Widget buildEntries(
-      List<
-        ({
-          String? text,
-          bool isStreaming,
-          ToolCall? toolCall,
-          ChatMessageBlockType type,
-          bool isComplete,
-        })
-      >
-      entries,
-    ) {
-      final entryChildren = <Widget>[];
-      int index = 0;
-      while (index < entries.length) {
-        final entry = entries[index];
-
-        if (index > 0) {
-          entryChildren.add(const SizedBox(height: activityEntrySpacing));
-        }
-
-        if (entry.type == ChatMessageBlockType.thinking) {
-          entryChildren.add(
-            _buildResponseMarkdown(
-              entry.text ?? '',
-              isStreaming: entry.isStreaming,
-            ),
-          );
-          index++;
-          continue;
-        }
-
-        if (entry.type == ChatMessageBlockType.toolCall &&
-            entry.toolCall != null) {
-          final toolCalls = <ToolCall>[];
-          int cursor = index;
-          while (cursor < entries.length &&
-              entries[cursor].type == ChatMessageBlockType.toolCall &&
-              entries[cursor].toolCall != null) {
-            toolCalls.add(entries[cursor].toolCall!);
-            cursor++;
-          }
-
-          Widget buildToolSection(ToolCall toolCall) {
-            final toolSection = ChatToolCallSection(
-              key: ValueKey('tool_${toolCall.id}'),
-              toolCall: toolCall,
-              themeColor: Theme.of(context).colorScheme.primary,
-              isInProgress: !toolCall.isComplete,
-              markdownNormalizer: _prepareMarkdownForDisplay,
-              onLinkTap: _handleMarkdownLinkTap,
-              linkBuilder: (context, linkText, url, style) =>
-                  _buildStyledMarkdownLink(
-                    context,
-                    linkText: linkText,
-                    url: url,
-                    style: style,
-                  ),
-            );
-            return toolSection;
-          }
-
-          for (var i = 0; i < toolCalls.length; i++) {
-            if (i > 0) {
-              entryChildren.add(const SizedBox(height: activityEntrySpacing));
-            }
-            entryChildren.add(buildToolSection(toolCalls[i]));
-          }
-
-          index = cursor;
-          continue;
-        }
-
-        entryChildren.add(
-          _buildResponseMarkdown(
-            entry.text ?? '',
-            isStreaming: entry.isStreaming,
-          ),
-        );
-        index++;
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: entryChildren,
-      );
-    }
-
-    final hasVisibleToolCalls = mergedEntries.any(
-      (entry) => entry.type == ChatMessageBlockType.toolCall,
-    );
-    final hasVisibleThinking = mergedEntries.any(
-      (entry) => entry.type == ChatMessageBlockType.thinking,
-    );
-    if (hasVisibleToolCalls || hasVisibleThinking) {
-      // Show all entries inline (thinking + tool calls + response)
-      children.add(buildEntries(mergedEntries));
-    } else {
-      int index = 0;
-      while (index < mergedEntries.length) {
-        final entry = mergedEntries[index];
-
-        if (index > 0) {
-          children.add(const SizedBox(height: blockSpacing));
-        }
-
-        if (entry.type == ChatMessageBlockType.thinking) {
-          children.add(
-            RepaintBoundary(
-              child: ChatThinkingSection(
-                text: entry.text ?? '',
-                themeColor: Theme.of(context).colorScheme.primary,
-                isComplete: entry.isComplete,
-              ),
-            ),
-          );
-          index++;
-          continue;
-        }
-
-        if (entry.type == ChatMessageBlockType.toolCall &&
-            entry.toolCall != null) {
-          final toolCalls = <ToolCall>[];
-          int cursor = index;
-          while (cursor < mergedEntries.length &&
-              mergedEntries[cursor].type == ChatMessageBlockType.toolCall &&
-              mergedEntries[cursor].toolCall != null) {
-            toolCalls.add(mergedEntries[cursor].toolCall!);
-            cursor++;
-          }
-
-          Widget buildToolSection(ToolCall toolCall) {
-            final toolSection = ChatToolCallSection(
-              key: ValueKey('tool_${toolCall.id}'),
-              toolCall: toolCall,
-              themeColor: Theme.of(context).colorScheme.primary,
-              isInProgress: !toolCall.isComplete,
-              markdownNormalizer: _prepareMarkdownForDisplay,
-              onLinkTap: _handleMarkdownLinkTap,
-              linkBuilder: (context, linkText, url, style) =>
-                  _buildStyledMarkdownLink(
-                    context,
-                    linkText: linkText,
-                    url: url,
-                    style: style,
-                  ),
-            );
-            return toolSection;
-          }
-
-          for (var i = 0; i < toolCalls.length; i++) {
-            if (i > 0) {
-              children.add(const SizedBox(height: blockSpacing));
-            }
-            children.add(buildToolSection(toolCalls[i]));
-          }
-
-          index = cursor;
-          continue;
-        }
-
-        children.add(
-          _buildResponseMarkdown(
-            entry.text ?? '',
-            isStreaming: entry.isStreaming,
-          ),
-        );
-        index++;
       }
     }
+    final responseText = responseBuffer.toString();
+    if (responseText.trim().isEmpty) {
+      if (isCurrentlyStreaming) {
+        return const ChatResponseShimmer();
+      }
+      return const SizedBox.shrink();
+    }
+    final showViewExpenses =
+        isFinalInTurn &&
+        !isCurrentlyStreaming &&
+        _hasSuccessfulExpenseEntry(blocks);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildResponseMarkdown(
+          responseText,
+          isStreaming: isCurrentlyStreaming,
+          messageIndex: messageIndex,
+        ),
+        // if (showViewExpenses)
+        //   Padding(
+        //     padding: const EdgeInsets.only(top: 4),
+        //     child: TextButton(
+        //       onPressed: _openExpenses,
+        //       child: const Text('View Expenses'),
+        //     ),
+        //   ),
+      ],
     );
+  }
+
+  bool _hasSuccessfulExpenseEntry(List<ChatMessageBlock> blocks) {
+    for (final block in blocks) {
+      final toolCall = block.toolCall;
+      if (block.type != ChatMessageBlockType.toolCall ||
+          toolCall == null ||
+          toolCall.name.trim().toLowerCase() != 'finance_add' ||
+          toolCall.status != ToolCallStatus.completed) {
+        continue;
+      }
+
+      final result = _decodeToolResult(toolCall.result);
+      if (result is Map && result['ok'] == true) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _openExpenses() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FinancesScreen()));
   }
 
   bool _isPlaceholderThinkingText(String? text) {
@@ -3646,11 +3419,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         normalized == 'checking' ||
         normalized == 'working' ||
         normalized == 'processing';
-  }
-
-  String? _thinkingTextSignature(String? text) {
-    final normalized = (text ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
-    return normalized.isEmpty ? null : normalized.toLowerCase();
   }
 
   dynamic _decodeToolResult(String? rawResult) {
@@ -3666,31 +3434,27 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  Widget _buildResponseMarkdown(String text, {required bool isStreaming}) {
+  Widget _buildResponseMarkdown(
+    String text, {
+    required bool isStreaming,
+    required int messageIndex,
+  }) {
     return ChatResponseMarkdown(
       text: text,
       isStreaming: isStreaming,
       onLinkTap: _handleMarkdownLinkTap,
+      onTypewriterProgress: isStreaming ? _scheduleScrollToBottom : null,
+      onTypewriterComplete: isStreaming
+          ? () => _finishTypewriterForMessage(messageIndex)
+          : null,
     );
   }
 
-  String _prepareMarkdownForDisplay(String text) {
-    return normalizeChatResponseMarkdown(text);
-  }
-
-  Widget _buildStyledMarkdownLink(
-    BuildContext context, {
-    required InlineSpan linkText,
-    required String url,
-    required TextStyle style,
-  }) {
-    return buildChatResponseMarkdownLink(
-      context,
-      linkText: linkText,
-      url: url,
-      style: style,
-      onLinkTap: _handleMarkdownLinkTap,
-    );
+  void _finishTypewriterForMessage(int messageIndex) {
+    if (!mounted || _isStreaming || _streamingMessageIndex != messageIndex) {
+      return;
+    }
+    setState(() => _streamingMessageIndex = null);
   }
 
   Future<void> _handleMarkdownLinkTap(String url, String title) async {
@@ -3839,29 +3603,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return false;
   }
 
-  bool _shouldShowToolCall(ToolCall? toolCall) {
-    if (toolCall == null) return false;
-
-    final hasNamedTool =
-        toolCall.name.trim().isNotEmpty &&
-        toolCall.name.trim().toLowerCase() != 'tool call';
-    final hasArguments = toolCall.arguments.isNotEmpty;
-    final hasResult = _hasMeaningfulToolResult(toolCall.result);
-
-    return hasNamedTool || hasArguments || hasResult;
-  }
-
   bool _isLoopDetectedToolCall(ToolCall toolCall) {
     final decoded = _decodeToolResult(toolCall.result);
     if (decoded is! Map) return false;
     final error = decoded['error']?.toString().toLowerCase() ?? '';
     return error.contains('tool call loop detected');
-  }
-
-  bool _hasMeaningfulToolResult(String? result) {
-    final trimmed = result?.trim();
-    if (trimmed == null || trimmed.isEmpty) return false;
-    if (trimmed == '{}' || trimmed == '[]' || trimmed == 'null') return false;
-    return true;
   }
 }

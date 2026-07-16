@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -7,12 +8,14 @@ class ChatShimmerBlock extends StatefulWidget {
   final double width;
   final double height;
   final BorderRadius borderRadius;
+  final bool reverse;
 
   const ChatShimmerBlock({
     super.key,
     required this.width,
     required this.height,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+    this.reverse = false,
   });
 
   @override
@@ -29,7 +32,15 @@ class _ChatShimmerBlockState extends State<ChatShimmerBlock>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1300),
-    )..repeat();
+    )..repeat(reverse: widget.reverse);
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatShimmerBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reverse != widget.reverse) {
+      _controller.repeat(reverse: widget.reverse);
+    }
   }
 
   @override
@@ -83,6 +94,135 @@ class _ChatShimmerBlockState extends State<ChatShimmerBlock>
   }
 }
 
+class ChatShimmerText extends StatefulWidget {
+  const ChatShimmerText({
+    super.key,
+    required this.text,
+    required this.style,
+    this.reverse = true,
+  });
+
+  final String text;
+  final TextStyle style;
+  final bool reverse;
+
+  @override
+  State<ChatShimmerText> createState() => _ChatShimmerTextState();
+}
+
+class _ChatShimmerTextState extends State<ChatShimmerText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: widget.reverse);
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatShimmerText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reverse != widget.reverse) {
+      _controller.repeat(reverse: widget.reverse);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) {
+            final progress = Curves.easeInOutCubic.transform(_controller.value);
+            final bandRadius = math.max(28.0, bounds.width * 0.18);
+            final centerX =
+                -bandRadius + ((bounds.width + bandRadius * 2) * progress);
+            return ui.Gradient.linear(
+              Offset(centerX - bandRadius, bounds.center.dy),
+              Offset(centerX + bandRadius, bounds.center.dy),
+              [
+                onSurface.withValues(alpha: 0.42),
+                onSurface.withValues(alpha: 0.48),
+                onSurface,
+                onSurface.withValues(alpha: 0.48),
+                onSurface.withValues(alpha: 0.42),
+              ],
+              const [0, 0.34, 0.5, 0.66, 1],
+              TileMode.clamp,
+            );
+          },
+          child: child,
+        );
+      },
+      child: Text(
+        widget.text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.start,
+        style: widget.style.copyWith(color: Colors.white),
+      ),
+    );
+  }
+}
+
+class ChatResponseShimmer extends StatelessWidget {
+  const ChatResponseShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      label: 'Budget AI is preparing a response',
+      child: ExcludeSemantics(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = math.max(0, constraints.maxWidth - 24);
+            return Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ChatShimmerBlock(
+                    width: width * 0.88,
+                    height: 14,
+                    reverse: true,
+                  ),
+                  const SizedBox(height: 9),
+                  ChatShimmerBlock(
+                    width: width * 0.96,
+                    height: 14,
+                    reverse: true,
+                  ),
+                  const SizedBox(height: 9),
+                  ChatShimmerBlock(
+                    width: width * 0.58,
+                    height: 14,
+                    reverse: true,
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _SlidingGradientTransform extends GradientTransform {
   final double slide;
 
@@ -119,7 +259,7 @@ class ChatLoadingMessage extends StatelessWidget {
           label: message,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(19),
+              borderRadius: BorderRadius.circular(32),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -147,7 +287,7 @@ class ChatLoadingMessage extends StatelessWidget {
                   primary.withValues(alpha: isDark ? 0.07 : 0.035),
                   theme.colorScheme.surface,
                 ),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(32),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -173,9 +313,9 @@ class ChatLoadingMessage extends StatelessWidget {
                             letterSpacing: -0.1,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
-                          'Preparing our response',
+                          'Budget AI is preparing your response',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTheme.bodySmall.copyWith(
@@ -300,7 +440,7 @@ class _ChatWorkingComposerFrameState extends State<ChatWorkingComposerFrame>
             borderRadius: widget.borderRadius,
             primary: theme.colorScheme.primary,
             accent: AppTheme.highlight,
-            normalAlpha: theme.brightness == Brightness.dark ? 0.12 : 0.055,
+            normalAlpha: theme.brightness == Brightness.dark ? 0.78 : 0.72,
           ),
           child: child,
         );
@@ -345,7 +485,7 @@ class _WorkingComposerBorderPainter extends CustomPainter {
       canvas.drawRRect(border, glowPaint);
     }
 
-    final baseAlpha = isWorking ? 0.16 : normalAlpha * 0.35;
+    final baseAlpha = isWorking ? 0.16 : normalAlpha * 0.22;
     final highlightAlpha = isWorking ? 1.0 : normalAlpha;
     final accentAlpha = isWorking ? 1.0 : normalAlpha * 0.82;
     final tailAlpha = isWorking ? 0.20 : normalAlpha * 0.45;

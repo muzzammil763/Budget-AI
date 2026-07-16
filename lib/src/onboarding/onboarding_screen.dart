@@ -2144,6 +2144,14 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
     setState(() => _keyboardVisible = false);
   }
 
+  void _toggleKeyboard() {
+    if (_keyboardVisible) {
+      _hideKeyboard();
+    } else {
+      _showKeyboard();
+    }
+  }
+
   void _enterLetter(String letter) {
     if (_nameController.text.length >= 28) return;
     final current = _nameController.text;
@@ -2331,7 +2339,7 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _showKeyboard,
+      onTap: _toggleKeyboard,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(
@@ -2418,7 +2426,7 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
                             readOnly: true,
                             showCursor: _keyboardVisible,
                             enableInteractiveSelection: false,
-                            onTap: _showKeyboard,
+                            onTap: _toggleKeyboard,
                             maxLines: 1,
                             textAlignVertical: TextAlignVertical.center,
                             cursorColor: theme.colorScheme.primary,

@@ -7,6 +7,7 @@ import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/pill_nav_bar.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
+import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/loan/loans_screen.dart';
@@ -774,104 +775,107 @@ class _FinancesScreenState extends State<FinancesScreen>
       minimum: EdgeInsets.only(bottom: safeAreaBottom),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          constraints: const BoxConstraints(minHeight: 56, maxHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: theme.brightness == Brightness.dark
-                  ? theme.colorScheme.outline.withValues(alpha: 0.2)
-                  : theme.colorScheme.outline.withValues(alpha: 0.06),
-              width: 1,
+        child: ChatWorkingComposerFrame(
+          isWorking: false,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            constraints: const BoxConstraints(minHeight: 56, maxHeight: 56),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: theme.brightness == Brightness.dark
+                    ? theme.colorScheme.outline.withValues(alpha: 0.2)
+                    : theme.colorScheme.outline.withValues(alpha: 0.06),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: IconButton(
-                  tooltip: 'Search finances',
-                  onPressed: () => _searchFocusNode.requestFocus(),
-                  icon: Icon(
-                    CupertinoIcons.search,
-                    size: 26,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: TextField(
-                    focusNode: _searchFocusNode,
-                    controller: _searchController,
-                    cursorColor: theme.colorScheme.primary,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hoverColor: Colors.transparent,
-                      hintText: 'Search finances',
-                      hintStyle: TextStyle(
-                        color: hintColor.withValues(alpha: 0.72),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      fillColor: Colors.transparent,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    tooltip: 'Search finances',
+                    onPressed: () => _searchFocusNode.requestFocus(),
+                    icon: Icon(
+                      CupertinoIcons.search,
+                      size: 26,
+                      color: theme.colorScheme.onSurface,
                     ),
-                    maxLines: 1,
-                    minLines: 1,
-                    textInputAction: TextInputAction.search,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: TextStyle(fontSize: 16, color: textColor),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: _isSearching
-                    ? SizedBox(
-                        key: const ValueKey('clear-search'),
-                        width: 44,
-                        height: 44,
-                        child: IconButton(
-                          tooltip: 'Clear search',
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                            _searchFocusNode.requestFocus();
-                          },
-                          icon: Icon(
-                            CupertinoIcons.xmark_circle_fill,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      focusNode: _searchFocusNode,
+                      controller: _searchController,
+                      cursorColor: theme.colorScheme.primary,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hoverColor: Colors.transparent,
+                        hintText: 'Search finances',
+                        hintStyle: TextStyle(
+                          color: hintColor.withValues(alpha: 0.72),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
                         ),
-                      )
-                    : const SizedBox(
-                        key: ValueKey('empty-search-action'),
-                        width: 44,
-                        height: 44,
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        fillColor: Colors.transparent,
                       ),
-              ),
-            ],
+                      maxLines: 1,
+                      minLines: 1,
+                      textInputAction: TextInputAction.search,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: TextStyle(fontSize: 16, color: textColor),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: _isSearching
+                      ? SizedBox(
+                          key: const ValueKey('clear-search'),
+                          width: 44,
+                          height: 44,
+                          child: IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                              _searchFocusNode.requestFocus();
+                            },
+                            icon: Icon(
+                              CupertinoIcons.xmark_circle_fill,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : const SizedBox(
+                          key: ValueKey('empty-search-action'),
+                          width: 44,
+                          height: 44,
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

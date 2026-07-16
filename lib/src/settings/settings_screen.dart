@@ -470,6 +470,14 @@ class _SettingsNameEditorState extends State<_SettingsNameEditor> {
     setState(() => _isEditing = false);
   }
 
+  void _toggleKeyboard() {
+    if (_isEditing) {
+      _closeKeyboard();
+    } else {
+      _startEditing();
+    }
+  }
+
   void _enterLetter(String letter) {
     if (_controller.text.length >= 28) return;
     final current = _controller.text;
@@ -557,7 +565,7 @@ class _SettingsNameEditorState extends State<_SettingsNameEditor> {
         children: [
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: _startEditing,
+            onTap: _toggleKeyboard,
             child: Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -662,6 +670,7 @@ class _SettingsNameEditorState extends State<_SettingsNameEditor> {
                                   readOnly: true,
                                   showCursor: _isEditing,
                                   enableInteractiveSelection: false,
+                                  onTap: _toggleKeyboard,
                                   maxLines: 1,
                                   textAlignVertical: TextAlignVertical.center,
                                   cursorColor: theme.colorScheme.primary,

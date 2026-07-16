@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -14,12 +16,16 @@ class ChatResponseMarkdown extends StatefulWidget {
     required this.isStreaming,
     required this.onLinkTap,
     this.onTokenTap,
+    this.onTypewriterProgress,
+    this.onTypewriterComplete,
   });
 
   final String text;
   final bool isStreaming;
   final ChatResponseLinkTap onLinkTap;
   final ChatResponseTokenTap? onTokenTap;
+  final VoidCallback? onTypewriterProgress;
+  final VoidCallback? onTypewriterComplete;
 
   @override
   State<ChatResponseMarkdown> createState() => _ChatResponseMarkdownState();
@@ -27,8 +33,12 @@ class ChatResponseMarkdown extends StatefulWidget {
 
 class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
   static const int _largeResponsePreviewChars = 20000;
+  static const Duration _typewriterTick = Duration(milliseconds: 45);
 
   bool _showFullResponse = false;
+  Timer? _typewriterTimer;
+  String _displayedText = '';
+  bool _completionReported = false;
   String? _cachedSourceText;
   String? _cachedNormalizedText;
 
@@ -37,6 +47,97 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
   // ThemeData each build forces all descendants to rebuild unnecessarily.
   ThemeData? _inputTheme;
   ThemeData? _markdownTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedText = widget.isStreaming ? '' : widget.text;
+    _syncTypewriter();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatResponseMarkdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _completionReported = false;
+    }
+    if (!widget.text.startsWith(_displayedText)) {
+      _displayedText = widget.isStreaming ? '' : widget.text;
+    }
+    if (!widget.isStreaming) {
+      _displayedText = widget.text;
+      _stopTypewriter();
+      return;
+    }
+    _syncTypewriter();
+    if (_displayedText == widget.text) {
+      // The network can finish after the reveal already caught up. Report
+      // again for this widget update so the parent can retire streaming mode.
+      _completionReported = false;
+      _reportTypewriterComplete();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopTypewriter();
+    super.dispose();
+  }
+
+  void _syncTypewriter() {
+    if (!widget.isStreaming || _displayedText == widget.text) {
+      _stopTypewriter();
+      return;
+    }
+    _typewriterTimer ??= Timer.periodic(_typewriterTick, (_) {
+      if (!mounted || !widget.isStreaming) {
+        _stopTypewriter();
+        return;
+      }
+
+      final targetCharacters = widget.text.characters;
+      final displayedCount = _displayedText.characters.length;
+      final remaining = targetCharacters.length - displayedCount;
+      if (remaining <= 0) {
+        _stopTypewriter();
+        return;
+      }
+
+      // Keep the reveal readable for normal streams, but catch up quickly if
+      // a provider delivers a large buffered chunk in one event.
+      final charactersPerTick = switch (remaining) {
+        > 240 => 18,
+        > 100 => 10,
+        > 40 => 6,
+        _ => 4,
+      };
+      final nextCount = (displayedCount + charactersPerTick).clamp(
+        0,
+        targetCharacters.length,
+      );
+      setState(() {
+        _displayedText = targetCharacters.take(nextCount).toString();
+      });
+      widget.onTypewriterProgress?.call();
+      if (_displayedText == widget.text) {
+        _stopTypewriter();
+        _reportTypewriterComplete();
+      }
+    });
+  }
+
+  void _stopTypewriter() {
+    _typewriterTimer?.cancel();
+    _typewriterTimer = null;
+  }
+
+  void _reportTypewriterComplete() {
+    if (_completionReported) return;
+    _completionReported = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onTypewriterComplete?.call();
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -94,11 +195,15 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
   @override
   Widget build(BuildContext context) {
     final shouldPreview =
-        widget.text.length > _largeResponsePreviewChars && !_showFullResponse;
+        _displayedText.length > _largeResponsePreviewChars &&
+        !_showFullResponse;
     final sourceText = shouldPreview
-        ? widget.text.substring(0, _largeResponsePreviewChars)
-        : widget.text;
-    final normalizedText = _normalizeCached(sourceText);
+        ? _displayedText.substring(0, _largeResponsePreviewChars)
+        : _displayedText;
+    final renderText = widget.isStreaming
+        ? stabilizeStreamingMarkdown(sourceText)
+        : sourceText;
+    final normalizedText = _normalizeCached(renderText);
 
     return Theme(
       data: _markdownTheme!,
@@ -114,7 +219,7 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
           ),
           if (shouldPreview)
             _LargeResponsePreviewFooter(
-              hiddenCharacters: widget.text.length - sourceText.length,
+              hiddenCharacters: _displayedText.length - sourceText.length,
               isStreaming: widget.isStreaming,
               onShowFull: widget.isStreaming
                   ? null
@@ -283,12 +388,9 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
             ],
           );
 
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 140),
-      curve: Curves.easeOutCubic,
-      alignment: Alignment.topLeft,
-      child: content,
-    );
+    // Animating the full markdown subtree's size for every streamed update
+    // causes repeated layout work and makes chat auto-follow feel jumpy.
+    return content;
   }
 
   List<_MarkdownSegment> _splitMarkdownTables(String source) {
@@ -448,6 +550,87 @@ String normalizeChatResponseMarkdown(String text) {
       _normalizeMarkdownLinks(_stripInlineDataImageMarkdown(text)),
     ),
   );
+}
+
+/// Keeps incomplete Markdown delimiters from briefly appearing as literal
+/// characters while a response is being revealed.
+String stabilizeStreamingMarkdown(String text) {
+  if (text.isEmpty) return text;
+
+  var stable = text;
+
+  // Do not render a line that currently consists only of a partial block
+  // marker. It becomes visible as soon as the first content character arrives.
+  stable = stable.replaceAllMapped(
+    RegExp(r'(^|\n)[ \t]{0,3}(?:#{1,6}|[-+*]|\d+\.)[ \t]*$'),
+    (match) => match.group(1) ?? '',
+  );
+
+  final fencePattern = RegExp(r'(^|\n)[ \t]*(```|~~~)');
+  String? openFence;
+  var lastClosedFenceEnd = 0;
+  for (final match in fencePattern.allMatches(stable)) {
+    final delimiter = match.group(2)!;
+    if (openFence == null) {
+      openFence = delimiter;
+    } else if (openFence == delimiter) {
+      openFence = null;
+      lastClosedFenceEnd = match.end;
+    }
+  }
+  if (openFence != null) {
+    return '$stable\n$openFence';
+  }
+
+  // Inline syntax before a completed fenced block is already stable. Only
+  // inspect the text that follows the most recently closed fence.
+  final prefix = stable.substring(0, lastClosedFenceEnd);
+  var suffix = stable.substring(lastClosedFenceEnd);
+
+  // A partially typed link or image is the most visible source of raw
+  // Markdown. Hold it back until both its label and destination are complete.
+  final lastOpenBracket = suffix.lastIndexOf('[');
+  final lastCloseBracket = suffix.lastIndexOf(']');
+  if (lastOpenBracket > lastCloseBracket) {
+    suffix = suffix.substring(0, lastOpenBracket);
+  } else {
+    final unfinishedDestination = suffix.lastIndexOf('](');
+    final lastCloseParenthesis = suffix.lastIndexOf(')');
+    if (unfinishedDestination > lastCloseParenthesis) {
+      final linkStart = suffix.lastIndexOf('[', unfinishedDestination);
+      if (linkStart >= 0) {
+        suffix = suffix.substring(0, linkStart);
+      }
+    }
+  }
+
+  // Temporarily close inline spans. This lets GptMarkdown format the visible
+  // content instead of painting opening delimiters until the provider sends
+  // their real closing pair.
+  suffix = _temporarilyCloseOddDelimiter(suffix, '`');
+  suffix = _temporarilyCloseOddDelimiter(suffix, '**');
+  suffix = _temporarilyCloseOddDelimiter(suffix, '__');
+  suffix = _temporarilyCloseOddDelimiter(suffix, '~~');
+
+  return '$prefix$suffix';
+}
+
+String _temporarilyCloseOddDelimiter(String text, String delimiter) {
+  var count = 0;
+  var searchFrom = 0;
+  while (true) {
+    final index = text.indexOf(delimiter, searchFrom);
+    if (index < 0) break;
+    if (index == 0 || text.codeUnitAt(index - 1) != 0x5c) {
+      count++;
+    }
+    searchFrom = index + delimiter.length;
+  }
+  if (count.isEven) return text;
+  if (text.endsWith(delimiter)) {
+    return text.substring(0, text.length - delimiter.length);
+  }
+  return '$text$delimiter';
 }
 
 String _normalizeMarkdownLinks(String text) {
