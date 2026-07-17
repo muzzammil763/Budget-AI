@@ -38,13 +38,6 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
     _shuffledPrompts = List.of(_prompts)..shuffle(Random());
   }
 
-  String get _greeting {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
   double _stagger(double t, double start, double end) {
     return Curves.easeOutCubic.transform(
       ((t - start) / (end - start)).clamp(0.0, 1.0),
@@ -97,7 +90,7 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
                                 height: 1.6,
-                                fontFamily: "Boldonse"
+                                fontFamily: "Boldonse",
                               ),
                             ),
                           ],
@@ -160,13 +153,7 @@ class _PromptCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(32),
                   border: Border.all(color: onSurface.withValues(alpha: 0.1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 20,
-                      offset: const Offset(2, 2),
-                    ),
-                  ],
+
                 ),
                 child: Row(
                   children: [

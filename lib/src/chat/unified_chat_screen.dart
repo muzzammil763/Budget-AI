@@ -27,7 +27,6 @@ import 'package:budget_ai/src/chat/markdown_table_view.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
-import 'package:budget_ai/src/finances/finances_screen.dart';
 
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/material.dart';
@@ -2564,7 +2563,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           SafeArea(
             bottom: false,
             child: Padding(
-              padding:  EdgeInsets.fromLTRB(12, Platform.isIOS ? 0 : 12, 12, 0),
+              padding: EdgeInsets.fromLTRB(12, Platform.isIOS ? 0 : 12, 12, 0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2676,7 +2675,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           NotificationListener<ScrollNotification>(
             onNotification: _handleChatScrollNotification,
             child: ListView.builder(
-              padding: EdgeInsets.only(top: Platform.isIOS ? 120 : 100, bottom: 112),
+              padding: EdgeInsets.only(
+                top: Platform.isIOS ? 120 : 100,
+                bottom: 112,
+              ),
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               // Keep a modest cache around the viewport. Chat rows can contain
@@ -3129,12 +3131,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 bottomRight: Radius.circular(4),
               ),
               boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
             child: buildContent(),
           ),
@@ -3363,10 +3365,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
       return const SizedBox.shrink();
     }
-    final showViewExpenses =
-        isFinalInTurn &&
-        !isCurrentlyStreaming &&
-        _hasSuccessfulExpenseEntry(blocks);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3377,40 +3375,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           isStreaming: isCurrentlyStreaming,
           messageIndex: messageIndex,
         ),
-        // if (showViewExpenses)
-        //   Padding(
-        //     padding: const EdgeInsets.only(top: 4),
-        //     child: TextButton(
-        //       onPressed: _openExpenses,
-        //       child: const Text('View Expenses'),
-        //     ),
-        //   ),
       ],
     );
-  }
-
-  bool _hasSuccessfulExpenseEntry(List<ChatMessageBlock> blocks) {
-    for (final block in blocks) {
-      final toolCall = block.toolCall;
-      if (block.type != ChatMessageBlockType.toolCall ||
-          toolCall == null ||
-          toolCall.name.trim().toLowerCase() != 'finance_add' ||
-          toolCall.status != ToolCallStatus.completed) {
-        continue;
-      }
-
-      final result = _decodeToolResult(toolCall.result);
-      if (result is Map && result['ok'] == true) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void _openExpenses() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const FinancesScreen()));
   }
 
   bool _isPlaceholderThinkingText(String? text) {

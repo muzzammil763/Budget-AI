@@ -131,20 +131,18 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                             final isSelected =
                                 category.toLowerCase() == selected;
                             return ChoiceChip(
-                            
                               label: Text(category),
                               selected: isSelected,
                               showCheckmark: false,
                               selectedColor: theme.colorScheme.primary,
                               backgroundColor: theme.colorScheme.surface,
-                              
+
                               side: BorderSide(
                                 color: isSelected
                                     ? theme.colorScheme.primary
                                     : theme.colorScheme.outline.withValues(
                                         alpha: 0.24,
                                       ),
-                                    
                               ),
                               labelStyle: AppTheme.bodySmall.copyWith(
                                 color: isSelected
@@ -279,9 +277,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
               hintText: '0',
               hintStyle: TextStyle(color: readable.withValues(alpha: 0.42)),
               suffixText: FinanceEntry.money(0).replaceFirst('0', '').trim(),
-              suffixStyle: AppTheme.headingSmall.copyWith(
-                color: readable,
-              ),
+              suffixStyle: AppTheme.headingSmall.copyWith(color: readable),
             ),
           ),
         ],

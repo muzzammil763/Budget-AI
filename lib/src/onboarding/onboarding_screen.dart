@@ -14,6 +14,7 @@ import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/chat/unified_chat_screen.dart';
+import 'package:budget_ai/src/onboarding/onboarding_app_showcase.dart';
 import 'package:budget_ai/src/settings/currency_display_card.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
@@ -23,7 +24,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_player/video_player.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed';
 const _onboardingCompletedAtKey = 'onboarding_completed_at';
@@ -596,7 +596,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description:
           'Money, clarity and momentum — a personal finance companion powered by AI.',
       items: const [],
-      extra: const _AppShowcase(showDynamicIsland: false),
+      extra: const OnboardingAppShowcase(showDynamicIsland: false),
     );
   }
 
@@ -1042,26 +1042,13 @@ class _InsightsShowcase extends StatefulWidget {
 }
 
 class _InsightsShowcaseState extends State<_InsightsShowcase> {
-  static const _sideCardScale = 0.84;
+  static const _sideCardScale = 0.76;
 
-  int _front = 0;
-  int _left = 1;
-  int _right = 2;
-  Timer? _rotationTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _rotationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) _rotateForward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _rotationTimer?.cancel();
-    super.dispose();
-  }
+  // Keep the bar chart primary/front, with overview on the left and spending
+  // activity on the right. Cards move only when the user taps a side card.
+  int _front = 2;
+  int _left = 0;
+  int _right = 1;
 
   void _bringToFront(int item, {bool haptic = true}) {
     if (item == _front) return;
@@ -1073,15 +1060,6 @@ class _InsightsShowcaseState extends State<_InsightsShowcase> {
         _right = _front;
       }
       _front = item;
-    });
-  }
-
-  void _rotateForward() {
-    setState(() {
-      final previousLeft = _left;
-      _left = _front;
-      _front = _right;
-      _right = previousLeft;
     });
   }
 
@@ -1126,13 +1104,14 @@ class _InsightsShowcaseState extends State<_InsightsShowcase> {
 
   Widget _buildCard(int item, double dx, double cardWidth, double cardHeight) {
     final isFront = item == _front;
+    final dy = isFront ? 0.0 : cardHeight * 0.05;
     return AnimatedContainer(
       key: ValueKey(item),
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 520),
       curve: Curves.easeInOutCubic,
-      transformAlignment: Alignment.bottomCenter,
+      transformAlignment: Alignment.center,
       transform: Matrix4.identity()
-        ..translateByDouble(dx, 0, 0, 1)
+        ..translateByDouble(dx, dy, 0, 1)
         ..rotateZ(isFront ? 0 : (dx < 0 ? -0.13 : 0.13))
         ..scaleByDouble(
           isFront ? 1 : _sideCardScale,
@@ -1465,48 +1444,6 @@ class _OverviewAmount extends StatelessWidget {
               color: onCard,
               fontSize: 8 * scale,
               fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OverviewStat extends StatelessWidget {
-  const _OverviewStat({
-    required this.label,
-    required this.value,
-    required this.scale,
-  });
-
-  final String label;
-  final String value;
-  final double scale;
-
-  @override
-  Widget build(BuildContext context) {
-    final onCard = Theme.of(context).colorScheme.onPrimary;
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.bodySmall.copyWith(
-              color: onCard,
-              fontSize: 8 * scale,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.bodySmall.copyWith(
-              color: onCard.withValues(alpha: 0.58),
-              fontSize: 7 * scale,
             ),
           ),
         ],
@@ -1903,7 +1840,6 @@ class _ChatPreviewState extends State<_ChatPreview> {
     final displayScale = math
         .min(screenSize.shortestSide / 390, screenSize.height / 844)
         .clamp(0.78, 1.15);
-    final horizontalInset = 12.0 * displayScale;
     final verticalGap = 12.0 * displayScale;
     final smallGap = 6.0 * displayScale;
     final bodyFontSize = 15 * displayScale;
@@ -3125,239 +3061,6 @@ class _PermissionCard extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _ShowcaseItem {
-  const _ShowcaseItem(this.asset);
-
-  final String asset;
-}
-
-/// A fanned deck of three app-UI videos on the welcome page: one front and
-/// center, two tilted behind it. Tapping a back card swaps it with the front
-/// one — both travel to each other's slot at the same time.
-class _AppShowcase extends StatefulWidget {
-  const _AppShowcase({this.showDynamicIsland = true});
-
-  /// Whether the iPhone frame draws the Dynamic Island pill over the screen.
-  final bool showDynamicIsland;
-
-  @override
-  State<_AppShowcase> createState() => _AppShowcaseState();
-}
-
-class _AppShowcaseState extends State<_AppShowcase> {
-  static const _items = <_ShowcaseItem>[
-    _ShowcaseItem('assets/onboarding/1.mp4'),
-    _ShowcaseItem('assets/onboarding/2.mp4'),
-    _ShowcaseItem('assets/onboarding/3.mp4'),
-  ];
-
-  late final List<VideoPlayerController> _videoControllers;
-  final List<bool> _videoReady = [false, false, false];
-
-  int _front = 0;
-  int _left = 1;
-  int _right = 2;
-
-  @override
-  void initState() {
-    super.initState();
-    _videoControllers = [
-      for (final item in _items) VideoPlayerController.asset(item.asset),
-    ];
-    _initVideos();
-  }
-
-  Future<void> _initVideos() async {
-    // Prioritize the visible card, then warm both side cards together. Each
-    // card becomes live as soon as its own controller is ready instead of
-    // waiting for the slowest asset.
-    await _initializeVideo(_front);
-    await Future.wait([_initializeVideo(_left), _initializeVideo(_right)]);
-  }
-
-  Future<void> _initializeVideo(int index) async {
-    try {
-      final controller = _videoControllers[index];
-      await controller.initialize();
-      await controller.setLooping(true);
-      await controller.setVolume(0);
-      await controller.play();
-      if (!mounted) return;
-      setState(() => _videoReady[index] = true);
-    } catch (e) {
-      debugPrint(
-        '[Onboarding] Showcase video ${_items[index].asset} failed: $e',
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final controller in _videoControllers) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  void _bringToFront(int item) {
-    if (item == _front) return;
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (item == _left) {
-        _left = _front;
-      } else {
-        _right = _front;
-      }
-      _front = item;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final height = (MediaQuery.sizeOf(context).height * 0.36).clamp(
-      215.0,
-      380.0,
-    );
-    return SizedBox(
-      height: height,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Match the showcase videos' aspect ratio (400x880) so nothing
-          // gets cropped by BoxFit.cover.
-          const gifAspect = 400 / 880;
-          final h = constraints.maxHeight;
-          final w = constraints.maxWidth;
-          var cardH = h * 0.98;
-          var cardW = cardH * gifAspect;
-          // Rotating the tall side cards increases their horizontal footprint.
-          // Keep every frame comfortably inside the showcase bounds.
-          final maxW = w * 0.36;
-          if (cardW > maxW) {
-            cardW = maxW;
-            cardH = cardW / gifAspect;
-          }
-          final sideShift = cardW * 0.85;
-
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              _buildCard(_left, cardW, cardH, -sideShift, h),
-              _buildCard(_right, cardW, cardH, sideShift, h),
-              _buildCard(_front, cardW, cardH, 0, h),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCard(
-    int item,
-    double cardW,
-    double cardH,
-    double dx,
-    double areaH,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isFront = item == _front;
-    final rotation = isFront ? 0.0 : (dx < 0 ? -0.22 : 0.22);
-    final scale = isFront ? 1.0 : 0.8;
-    final dy = isFront ? 0.0 : areaH * 0.05;
-    final bezel = cardW * 0.01;
-
-    // Keyed by item so the same element travels between slots when _front
-    // changes — that is what makes both cards animate across on a swap.
-    return AnimatedContainer(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-      key: ValueKey(item),
-      duration: const Duration(milliseconds: 520),
-      curve: Curves.easeInOutCubic,
-      transformAlignment: Alignment.center,
-      transform: Matrix4.identity()
-        ..translateByDouble(dx, dy, 0, 1)
-        ..rotateZ(rotation)
-        ..scaleByDouble(scale, scale, scale, 1),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _bringToFront(item),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 520),
-          curve: Curves.easeInOutCubic,
-          width: cardW + bezel * 2,
-          height: cardH + bezel * 2,
-          padding: EdgeInsets.all(bezel),
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: const Color(0xFF17171A),
-            borderRadius: BorderRadius.circular(16 + bezel),
-            border: Border.all(color: const Color(0xFF3E3E42), width: 1.2),
-            // boxShadow: [
-            //   BoxShadow(
-            //     color: isDark
-            //         ? AppTheme.highlight.withValues(
-            //             alpha: isFront ? 0.12 : 0.05,
-            //           )
-            //         : Colors.black.withValues(alpha: isFront ? 0.16 : 0.08),
-            //     blurRadius: isFront ? 18 : 10,
-            //     offset: const Offset(0, 8),
-            //   ),
-            // ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(
-                  _items[item].asset.replaceFirst('.mp4', '-poster.jpg'),
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                ),
-                if (_videoReady[item])
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 180),
-                    builder: (context, opacity, video) =>
-                        Opacity(opacity: opacity, child: video),
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      clipBehavior: Clip.hardEdge,
-                      child: SizedBox(
-                        width: _videoControllers[item].value.size.width,
-                        height: _videoControllers[item].value.size.height,
-                        child: VideoPlayer(_videoControllers[item]),
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox.shrink(),
-                if (widget.showDynamicIsland)
-                  // Dynamic Island
-                  Positioned(
-                    top: cardW * 0.04,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        width: cardW * 0.30,
-                        height: cardW * 0.085,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -151,8 +151,10 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
       children: [
         ValueListenableBuilder<String>(
           valueListenable: CurrencySettingsService.instance.currency,
-          builder: (context, currency, _) =>
-              CurrencyDisplayCard(currency: currency, height: MediaQuery.sizeOf(context).height * 0.30,),
+          builder: (context, currency, _) => CurrencyDisplayCard(
+            currency: currency,
+            height: MediaQuery.sizeOf(context).height * 0.30,
+          ),
         ),
         const SizedBox(height: 12),
         ValueListenableBuilder<List<String>>(

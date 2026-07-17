@@ -101,7 +101,6 @@ Future<List<String>> _buildSystemContextSections() async {
     if (financeContext.trim().isNotEmpty) {
       sections.add('Current finance snapshot:\n$financeContext');
     }
-
   } catch (e) {
     debugPrint('[ChatProvider] Failed to build finance context: $e');
   }

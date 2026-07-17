@@ -391,7 +391,7 @@ class _SplashPainter extends CustomPainter {
 
     final scale = _spring(entrySeconds, zeta: 0.55, omega: 10);
     final fadeIn = (entrySeconds * 3.5).clamp(0.0, 1.0);
-    final cardSize = shortest * 0.24;
+    final cardSize = shortest * 0.34;
 
     canvas.save();
     canvas.translate(center.dx, center.dy);
@@ -534,13 +534,13 @@ class _SplashPainter extends CustomPainter {
     final wordT = Curves.easeOutCubic.transform(_phase(0.42, 0.72));
     if (wordT <= 0) return;
 
-    final cardSize = shortest * 0.24;
-    final wordY = center.dy + cardSize * 0.85 + 26;
+    final cardSize = shortest * 0.26;
+    final wordY = center.dy + cardSize * 0.80 + 18;
     final tracking = ui.lerpDouble(9.0, 0.6, wordT)!;
     final fontSize = shortest * 0.058;
 
     final wordStyle = TextStyle(
-      fontFamily: fontFamily,
+      fontFamily: 'Boldonse',
       fontSize: fontSize,
       fontWeight: FontWeight.w800,
       letterSpacing: tracking,
@@ -554,6 +554,7 @@ class _SplashPainter extends CustomPainter {
       center.dx - wordPainter.width / 2 + tracking / 2,
       wordY + (1 - wordT) * 12,
     );
+    final taglineGap = (shortest * 0.026).clamp(10.0, 15.0);
     wordPainter.paint(canvas, wordOffset);
 
     final shimmerT = _phase(0.68, 0.94);
@@ -605,7 +606,7 @@ class _SplashPainter extends CustomPainter {
         canvas,
         Offset(
           center.dx - tagPainter.width / 2,
-          wordY + fontSize + 14 + (1 - tagT) * 8,
+          wordOffset.dy + wordPainter.height + taglineGap + (1 - tagT) * 8,
         ),
       );
     }
