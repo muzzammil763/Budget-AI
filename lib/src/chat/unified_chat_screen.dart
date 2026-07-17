@@ -9,6 +9,7 @@ import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
+import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/helpers/notification_payload.dart';
@@ -2879,11 +2880,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           child: IconButton(
             tooltip: 'Add',
             onPressed: () {},
-            icon: Icon(
-              CupertinoIcons.plus,
-              size: 28,
-              color: theme.colorScheme.onSurface,
-            ),
+            icon: const BudgetMarkIcon(size: 28),
           ),
         ),
         const SizedBox(width: 2),
