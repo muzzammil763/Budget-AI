@@ -27,6 +27,8 @@ import 'package:budget_ai/src/chat/markdown_table_view.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
+import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
+import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/material.dart';
@@ -3080,7 +3082,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Widget _buildMessageBubble(ChatMessage message, {int? messageIndex}) {
-    final theme = Theme.of(context);
     // O(1) identity checks instead of O(n) indexOf scan.
     final isLastMessage =
         _messages.isNotEmpty && identical(message, _messages.last);
@@ -3091,7 +3092,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             : _messages.indexWhere((m) => identical(m, message)));
 
     if (message.isUser) {
-      final userTextColor = theme.colorScheme.onPrimary;
+      final bubbleStyle = BubbleStyleSettingsService.instance.current;
+      final userTextColor = UserBubbleStyleSurface.foregroundColor(
+        context,
+        bubbleStyle,
+      );
 
       Widget buildContent() {
         return Column(
@@ -3118,27 +3123,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               : () => _copyMessage(message.text),
           child: Container(
             margin: const EdgeInsets.only(left: 12, right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.82,
             ),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4),
-                topRight: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(4),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+            child: UserBubbleStyleSurface(
+              style: bubbleStyle,
+              child: buildContent(),
             ),
-            child: buildContent(),
           ),
         );
       }

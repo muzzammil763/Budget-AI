@@ -19,6 +19,8 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
+import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
+import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -115,6 +117,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'AI Model',
                 subtitle: model?.name ?? modelId,
                 onTap: _showModelSheet,
+              );
+            },
+          ),
+          ValueListenableBuilder<UserBubbleStyle>(
+            valueListenable: BubbleStyleSettingsService.instance.style,
+            builder: (context, style, _) {
+              return _buildNavTile(
+                theme,
+                icon: CupertinoIcons.chat_bubble_2_fill,
+                title: 'Message bubble',
+                subtitle: '${style.label} style for your messages',
+                onTap: _showBubbleStyleSheet,
               );
             },
           ),
@@ -271,6 +285,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (selected == null) return;
     await ModelSettingsService.instance.setModel(selected);
+  }
+
+  Future<void> _showBubbleStyleSheet() async {
+    final theme = Theme.of(context);
+    await ResponsiveInfoSheet.show<void>(
+      context,
+      title: 'Select bubble style',
+      headerIcon: Icon(
+        CupertinoIcons.chat_bubble_2_fill,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+      ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: const [_BubbleStylePicker()],
+    );
   }
 
   Future<void> _showBackupRestoreSheet() async {
@@ -430,6 +462,200 @@ class _SettingsScreenState extends State<SettingsScreen> {
         type: ToastificationType.error,
       );
     }
+  }
+}
+
+class _BubbleStylePicker extends StatefulWidget {
+  const _BubbleStylePicker();
+
+  @override
+  State<_BubbleStylePicker> createState() => _BubbleStylePickerState();
+}
+
+class _BubbleStylePickerState extends State<_BubbleStylePicker> {
+  late UserBubbleStyle _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = BubbleStyleSettingsService.instance.current;
+  }
+
+  Future<void> _select(UserBubbleStyle style) async {
+    if (style == _selected) return;
+    setState(() => _selected = style);
+    HapticFeedback.selectionClick();
+    await BubbleStyleSettingsService.instance.setStyle(style);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final previewForeground = UserBubbleStyleSurface.foregroundColor(
+      context,
+      _selected,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width,
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: UserBubbleStyleSurface(
+                key: ValueKey(_selected),
+                style: _selected,
+                child: Text(
+                  'Your budget chats can match your style. Choose it Nicely',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: previewForeground,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Designed for Budget AI',
+          style: AppTheme.headingSmall.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Tap a look to apply it. Existing and new chats update together.',
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.5,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: UserBubbleStyle.values.length,
+          itemBuilder: (context, index) {
+            final style = UserBubbleStyle.values[index];
+            return _BubbleStyleOption(
+              style: style,
+              selected: style == _selected,
+              onTap: () => _select(style),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+}
+
+class _BubbleStyleOption extends StatelessWidget {
+  const _BubbleStyleOption({
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final UserBubbleStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final foreground = UserBubbleStyleSurface.foregroundColor(context, style);
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: '${style.label} message bubble',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: UserBubbleStyleSurface(
+                      style: style,
+                      preview: true,
+                      child: Center(
+                        child: Container(
+                          width: 22,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: foreground.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      style.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: AppTheme.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 12,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (selected) ...[
+                    const SizedBox(width: 3),
+                    Icon(
+                      Icons.check,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
