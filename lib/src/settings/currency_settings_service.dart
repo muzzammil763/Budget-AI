@@ -10,7 +10,6 @@ const List<CurrencyOption> kPresetCurrencyOptions = [
   CurrencyOption(displayText: 'EUR', name: 'Euro code'),
   CurrencyOption(displayText: '£', name: 'British Pound symbol'),
   CurrencyOption(displayText: 'GBP', name: 'British Pound code'),
-  CurrencyOption(displayText: '₹', name: 'Indian Rupee symbol'),
   CurrencyOption(displayText: 'INR', name: 'Indian Rupee code'),
   CurrencyOption(displayText: 'AED', name: 'UAE Dirham'),
   CurrencyOption(displayText: 'SAR', name: 'Saudi Riyal'),

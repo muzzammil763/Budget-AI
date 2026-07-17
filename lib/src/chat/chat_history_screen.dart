@@ -210,7 +210,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           ? _buildEmpty(theme)
           : ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               itemCount: sessions.length,
               itemBuilder: (context, index) {
                 final session = sessions[index];
@@ -317,11 +317,11 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           final confirmed = await _confirmDeleteSession(session);
           if (confirmed && mounted) await _deleteSession(session);
         },
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isActive
                   ? theme.colorScheme.primary
@@ -340,9 +340,9 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.headingSmall.copyWith(
                         color: theme.colorScheme.onSurface,
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: isActive
-                            ? FontWeight.bold
+                            ? FontWeight.w600
                             : FontWeight.w600,
                       ),
                     ),

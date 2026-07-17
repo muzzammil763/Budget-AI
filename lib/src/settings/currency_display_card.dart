@@ -56,7 +56,6 @@ class CurrencyDisplayCard extends StatelessWidget {
           final horizontalGap = responsiveUnit * 0.015;
           final majorVerticalGap = responsiveUnit * 0.032;
           final smallVerticalGap = responsiveUnit * 0.012;
-          final tinyVerticalGap = responsiveUnit * 0.005;
           final eyebrowFontSize = responsiveUnit * 0.025;
           final supportingFontSize = responsiveUnit * 0.034;
           final currencyNameFontSize = responsiveUnit * 0.048;
@@ -219,7 +218,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                                               responsiveUnit * 0.0033,
                                         ),
                                       ),
-                                      SizedBox(height: tinyVerticalGap),
+                                      SizedBox(height: smallVerticalGap),
                                       AutoSizeText(
                                         preview,
                                         maxLines: 1,
@@ -232,6 +231,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                                           fontWeight: FontWeight.w900,
                                           letterSpacing:
                                               responsiveUnit * 0.0019,
+                                              fontFamily: "Boldonse"
                                         ),
                                       ),
                                     ],
