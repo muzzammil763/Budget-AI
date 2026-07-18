@@ -21,9 +21,10 @@ class ModelPickerSheet {
   static Future<String?> show(
     BuildContext context, {
     required String selectedModel,
+    required String providerId,
   }) {
     final theme = Theme.of(context);
-    const models = AIModels.deepseekModels;
+    final models = AIModels.modelsForProvider(providerId);
 
     return ResponsiveInfoSheet.show<String>(
       context,
@@ -121,7 +122,7 @@ class ModelPickerSheet {
                   if (model.contextLength != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Context: 1 M',
+                      'Context: ${_formatContext(model.contextLength!)}',
                       style: AppTheme.bodySmall.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontSize: 11,
@@ -135,5 +136,12 @@ class ModelPickerSheet {
         ),
       ),
     );
+  }
+
+  static String _formatContext(int length) {
+    if (length >= 1000000) {
+      return '${(length / 1000000).toStringAsFixed(length % 1000000 == 0 ? 0 : 1)} M';
+    }
+    return '${(length / 1000).round()} K';
   }
 }

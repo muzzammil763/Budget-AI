@@ -18,6 +18,7 @@ import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
+import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
 import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
@@ -104,6 +105,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle:
                     'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
                 onTap: _showCurrencyScreen,
+              );
+            },
+          ),
+          ValueListenableBuilder<String>(
+            valueListenable: ModelSettingsService.instance.providerId,
+            builder: (context, providerId, _) {
+              final provider = ChatModelConfig.fromId(providerId);
+              return _buildNavTile(
+                theme,
+                icon: CupertinoIcons.cloud,
+                title: 'AI Provider',
+                subtitle: provider?.displayName ?? providerId,
+                onTap: _showProviderSheet,
               );
             },
           ),
@@ -282,9 +296,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final selected = await ModelPickerSheet.show(
       context,
       selectedModel: ModelSettingsService.instance.current,
+      providerId: ModelSettingsService.instance.currentProvider,
     );
     if (selected == null) return;
     await ModelSettingsService.instance.setModel(selected);
+  }
+
+  Future<void> _showProviderSheet() async {
+    final theme = Theme.of(context);
+    final selected = await ResponsiveInfoSheet.show<String>(
+      context,
+      title: 'Choose Provider',
+      headerIcon: Icon(
+        CupertinoIcons.cloud_fill,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+      ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        for (var i = 0; i < ChatModelConfig.values.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _buildProviderOption(theme, ChatModelConfig.values[i]),
+        ],
+      ],
+    );
+    if (selected == null) return;
+    await ModelSettingsService.instance.setProvider(selected);
+  }
+
+  Widget _buildProviderOption(ThemeData theme, ChatModelConfig provider) {
+    final selected =
+        provider.id == ModelSettingsService.instance.currentProvider;
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () => Navigator.pop(context, provider.id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? CupertinoIcons.check_mark_circled_solid
+                  : CupertinoIcons.circle,
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    provider.displayName,
+                    style: AppTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    provider.id == ChatModelConfig.groq.id
+                        ? 'Groq chat, Whisper voice input, and spoken replies'
+                        : 'Default chat provider',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _showBubbleStyleSheet() async {

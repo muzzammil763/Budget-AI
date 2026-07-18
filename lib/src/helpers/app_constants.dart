@@ -8,6 +8,10 @@ class AppConstants {
     'DEEPSEEK_API_KEY',
     defaultValue: '',
   );
+  static const String _groqApiKeyFromBuild = String.fromEnvironment(
+    'GROQ_API_KEY',
+    defaultValue: '',
+  );
 
   /// DeepSeek API key bundled from the root `.env` file.
   static String get deepSeekApiKey {
@@ -16,4 +20,11 @@ class AppConstants {
   }
 
   static bool get hasDeepSeekKey => deepSeekApiKey.isNotEmpty;
+
+  static String get groqApiKey {
+    final envKey = dotenv.env['GROQ_API_KEY']?.trim() ?? '';
+    return envKey.isNotEmpty ? envKey : _groqApiKeyFromBuild;
+  }
+
+  static bool get hasGroqKey => groqApiKey.isNotEmpty;
 }

@@ -24,6 +24,7 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
+import 'package:budget_ai/src/chat/groq_audio_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -34,6 +35,9 @@ import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import 'package:uuid/uuid.dart';
 
@@ -75,6 +79,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   bool _isAppInactive = false;
   bool _isOnChatScreen = true;
   late ChatProvider _provider;
+  late ChatModelConfig _activeConfig;
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final GroqAudioService _groqAudioService = GroqAudioService();
+  bool _isRecording = false;
+  bool _isTranscribing = false;
+  bool _isSpeaking = false;
   int? _streamingMessageIndex;
   bool _isStreaming = false;
   bool _isReconnectingStream = false;
@@ -104,7 +115,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _provider = ChatProvider.create(widget.config);
+    _activeConfig = ModelSettingsService.instance.currentConfig;
+    _provider = ChatProvider.create(_activeConfig);
     _messageController.addListener(_handleComposerTextChanged);
     _messageController.addListener(_updateCanSend);
     _messageFocusNode.addListener(_handleComposerFocusChanged);
@@ -135,6 +147,24 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _refreshChatConfiguration() async {
+    final nextConfig = ModelSettingsService.instance.currentConfig;
+    if (nextConfig.id != _activeConfig.id) {
+      final conversationState = _provider.exportConversationState();
+      if (_isRecording) await _audioRecorder.cancel();
+      _provider.dispose();
+      _activeConfig = nextConfig;
+      _provider = ChatProvider.create(_activeConfig);
+      await _provider.initialize();
+      _provider.loadConversationState(conversationState);
+      await _audioPlayer.stop();
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _isTranscribing = false;
+          _isSpeaking = false;
+        });
+      }
+    }
     await _loadSelectedModel();
     await _refreshProviderState();
   }
@@ -267,7 +297,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       id: const Uuid().v4(),
       title: _sanitizeChatTitle(firstUserMessage.text),
       titleSource: 'first_message',
-      providerKey: widget.config.modelName,
+      providerKey: _activeConfig.modelName,
       modelId: _selectedModel,
     );
 
@@ -287,7 +317,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final exportedState = _provider.exportConversationState();
     final nextSession = session.copyWith(
       updatedAt: DateTime.now(),
-      lastProviderKey: widget.config.modelName,
+      lastProviderKey: _activeConfig.modelName,
       lastModelId: _selectedModel,
       lifecycleState: lifecycleState ?? session.lifecycleState,
     );
@@ -296,7 +326,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       sessionId: nextSession.id,
       generation: nextSession.activeGeneration,
       items: exportedState,
-      providerKey: widget.config.modelName,
+      providerKey: _activeConfig.modelName,
       modelId: _selectedModel,
       lifecycleState: nextSession.lifecycleState,
     );
@@ -506,6 +536,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _stopStreamingThrottleTimer();
     _streamingBubble.dispose();
     _notificationActionSubscription?.cancel();
+    unawaited(_audioPlayer.stop());
+    unawaited(_audioRecorder.cancel());
+    _audioPlayer.dispose();
+    _audioRecorder.dispose();
+    _groqAudioService.dispose();
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -720,6 +755,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     ChatMessage? finalAssistantMessage;
     int? assistantEntryId;
     bool shouldSilentlyContinueAfterToolError = false;
+    bool turnCompletedSuccessfully = false;
 
     try {
       final replacingAssistant =
@@ -1193,6 +1229,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           message: finalAssistantMessage,
         );
       }
+      turnCompletedSuccessfully = true;
     } on TimeoutException catch (_) {
       _provider.cancelRequest();
       final blocks = _cloneBlocks(
@@ -1423,12 +1460,156 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     await _handlePostTurnSessionState();
+    if (turnCompletedSuccessfully && _isGroqSelected) {
+      unawaited(_speakGroqReply(finalAssistantMessage.text));
+    }
     _unfocusComposer();
     _scrollToBottom();
   }
 
   Future<void> _handleComposerSubmit() async {
     await _sendMessage();
+  }
+
+  Future<void> _toggleGroqRecording() async {
+    if (!_isGroqSelected || _isTranscribing || _isResponseInProgress) return;
+
+    if (_isRecording) {
+      await _finishGroqRecording();
+      return;
+    }
+
+    try {
+      if (!await _audioRecorder.hasPermission()) {
+        if (mounted) {
+          showAppToast(
+            context,
+            message: 'Microphone permission is required for voice messages.',
+            type: ToastificationType.warning,
+          );
+        }
+        return;
+      }
+      await _audioPlayer.stop();
+      final temporaryDirectory = await getTemporaryDirectory();
+      final path =
+          '${temporaryDirectory.path}/groq_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isRecording = true;
+        _isSpeaking = false;
+      });
+      _updateCanSend();
+    } catch (error) {
+      _showGroqAudioError('Could not start recording', error);
+    }
+  }
+
+  Future<void> _finishGroqRecording() async {
+    try {
+      final path = await _audioRecorder.stop();
+      if (!mounted) return;
+      setState(() {
+        _isRecording = false;
+        _isTranscribing = true;
+      });
+      _updateCanSend();
+      if (path == null) throw StateError('No audio recording was created.');
+
+      final transcript = await _groqAudioService.transcribe(path);
+      unawaited(File(path).delete().then<void>((_) {}).catchError((_) {}));
+      if (!mounted) return;
+      if (transcript.isEmpty) {
+        throw StateError('Groq did not detect any speech in the recording.');
+      }
+      _messageController.text = transcript;
+      _messageController.selection = TextSelection.collapsed(
+        offset: transcript.length,
+      );
+      setState(() => _isTranscribing = false);
+      _updateCanSend();
+      await _sendMessage();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _isTranscribing = false;
+        });
+      }
+      _updateCanSend();
+      _showGroqAudioError('Could not transcribe recording', error);
+    }
+  }
+
+  Future<void> _speakGroqReply(String text) async {
+    final chunks = GroqAudioService.speechChunks(text);
+    if (chunks.isEmpty || !_isGroqSelected) return;
+
+    try {
+      await _audioPlayer.stop();
+      if (mounted) setState(() => _isSpeaking = true);
+      for (var index = 0; index < chunks.length; index++) {
+        if (!_isGroqSelected) break;
+        final audio = await _groqAudioService.synthesize(chunks[index]);
+        await _playGroqWaveFile(audio, index);
+      }
+    } catch (error) {
+      _showGroqAudioError('Could not play Groq voice response', error);
+    } finally {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
+  }
+
+  Future<void> _playGroqWaveFile(List<int> audio, int chunkIndex) async {
+    final temporaryDirectory = await getTemporaryDirectory();
+    final audioFile = File(
+      '${temporaryDirectory.path}/groq_reply_'
+      '${DateTime.now().microsecondsSinceEpoch}_$chunkIndex.wav',
+    );
+    await audioFile.writeAsBytes(audio, flush: true);
+
+    final completed = Completer<void>();
+    Object? playbackError;
+    final completionSubscription = _audioPlayer.onPlayerComplete.listen(
+      (_) {
+        if (!completed.isCompleted) completed.complete();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        playbackError = error;
+        if (!completed.isCompleted) completed.complete();
+      },
+    );
+
+    try {
+      await _audioPlayer.play(DeviceFileSource(audioFile.path));
+      await completed.future.timeout(const Duration(minutes: 2));
+      if (playbackError != null) throw playbackError!;
+    } finally {
+      await completionSubscription.cancel();
+      try {
+        if (await audioFile.exists()) await audioFile.delete();
+      } catch (_) {
+        // Temporary audio cleanup should not turn successful playback into an
+        // error shown to the user.
+      }
+    }
+  }
+
+  void _showGroqAudioError(String prefix, Object error) {
+    if (!mounted) return;
+    showAppToast(
+      context,
+      message: '$prefix. ${error.toString().replaceFirst('Exception: ', '')}',
+      type: ToastificationType.error,
+    );
   }
 
   Future<void> _confirmAndCancelRequest() async {
@@ -1518,8 +1699,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   bool get _canSubmitCurrentMessage {
     final hasText = _messageController.text.trim().isNotEmpty;
-    return !_isStreaming && hasText;
+    return !_isStreaming && !_isRecording && !_isTranscribing && hasText;
   }
+
+  bool get _isGroqSelected => _activeConfig.id == ChatModelConfig.groq.id;
 
   bool get _isResponseInProgress => _isLoading || _isStreaming;
 
@@ -2124,7 +2307,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     final normalized = error.toString().replaceFirst('Exception: ', '').trim();
     final details = normalized.isEmpty
-        ? 'An unexpected error occurred while contacting ${widget.config.displayName}.'
+        ? 'An unexpected error occurred while contacting ${_activeConfig.displayName}.'
         : normalized;
 
     return 'Unable to send message.\n\n$details';
@@ -2261,7 +2444,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         : error.toString().replaceFirst('Exception: ', '').trim();
     final detailText = details.isEmpty ? '' : '\n\nLast error: $details';
     return ChatProviderException(
-      providerName: widget.config.displayName,
+      providerName: _activeConfig.displayName,
       userMessage:
           'The response was interrupted after $_maxReconnectAttempts reconnect attempts.\n\n'
           'Press Continue to resume from the current conversation without adding a new user message.$detailText',
@@ -2918,6 +3101,36 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           ),
         ),
         const SizedBox(width: 6),
+        if (_isGroqSelected) ...[
+          SizedBox(
+            width: 42,
+            height: 44,
+            child: IconButton(
+              tooltip: _isRecording
+                  ? 'Stop and send voice message'
+                  : _isTranscribing
+                  ? 'Transcribing voice message'
+                  : _isSpeaking
+                  ? 'Recording stops spoken reply'
+                  : 'Send voice message with Groq',
+              onPressed: _isTranscribing ? null : _toggleGroqRecording,
+              icon: _isTranscribing
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : Icon(
+                      _isRecording
+                          ? CupertinoIcons.stop_circle_fill
+                          : CupertinoIcons.mic_fill,
+                      color: _isRecording
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.primary,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 2),
+        ],
         ValueListenableBuilder<bool>(
           valueListenable: _canSendNotifier,
           builder: (context, canSend, child) => _buildComposerSendButton(theme),
@@ -3409,7 +3622,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       'chatFlowSystemPromptTruncated': trimmedPrompt.length > maxPromptChars,
       'chatFlowPromptLength': trimmedPrompt.length,
       'chatFlowModel': _selectedModel,
-      'chatFlowProvider': widget.config.modelName,
+      'chatFlowProvider': _activeConfig.modelName,
       'chatFlowStartedAt': DateTime.now().toIso8601String(),
     };
   }
