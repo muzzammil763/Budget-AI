@@ -16,6 +16,10 @@ class AppConstants {
     'ELEVENLABS_API_KEY',
     defaultValue: '',
   );
+  static const String _geminiApiKeyFromBuild = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
 
   /// DeepSeek API key bundled from the root `.env` file.
   static String get deepSeekApiKey {
@@ -38,4 +42,11 @@ class AppConstants {
   }
 
   static bool get hasElevenLabsKey => elevenLabsApiKey.isNotEmpty;
+
+  static String get geminiApiKey {
+    final envKey = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
+    return envKey.isNotEmpty ? envKey : _geminiApiKeyFromBuild;
+  }
+
+  static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 }

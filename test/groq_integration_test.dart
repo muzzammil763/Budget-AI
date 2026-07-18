@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/elevenlabs_audio_service.dart';
+import 'package:budget_ai/src/chat/gemini_audio_service.dart';
 import 'package:budget_ai/src/chat/groq_audio_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:dio/dio.dart';
@@ -21,7 +23,7 @@ void main() {
     await ModelSettingsService.instance.initialize();
     dotenv.testLoad(
       fileInput:
-          'DEEPSEEK_API_KEY=test-deepseek\nGROQ_API_KEY=test-groq\nELEVENLABS_API_KEY=test-elevenlabs',
+          'DEEPSEEK_API_KEY=test-deepseek\nGROQ_API_KEY=test-groq\nELEVENLABS_API_KEY=test-elevenlabs\nGEMINI_API_KEY=test-gemini',
     );
   });
 
@@ -126,4 +128,124 @@ void main() {
       ),
     );
   });
+
+  test('Gemini audio settings persist independently', () async {
+    final settings = ModelSettingsService.instance;
+    await settings.setVoiceInputProvider(
+      ModelSettingsService.geminiVoiceInputProviderId,
+    );
+    await settings.setSpeechProvider(
+      ModelSettingsService.geminiSpeechProviderId,
+    );
+    await settings.setGeminiVoice('Aoede');
+    await settings.initialize();
+
+    expect(
+      settings.currentVoiceInputProvider,
+      ModelSettingsService.geminiVoiceInputProviderId,
+    );
+    expect(
+      settings.currentSpeechProvider,
+      ModelSettingsService.geminiSpeechProviderId,
+    );
+    expect(settings.currentGeminiVoice.id, 'Aoede');
+    expect(ModelSettingsService.geminiVoices, hasLength(30));
+  });
+
+  test('Gemini TTS converts returned PCM into a WAV file', () async {
+    final requests = <RequestOptions>[];
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requests.add(options);
+          handler.resolve(
+            Response<Map<String, dynamic>>(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {
+                          'inlineData': {
+                            'mimeType': 'audio/L16;codec=pcm;rate=24000',
+                            'data': base64Encode(List<int>.filled(96, 0)),
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final service = GeminiAudioService(dio: dio);
+    final wave = await service.synthesize('Hello', voiceName: 'Kore');
+
+    expect(utf8.decode(wave.sublist(0, 4)), 'RIFF');
+    expect(utf8.decode(wave.sublist(8, 12)), 'WAVE');
+    expect(requests.single.path, contains('gemini-3.1-flash-tts-preview'));
+    expect(
+      (requests.single.data
+          as Map)['generationConfig']['speechConfig']['voiceConfig']['prebuiltVoiceConfig']['voiceName'],
+      'Kore',
+    );
+  });
+
+  test(
+    'Gemini transcription sends inline WAV audio and extracts text',
+    () async {
+      RequestOptions? capturedRequest;
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            capturedRequest = options;
+            handler.resolve(
+              Response<Map<String, dynamic>>(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'candidates': [
+                    {
+                      'content': {
+                        'parts': [
+                          {'text': 'Add five hundred for groceries'},
+                        ],
+                      },
+                    },
+                  ],
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final audioFile = File(
+        '${Directory.systemTemp.path}/gemini_transcription_test.wav',
+      );
+      await audioFile.writeAsBytes(List<int>.filled(64, 0));
+      final service = GeminiAudioService(dio: dio);
+
+      try {
+        expect(
+          await service.transcribe(audioFile.path),
+          'Add five hundred for groceries',
+        );
+        expect(capturedRequest?.path, contains('gemini-3.5-flash'));
+        final parts =
+            ((capturedRequest?.data as Map)['contents'] as List).first['parts']
+                as List;
+        expect(parts.first['inlineData']['mimeType'], 'audio/wav');
+        expect(parts.first['inlineData']['data'], isNotEmpty);
+      } finally {
+        if (await audioFile.exists()) await audioFile.delete();
+      }
+    },
+  );
 }

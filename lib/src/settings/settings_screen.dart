@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:budget_ai/src/chat/elevenlabs_audio_service.dart';
+import 'package:budget_ai/src/chat/gemini_audio_service.dart';
 import 'package:budget_ai/src/chat/groq_audio_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -126,17 +127,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           ValueListenableBuilder<String>(
+            valueListenable: ModelSettingsService.instance.voiceInputProviderId,
+            builder: (context, inputProviderId, _) {
+              return _buildNavTile(
+                theme,
+                icon: CupertinoIcons.mic_fill,
+                title: 'Voice Input',
+                subtitle:
+                    inputProviderId ==
+                        ModelSettingsService.geminiVoiceInputProviderId
+                    ? 'Gemini 3.5 Flash'
+                    : 'Groq Whisper',
+                onTap: _showVoiceInputProviderSheet,
+              );
+            },
+          ),
+          ValueListenableBuilder<String>(
             valueListenable: ModelSettingsService.instance.speechProviderId,
             builder: (context, speechProviderId, _) {
               return _buildNavTile(
                 theme,
                 icon: CupertinoIcons.speaker_2_fill,
                 title: 'Speech Provider',
-                subtitle:
-                    speechProviderId ==
-                        ModelSettingsService.elevenLabsSpeechProviderId
-                    ? 'ElevenLabs'
-                    : 'Groq',
+                subtitle: switch (speechProviderId) {
+                  ModelSettingsService.elevenLabsSpeechProviderId =>
+                    'ElevenLabs',
+                  ModelSettingsService.geminiSpeechProviderId => 'Gemini',
+                  _ => 'Groq',
+                },
                 onTap: _showSpeechProviderSheet,
               );
             },
@@ -156,6 +174,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle: voiceName ?? 'Choose an ElevenLabs voice',
                     onTap: _showElevenLabsVoiceSheet,
                   ),
+                );
+              }
+              if (speechProviderId ==
+                  ModelSettingsService.geminiSpeechProviderId) {
+                return ValueListenableBuilder<String>(
+                  valueListenable: ModelSettingsService.instance.geminiVoiceId,
+                  builder: (context, voiceId, _) {
+                    final voice =
+                        ModelSettingsService.instance.currentGeminiVoice;
+                    return _buildNavTile(
+                      theme,
+                      icon: CupertinoIcons.waveform,
+                      title: 'Response Voice',
+                      subtitle: '${voice.id} · ${voice.style}',
+                      onTap: _showGeminiVoiceSheet,
+                    );
+                  },
                 );
               }
               return ValueListenableBuilder<String>(
@@ -340,6 +375,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await ModelSettingsService.instance.setModel(selected);
   }
 
+  Future<void> _showVoiceInputProviderSheet() async {
+    final theme = Theme.of(context);
+    final selected = await ResponsiveInfoSheet.show<String>(
+      context,
+      title: 'Choose Voice Input',
+      headerIcon: Icon(
+        CupertinoIcons.mic_fill,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+      ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        _buildSpeechProviderOption(
+          theme,
+          id: ModelSettingsService.groqVoiceInputProviderId,
+          name: 'Groq Whisper',
+          description: 'Fast dedicated speech transcription',
+          selectedId: ModelSettingsService.instance.currentVoiceInputProvider,
+        ),
+        const SizedBox(height: 8),
+        _buildSpeechProviderOption(
+          theme,
+          id: ModelSettingsService.geminiVoiceInputProviderId,
+          name: 'Gemini',
+          description: 'Gemini 3.5 Flash audio understanding',
+          selectedId: ModelSettingsService.instance.currentVoiceInputProvider,
+        ),
+      ],
+    );
+    if (selected == null) return;
+    await ModelSettingsService.instance.setVoiceInputProvider(selected);
+  }
+
   Future<void> _showSpeechProviderSheet() async {
     final theme = Theme.of(context);
     final selected = await ResponsiveInfoSheet.show<String>(
@@ -368,6 +439,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           name: 'ElevenLabs',
           description: 'Flash v2.5 voices using your ElevenLabs credits',
         ),
+        const SizedBox(height: 8),
+        _buildSpeechProviderOption(
+          theme,
+          id: ModelSettingsService.geminiSpeechProviderId,
+          name: 'Gemini',
+          description: 'Gemini 3.1 Flash native text-to-speech',
+        ),
       ],
     );
     if (selected == null) return;
@@ -379,8 +457,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String id,
     required String name,
     required String description,
+    String? selectedId,
   }) {
-    final selected = id == ModelSettingsService.instance.currentSpeechProvider;
+    final selected =
+        id ==
+        (selectedId ?? ModelSettingsService.instance.currentSpeechProvider);
     return InkWell(
       borderRadius: BorderRadius.circular(24),
       onTap: () => Navigator.pop(context, id),
@@ -484,6 +565,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       id: selected.id,
       name: selected.name,
     );
+  }
+
+  Future<void> _showGeminiVoiceSheet() async {
+    final theme = Theme.of(context);
+    final selected = await ResponsiveInfoSheet.show<String>(
+      context,
+      title: 'Choose Gemini Voice',
+      headerIcon: Icon(
+        CupertinoIcons.waveform,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+      ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        _GeminiVoicePicker(
+          selectedVoiceId: ModelSettingsService.instance.geminiVoiceId.value,
+          onSelected: (voiceId) => Navigator.pop(context, voiceId),
+        ),
+      ],
+    );
+    if (selected == null) return;
+    await ModelSettingsService.instance.setGeminiVoice(selected);
   }
 
   Future<void> _showBubbleStyleSheet() async {
@@ -953,6 +1059,223 @@ class _ElevenLabsVoicePickerState extends State<_ElevenLabsVoicePicker> {
               color: theme.colorScheme.primary,
               size: 28,
             ),
+    );
+  }
+}
+
+class _GeminiVoicePicker extends StatefulWidget {
+  const _GeminiVoicePicker({
+    required this.selectedVoiceId,
+    required this.onSelected,
+  });
+
+  final String selectedVoiceId;
+  final ValueChanged<String> onSelected;
+
+  @override
+  State<_GeminiVoicePicker> createState() => _GeminiVoicePickerState();
+}
+
+class _GeminiVoicePickerState extends State<_GeminiVoicePicker> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final GeminiAudioService _audioService = GeminiAudioService();
+  String? _previewingVoiceId;
+  Completer<void>? _activePlaybackCompletion;
+  int _previewGeneration = 0;
+
+  @override
+  void dispose() {
+    _previewGeneration++;
+    _completeActivePlayback();
+    unawaited(_audioPlayer.stop());
+    _audioPlayer.dispose();
+    _audioService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePreview(GeminiVoiceOption voice) async {
+    if (_previewingVoiceId == voice.id) {
+      await _cancelPreview();
+      return;
+    }
+    final generation = ++_previewGeneration;
+    await _audioPlayer.stop();
+    _completeActivePlayback();
+    if (!mounted || generation != _previewGeneration) return;
+    setState(() => _previewingVoiceId = voice.id);
+
+    File? audioFile;
+    try {
+      final audio = await _audioService.synthesize(
+        'Hello, I am ${voice.id}, your Budget AI voice assistant.',
+        voiceName: voice.id,
+      );
+      if (!mounted || generation != _previewGeneration) return;
+      final temporaryDirectory = await getTemporaryDirectory();
+      audioFile = File(
+        '${temporaryDirectory.path}/gemini_voice_preview_'
+        '${voice.id}_${DateTime.now().microsecondsSinceEpoch}.wav',
+      );
+      await audioFile.writeAsBytes(audio, flush: true);
+      await _playSource(DeviceFileSource(audioFile.path), generation);
+    } catch (error) {
+      if (!mounted || generation != _previewGeneration) return;
+      showAppToast(
+        context,
+        message: 'Could not preview ${voice.id}. $error',
+        type: ToastificationType.error,
+      );
+    } finally {
+      if (audioFile != null) {
+        try {
+          if (await audioFile.exists()) await audioFile.delete();
+        } catch (_) {}
+      }
+      if (mounted && generation == _previewGeneration) {
+        setState(() => _previewingVoiceId = null);
+      }
+    }
+  }
+
+  Future<void> _playSource(Source source, int generation) async {
+    final completed = Completer<void>();
+    _activePlaybackCompletion = completed;
+    Object? playbackError;
+    final subscription = _audioPlayer.onPlayerComplete.listen(
+      (_) {
+        if (!completed.isCompleted) completed.complete();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        playbackError = error;
+        if (!completed.isCompleted) completed.complete();
+      },
+    );
+    try {
+      if (generation != _previewGeneration) return;
+      await _audioPlayer.play(source);
+      await completed.future.timeout(const Duration(minutes: 1));
+      if (playbackError != null) throw playbackError!;
+    } finally {
+      if (identical(_activePlaybackCompletion, completed)) {
+        _activePlaybackCompletion = null;
+      }
+      await subscription.cancel();
+    }
+  }
+
+  Future<void> _cancelPreview() async {
+    _previewGeneration++;
+    _completeActivePlayback();
+    await _audioPlayer.stop();
+    if (mounted) setState(() => _previewingVoiceId = null);
+  }
+
+  void _completeActivePlayback() {
+    final completion = _activePlaybackCompletion;
+    if (completion != null && !completion.isCompleted) completion.complete();
+    _activePlaybackCompletion = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Gemini previews are generated live and may use your Gemini API quota.',
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (var i = 0; i < ModelSettingsService.geminiVoices.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _buildVoiceOption(theme, ModelSettingsService.geminiVoices[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildVoiceOption(ThemeData theme, GeminiVoiceOption voice) {
+    final selected = voice.id == widget.selectedVoiceId;
+    final isPreviewing = voice.id == _previewingVoiceId;
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () => widget.onSelected(voice.id),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 11, 8, 11),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? CupertinoIcons.check_mark_circled_solid
+                  : CupertinoIcons.circle,
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    voice.id,
+                    style: AppTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    voice.style,
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: isPreviewing
+                  ? 'Stop ${voice.id} preview'
+                  : 'Preview ${voice.id}',
+              onPressed: () => _togglePreview(voice),
+              icon: isPreviewing
+                  ? SizedBox.square(
+                      dimension: 28,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.colorScheme.primary,
+                          ),
+                          Icon(
+                            CupertinoIcons.stop_fill,
+                            size: 13,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ],
+                      ),
+                    )
+                  : Icon(
+                      CupertinoIcons.play_circle_fill,
+                      color: theme.colorScheme.primary,
+                      size: 28,
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

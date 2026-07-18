@@ -25,6 +25,7 @@ import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
 import 'package:budget_ai/src/chat/elevenlabs_audio_service.dart';
+import 'package:budget_ai/src/chat/gemini_audio_service.dart';
 import 'package:budget_ai/src/chat/groq_audio_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
@@ -86,6 +87,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final GroqAudioService _groqAudioService = GroqAudioService();
   final ElevenLabsAudioService _elevenLabsAudioService =
       ElevenLabsAudioService();
+  final GeminiAudioService _geminiAudioService = GeminiAudioService();
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _isSpeaking = false;
@@ -527,6 +529,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _audioRecorder.dispose();
     _groqAudioService.dispose();
     _elevenLabsAudioService.dispose();
+    _geminiAudioService.dispose();
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -1510,11 +1513,30 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _updateCanSend();
       if (path == null) throw StateError('No audio recording was created.');
 
-      final transcript = await _groqAudioService.transcribe(path);
+      final inputProvider =
+          ModelSettingsService.instance.currentVoiceInputProvider;
+      String transcript;
+      if (inputProvider == ModelSettingsService.geminiVoiceInputProviderId) {
+        try {
+          transcript = await _geminiAudioService.transcribe(path);
+        } catch (error) {
+          if (mounted) {
+            showAppToast(
+              context,
+              message:
+                  'Gemini transcription unavailable: $error Using Groq Whisper instead.',
+              type: ToastificationType.warning,
+            );
+          }
+          transcript = await _groqAudioService.transcribe(path);
+        }
+      } else {
+        transcript = await _groqAudioService.transcribe(path);
+      }
       unawaited(File(path).delete().then<void>((_) {}).catchError((_) {}));
       if (!mounted) return;
       if (transcript.isEmpty) {
-        throw StateError('Groq did not detect any speech in the recording.');
+        throw StateError('No speech was detected in the recording.');
       }
       _messageController.text = transcript;
       _messageController.selection = TextSelection.collapsed(
@@ -1553,6 +1575,20 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           }
           await _speakWithGroq(text);
         }
+      } else if (speechProvider ==
+          ModelSettingsService.geminiSpeechProviderId) {
+        try {
+          await _speakWithGemini(text);
+        } catch (error) {
+          if (mounted) {
+            showAppToast(
+              context,
+              message: 'Gemini speech unavailable: $error Using Groq instead.',
+              type: ToastificationType.warning,
+            );
+          }
+          await _speakWithGroq(text);
+        }
       } else {
         await _speakWithGroq(text);
       }
@@ -1579,6 +1615,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final chunks = GroqAudioService.speechChunks(text);
     for (var index = 0; index < chunks.length; index++) {
       final audio = await _groqAudioService.synthesize(chunks[index]);
+      await _playSpeechFile(audio, index, extension: 'wav');
+    }
+  }
+
+  Future<void> _speakWithGemini(String text) async {
+    final voiceName = ModelSettingsService.instance.geminiVoiceId.value;
+    final chunks = GeminiAudioService.speechChunks(text);
+    for (var index = 0; index < chunks.length; index++) {
+      final audio = await _geminiAudioService.synthesize(
+        chunks[index],
+        voiceName: voiceName,
+      );
       await _playSpeechFile(audio, index, extension: 'wav');
     }
   }
@@ -3143,6 +3191,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 ? 'Transcribing voice message'
                 : _isSpeaking
                 ? 'Recording stops spoken reply'
+                : ModelSettingsService.instance.currentVoiceInputProvider ==
+                      ModelSettingsService.geminiVoiceInputProviderId
+                ? 'Send voice message with Gemini transcription'
                 : 'Send voice message with Groq Whisper',
             onPressed: _isTranscribing ? null : _toggleGroqRecording,
             icon: _isTranscribing
