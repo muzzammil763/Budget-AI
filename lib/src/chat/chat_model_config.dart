@@ -20,21 +20,4 @@ class ChatModelConfig {
     iconPath: 'assets/icons/deepseek.svg',
     apiBaseUrl: 'https://api.deepseek.com/v1',
   );
-
-  static const groq = ChatModelConfig(
-    id: 'groq',
-    modelName: 'groq',
-    displayName: 'Groq',
-    iconPath: 'assets/icons/groq.svg',
-    apiBaseUrl: 'https://api.groq.com/openai/v1',
-  );
-
-  static const List<ChatModelConfig> values = [deepseek, groq];
-
-  static ChatModelConfig? fromId(String id) {
-    for (final config in values) {
-      if (config.id == id) return config;
-    }
-    return null;
-  }
 }

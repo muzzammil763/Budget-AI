@@ -6,7 +6,7 @@ class ChatCompletionsProvider extends BaseChatProvider {
   String get _baseUrl => config.apiBaseUrl;
 
   ChatCompletionsProvider(super.config, {super.dio})
-    : super(defaultSelectedModel: AIModels.defaultModelForProvider(config.id));
+    : super(defaultSelectedModel: AIModels.defaultModelId);
 
   @override
   Stream<String> sendMessageStream(String message) async* {

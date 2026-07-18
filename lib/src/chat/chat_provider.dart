@@ -99,8 +99,7 @@ abstract class BaseChatProvider extends ChatProvider {
 
   String get _providerName => config.displayName;
 
-  bool get _preserveReasoningContentForHistory =>
-      config.id == ChatModelConfig.deepseek.id;
+  bool get _preserveReasoningContentForHistory => true;
 
   String get _baseUrl;
 
@@ -125,9 +124,7 @@ abstract class BaseChatProvider extends ChatProvider {
 
   @override
   Future<void> initialize() async {
-    final configuredKey = config.id == ChatModelConfig.groq.id
-        ? AppConstants.groqApiKey
-        : AppConstants.deepSeekApiKey;
+    final configuredKey = AppConstants.deepSeekApiKey;
     _apiKey = configuredKey.isNotEmpty ? configuredKey : null;
     _apiKeys = _apiKey != null ? [_apiKey!] : [];
     _selectedModel = ModelSettingsService.instance.current;

@@ -21,10 +21,9 @@ class ModelPickerSheet {
   static Future<String?> show(
     BuildContext context, {
     required String selectedModel,
-    required String providerId,
   }) {
     final theme = Theme.of(context);
-    final models = AIModels.modelsForProvider(providerId);
+    const models = AIModels.deepseekModels;
 
     return ResponsiveInfoSheet.show<String>(
       context,

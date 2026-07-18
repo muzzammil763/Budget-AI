@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:budget_ai/src/helpers/app_constants.dart';
+import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:dio/dio.dart';
 
 class GroqAudioService {
@@ -9,7 +10,6 @@ class GroqAudioService {
   static const String _baseUrl = 'https://api.groq.com/openai/v1';
   static const String transcriptionModel = 'whisper-large-v3-turbo';
   static const String speechModel = 'canopylabs/orpheus-v1-english';
-  static const String speechVoice = 'troy';
 
   final Dio _dio;
 
@@ -36,12 +36,12 @@ class GroqAudioService {
     return response.data?['text']?.toString().trim() ?? '';
   }
 
-  Future<Uint8List> synthesize(String text) async {
+  Future<Uint8List> synthesize(String text, {String? voice}) async {
     final response = await _dio.post<List<int>>(
       '$_baseUrl/audio/speech',
       data: {
         'model': speechModel,
-        'voice': speechVoice,
+        'voice': voice ?? ModelSettingsService.instance.groqVoiceId.value,
         'input': text,
         'response_format': 'wav',
       },
@@ -78,13 +78,16 @@ class GroqAudioService {
     var remaining = normalized;
     while (remaining.length > maxLength) {
       var splitAt = remaining.lastIndexOf(RegExp(r'[.!?]'), maxLength - 1);
+      var includeBoundary = splitAt >= maxLength ~/ 2;
       if (splitAt < maxLength ~/ 2) {
         splitAt = remaining.lastIndexOf(' ', maxLength - 1);
+        includeBoundary = false;
       }
-      if (splitAt <= 0) splitAt = maxLength;
-      final end = splitAt < remaining.length && remaining[splitAt] != ' '
-          ? splitAt + 1
-          : splitAt;
+      if (splitAt <= 0) {
+        splitAt = maxLength;
+        includeBoundary = false;
+      }
+      final end = includeBoundary ? splitAt + 1 : splitAt;
       chunks.add(remaining.substring(0, end).trim());
       remaining = remaining.substring(end).trim();
     }

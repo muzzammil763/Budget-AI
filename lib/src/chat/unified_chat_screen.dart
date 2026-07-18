@@ -24,6 +24,7 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
+import 'package:budget_ai/src/chat/elevenlabs_audio_service.dart';
 import 'package:budget_ai/src/chat/groq_audio_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
@@ -83,6 +84,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GroqAudioService _groqAudioService = GroqAudioService();
+  final ElevenLabsAudioService _elevenLabsAudioService =
+      ElevenLabsAudioService();
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _isSpeaking = false;
@@ -115,7 +118,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _activeConfig = ModelSettingsService.instance.currentConfig;
+    _activeConfig = ChatModelConfig.deepseek;
     _provider = ChatProvider.create(_activeConfig);
     _messageController.addListener(_handleComposerTextChanged);
     _messageController.addListener(_updateCanSend);
@@ -147,24 +150,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _refreshChatConfiguration() async {
-    final nextConfig = ModelSettingsService.instance.currentConfig;
-    if (nextConfig.id != _activeConfig.id) {
-      final conversationState = _provider.exportConversationState();
-      if (_isRecording) await _audioRecorder.cancel();
-      _provider.dispose();
-      _activeConfig = nextConfig;
-      _provider = ChatProvider.create(_activeConfig);
-      await _provider.initialize();
-      _provider.loadConversationState(conversationState);
-      await _audioPlayer.stop();
-      if (mounted) {
-        setState(() {
-          _isRecording = false;
-          _isTranscribing = false;
-          _isSpeaking = false;
-        });
-      }
-    }
     await _loadSelectedModel();
     await _refreshProviderState();
   }
@@ -541,6 +526,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _audioPlayer.dispose();
     _audioRecorder.dispose();
     _groqAudioService.dispose();
+    _elevenLabsAudioService.dispose();
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -1460,8 +1446,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     await _handlePostTurnSessionState();
-    if (turnCompletedSuccessfully && _isGroqSelected) {
-      unawaited(_speakGroqReply(finalAssistantMessage.text));
+    if (turnCompletedSuccessfully) {
+      unawaited(_speakResponse(finalAssistantMessage.text));
     }
     _unfocusComposer();
     _scrollToBottom();
@@ -1472,7 +1458,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _toggleGroqRecording() async {
-    if (!_isGroqSelected || _isTranscribing || _isResponseInProgress) return;
+    if (_isTranscribing || _isResponseInProgress) return;
 
     if (_isRecording) {
       await _finishGroqRecording();
@@ -1549,30 +1535,78 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  Future<void> _speakGroqReply(String text) async {
-    final chunks = GroqAudioService.speechChunks(text);
-    if (chunks.isEmpty || !_isGroqSelected) return;
-
+  Future<void> _speakResponse(String text) async {
+    final speechProvider = ModelSettingsService.instance.currentSpeechProvider;
     try {
       await _audioPlayer.stop();
       if (mounted) setState(() => _isSpeaking = true);
-      for (var index = 0; index < chunks.length; index++) {
-        if (!_isGroqSelected) break;
-        final audio = await _groqAudioService.synthesize(chunks[index]);
-        await _playGroqWaveFile(audio, index);
+      if (speechProvider == ModelSettingsService.elevenLabsSpeechProviderId) {
+        try {
+          await _speakWithElevenLabs(text);
+        } catch (error) {
+          if (mounted) {
+            showAppToast(
+              context,
+              message: 'ElevenLabs unavailable: $error Using Groq instead.',
+              type: ToastificationType.warning,
+            );
+          }
+          await _speakWithGroq(text);
+        }
+      } else {
+        await _speakWithGroq(text);
       }
     } catch (error) {
-      _showGroqAudioError('Could not play Groq voice response', error);
+      _showGroqAudioError('Could not play voice response', error);
     } finally {
       if (mounted) setState(() => _isSpeaking = false);
     }
   }
 
-  Future<void> _playGroqWaveFile(List<int> audio, int chunkIndex) async {
+  Future<void> _speakWithElevenLabs(String text) async {
+    final voiceId = await _resolveElevenLabsVoiceId();
+    final chunks = ElevenLabsAudioService.speechChunks(text);
+    for (var index = 0; index < chunks.length; index++) {
+      final audio = await _elevenLabsAudioService.synthesize(
+        chunks[index],
+        voiceId: voiceId,
+      );
+      await _playSpeechFile(audio, index, extension: 'mp3');
+    }
+  }
+
+  Future<void> _speakWithGroq(String text) async {
+    final chunks = GroqAudioService.speechChunks(text);
+    for (var index = 0; index < chunks.length; index++) {
+      final audio = await _groqAudioService.synthesize(chunks[index]);
+      await _playSpeechFile(audio, index, extension: 'wav');
+    }
+  }
+
+  Future<String> _resolveElevenLabsVoiceId() async {
+    final settings = ModelSettingsService.instance;
+    final selectedVoiceId = settings.elevenLabsVoiceId.value;
+    if (selectedVoiceId != null && selectedVoiceId.isNotEmpty) {
+      return selectedVoiceId;
+    }
+    final voices = await _elevenLabsAudioService.listVoices();
+    if (voices.isEmpty) {
+      throw StateError('No ElevenLabs voices are available for this account.');
+    }
+    final voice = voices.first;
+    await settings.setElevenLabsVoice(id: voice.id, name: voice.name);
+    return voice.id;
+  }
+
+  Future<void> _playSpeechFile(
+    List<int> audio,
+    int chunkIndex, {
+    required String extension,
+  }) async {
     final temporaryDirectory = await getTemporaryDirectory();
     final audioFile = File(
-      '${temporaryDirectory.path}/groq_reply_'
-      '${DateTime.now().microsecondsSinceEpoch}_$chunkIndex.wav',
+      '${temporaryDirectory.path}/budget_ai_reply_'
+      '${DateTime.now().microsecondsSinceEpoch}_$chunkIndex.$extension',
     );
     await audioFile.writeAsBytes(audio, flush: true);
 
@@ -1701,8 +1735,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final hasText = _messageController.text.trim().isNotEmpty;
     return !_isStreaming && !_isRecording && !_isTranscribing && hasText;
   }
-
-  bool get _isGroqSelected => _activeConfig.id == ChatModelConfig.groq.id;
 
   bool get _isResponseInProgress => _isLoading || _isStreaming;
 
@@ -3101,36 +3133,34 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           ),
         ),
         const SizedBox(width: 6),
-        if (_isGroqSelected) ...[
-          SizedBox(
-            width: 42,
-            height: 44,
-            child: IconButton(
-              tooltip: _isRecording
-                  ? 'Stop and send voice message'
-                  : _isTranscribing
-                  ? 'Transcribing voice message'
-                  : _isSpeaking
-                  ? 'Recording stops spoken reply'
-                  : 'Send voice message with Groq',
-              onPressed: _isTranscribing ? null : _toggleGroqRecording,
-              icon: _isTranscribing
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    )
-                  : Icon(
-                      _isRecording
-                          ? CupertinoIcons.stop_circle_fill
-                          : CupertinoIcons.mic_fill,
-                      color: _isRecording
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.primary,
-                    ),
-            ),
+        SizedBox(
+          width: 42,
+          height: 44,
+          child: IconButton(
+            tooltip: _isRecording
+                ? 'Stop and send voice message'
+                : _isTranscribing
+                ? 'Transcribing voice message'
+                : _isSpeaking
+                ? 'Recording stops spoken reply'
+                : 'Send voice message with Groq Whisper',
+            onPressed: _isTranscribing ? null : _toggleGroqRecording,
+            icon: _isTranscribing
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  )
+                : Icon(
+                    _isRecording
+                        ? CupertinoIcons.stop_circle_fill
+                        : CupertinoIcons.mic_fill,
+                    color: _isRecording
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.primary,
+                  ),
           ),
-          const SizedBox(width: 2),
-        ],
+        ),
+        const SizedBox(width: 2),
         ValueListenableBuilder<bool>(
           valueListenable: _canSendNotifier,
           builder: (context, canSend, child) => _buildComposerSendButton(theme),
