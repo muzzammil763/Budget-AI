@@ -107,40 +107,6 @@ Future<List<String>> _buildSystemContextSections() async {
   return sections;
 }
 
-Future<List<Map<String, dynamic>>> _buildMessagesWithContext(
-  List<Map<String, dynamic>> chatHistory, {
-  bool preserveReasoningContent = false,
-}) async {
-  final contextSections = await _buildSystemContextSections();
-  if (contextSections.isEmpty) {
-    return _sanitizeConversationStateForApi(
-      chatHistory,
-      preserveReasoningContent: preserveReasoningContent,
-    );
-  }
-
-  return [
-    {'role': 'system', 'content': contextSections.join('\n\n')},
-    ..._sanitizeConversationStateForApi(
-      chatHistory,
-      preserveReasoningContent: preserveReasoningContent,
-    ),
-  ];
-}
-
-Future<List<Map<String, dynamic>>> _buildToolEnabledMessages(
-  List<Map<String, dynamic>> chatHistory, {
-  bool preserveReasoningContent = false,
-}) async {
-  return [
-    {'role': 'system', 'content': await _buildChatSystemPrompt()},
-    ..._sanitizeConversationStateForApi(
-      chatHistory,
-      preserveReasoningContent: preserveReasoningContent,
-    ),
-  ];
-}
-
 bool _isToolFailure(dynamic result) {
   return result is Map && result['error'] != null;
 }
@@ -151,15 +117,6 @@ String? _terminalToolFailureResponse(String? toolName, dynamic result) {
   final error = result is Map ? result['error']?.toString().trim() ?? '' : '';
   final cleanError = error.isEmpty ? 'Unknown error.' : error;
   return '${formatToolNameForUiFallback(name)} failed: $cleanError';
-}
-
-Map<String, dynamic> _skippedToolAfterFailureResult(String failedToolName) {
-  final failedName = formatToolNameForUiFallback(failedToolName);
-  return {
-    'ok': false,
-    'skipped': true,
-    'error': 'Skipped because $failedName failed earlier in this tool batch.',
-  };
 }
 
 String formatToolNameForUiFallback(String rawName) {
@@ -265,21 +222,6 @@ String _escapeUnescapedJsonStringControlChars(String input) {
   return buffer.toString();
 }
 
-Map<String, dynamic>? _toolCallPayloadForHistory(ToolCallChunk toolCall) {
-  final name = toolCall.name?.trim();
-  final arguments =
-      toolCall.arguments ?? _tryParseToolArguments(toolCall.rawArguments);
-  if (name == null || name.isEmpty || arguments == null) {
-    return null;
-  }
-
-  return {
-    'id': toolCall.id,
-    'type': 'function',
-    'function': {'name': name, 'arguments': jsonEncode(arguments)},
-  };
-}
-
 Map<String, dynamic> _malformedToolCallResult(ToolCallChunk toolCall) {
   return {
     'error':
@@ -324,169 +266,79 @@ String _toolResultContent(dynamic result) {
   return truncateToolPayloadForStorage(result);
 }
 
-String _assistantContentForHistory({
-  required String finalAssistantResponse,
-  required String fullResponse,
-}) {
-  final content = finalAssistantResponse.isEmpty
-      ? fullResponse
-      : finalAssistantResponse;
-  if (content.trim().isNotEmpty) {
-    return content;
-  }
-
-  return 'Tool execution completed.';
-}
-
 List<Map<String, dynamic>> _sanitizeConversationStateForApi(
-  List<Map<String, dynamic>> items, {
-  bool preserveReasoningContent = false,
-}) {
+  List<Map<String, dynamic>> items,
+) {
   final sanitized = <Map<String, dynamic>>[];
-
   var index = 0;
   while (index < items.length) {
     final item = items[index];
+    final type = item['type']?.toString();
     final role = item['role']?.toString();
 
-    if (role == 'assistant' && item['tool_calls'] is List) {
-      final validToolCalls = <Map<String, dynamic>>[];
-      final validToolCallIds = <String>{};
-      for (final rawToolCall in item['tool_calls'] as List) {
-        if (rawToolCall is! Map) {
-          continue;
-        }
-        final toolCall = Map<String, dynamic>.from(rawToolCall);
-        final id = toolCall['id']?.toString() ?? '';
-        final function = toolCall['function'];
-        if (id.isEmpty || function is! Map) {
-          continue;
-        }
-
-        final functionMap = Map<String, dynamic>.from(function);
-        final name = functionMap['name']?.toString().trim() ?? '';
-        final arguments = _tryParseToolArguments(
-          functionMap['arguments']?.toString(),
-        );
-        if (name.isEmpty || arguments == null) {
-          continue;
-        }
-
-        validToolCallIds.add(id);
-        validToolCalls.add({
-          'id': id,
-          'type': 'function',
-          'function': {'name': name, 'arguments': jsonEncode(arguments)},
-        });
-      }
-
-      if (validToolCalls.isEmpty) {
-        final content = item['content']?.toString().trim() ?? '';
-        if (content.isNotEmpty) {
-          sanitized.add({'role': 'assistant', 'content': content});
-        }
-        index++;
-        continue;
-      }
-
-      final sanitizedAssistant = <String, dynamic>{
-        'role': 'assistant',
-        'content': item['content'],
-        'tool_calls': validToolCalls,
-      };
-      if (preserveReasoningContent) {
-        final reasoningContent = item['reasoning_content']?.toString();
-        if (reasoningContent != null && reasoningContent.trim().isNotEmpty) {
-          sanitizedAssistant['reasoning_content'] = reasoningContent;
-        }
-      }
-      sanitized.add(sanitizedAssistant);
-
-      final pendingToolCallIds = validToolCallIds.toSet();
-      var nextIndex = index + 1;
-      while (nextIndex < items.length) {
-        final nextItem = items[nextIndex];
-        if (nextItem['role']?.toString() != 'tool') break;
-        final toolCallId = nextItem['tool_call_id']?.toString() ?? '';
-        if (pendingToolCallIds.remove(toolCallId)) {
-          sanitized.add(Map<String, dynamic>.from(nextItem));
-        }
-        nextIndex++;
-      }
-
-      for (final missingId in pendingToolCallIds) {
-        sanitized.add(_interruptedToolResultForHistory(missingId));
-      }
-
-      index = nextIndex;
-      continue;
-    }
-
-    if (role == 'tool') {
+    if (type == 'function_call' ||
+        type == 'function_call_output' ||
+        type == 'message' ||
+        type == 'reasoning') {
+      sanitized.add(Map<String, dynamic>.from(item));
       index++;
       continue;
     }
 
-    sanitized.add(Map<String, dynamic>.from(item));
+    // Convert saved Chat Completions tool history into Responses API items so
+    // conversations created before the OpenAI migration remain resumable.
+    if (role == 'assistant' && item['tool_calls'] is List) {
+      final content = item['content']?.toString().trim() ?? '';
+      if (content.isNotEmpty) {
+        sanitized.add({'role': 'assistant', 'content': content});
+      }
+
+      final toolResults = <String, String>{};
+      var nextIndex = index + 1;
+      while (nextIndex < items.length &&
+          items[nextIndex]['role']?.toString() == 'tool') {
+        final toolItem = items[nextIndex];
+        final callId = toolItem['tool_call_id']?.toString() ?? '';
+        if (callId.isNotEmpty) {
+          toolResults[callId] = toolItem['content']?.toString() ?? 'No result';
+        }
+        nextIndex++;
+      }
+
+      for (final rawToolCall in item['tool_calls'] as List) {
+        if (rawToolCall is! Map || rawToolCall['function'] is! Map) continue;
+        final callId = rawToolCall['id']?.toString() ?? '';
+        final function = rawToolCall['function'] as Map;
+        final name = function['name']?.toString().trim() ?? '';
+        final arguments = function['arguments']?.toString() ?? '';
+        if (callId.isEmpty || name.isEmpty || arguments.isEmpty) continue;
+        sanitized.add({
+          'type': 'function_call',
+          'call_id': callId,
+          'name': name,
+          'arguments': arguments,
+        });
+        sanitized.add({
+          'type': 'function_call_output',
+          'call_id': callId,
+          'output':
+              toolResults[callId] ??
+              jsonEncode({
+                'error': 'Tool call was interrupted before returning a result.',
+              }),
+        });
+      }
+      index = nextIndex;
+      continue;
+    }
+
+    if (role == 'user' || role == 'assistant') {
+      sanitized.add({
+        'role': role,
+        'content': item['content']?.toString() ?? '',
+      });
+    }
     index++;
   }
-
   return sanitized;
-}
-
-Map<String, dynamic> _interruptedToolResultForHistory(String toolCallId) {
-  return {
-    'role': 'tool',
-    'tool_call_id': toolCallId,
-    'content': jsonEncode({
-      'error': 'Tool call was interrupted before returning a result.',
-    }),
-  };
-}
-
-String? _extractReasoningDelta(dynamic delta) {
-  if (delta is! Map) return null;
-
-  for (final key in const ['reasoning_content', 'reasoning', 'thinking']) {
-    final value = delta[key];
-    if (value is String && value.isNotEmpty) {
-      return value;
-    }
-  }
-
-  final details = delta['reasoning_details'];
-  if (details is List) {
-    final buffer = StringBuffer();
-    for (final item in details) {
-      if (item is! Map) continue;
-      final text = item['text'] ?? item['content'] ?? item['reasoning'];
-      if (text is String && text.isNotEmpty) {
-        buffer.write(text);
-      }
-    }
-    if (buffer.isNotEmpty) {
-      return buffer.toString();
-    }
-  }
-
-  return null;
-}
-
-Map<String, dynamic> _assistantToolCallMessageForHistory({
-  required String roundResponse,
-  String roundReasoningText = '',
-  bool preserveReasoningContent = false,
-  required List<Map<String, dynamic>> toolCallsList,
-}) {
-  final message = <String, dynamic>{
-    'role': 'assistant',
-    'content': roundResponse.isEmpty ? null : roundResponse,
-    'tool_calls': toolCallsList,
-  };
-
-  if (preserveReasoningContent && roundReasoningText.trim().isNotEmpty) {
-    message['reasoning_content'] = roundReasoningText;
-  }
-
-  return message;
 }

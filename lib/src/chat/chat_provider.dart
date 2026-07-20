@@ -6,6 +6,7 @@ import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
+import 'package:budget_ai/src/settings/openai_usage_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
@@ -64,7 +65,7 @@ abstract class ChatProvider {
   void dispose();
 
   factory ChatProvider.create(ChatModelConfig config) {
-    return ChatCompletionsProvider(config);
+    return ResponsesProvider(config);
   }
 }
 
@@ -99,24 +100,21 @@ abstract class BaseChatProvider extends ChatProvider {
 
   String get _providerName => config.displayName;
 
-  bool get _preserveReasoningContentForHistory => true;
-
   String get _baseUrl;
 
-  Map<String, dynamic> get _modelThinkingOptions {
-    switch (_selectedModel) {
-      case 'deepseek-v4-flash':
-        return const {
-          'thinking': {'type': 'disabled'},
-        };
-      case 'deepseek-v4-pro':
-        return const {
-          'thinking': {'type': 'enabled'},
-          'reasoning_effort': 'high',
-        };
-      default:
-        return const {};
+  Map<String, dynamic> get _responseModelOptions {
+    if (_selectedModel.startsWith('gpt-5')) {
+      return const {
+        'reasoning': {'effort': 'low'},
+        'text': {'verbosity': 'low'},
+      };
     }
+    if (_selectedModel == 'o3') {
+      return const {
+        'reasoning': {'effort': 'low'},
+      };
+    }
+    return const {};
   }
 
   @override
@@ -124,7 +122,7 @@ abstract class BaseChatProvider extends ChatProvider {
 
   @override
   Future<void> initialize() async {
-    final configuredKey = AppConstants.deepSeekApiKey;
+    final configuredKey = AppConstants.openAIApiKey;
     _apiKey = configuredKey.isNotEmpty ? configuredKey : null;
     _apiKeys = _apiKey != null ? [_apiKey!] : [];
     _selectedModel = ModelSettingsService.instance.current;
@@ -154,32 +152,55 @@ abstract class BaseChatProvider extends ChatProvider {
     try {
       final response = await _postJsonWithApiKeyFallback(
         dio: _dio,
-        url: '$_baseUrl/chat/completions',
+        url: '$_baseUrl/responses',
         apiKeys: _apiKeys,
         providerName: _providerName,
         data: {
           'model': _selectedModel,
-          ..._modelThinkingOptions,
-          'messages': [
-            {'role': 'user', 'content': prompt},
-          ],
-          'max_tokens': maxTokens,
-          'temperature': temperature,
+          ..._responseModelOptions,
+          'input': prompt,
+          'max_output_tokens': maxTokens,
         },
         onKeySelected: (apiKey) => _apiKey = apiKey,
       );
 
       if (response.statusCode == 200) {
-        return _firstChoice(
-              response.data,
-            )?['message']?['content']?.toString().trim() ??
-            '';
+        _recordResponseUsage(response.data, requestedModel: _selectedModel);
+        return _responseOutputText(response.data).trim();
       }
     } catch (e) {
       debugPrint('[$_providerName] Utility prompt failed: $e');
     }
 
     return '';
+  }
+
+  String _responseOutputText(dynamic payload) {
+    if (payload is! Map) return '';
+    final direct = payload['output_text']?.toString();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final output = payload['output'];
+    if (output is! List) return '';
+    final buffer = StringBuffer();
+    for (final item in output.whereType<Map>()) {
+      if (item['type'] != 'message' || item['content'] is! List) continue;
+      for (final content in (item['content'] as List).whereType<Map>()) {
+        if (content['type'] == 'output_text') {
+          buffer.write(content['text']?.toString() ?? '');
+        }
+      }
+    }
+    return buffer.toString();
+  }
+
+  void _recordResponseUsage(dynamic payload, {required String requestedModel}) {
+    if (payload is! Map || payload['usage'] is! Map) return;
+    unawaited(
+      OpenAIUsageService.instance.recordResponse(
+        model: payload['model']?.toString() ?? requestedModel,
+        usageData: Map<String, dynamic>.from(payload['usage'] as Map),
+      ),
+    );
   }
 
   @override

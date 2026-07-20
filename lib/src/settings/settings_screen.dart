@@ -1,35 +1,33 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:budget_ai/src/chat/elevenlabs_audio_service.dart';
-import 'package:budget_ai/src/chat/gemini_audio_service.dart';
-import 'package:budget_ai/src/chat/groq_audio_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:budget_ai/src/chat/ai_models.dart';
+import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
+import 'package:budget_ai/src/chat/model_picker_sheet.dart';
+import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
+import 'package:budget_ai/src/finances/finance_insights_screen.dart';
+import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
-import 'package:budget_ai/src/finances/finance_service.dart';
-import 'package:budget_ai/src/finances/finance_insights_screen.dart';
-import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/app_backup_service.dart';
+import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
-import 'package:budget_ai/src/chat/ai_models.dart';
-import 'package:budget_ai/src/chat/model_picker_sheet.dart';
-import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
-import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
+import 'package:budget_ai/src/chat/openai_voice.dart';
+import 'package:budget_ai/src/settings/openai_usage_screen.dart';
+import 'package:budget_ai/src/settings/openai_voice_screen.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:toastification/toastification.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -45,20 +43,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPackageInfo();
-  }
-
-  Future<void> _loadPackageInfo() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() => _packageInfo = info);
-    }
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _packageInfo = info);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -66,7 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
         actions: [
-          if (_packageInfo != null) ...[
+          if (_packageInfo != null)
             Text(
               '${_packageInfo!.version} (${_packageInfo!.buildNumber})',
               style: AppTheme.bodySmall.copyWith(
@@ -74,7 +66,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 fontSize: 12,
               ),
             ),
-          ],
           const SizedBox(width: 8),
         ],
         title: const Text('Settings'),
@@ -83,17 +74,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         children: [
           const _SettingsNameEditor(),
-          _buildNavTile(
+          _navTile(
             theme,
             icon: CupertinoIcons.money_dollar_circle,
             title: 'Finances',
-            subtitle: 'View and manage finances data',
+            subtitle: 'View and manage finance data',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FinancesScreen()),
             ),
           ),
-          _buildNavTile(
+          _navTile(
             theme,
             leading: const BudgetMarkIcon(size: 30),
             title: 'Finance Insights',
@@ -102,125 +93,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ValueListenableBuilder<String>(
             valueListenable: CurrencySettingsService.instance.currency,
-            builder: (context, currency, _) {
-              return _buildNavTile(
-                theme,
-                leading: _buildCurrencyLeading(theme, currency),
-                title: 'Currency display',
-                subtitle:
-                    'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
-                onTap: _showCurrencyScreen,
-              );
-            },
+            builder: (context, currency, _) => _navTile(
+              theme,
+              leading: _currencyLeading(theme, currency),
+              title: 'Currency display',
+              subtitle:
+                  'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
+              onTap: () => CurrencyPickerScreen.show(context),
+            ),
           ),
           ValueListenableBuilder<String>(
             valueListenable: ModelSettingsService.instance.modelId,
-            builder: (context, modelId, _) {
-              final model = AIModels.getModelById(modelId);
-              return _buildNavTile(
-                theme,
-                icon: CupertinoIcons.sparkles,
-                title: 'AI Model',
-                subtitle: model?.name ?? modelId,
-                onTap: _showModelSheet,
-              );
-            },
+            builder: (context, modelId, _) => _navTile(
+              theme,
+              icon: CupertinoIcons.sparkles,
+              title: 'OpenAI model',
+              subtitle: AIModels.getModelById(modelId)?.name ?? modelId,
+              onTap: _showModelSheet,
+            ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: ModelSettingsService.instance.microphoneEnabled,
+            builder: (context, enabled, _) => _switchTile(
+              theme,
+              icon: CupertinoIcons.mic_fill,
+              title: 'Microphone input',
+              subtitle:
+                  'OpenAI transcription; spoken replies play only for microphone messages',
+              value: enabled,
+              onChanged: ModelSettingsService.instance.setMicrophoneEnabled,
+            ),
           ),
           ValueListenableBuilder<String>(
-            valueListenable: ModelSettingsService.instance.voiceInputProviderId,
-            builder: (context, inputProviderId, _) {
-              return _buildNavTile(
-                theme,
-                icon: CupertinoIcons.mic_fill,
-                title: 'Voice Input',
-                subtitle:
-                    inputProviderId ==
-                        ModelSettingsService.geminiVoiceInputProviderId
-                    ? 'Gemini 3.5 Flash'
-                    : 'Groq Whisper',
-                onTap: _showVoiceInputProviderSheet,
-              );
-            },
+            valueListenable: ModelSettingsService.instance.voiceId,
+            builder: (context, voiceId, _) => _navTile(
+              theme,
+              icon: CupertinoIcons.speaker_2_fill,
+              title: 'Output voice',
+              subtitle:
+                  '${OpenAIVoices.byId(voiceId)?.name ?? voiceId} · zero-cost bundled previews',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const OpenAIVoiceScreen()),
+              ),
+            ),
           ),
-          ValueListenableBuilder<String>(
-            valueListenable: ModelSettingsService.instance.speechProviderId,
-            builder: (context, speechProviderId, _) {
-              return _buildNavTile(
-                theme,
-                icon: CupertinoIcons.speaker_2_fill,
-                title: 'Speech Provider',
-                subtitle: switch (speechProviderId) {
-                  ModelSettingsService.elevenLabsSpeechProviderId =>
-                    'ElevenLabs',
-                  ModelSettingsService.geminiSpeechProviderId => 'Gemini',
-                  _ => 'Groq',
-                },
-                onTap: _showSpeechProviderSheet,
-              );
-            },
-          ),
-          ValueListenableBuilder<String>(
-            valueListenable: ModelSettingsService.instance.speechProviderId,
-            builder: (context, speechProviderId, _) {
-              if (speechProviderId ==
-                  ModelSettingsService.elevenLabsSpeechProviderId) {
-                return ValueListenableBuilder<String?>(
-                  valueListenable:
-                      ModelSettingsService.instance.elevenLabsVoiceName,
-                  builder: (context, voiceName, _) => _buildNavTile(
-                    theme,
-                    icon: CupertinoIcons.waveform,
-                    title: 'Response Voice',
-                    subtitle: voiceName ?? 'Choose an ElevenLabs voice',
-                    onTap: _showElevenLabsVoiceSheet,
-                  ),
-                );
-              }
-              if (speechProviderId ==
-                  ModelSettingsService.geminiSpeechProviderId) {
-                return ValueListenableBuilder<String>(
-                  valueListenable: ModelSettingsService.instance.geminiVoiceId,
-                  builder: (context, voiceId, _) {
-                    final voice =
-                        ModelSettingsService.instance.currentGeminiVoice;
-                    return _buildNavTile(
-                      theme,
-                      icon: CupertinoIcons.waveform,
-                      title: 'Response Voice',
-                      subtitle: '${voice.id} · ${voice.style}',
-                      onTap: _showGeminiVoiceSheet,
-                    );
-                  },
-                );
-              }
-              return ValueListenableBuilder<String>(
-                valueListenable: ModelSettingsService.instance.groqVoiceId,
-                builder: (context, voiceId, _) {
-                  final voice = ModelSettingsService.instance.currentGroqVoice;
-                  return _buildNavTile(
-                    theme,
-                    icon: CupertinoIcons.speaker_2_fill,
-                    title: 'Response Voice',
-                    subtitle: '${voice.name} · ${voice.gender}',
-                    onTap: _showGroqVoiceSheet,
-                  );
-                },
-              );
-            },
+          _navTile(
+            theme,
+            icon: CupertinoIcons.chart_bar_alt_fill,
+            title: 'OpenAI usage',
+            subtitle:
+                'Local tokens, audio seconds, speech characters, and requests',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OpenAIUsageScreen()),
+            ),
           ),
           ValueListenableBuilder<UserBubbleStyle>(
             valueListenable: BubbleStyleSettingsService.instance.style,
-            builder: (context, style, _) {
-              return _buildNavTile(
-                theme,
-                icon: CupertinoIcons.chat_bubble_2_fill,
-                title: 'Message bubble',
-                subtitle: '${style.label} style for your messages',
-                onTap: _showBubbleStyleSheet,
-              );
-            },
+            builder: (context, style, _) => _navTile(
+              theme,
+              icon: CupertinoIcons.chat_bubble_2_fill,
+              title: 'Message bubble',
+              subtitle: '${style.label} style for your messages',
+              onTap: _showBubbleStyleSheet,
+            ),
           ),
-          _buildNavTile(
+          _navTile(
             theme,
             icon: CupertinoIcons.checkmark_shield,
             title: 'Permissions',
@@ -230,14 +169,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const PermissionsScreen()),
             ),
           ),
-          _buildNavTile(
+          _navTile(
             theme,
             icon: CupertinoIcons.archivebox,
             title: 'Backup & Restore',
-            subtitle: 'Backup & Restore finances data',
+            subtitle: 'Backup and restore finance data',
             onTap: _showBackupRestoreSheet,
           ),
-          _buildNavTile(
+          _navTile(
             theme,
             icon: CupertinoIcons.sparkles,
             title: 'Onboarding',
@@ -254,7 +193,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildNavTile(
+  Widget _navTile(
     ThemeData theme, {
     IconData? icon,
     Widget? leading,
@@ -262,7 +201,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    assert(icon != null || leading != null);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -270,46 +208,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.4),
-            ),
-          ),
+          decoration: _tileDecoration(theme),
           child: Row(
             children: [
               SizedBox(
                 width: 32,
-                child: Center(
-                  child:
-                      leading ??
-                      Icon(icon, size: 24, color: theme.colorScheme.primary),
-                ),
+                child:
+                    leading ??
+                    Icon(icon, size: 24, color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: _tileText(theme, title, subtitle)),
               Icon(
                 CupertinoIcons.chevron_right,
                 size: 16,
@@ -324,24 +233,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildCurrencyLeading(ThemeData theme, String currency) {
-    return Tooltip(
-      message: currency,
+  Widget _switchTile(
+    ThemeData theme, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        child: AutoSizeText(
-          currency,
-          maxLines: 1,
-          maxFontSize: 22,
-          minFontSize: 14,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: _tileDecoration(theme),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Icon(icon, size: 24, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: _tileText(theme, title, subtitle)),
+            Switch.adaptive(value: value, onChanged: onChanged),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tileText(ThemeData theme, String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration _tileDecoration(ThemeData theme) => BoxDecoration(
+    borderRadius: BorderRadius.circular(100),
+    border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.4)),
+  );
+
+  Widget _currencyLeading(ThemeData theme, String currency) {
+    return SizedBox(
+      width: 32,
+      child: AutoSizeText(
+        currency,
+        maxLines: 1,
+        maxFontSize: 22,
+        minFontSize: 14,
+        textAlign: TextAlign.center,
+        style: AppTheme.bodySmall.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -362,234 +322,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _showCurrencyScreen() async {
-    await CurrencyPickerScreen.show(context);
-  }
-
   Future<void> _showModelSheet() async {
     final selected = await ModelPickerSheet.show(
       context,
       selectedModel: ModelSettingsService.instance.current,
     );
-    if (selected == null) return;
-    await ModelSettingsService.instance.setModel(selected);
-  }
-
-  Future<void> _showVoiceInputProviderSheet() async {
-    final theme = Theme.of(context);
-    final selected = await ResponsiveInfoSheet.show<String>(
-      context,
-      title: 'Choose Voice Input',
-      headerIcon: Icon(
-        CupertinoIcons.mic_fill,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _buildSpeechProviderOption(
-          theme,
-          id: ModelSettingsService.groqVoiceInputProviderId,
-          name: 'Groq Whisper',
-          description: 'Fast dedicated speech transcription',
-          selectedId: ModelSettingsService.instance.currentVoiceInputProvider,
-        ),
-        const SizedBox(height: 8),
-        _buildSpeechProviderOption(
-          theme,
-          id: ModelSettingsService.geminiVoiceInputProviderId,
-          name: 'Gemini',
-          description: 'Gemini 3.5 Flash audio understanding',
-          selectedId: ModelSettingsService.instance.currentVoiceInputProvider,
-        ),
-      ],
-    );
-    if (selected == null) return;
-    await ModelSettingsService.instance.setVoiceInputProvider(selected);
-  }
-
-  Future<void> _showSpeechProviderSheet() async {
-    final theme = Theme.of(context);
-    final selected = await ResponsiveInfoSheet.show<String>(
-      context,
-      title: 'Choose Speech Provider',
-      headerIcon: Icon(
-        CupertinoIcons.cloud_fill,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _buildSpeechProviderOption(
-          theme,
-          id: ModelSettingsService.groqSpeechProviderId,
-          name: 'Groq',
-          description: 'Orpheus voices using your Groq API key',
-        ),
-        const SizedBox(height: 8),
-        _buildSpeechProviderOption(
-          theme,
-          id: ModelSettingsService.elevenLabsSpeechProviderId,
-          name: 'ElevenLabs',
-          description: 'Flash v2.5 voices using your ElevenLabs credits',
-        ),
-        const SizedBox(height: 8),
-        _buildSpeechProviderOption(
-          theme,
-          id: ModelSettingsService.geminiSpeechProviderId,
-          name: 'Gemini',
-          description: 'Gemini 3.1 Flash native text-to-speech',
-        ),
-      ],
-    );
-    if (selected == null) return;
-    await ModelSettingsService.instance.setSpeechProvider(selected);
-  }
-
-  Widget _buildSpeechProviderOption(
-    ThemeData theme, {
-    required String id,
-    required String name,
-    required String description,
-    String? selectedId,
-  }) {
-    final selected =
-        id ==
-        (selectedId ?? ModelSettingsService.instance.currentSpeechProvider);
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: () => Navigator.pop(context, id),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: selected ? 1.4 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected
-                  ? CupertinoIcons.check_mark_circled_solid
-                  : CupertinoIcons.circle,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: AppTheme.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showGroqVoiceSheet() async {
-    final theme = Theme.of(context);
-    final selected = await ResponsiveInfoSheet.show<String>(
-      context,
-      title: 'Choose Response Voice',
-      headerIcon: Icon(
-        CupertinoIcons.speaker_2_fill,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _GroqVoicePicker(
-          selectedVoiceId: ModelSettingsService.instance.groqVoiceId.value,
-          onSelected: (voiceId) => Navigator.pop(context, voiceId),
-        ),
-      ],
-    );
-    if (selected == null) return;
-    await ModelSettingsService.instance.setGroqVoice(selected);
-  }
-
-  Future<void> _showElevenLabsVoiceSheet() async {
-    final theme = Theme.of(context);
-    final selected = await ResponsiveInfoSheet.show<ElevenLabsVoice>(
-      context,
-      title: 'Choose ElevenLabs Voice',
-      headerIcon: Icon(
-        CupertinoIcons.waveform,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _ElevenLabsVoicePicker(
-          selectedVoiceId:
-              ModelSettingsService.instance.elevenLabsVoiceId.value,
-          onSelected: (voice) => Navigator.pop(context, voice),
-        ),
-      ],
-    );
-    if (selected == null) return;
-    await ModelSettingsService.instance.setElevenLabsVoice(
-      id: selected.id,
-      name: selected.name,
-    );
-  }
-
-  Future<void> _showGeminiVoiceSheet() async {
-    final theme = Theme.of(context);
-    final selected = await ResponsiveInfoSheet.show<String>(
-      context,
-      title: 'Choose Gemini Voice',
-      headerIcon: Icon(
-        CupertinoIcons.waveform,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _GeminiVoicePicker(
-          selectedVoiceId: ModelSettingsService.instance.geminiVoiceId.value,
-          onSelected: (voiceId) => Navigator.pop(context, voiceId),
-        ),
-      ],
-    );
-    if (selected == null) return;
-    await ModelSettingsService.instance.setGeminiVoice(selected);
+    if (selected != null) {
+      await ModelSettingsService.instance.setModel(selected);
+    }
   }
 
   Future<void> _showBubbleStyleSheet() async {
@@ -625,7 +365,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         theme.colorScheme.primary.withValues(alpha: 0.78),
       ],
       contentWidgets: [
-        _buildSheetAction(
+        _sheetAction(
           theme,
           icon: CupertinoIcons.cloud_upload,
           title: 'Backup',
@@ -636,7 +376,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
         ),
         const SizedBox(height: 8),
-        _buildSheetAction(
+        _sheetAction(
           theme,
           icon: CupertinoIcons.cloud_download,
           title: 'Restore',
@@ -650,7 +390,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSheetAction(
+  Widget _sheetAction(
     ThemeData theme, {
     required IconData icon,
     required String title,
@@ -670,36 +410,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: theme.colorScheme.primary, size: 24),
+            Icon(icon, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
+            Expanded(child: _tileText(theme, title, subtitle)),
           ],
         ),
       ),
@@ -709,11 +422,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _exportBackup() async {
     try {
       await AppBackupService.instance.shareBackup();
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       showAppToast(
         context,
-        message: 'Backup Failed: $e',
+        message: 'Backup failed: $error',
         type: ToastificationType.error,
       );
     }
@@ -725,776 +438,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
-
-      if (result == null) return;
-
-      final file = File(result.path!);
-      if (!await file.exists()) {
-        if (!mounted) return;
-        showAppToast(
-          context,
-          message: 'File Not Found',
-          type: ToastificationType.error,
-        );
-        return;
-      }
-
+      if (result?.path == null) return;
       final restoreResult = await AppBackupService.instance.restoreFromFile(
-        file,
+        File(result!.path!),
       );
-
-      if (!mounted) return;
-      if (restoreResult['ok'] == true) {
-        showAppToast(
-          context,
-          message:
-              restoreResult['message']?.toString() ??
-              'Backup Restored Successfully!',
-          type: ToastificationType.success,
-        );
-      } else {
-        showAppToast(
-          context,
-          message: restoreResult['error']?.toString() ?? 'Restore Failed',
-          type: ToastificationType.error,
-        );
-      }
-    } catch (e) {
       if (!mounted) return;
       showAppToast(
         context,
-        message: 'Restore Failed: $e',
-        type: ToastificationType.error,
-      );
-    }
-  }
-}
-
-class _ElevenLabsVoicePicker extends StatefulWidget {
-  const _ElevenLabsVoicePicker({
-    required this.selectedVoiceId,
-    required this.onSelected,
-  });
-
-  final String? selectedVoiceId;
-  final ValueChanged<ElevenLabsVoice> onSelected;
-
-  @override
-  State<_ElevenLabsVoicePicker> createState() => _ElevenLabsVoicePickerState();
-}
-
-class _ElevenLabsVoicePickerState extends State<_ElevenLabsVoicePicker> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final ElevenLabsAudioService _audioService = ElevenLabsAudioService();
-  late Future<List<ElevenLabsVoice>> _voicesFuture;
-  String? _previewingVoiceId;
-  Completer<void>? _activePlaybackCompletion;
-  int _previewGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _voicesFuture = _audioService.listVoices();
-  }
-
-  @override
-  void dispose() {
-    _previewGeneration++;
-    _completeActivePlayback();
-    unawaited(_audioPlayer.stop());
-    _audioPlayer.dispose();
-    _audioService.dispose();
-    super.dispose();
-  }
-
-  Future<void> _togglePreview(ElevenLabsVoice voice) async {
-    if (_previewingVoiceId == voice.id) {
-      await _cancelPreview();
-      return;
-    }
-
-    final generation = ++_previewGeneration;
-    await _audioPlayer.stop();
-    _completeActivePlayback();
-    if (!mounted || generation != _previewGeneration) return;
-    setState(() => _previewingVoiceId = voice.id);
-
-    File? generatedPreviewFile;
-    try {
-      final previewUrl = voice.previewUrl;
-      if (previewUrl != null && previewUrl.isNotEmpty) {
-        await _playSource(UrlSource(previewUrl), generation);
-      } else {
-        final audio = await _audioService.synthesize(
-          'Hello, I am ${voice.name}, your Budget AI voice assistant.',
-          voiceId: voice.id,
-        );
-        if (!mounted || generation != _previewGeneration) return;
-        final temporaryDirectory = await getTemporaryDirectory();
-        generatedPreviewFile = File(
-          '${temporaryDirectory.path}/elevenlabs_voice_preview_'
-          '${voice.id}_${DateTime.now().microsecondsSinceEpoch}.mp3',
-        );
-        await generatedPreviewFile.writeAsBytes(audio, flush: true);
-        await _playSource(
-          DeviceFileSource(generatedPreviewFile.path),
-          generation,
-        );
-      }
-    } catch (error) {
-      if (!mounted || generation != _previewGeneration) return;
-      showAppToast(
-        context,
         message:
-            'Could not preview ${voice.name}. '
-            '${error.toString().replaceFirst('Exception: ', '')}',
-        type: ToastificationType.error,
+            restoreResult['message']?.toString() ??
+            restoreResult['error']?.toString() ??
+            'Restore finished',
+        type: restoreResult['ok'] == true
+            ? ToastificationType.success
+            : ToastificationType.error,
       );
-    } finally {
-      if (generatedPreviewFile != null) {
-        try {
-          if (await generatedPreviewFile.exists()) {
-            await generatedPreviewFile.delete();
-          }
-        } catch (_) {}
-      }
-      if (mounted && generation == _previewGeneration) {
-        setState(() => _previewingVoiceId = null);
-      }
-    }
-  }
-
-  Future<void> _playSource(Source source, int generation) async {
-    final completed = Completer<void>();
-    _activePlaybackCompletion = completed;
-    Object? playbackError;
-    final completionSubscription = _audioPlayer.onPlayerComplete.listen(
-      (_) {
-        if (!completed.isCompleted) completed.complete();
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        playbackError = error;
-        if (!completed.isCompleted) completed.complete();
-      },
-    );
-    try {
-      if (generation != _previewGeneration) return;
-      await _audioPlayer.play(source);
-      await completed.future.timeout(const Duration(minutes: 1));
-      if (playbackError != null) throw playbackError!;
-    } finally {
-      if (identical(_activePlaybackCompletion, completed)) {
-        _activePlaybackCompletion = null;
-      }
-      await completionSubscription.cancel();
-    }
-  }
-
-  Future<void> _cancelPreview() async {
-    _previewGeneration++;
-    _completeActivePlayback();
-    await _audioPlayer.stop();
-    if (mounted) setState(() => _previewingVoiceId = null);
-  }
-
-  void _completeActivePlayback() {
-    final completion = _activePlaybackCompletion;
-    if (completion != null && !completion.isCompleted) completion.complete();
-    _activePlaybackCompletion = null;
-  }
-
-  void _retry() {
-    setState(() => _voicesFuture = _audioService.listVoices());
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return FutureBuilder<List<ElevenLabsVoice>>(
-      future: _voicesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 36),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.hasError) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Could not load ElevenLabs voices. Check ELEVENLABS_API_KEY and try again.',
-                textAlign: TextAlign.center,
-                style: AppTheme.bodyMedium.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _retry,
-                icon: const Icon(CupertinoIcons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          );
-        }
-        final voices = snapshot.data ?? const <ElevenLabsVoice>[];
-        if (voices.isEmpty) {
-          return Text(
-            'No voices are available for this ElevenLabs account.',
-            textAlign: TextAlign.center,
-            style: AppTheme.bodyMedium,
-          );
-        }
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Previews use ElevenLabs\' supplied samples when available and do not consume synthesis credits.',
-              style: AppTheme.bodySmall.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            for (var i = 0; i < voices.length; i++) ...[
-              if (i > 0) const SizedBox(height: 8),
-              _buildVoiceOption(theme, voices[i]),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildVoiceOption(ThemeData theme, ElevenLabsVoice voice) {
-    final selected = voice.id == widget.selectedVoiceId;
-    final isPreviewing = voice.id == _previewingVoiceId;
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: () => widget.onSelected(voice),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 11, 8, 11),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: selected ? 1.4 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected
-                  ? CupertinoIcons.check_mark_circled_solid
-                  : CupertinoIcons.circle,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    voice.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTheme.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (voice.detail.isNotEmpty)
-                    Text(
-                      voice.detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            _buildPreviewButton(theme, voice, isPreviewing),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPreviewButton(
-    ThemeData theme,
-    ElevenLabsVoice voice,
-    bool isPreviewing,
-  ) {
-    return IconButton(
-      tooltip: isPreviewing
-          ? 'Stop ${voice.name} preview'
-          : 'Preview ${voice.name}',
-      onPressed: () => _togglePreview(voice),
-      icon: isPreviewing
-          ? SizedBox.square(
-              dimension: 28,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colorScheme.primary,
-                  ),
-                  Icon(
-                    CupertinoIcons.stop_fill,
-                    size: 13,
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
-              ),
-            )
-          : Icon(
-              CupertinoIcons.play_circle_fill,
-              color: theme.colorScheme.primary,
-              size: 28,
-            ),
-    );
-  }
-}
-
-class _GeminiVoicePicker extends StatefulWidget {
-  const _GeminiVoicePicker({
-    required this.selectedVoiceId,
-    required this.onSelected,
-  });
-
-  final String selectedVoiceId;
-  final ValueChanged<String> onSelected;
-
-  @override
-  State<_GeminiVoicePicker> createState() => _GeminiVoicePickerState();
-}
-
-class _GeminiVoicePickerState extends State<_GeminiVoicePicker> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final GeminiAudioService _audioService = GeminiAudioService();
-  String? _previewingVoiceId;
-  Completer<void>? _activePlaybackCompletion;
-  int _previewGeneration = 0;
-
-  @override
-  void dispose() {
-    _previewGeneration++;
-    _completeActivePlayback();
-    unawaited(_audioPlayer.stop());
-    _audioPlayer.dispose();
-    _audioService.dispose();
-    super.dispose();
-  }
-
-  Future<void> _togglePreview(GeminiVoiceOption voice) async {
-    if (_previewingVoiceId == voice.id) {
-      await _cancelPreview();
-      return;
-    }
-    final generation = ++_previewGeneration;
-    await _audioPlayer.stop();
-    _completeActivePlayback();
-    if (!mounted || generation != _previewGeneration) return;
-    setState(() => _previewingVoiceId = voice.id);
-
-    File? audioFile;
-    try {
-      final audio = await _audioService.synthesize(
-        'Hello, I am ${voice.id}, your Budget AI voice assistant.',
-        voiceName: voice.id,
-      );
-      if (!mounted || generation != _previewGeneration) return;
-      final temporaryDirectory = await getTemporaryDirectory();
-      audioFile = File(
-        '${temporaryDirectory.path}/gemini_voice_preview_'
-        '${voice.id}_${DateTime.now().microsecondsSinceEpoch}.wav',
-      );
-      await audioFile.writeAsBytes(audio, flush: true);
-      await _playSource(DeviceFileSource(audioFile.path), generation);
     } catch (error) {
-      if (!mounted || generation != _previewGeneration) return;
+      if (!mounted) return;
       showAppToast(
         context,
-        message: 'Could not preview ${voice.id}. $error',
+        message: 'Restore failed: $error',
         type: ToastificationType.error,
       );
-    } finally {
-      if (audioFile != null) {
-        try {
-          if (await audioFile.exists()) await audioFile.delete();
-        } catch (_) {}
-      }
-      if (mounted && generation == _previewGeneration) {
-        setState(() => _previewingVoiceId = null);
-      }
     }
-  }
-
-  Future<void> _playSource(Source source, int generation) async {
-    final completed = Completer<void>();
-    _activePlaybackCompletion = completed;
-    Object? playbackError;
-    final subscription = _audioPlayer.onPlayerComplete.listen(
-      (_) {
-        if (!completed.isCompleted) completed.complete();
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        playbackError = error;
-        if (!completed.isCompleted) completed.complete();
-      },
-    );
-    try {
-      if (generation != _previewGeneration) return;
-      await _audioPlayer.play(source);
-      await completed.future.timeout(const Duration(minutes: 1));
-      if (playbackError != null) throw playbackError!;
-    } finally {
-      if (identical(_activePlaybackCompletion, completed)) {
-        _activePlaybackCompletion = null;
-      }
-      await subscription.cancel();
-    }
-  }
-
-  Future<void> _cancelPreview() async {
-    _previewGeneration++;
-    _completeActivePlayback();
-    await _audioPlayer.stop();
-    if (mounted) setState(() => _previewingVoiceId = null);
-  }
-
-  void _completeActivePlayback() {
-    final completion = _activePlaybackCompletion;
-    if (completion != null && !completion.isCompleted) completion.complete();
-    _activePlaybackCompletion = null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Gemini previews are generated live and may use your Gemini API quota.',
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 12),
-        for (var i = 0; i < ModelSettingsService.geminiVoices.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _buildVoiceOption(theme, ModelSettingsService.geminiVoices[i]),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildVoiceOption(ThemeData theme, GeminiVoiceOption voice) {
-    final selected = voice.id == widget.selectedVoiceId;
-    final isPreviewing = voice.id == _previewingVoiceId;
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: () => widget.onSelected(voice.id),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 11, 8, 11),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: selected ? 1.4 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected
-                  ? CupertinoIcons.check_mark_circled_solid
-                  : CupertinoIcons.circle,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    voice.id,
-                    style: AppTheme.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    voice.style,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: isPreviewing
-                  ? 'Stop ${voice.id} preview'
-                  : 'Preview ${voice.id}',
-              onPressed: () => _togglePreview(voice),
-              icon: isPreviewing
-                  ? SizedBox.square(
-                      dimension: 28,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: theme.colorScheme.primary,
-                          ),
-                          Icon(
-                            CupertinoIcons.stop_fill,
-                            size: 13,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ],
-                      ),
-                    )
-                  : Icon(
-                      CupertinoIcons.play_circle_fill,
-                      color: theme.colorScheme.primary,
-                      size: 28,
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GroqVoicePicker extends StatefulWidget {
-  const _GroqVoicePicker({
-    required this.selectedVoiceId,
-    required this.onSelected,
-  });
-
-  final String selectedVoiceId;
-  final ValueChanged<String> onSelected;
-
-  @override
-  State<_GroqVoicePicker> createState() => _GroqVoicePickerState();
-}
-
-class _GroqVoicePickerState extends State<_GroqVoicePicker> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final GroqAudioService _audioService = GroqAudioService();
-  String? _previewingVoiceId;
-  Completer<void>? _activePlaybackCompletion;
-  int _previewGeneration = 0;
-
-  @override
-  void dispose() {
-    _previewGeneration++;
-    _completeActivePlayback();
-    unawaited(_audioPlayer.stop());
-    _audioPlayer.dispose();
-    _audioService.dispose();
-    super.dispose();
-  }
-
-  Future<void> _togglePreview(GroqVoiceOption voice) async {
-    if (_previewingVoiceId == voice.id) {
-      await _cancelPreview();
-      return;
-    }
-
-    final generation = ++_previewGeneration;
-    await _audioPlayer.stop();
-    _completeActivePlayback();
-    if (!mounted || generation != _previewGeneration) return;
-    setState(() => _previewingVoiceId = voice.id);
-
-    try {
-      final audio = await _audioService.synthesize(
-        'Hello, I am ${voice.name}, your Budget AI voice assistant.',
-        voice: voice.id,
-      );
-      if (!mounted || generation != _previewGeneration) return;
-      await _playWavePreview(audio, voice.id, generation);
-    } catch (error) {
-      if (!mounted || generation != _previewGeneration) return;
-      showAppToast(
-        context,
-        message:
-            'Could not preview ${voice.name}. '
-            '${error.toString().replaceFirst('Exception: ', '')}',
-        type: ToastificationType.error,
-      );
-    } finally {
-      if (mounted && generation == _previewGeneration) {
-        setState(() => _previewingVoiceId = null);
-      }
-    }
-  }
-
-  Future<void> _cancelPreview() async {
-    _previewGeneration++;
-    _completeActivePlayback();
-    await _audioPlayer.stop();
-    if (mounted) setState(() => _previewingVoiceId = null);
-  }
-
-  void _completeActivePlayback() {
-    final completion = _activePlaybackCompletion;
-    if (completion != null && !completion.isCompleted) completion.complete();
-    _activePlaybackCompletion = null;
-  }
-
-  Future<void> _playWavePreview(
-    List<int> audio,
-    String voiceId,
-    int generation,
-  ) async {
-    final temporaryDirectory = await getTemporaryDirectory();
-    final audioFile = File(
-      '${temporaryDirectory.path}/groq_voice_preview_'
-      '${voiceId}_${DateTime.now().microsecondsSinceEpoch}.wav',
-    );
-    await audioFile.writeAsBytes(audio, flush: true);
-
-    final completed = Completer<void>();
-    _activePlaybackCompletion = completed;
-    Object? playbackError;
-    final completionSubscription = _audioPlayer.onPlayerComplete.listen(
-      (_) {
-        if (!completed.isCompleted) completed.complete();
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        playbackError = error;
-        if (!completed.isCompleted) completed.complete();
-      },
-    );
-
-    try {
-      if (generation != _previewGeneration) return;
-      await _audioPlayer.play(DeviceFileSource(audioFile.path));
-      await completed.future.timeout(const Duration(minutes: 1));
-      if (playbackError != null) throw playbackError!;
-    } finally {
-      if (identical(_activePlaybackCompletion, completed)) {
-        _activePlaybackCompletion = null;
-      }
-      await completionSubscription.cancel();
-      try {
-        if (await audioFile.exists()) await audioFile.delete();
-      } catch (_) {
-        // Preview cleanup should not surface as a playback failure.
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < ModelSettingsService.groqVoices.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _buildVoiceOption(theme, ModelSettingsService.groqVoices[i]),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildVoiceOption(ThemeData theme, GroqVoiceOption voice) {
-    final selected = voice.id == widget.selectedVoiceId;
-    final isPreviewing = voice.id == _previewingVoiceId;
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: () => widget.onSelected(voice.id),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 11, 8, 11),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: selected ? 1.4 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected
-                  ? CupertinoIcons.check_mark_circled_solid
-                  : CupertinoIcons.circle,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    voice.name,
-                    style: AppTheme.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    voice.gender,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: isPreviewing
-                  ? 'Stop ${voice.name} preview'
-                  : 'Preview ${voice.name}',
-              onPressed: () => _togglePreview(voice),
-              icon: isPreviewing
-                  ? SizedBox.square(
-                      dimension: 28,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: theme.colorScheme.primary,
-                          ),
-                          Icon(
-                            CupertinoIcons.stop_fill,
-                            size: 13,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ],
-                      ),
-                    )
-                  : Icon(
-                      CupertinoIcons.play_circle_fill,
-                      color: theme.colorScheme.primary,
-                      size: 28,
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -1506,91 +472,27 @@ class _BubbleStylePicker extends StatefulWidget {
 }
 
 class _BubbleStylePickerState extends State<_BubbleStylePicker> {
-  late UserBubbleStyle _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = BubbleStyleSettingsService.instance.current;
-  }
+  UserBubbleStyle get _selected => BubbleStyleSettingsService.instance.current;
 
   Future<void> _select(UserBubbleStyle style) async {
-    if (style == _selected) return;
-    setState(() => _selected = style);
     HapticFeedback.selectionClick();
     await BubbleStyleSettingsService.instance.setStyle(style);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final previewForeground = UserBubbleStyleSurface.foregroundColor(
-      context,
-      _selected,
-    );
-
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width,
-            ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              child: UserBubbleStyleSurface(
-                key: ValueKey(_selected),
-                style: _selected,
-                child: Text(
-                  'Your budget chats can match your style. Choose it Nicely',
-                  style: AppTheme.bodyMedium.copyWith(
-                    color: previewForeground,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-            ),
+        for (var i = 0; i < UserBubbleStyle.values.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _BubbleStyleOption(
+            style: UserBubbleStyle.values[i],
+            selected: _selected == UserBubbleStyle.values[i],
+            onTap: () => _select(UserBubbleStyle.values[i]),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Designed for Budget AI',
-          style: AppTheme.headingSmall.copyWith(
-            color: theme.colorScheme.onSurface,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Tap a look to apply it. Existing and new chats update together.',
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 1.5,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: UserBubbleStyle.values.length,
-          itemBuilder: (context, index) {
-            final style = UserBubbleStyle.values[index];
-            return _BubbleStyleOption(
-              style: style,
-              selected: style == _selected,
-              onTap: () => _select(style),
-            );
-          },
-        ),
-        const SizedBox(height: 4),
+        ],
       ],
     );
   }
@@ -1610,82 +512,59 @@ class _BubbleStyleOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = UserBubbleStyleSurface.foregroundColor(context, style);
-
-    return Semantics(
-      selected: selected,
-      button: true,
-      label: '${style.label} message bubble',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
-              width: selected ? 2 : 1,
-            ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+            width: selected ? 1.5 : 1,
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: UserBubbleStyleSurface(
-                      style: style,
-                      preview: true,
-                      child: Center(
-                        child: Container(
-                          width: 22,
-                          height: 3,
-                          decoration: BoxDecoration(
-                            color: foreground.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                    ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  selected
+                      ? CupertinoIcons.check_mark_circled_solid
+                      : CupertinoIcons.circle,
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
+                      size: 30,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  style.label,
+                  style: AppTheme.bodyMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                   
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: UserBubbleStyleSurface(
+                style: style,
+                child: ExpandableUserMessageText(
+                  text: 'This is how your message will look, take a look and choose your style',
+                  style: UserBubbleStyleSurface.messageTextStyle(
+                    context,
+                    style,
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      style.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 12,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (selected) ...[
-                    const SizedBox(width: 3),
-                    Icon(
-                      Icons.check,
-                      size: 16,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

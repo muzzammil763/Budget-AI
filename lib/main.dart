@@ -8,6 +8,7 @@ import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
+import 'package:budget_ai/src/settings/openai_usage_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:device_preview/device_preview.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
   await dotenv.load(fileName: '.env');
   await CurrencySettingsService.instance.initialize();
   await ModelSettingsService.instance.initialize();
+  await OpenAIUsageService.instance.initialize();
   await UserNameSettingsService.instance.initialize();
   await BubbleStyleSettingsService.instance.initialize();
   await NotificationService.instance.initialize();
@@ -58,7 +60,7 @@ class MyApp extends StatelessWidget {
       home: SplashScreen(
         child: showOnboarding
             ? const OnboardingScreen()
-            : UnifiedChatScreen(config: ChatModelConfig.deepseek),
+            : UnifiedChatScreen(config: ChatModelConfig.openAI),
       ),
     );
   }

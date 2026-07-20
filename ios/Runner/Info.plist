@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Budget AI uses Face ID to protect your current balance.</string>
+	<string>Budget AI Uses Face ID To Protect Your Current Balance.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Budget AI uses the microphone to transcribe Groq voice messages.</string>
+	<string>Budget AI Uses The Microphone To Transcribe Voice Messages With OpenAI.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

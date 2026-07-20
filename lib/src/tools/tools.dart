@@ -33,6 +33,14 @@ class ToolDefinition {
       'parameters': parameters,
     },
   };
+
+  Map<String, dynamic> toResponsesJson() => {
+    'type': 'function',
+    'name': name,
+    'description': description,
+    'parameters': parameters,
+    'strict': false,
+  };
 }
 
 class ToolExecutionEvent {

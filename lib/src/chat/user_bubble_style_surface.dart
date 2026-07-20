@@ -21,6 +21,16 @@ class UserBubbleStyleSurface extends StatelessWidget {
     return AppTheme.readableOn(background);
   }
 
+  static TextStyle messageTextStyle(
+    BuildContext context,
+    UserBubbleStyle style,
+  ) {
+    return AppTheme.bodyMedium.copyWith(
+      color: foregroundColor(context, style),
+      fontSize: 16,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = _palette(Theme.of(context), style);
@@ -44,6 +54,7 @@ EdgeInsets _contentInsets(UserBubbleStyle style, {required bool preview}) {
   return switch (style) {
     UserBubbleStyle.paperCurl => const EdgeInsets.fromLTRB(18, 17, 24, 17),
     UserBubbleStyle.sketchFrame => const EdgeInsets.fromLTRB(22, 17, 22, 19),
+    UserBubbleStyle.vault => const EdgeInsets.fromLTRB(18, 16, 38, 16),
     UserBubbleStyle.cashFlow ||
     UserBubbleStyle.receipt => const EdgeInsets.fromLTRB(18, 16, 18, 21),
     _ => const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -297,13 +308,16 @@ class _UserBubblePainter extends CustomPainter {
   void _drawSavings(Canvas canvas, Size size, Paint line, Paint detail) {
     canvas.drawCircle(Offset(14, size.height - 11), 5, detail);
     canvas.drawCircle(Offset(23, size.height - 7), 3.5, detail);
+    canvas.save();
+    canvas.clipPath(_bubblePath(size));
     canvas.drawArc(
-      Rect.fromCircle(center: Offset(size.width - 17, 12), radius: 7),
-      math.pi * 0.12,
-      math.pi * 1.45,
+      Rect.fromCircle(center: Offset(size.width, 13), radius: 10),
+      0,
+      math.pi * 2,
       false,
       line,
     );
+    canvas.restore();
   }
 
   void _drawCashFlow(Canvas canvas, Size size, Paint line) {

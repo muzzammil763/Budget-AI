@@ -46,6 +46,7 @@ flutter:
   assets:
     - .env
     - assets/icons/
+    - assets/audio/openai_voices/
 
   fonts:
     - family: Google Sans

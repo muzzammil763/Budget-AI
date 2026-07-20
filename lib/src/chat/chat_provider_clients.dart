@@ -1,102 +1,20 @@
 part of 'chat_provider.dart';
 
-/// Chat completions implementation using Dio with cancellation support.
-class ChatCompletionsProvider extends BaseChatProvider {
+/// OpenAI Responses API implementation with streaming and local function tools.
+class ResponsesProvider extends BaseChatProvider {
   @override
   String get _baseUrl => config.apiBaseUrl;
 
-  ChatCompletionsProvider(super.config, {super.dio})
+  ResponsesProvider(super.config, {super.dio, super.toolRegistry})
     : super(defaultSelectedModel: AIModels.defaultModelId);
 
   @override
   Stream<String> sendMessageStream(String message) async* {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      throw _providerException(
-        _providerName,
-        '$_providerName API key is not configured for this build.',
-      );
-    }
-
-    _chatHistory.add({'role': 'user', 'content': message});
-
-    debugPrint(
-      '[$_providerName] Sending request to $_baseUrl/chat/completions',
-    );
-    debugPrint('[$_providerName] Model: $_selectedModel');
-
-    // Create a new cancel token for this request
-    _cancelToken = CancelToken();
-    _lastResponseMetadata = null;
-
-    try {
-      final response = await _postStreamWithApiKeyFallback(
-        dio: _dio,
-        url: '$_baseUrl/chat/completions',
-        apiKeys: _apiKeys,
-        providerName: _providerName,
-        data: {
-          'model': _selectedModel,
-          ..._modelThinkingOptions,
-          'messages': await _buildMessagesWithContext(
-            _chatHistory,
-            preserveReasoningContent: _preserveReasoningContentForHistory,
-          ),
-          'stream': true,
-          'stream_options': {'include_usage': true},
-        },
-        cancelToken: _cancelToken,
-        onKeySelected: (apiKey) => _apiKey = apiKey,
-      );
-
-      String fullResponse = '';
-
-      await for (final chunk in response.data!.stream) {
-        // Check if cancelled during streaming
-        if (_cancelToken?.isCancelled ?? false) {
-          throw CancelledException();
-        }
-
-        final lines = utf8.decode(chunk).split('\n');
-
-        for (final line in lines) {
-          if (line.startsWith('data: ') && line != 'data: [DONE]') {
-            final data = line.substring(6);
-            if (data.isNotEmpty) {
-              try {
-                final json = jsonDecode(data);
-                final responseMetadata = _extractResponseMetadata(
-                  Map<String, dynamic>.from(json as Map),
-                  requestedModel: _selectedModel,
-                  providerName: _providerName,
-                );
-                if (responseMetadata.length > 2) {
-                  _lastResponseMetadata = mergeResponseMetadata(
-                    _lastResponseMetadata ?? const <String, dynamic>{},
-                    responseMetadata,
-                  );
-                }
-                final delta = _firstChoice(json)?['delta']?['content'];
-                if (delta != null && delta.isNotEmpty) {
-                  fullResponse += delta;
-                  yield delta;
-                }
-              } catch (e) {
-                debugPrint('[$_providerName] Error parsing SSE: $e');
-              }
-            }
-          }
-        }
-      }
-
-      // Add assistant response to history
-      _chatHistory.add({'role': 'assistant', 'content': fullResponse});
-    } on DioException catch (e) {
-      if (CancelToken.isCancel(e)) {
-        throw CancelledException();
-      }
-      throw await _mapDioException(_providerName, e);
-    } finally {
-      _cancelToken = null;
+    await for (final chunk in sendMessageStreamWithThinking(
+      message,
+      enableToolCalls: false,
+    )) {
+      if (chunk.content.isNotEmpty) yield chunk.content;
     }
   }
 
@@ -113,26 +31,18 @@ class ChatCompletionsProvider extends BaseChatProvider {
     }
 
     _chatHistory.add({'role': 'user', 'content': message});
-
     final tools = enableToolCalls ? _toolRegistry.getAvailableTools() : [];
     final hasTools = tools.isNotEmpty;
 
-    debugPrint(
-      '[$_providerName] Sending request to $_baseUrl/chat/completions',
-    );
+    debugPrint('[$_providerName] Sending request to $_baseUrl/responses');
     debugPrint('[$_providerName] Model: $_selectedModel');
     debugPrint('[$_providerName] Tool calls enabled: $enableToolCalls');
-    debugPrint(
-      '[$_providerName] Tools available: ${tools.map((t) => t.name).toList()}',
-    );
 
     _cancelToken = CancelToken();
     _lastResponseMetadata = null;
 
     try {
-      String fullResponse = '';
-      String finalAssistantResponse = '';
-      bool shouldContinue = false;
+      var shouldContinue = false;
       final toolCallTracker = _ToolCallTracker(
         maxRounds: 25,
         maxTotalCalls: 60,
@@ -142,32 +52,36 @@ class ChatCompletionsProvider extends BaseChatProvider {
       do {
         shouldContinue = false;
         toolCallTracker.beginRound();
-        String roundResponse = '';
-        String roundReasoningText = '';
-        bool isInReasoningPhase = true;
-        final Map<String, ToolCallChunk> activeToolCalls = {};
-        finalAssistantResponse = '';
-        String buffer = '';
+        if (toolCallTracker.isBudgetExhausted) {
+          yield ChatStreamChunk(
+            content:
+                'I stopped because the tool-call safety limit was reached.',
+          );
+          break;
+        }
+
+        var roundResponse = '';
+        var finalResponsePayload = <String, dynamic>{};
+        final activeToolCalls = <String, ToolCallChunk>{};
 
         final requestData = <String, dynamic>{
           'model': _selectedModel,
-          ..._modelThinkingOptions,
-          'messages': await _buildToolEnabledMessages(
-            _chatHistory,
-            preserveReasoningContent: _preserveReasoningContentForHistory,
-          ),
+          ..._responseModelOptions,
+          'instructions': await _buildChatSystemPrompt(),
+          'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,
-          'stream_options': {'include_usage': true},
         };
-
         if (hasTools) {
-          requestData['tools'] = tools.map((t) => t.toJson()).toList();
+          requestData['tools'] = tools
+              .map((tool) => tool.toResponsesJson())
+              .toList();
           requestData['tool_choice'] = 'auto';
+          requestData['parallel_tool_calls'] = false;
         }
 
         final response = await _postStreamWithApiKeyFallback(
           dio: _dio,
-          url: '$_baseUrl/chat/completions',
+          url: '$_baseUrl/responses',
           apiKeys: _apiKeys,
           providerName: _providerName,
           data: requestData,
@@ -175,304 +89,242 @@ class ChatCompletionsProvider extends BaseChatProvider {
           onKeySelected: (apiKey) => _apiKey = apiKey,
         );
 
-        await for (final chunk in response.data!.stream) {
-          if (_cancelToken?.isCancelled ?? false) {
-            throw CancelledException();
-          }
+        final eventLines = utf8.decoder
+            .bind(response.data!.stream)
+            .transform(const LineSplitter());
+        await for (final line in eventLines) {
+          if (_cancelToken?.isCancelled ?? false) throw CancelledException();
+          if (!line.startsWith('data: ')) continue;
+          final data = line.substring(6).trim();
+          if (data.isEmpty || data == '[DONE]') continue;
 
-          buffer += utf8.decode(chunk);
-          final lines = buffer.split('\n');
-          buffer = lines.isNotEmpty ? lines.last : "";
-          final completeLines = lines.length > 1
-              ? lines.sublist(0, lines.length - 1)
-              : <String>[];
+          final decoded = jsonDecode(data);
+          if (decoded is! Map) continue;
+          final event = Map<String, dynamic>.from(decoded);
+          final eventType = event['type']?.toString() ?? '';
 
-          for (final line in completeLines) {
-            if (line.startsWith('data: ') && line != 'data: [DONE]') {
-              final data = line.substring(6);
-              if (data.isEmpty) continue;
-
-              try {
-                final json = jsonDecode(data);
-                final responseMetadata = _extractResponseMetadata(
-                  Map<String, dynamic>.from(json as Map),
+          switch (eventType) {
+            case 'response.output_text.delta':
+              final delta = event['delta']?.toString() ?? '';
+              if (delta.isNotEmpty) {
+                roundResponse += delta;
+                yield ChatStreamChunk(content: delta);
+              }
+            case 'response.reasoning_summary_text.delta':
+              final delta = event['delta']?.toString() ?? '';
+              if (delta.isNotEmpty) {
+                yield ChatStreamChunk(content: '', thinking: delta);
+              }
+            case 'response.output_item.added':
+              final item = event['item'];
+              if (item is Map && item['type'] == 'function_call') {
+                final key = _responseToolKey(event, item);
+                final toolCall = ToolCallChunk(
+                  id: item['call_id']?.toString() ?? key,
+                  name: item['name']?.toString(),
+                  rawArguments: item['arguments']?.toString() ?? '',
+                  status: ToolCallStatus.creating,
+                );
+                activeToolCalls[key] = toolCall;
+                yield ChatStreamChunk(content: '', toolCall: toolCall);
+              }
+            case 'response.function_call_arguments.delta':
+              final key = _responseToolKey(event, null);
+              final existing = activeToolCalls[key];
+              if (existing != null) {
+                final raw =
+                    '${existing.rawArguments ?? ''}${event['delta']?.toString() ?? ''}';
+                final updated = existing.copyWith(
+                  rawArguments: raw,
+                  arguments: _tryParseToolArguments(raw),
+                  status: ToolCallStatus.calling,
+                );
+                activeToolCalls[key] = updated;
+                yield ChatStreamChunk(content: '', toolCall: updated);
+              }
+            case 'response.function_call_arguments.done':
+              final key = _responseToolKey(event, null);
+              final existing = activeToolCalls[key];
+              if (existing != null) {
+                final raw =
+                    event['arguments']?.toString() ??
+                    existing.rawArguments ??
+                    '';
+                activeToolCalls[key] = existing.copyWith(
+                  rawArguments: raw,
+                  arguments: _tryParseToolArguments(raw),
+                  status: ToolCallStatus.calling,
+                );
+              }
+            case 'response.completed':
+              final rawResponse = event['response'];
+              if (rawResponse is Map) {
+                finalResponsePayload = Map<String, dynamic>.from(rawResponse);
+                _recordResponseUsage(
+                  finalResponsePayload,
+                  requestedModel: _selectedModel,
+                );
+                _mergeCompletedToolCalls(finalResponsePayload, activeToolCalls);
+                final metadata = _extractResponseMetadata(
+                  finalResponsePayload,
                   requestedModel: _selectedModel,
                   providerName: _providerName,
                 );
-                if (responseMetadata.length > 2) {
-                  _lastResponseMetadata = mergeResponseMetadata(
-                    _lastResponseMetadata ?? const <String, dynamic>{},
-                    responseMetadata,
-                  );
-                  yield ChatStreamChunk(
-                    content: '',
-                    responseMetadata: responseMetadata,
-                  );
-                }
-                final choice = _firstChoice(json);
-                final delta = choice?['delta'];
-                final finishReason = choice?['finish_reason'];
-
-                final toolCallsDelta = delta?['tool_calls'];
-                if (toolCallsDelta != null && toolCallsDelta is List) {
-                  for (final tc in toolCallsDelta) {
-                    final index = tc['index']?.toString() ?? '0';
-                    final id =
-                        tc['id'] ?? activeToolCalls[index]?.id ?? 'call_$index';
-                    final function = tc['function'] ?? {};
-
-                    final existing = activeToolCalls[index];
-                    final name = function['name'] ?? existing?.name;
-                    final argsFragment = function['arguments'] ?? '';
-                    final accumulatedArgs =
-                        '${existing?.rawArguments ?? ''}$argsFragment';
-
-                    final parsedArgs = _tryParseToolArguments(accumulatedArgs);
-
-                    final status = name == null || parsedArgs == null
-                        ? ToolCallStatus.creating
-                        : ToolCallStatus.calling;
-
-                    final toolCall = ToolCallChunk(
-                      id: id,
-                      name: name,
-                      rawArguments: accumulatedArgs,
-                      arguments: parsedArgs,
-                      status: status,
-                    );
-
-                    activeToolCalls[index] = toolCall;
-
-                    yield ChatStreamChunk(
-                      content: '',
-                      toolCall: toolCall,
-                      isToolCallComplete: false,
-                    );
-                  }
-                }
-
-                final reasoning = _extractReasoningDelta(delta);
-                if (reasoning != null && reasoning.isNotEmpty) {
-                  roundReasoningText += reasoning;
-                  yield ChatStreamChunk(
-                    content: '',
-                    thinking: reasoning,
-                    isThinkingComplete: false,
-                  );
-                }
-
-                final content = delta?['content'];
-                if (content != null && content.isNotEmpty) {
-                  if (isInReasoningPhase && roundReasoningText.isNotEmpty) {
-                    isInReasoningPhase = false;
-                    yield ChatStreamChunk(
-                      content: '',
-                      isThinkingComplete: true,
-                    );
-                  }
-
-                  roundResponse += content;
-                  finalAssistantResponse += content;
-                  fullResponse += content;
-                  yield ChatStreamChunk(content: content);
-                }
-
-                if (finishReason == 'tool_calls' &&
-                    activeToolCalls.isNotEmpty) {
-                  if (isInReasoningPhase && roundReasoningText.isNotEmpty) {
-                    isInReasoningPhase = false;
-                    yield ChatStreamChunk(
-                      content: '',
-                      isThinkingComplete: true,
-                    );
-                  }
-
-                  final toolCallsList = activeToolCalls.values
-                      .map(_toolCallPayloadForHistory)
-                      .whereType<Map<String, dynamic>>()
-                      .toList();
-                  shouldContinue = toolCallsList.isNotEmpty;
-
-                  if (toolCallsList.isNotEmpty) {
-                    _chatHistory.add(
-                      _assistantToolCallMessageForHistory(
-                        roundResponse: roundResponse,
-                        roundReasoningText: roundReasoningText,
-                        preserveReasoningContent:
-                            _preserveReasoningContentForHistory,
-                        toolCallsList: toolCallsList,
-                      ),
-                    );
-                  }
-
-                  var stopAfterDuplicateLoop = false;
-                  for (final toolCall in activeToolCalls.values) {
-                    final resolvedArgs =
-                        toolCall.arguments ??
-                        _tryParseToolArguments(toolCall.rawArguments);
-                    if (toolCall.name == null) {
-                      continue;
-                    }
-
-                    dynamic result;
-                    if (resolvedArgs == null) {
-                      result = _malformedToolCallResult(toolCall);
-                    } else if (toolCallTracker.isLoop(
-                      toolCall.name!,
-                      resolvedArgs,
-                    )) {
-                      duplicateToolCallRounds++;
-                      final cachedResult = toolCallTracker.latestResult(
-                        toolCall.name!,
-                        resolvedArgs,
-                      );
-                      result =
-                          cachedResult ??
-                          {
-                            'ok': true,
-                            'note':
-                                'Already completed successfully. Give the final response now.',
-                          };
-                      stopAfterDuplicateLoop = duplicateToolCallRounds > 1;
-                    } else {
-                      toolCallTracker.recordCall(toolCall.name!, resolvedArgs);
-                      try {
-                        if (_cancelToken?.isCancelled ?? false) {
-                          throw CancelledException();
-                        }
-                        await for (final chunk in _executeToolAndStreamChunks(
-                          toolRegistry: _toolRegistry,
-                          toolCall: toolCall,
-                          arguments: resolvedArgs,
-                          isCancelled: () => _cancelToken?.isCancelled ?? false,
-                          onResult: (value) => result = value,
-                        )) {
-                          yield chunk;
-                        }
-                        if (_cancelToken?.isCancelled ?? false) {
-                          throw CancelledException();
-                        }
-                      } catch (e) {
-                        if (_cancelToken?.isCancelled ?? false) {
-                          throw CancelledException();
-                        }
-                        result = {'error': e.toString()};
-                      }
-                      toolCallTracker.recordResult(
-                        toolCall.name!,
-                        resolvedArgs,
-                        result,
-                      );
-                    }
-
-                    if (resolvedArgs != null) {
-                      _chatHistory.add({
-                        'role': 'tool',
-                        'tool_call_id': toolCall.id,
-                        'content': _toolResultContent(result),
-                      });
-                    }
-
-                    yield ChatStreamChunk(
-                      content: '',
-                      toolCall: toolCall.copyWith(
-                        result: result,
-                        status: _toolStatusForResult(result),
-                      ),
-                      isToolCallComplete: true,
-                    );
-                    final failureResponse = _terminalToolFailureResponse(
-                      toolCall.name,
-                      result,
-                    );
-                    if (failureResponse != null) {
-                      var isAfterFailedTool = false;
-                      for (final remainingToolCall in activeToolCalls.values) {
-                        if (remainingToolCall.id == toolCall.id) {
-                          isAfterFailedTool = true;
-                          continue;
-                        }
-                        if (!isAfterFailedTool) continue;
-                        final skippedResult = _skippedToolAfterFailureResult(
-                          toolCall.name ?? '',
-                        );
-                        final remainingId = remainingToolCall.id;
-                        if (remainingId.isNotEmpty) {
-                          _chatHistory.add({
-                            'role': 'tool',
-                            'tool_call_id': remainingId,
-                            'content': _toolResultContent(skippedResult),
-                          });
-                        }
-                        yield ChatStreamChunk(
-                          content: '',
-                          toolCall: remainingToolCall.copyWith(
-                            result: skippedResult,
-                            status: ToolCallStatus.failed,
-                          ),
-                          isToolCallComplete: true,
-                        );
-                      }
-                      finalAssistantResponse += failureResponse;
-                      fullResponse += failureResponse;
-                      yield ChatStreamChunk(content: failureResponse);
-                      shouldContinue = false;
-                      break;
-                    }
-                  }
-                  if (stopAfterDuplicateLoop) {
-                    shouldContinue = false;
-                  }
-
-                  break;
-                }
-
-                if (finishReason == 'stop') {
-                  if (isInReasoningPhase && roundReasoningText.isNotEmpty) {
-                    isInReasoningPhase = false;
-                    yield ChatStreamChunk(
-                      content: '',
-                      isThinkingComplete: true,
-                    );
-                  }
-
-                  for (final toolCall in activeToolCalls.values) {
-                    if (toolCall.status == ToolCallStatus.completed ||
-                        toolCall.status == ToolCallStatus.failed) {
-                      continue;
-                    }
-
-                    yield ChatStreamChunk(
-                      content: '',
-                      toolCall: toolCall.copyWith(
-                        status: ToolCallStatus.completed,
-                      ),
-                      isToolCallComplete: true,
-                    );
-                  }
-                }
-              } catch (e) {
-                debugPrint('[$_providerName] Error parsing SSE: $e');
+                _lastResponseMetadata = mergeResponseMetadata(
+                  _lastResponseMetadata ?? const <String, dynamic>{},
+                  metadata,
+                );
+                yield ChatStreamChunk(
+                  content: '',
+                  responseMetadata: metadata,
+                  isThinkingComplete: true,
+                );
               }
-            }
+            case 'response.failed':
+              final responseError = event['response'] is Map
+                  ? (event['response'] as Map)['error']
+                  : event['error'];
+              throw _providerException(
+                _providerName,
+                responseError?.toString() ?? 'OpenAI response failed.',
+              );
+            case 'error':
+              throw _providerException(
+                _providerName,
+                event['message']?.toString() ?? 'OpenAI streaming error.',
+              );
           }
         }
-      } while (shouldContinue);
 
-      _chatHistory.add({
-        'role': 'assistant',
-        'content': _assistantContentForHistory(
-          finalAssistantResponse: finalAssistantResponse,
-          fullResponse: fullResponse,
-        ),
-      });
-    } on DioException catch (e) {
-      if (CancelToken.isCancel(e)) {
-        throw CancelledException();
-      }
-      throw await _mapDioException(_providerName, e);
+        final responseOutput = finalResponsePayload['output'];
+        final hasResponseOutputItems = responseOutput is List;
+        if (hasResponseOutputItems) {
+          _chatHistory.addAll(
+            responseOutput.whereType<Map>().map(
+              (item) => Map<String, dynamic>.from(item),
+            ),
+          );
+        } else if (roundResponse.isNotEmpty) {
+          _chatHistory.add({'role': 'assistant', 'content': roundResponse});
+        }
+
+        final toolCalls = activeToolCalls.values
+            .where((call) => call.name?.trim().isNotEmpty == true)
+            .toList();
+        shouldContinue = toolCalls.isNotEmpty;
+
+        for (final toolCall in toolCalls) {
+          final rawArguments = toolCall.rawArguments ?? '';
+          final arguments =
+              toolCall.arguments ?? _tryParseToolArguments(rawArguments);
+          if (!hasResponseOutputItems) {
+            _chatHistory.add({
+              'type': 'function_call',
+              'call_id': toolCall.id,
+              'name': toolCall.name,
+              'arguments': rawArguments,
+            });
+          }
+
+          dynamic result;
+          var stopAfterDuplicateLoop = false;
+          if (arguments == null) {
+            result = _malformedToolCallResult(toolCall);
+          } else if (toolCallTracker.isLoop(toolCall.name!, arguments)) {
+            duplicateToolCallRounds++;
+            result =
+                toolCallTracker.latestResult(toolCall.name!, arguments) ??
+                {
+                  'ok': true,
+                  'note':
+                      'Already completed successfully. Give the final response now.',
+                };
+            stopAfterDuplicateLoop = duplicateToolCallRounds > 1;
+          } else {
+            toolCallTracker.recordCall(toolCall.name!, arguments);
+            await for (final chunk in _executeToolAndStreamChunks(
+              toolRegistry: _toolRegistry,
+              toolCall: toolCall,
+              arguments: arguments,
+              isCancelled: () => _cancelToken?.isCancelled ?? false,
+              onResult: (value) => result = value,
+            )) {
+              yield chunk;
+            }
+            toolCallTracker.recordResult(toolCall.name!, arguments, result);
+          }
+
+          _chatHistory.add({
+            'type': 'function_call_output',
+            'call_id': toolCall.id,
+            'output': _toolResultContent(result),
+          });
+          yield ChatStreamChunk(
+            content: '',
+            toolCall: toolCall.copyWith(
+              arguments: arguments,
+              result: result,
+              status: _toolStatusForResult(result),
+            ),
+            isToolCallComplete: true,
+          );
+
+          final failureResponse = _terminalToolFailureResponse(
+            toolCall.name,
+            result,
+          );
+          if (failureResponse != null) {
+            _chatHistory.add({'role': 'assistant', 'content': failureResponse});
+            yield ChatStreamChunk(content: failureResponse);
+            shouldContinue = false;
+            break;
+          }
+          if (stopAfterDuplicateLoop) shouldContinue = false;
+        }
+
+        if (finalResponsePayload.isEmpty &&
+            roundResponse.isEmpty &&
+            toolCalls.isEmpty) {
+          throw _providerException(
+            _providerName,
+            'OpenAI returned no response output.',
+          );
+        }
+      } while (shouldContinue);
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) throw CancelledException();
+      throw await _mapDioException(_providerName, error);
     } finally {
       _cancelToken = null;
+    }
+  }
+
+  String _responseToolKey(Map<String, dynamic> event, Map? item) {
+    return item?['id']?.toString() ??
+        event['item_id']?.toString() ??
+        event['output_index']?.toString() ??
+        'tool_${event.hashCode}';
+  }
+
+  void _mergeCompletedToolCalls(
+    Map<String, dynamic> response,
+    Map<String, ToolCallChunk> activeToolCalls,
+  ) {
+    final output = response['output'];
+    if (output is! List) return;
+    for (var index = 0; index < output.length; index++) {
+      final rawItem = output[index];
+      if (rawItem is! Map || rawItem['type'] != 'function_call') continue;
+      final item = Map<String, dynamic>.from(rawItem);
+      final key = item['id']?.toString() ?? index.toString();
+      final rawArguments = item['arguments']?.toString() ?? '';
+      activeToolCalls[key] = ToolCallChunk(
+        id: item['call_id']?.toString() ?? key,
+        name: item['name']?.toString(),
+        rawArguments: rawArguments,
+        arguments: _tryParseToolArguments(rawArguments),
+        status: ToolCallStatus.calling,
+      );
     }
   }
 }

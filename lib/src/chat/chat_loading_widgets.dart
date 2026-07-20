@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class ChatShimmerBlock extends StatefulWidget {
@@ -393,6 +395,318 @@ class ChatWorkingComposerFrame extends StatefulWidget {
   @override
   State<ChatWorkingComposerFrame> createState() =>
       _ChatWorkingComposerFrameState();
+}
+
+class ChatVoiceRecordingPulse extends StatefulWidget {
+  const ChatVoiceRecordingPulse({super.key, this.size = 44});
+
+  final double size;
+
+  @override
+  State<ChatVoiceRecordingPulse> createState() =>
+      _ChatVoiceRecordingPulseState();
+}
+
+class _ChatVoiceRecordingPulseState extends State<ChatVoiceRecordingPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1350),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => CustomPaint(
+          painter: _VoiceRecordingPulsePainter(
+            progress: _controller.value,
+            primary: theme.colorScheme.primary,
+            accent: AppTheme.highlight,
+          ),
+          child: SizedBox.square(
+            dimension: widget.size,
+            child: Icon(
+              CupertinoIcons.mic_fill,
+              size: widget.size * 0.38,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ChatVoiceRecordingStatus extends StatefulWidget {
+  const ChatVoiceRecordingStatus({super.key});
+
+  @override
+  State<ChatVoiceRecordingStatus> createState() =>
+      _ChatVoiceRecordingStatusState();
+}
+
+class _ChatVoiceRecordingStatusState extends State<ChatVoiceRecordingStatus>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1050),
+    )..repeat();
+    _stopwatch.start();
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _stopwatch.stop();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String get _elapsedLabel {
+    final elapsed = _stopwatch.elapsed;
+    final minutes = elapsed.inMinutes.toString().padLeft(2, '0');
+    final seconds = (elapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      liveRegion: true,
+      label: 'Recording voice message. Release to send.',
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: 6, end: 5),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: AppTheme.highlight,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.highlight.withValues(alpha: 0.5),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Flexible(
+                        child: Text(
+                          'Listening  $_elapsedLabel',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'Release to transcribe & send',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 54,
+              height: 30,
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) => CustomPaint(
+                  painter: _VoiceWavePainter(
+                    progress: _controller.value,
+                    primary: theme.colorScheme.primary,
+                    accent: AppTheme.highlight,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ChatVoiceRecordingButtonIcon extends StatefulWidget {
+  const ChatVoiceRecordingButtonIcon({super.key});
+
+  @override
+  State<ChatVoiceRecordingButtonIcon> createState() =>
+      _ChatVoiceRecordingButtonIconState();
+}
+
+class _ChatVoiceRecordingButtonIconState
+    extends State<ChatVoiceRecordingButtonIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+      lowerBound: 0.92,
+      upperBound: 1.08,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _controller,
+      child: Icon(
+        CupertinoIcons.mic_fill,
+        color: Theme.of(context).colorScheme.onPrimary,
+        size: 23,
+      ),
+    );
+  }
+}
+
+class _VoiceRecordingPulsePainter extends CustomPainter {
+  const _VoiceRecordingPulsePainter({
+    required this.progress,
+    required this.primary,
+    required this.accent,
+  });
+
+  final double progress;
+  final Color primary;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final pulse = 0.5 + 0.5 * math.sin(progress * math.pi * 2);
+    final radius = size.shortestSide * (0.37 + pulse * 0.05);
+    canvas.drawCircle(
+      center,
+      size.shortestSide * (0.47 - progress * 0.06),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3
+        ..color = accent.withValues(alpha: (1 - progress) * 0.5),
+    );
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(center.dx - radius, center.dy - radius),
+          Offset(center.dx + radius, center.dy + radius),
+          [primary, Color.lerp(primary, accent, 0.36)!],
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _VoiceRecordingPulsePainter oldDelegate) =>
+      progress != oldDelegate.progress ||
+      primary != oldDelegate.primary ||
+      accent != oldDelegate.accent;
+}
+
+class _VoiceWavePainter extends CustomPainter {
+  const _VoiceWavePainter({
+    required this.progress,
+    required this.primary,
+    required this.accent,
+  });
+
+  final double progress;
+  final Color primary;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const count = 7;
+    const barWidth = 3.2;
+    final gap = (size.width - count * barWidth) / (count - 1);
+    for (var index = 0; index < count; index++) {
+      final phase = progress * math.pi * 2 + index * 0.86;
+      final secondary = progress * math.pi * 4 - index * 0.48;
+      final energy =
+          (0.58 + 0.28 * math.sin(phase) + 0.14 * math.sin(secondary)).abs();
+      final height = 6 + energy * (size.height - 6);
+      final left = index * (barWidth + gap);
+      final rect = Rect.fromLTWH(
+        left,
+        (size.height - height) / 2,
+        barWidth,
+        height,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        Paint()
+          ..color = Color.lerp(
+            primary,
+            accent,
+            index / (count - 1),
+          )!.withValues(alpha: 0.72 + energy * 0.28),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _VoiceWavePainter oldDelegate) =>
+      progress != oldDelegate.progress ||
+      primary != oldDelegate.primary ||
+      accent != oldDelegate.accent;
 }
 
 class _ChatWorkingComposerFrameState extends State<ChatWorkingComposerFrame>

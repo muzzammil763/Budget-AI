@@ -183,7 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       HapticFeedback.lightImpact();
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => UnifiedChatScreen(config: ChatModelConfig.deepseek),
+          builder: (_) => UnifiedChatScreen(config: ChatModelConfig.openAI),
         ),
       );
     } finally {

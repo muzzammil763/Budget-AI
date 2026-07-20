@@ -16,35 +16,96 @@ class AIModel {
   });
 }
 
-const List<AIModel> _deepseekModels = [
+const List<AIModel> _openAIModels = [
   AIModel(
-    id: 'deepseek-v4-flash',
-    name: 'DeepSeek V4 Flash',
+    id: 'gpt-5.6-luna',
+    name: 'GPT-5.6 Luna',
     description:
-        'Fast and efficient. 1M context, tool calls, thinking mode, and JSON output.',
+        'Cost-sensitive, high-volume GPT-5.6 model. \$1 / \$6 per 1M tokens.',
     supportsToolCall: true,
     supportsThinking: true,
-    contextLength: 1000000,
+    contextLength: 1050000,
   ),
   AIModel(
-    id: 'deepseek-v4-pro',
-    name: 'DeepSeek V4 Pro',
-    description:
-        'Highest capability tier. 1M context, tool calls, thinking mode, and JSON output. Best for complex coding, math, and multi-step reasoning.',
+    id: 'gpt-5.6-terra',
+    name: 'GPT-5.6 Terra',
+    description: 'Balanced intelligence and cost. \$2.50 / \$15 per 1M tokens.',
     supportsToolCall: true,
     supportsThinking: true,
-    contextLength: 1000000,
+    contextLength: 1050000,
+  ),
+  AIModel(
+    id: 'gpt-5.6-sol',
+    name: 'GPT-5.6 Sol',
+    description:
+        'Frontier model for complex professional work. \$5 / \$30 per 1M tokens.',
+    supportsToolCall: true,
+    supportsThinking: true,
+    contextLength: 1050000,
+  ),
+  AIModel(
+    id: 'gpt-5.5',
+    name: 'GPT-5.5',
+    description:
+        'Previous flagship for professional and agentic work. \$5 / \$30 per 1M tokens.',
+    supportsToolCall: true,
+    supportsThinking: true,
+    contextLength: 1050000,
+  ),
+  AIModel(
+    id: 'gpt-5.4',
+    name: 'GPT-5.4',
+    description:
+        'Affordable professional workhorse. \$2.50 / \$15 per 1M tokens.',
+    supportsToolCall: true,
+    supportsThinking: true,
+    contextLength: 1050000,
+  ),
+  AIModel(
+    id: 'gpt-5.4-mini',
+    name: 'GPT-5.4 mini',
+    description:
+        'Efficient model for well-defined tasks. \$0.75 / \$4.50 per 1M tokens.',
+    supportsToolCall: true,
+    supportsThinking: true,
+    contextLength: 400000,
+  ),
+  AIModel(
+    id: 'gpt-5.4-nano',
+    name: 'GPT-5.4 nano',
+    description:
+        'Fast, inexpensive routing and extraction. \$0.20 / \$1.25 per 1M tokens.',
+    supportsToolCall: true,
+    supportsThinking: true,
+    contextLength: 400000,
+  ),
+  AIModel(
+    id: 'gpt-4.1',
+    name: 'GPT-4.1',
+    description:
+        'Long-context non-reasoning model with vision. \$2 / \$8 per 1M tokens.',
+    supportsToolCall: true,
+    contextLength: 1047576,
+  ),
+  AIModel(
+    id: 'o3',
+    name: 'o3',
+    description:
+        'Previous reasoning model for difficult multi-step work. \$2 / \$8 per 1M tokens.',
+    supportsToolCall: true,
+    supportsThinking: true,
+    contextLength: 200000,
   ),
 ];
 
 class AIModels {
-  static const List<AIModel> deepseekModels = _deepseekModels;
+  static const List<AIModel> openAIModels = _openAIModels;
 
-  static const String defaultModelId = 'deepseek-v4-flash';
+  static const String defaultModelId = 'gpt-5.6-luna';
 
   static AIModel? getModelById(String modelId) {
     try {
-      return deepseekModels.firstWhere((model) => model.id == modelId);
+      return openAIModels.firstWhere((model) => model.id == modelId);
     } catch (e) {
       return null;
     }

@@ -24,9 +24,7 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
-import 'package:budget_ai/src/chat/elevenlabs_audio_service.dart';
-import 'package:budget_ai/src/chat/gemini_audio_service.dart';
-import 'package:budget_ai/src/chat/groq_audio_service.dart';
+import 'package:budget_ai/src/chat/openai_audio_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -84,13 +82,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   late ChatModelConfig _activeConfig;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final GroqAudioService _groqAudioService = GroqAudioService();
-  final ElevenLabsAudioService _elevenLabsAudioService =
-      ElevenLabsAudioService();
-  final GeminiAudioService _geminiAudioService = GeminiAudioService();
+  final OpenAIAudioService _openAIAudioService = OpenAIAudioService();
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _isSpeaking = false;
+  bool _voiceHoldActive = false;
+  bool _voiceStartInFlight = false;
+  bool _isFinishingVoiceRecording = false;
+  DateTime? _voiceRecordingStartedAt;
   int? _streamingMessageIndex;
   bool _isStreaming = false;
   bool _isReconnectingStream = false;
@@ -120,7 +119,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _activeConfig = ChatModelConfig.deepseek;
+    _activeConfig = ChatModelConfig.openAI;
     _provider = ChatProvider.create(_activeConfig);
     _messageController.addListener(_handleComposerTextChanged);
     _messageController.addListener(_updateCanSend);
@@ -527,9 +526,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     unawaited(_audioRecorder.cancel());
     _audioPlayer.dispose();
     _audioRecorder.dispose();
-    _groqAudioService.dispose();
-    _elevenLabsAudioService.dispose();
-    _geminiAudioService.dispose();
+    _openAIAudioService.dispose();
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -677,6 +674,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     bool removeProviderMessageFromHistory = false,
     int? replaceAssistantMessageIndex,
     int automaticToolContinuationDepth = 0,
+    bool speakResponse = false,
   }) async {
     final hasText = _messageController.text.trim().isNotEmpty;
 
@@ -1444,12 +1442,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         removeProviderMessageFromHistory: true,
         replaceAssistantMessageIndex: aiMessageIndex,
         automaticToolContinuationDepth: automaticToolContinuationDepth + 1,
+        speakResponse: speakResponse,
       );
       return;
     }
 
     await _handlePostTurnSessionState();
-    if (turnCompletedSuccessfully) {
+    if (turnCompletedSuccessfully && speakResponse) {
       unawaited(_speakResponse(finalAssistantMessage.text));
     }
     _unfocusComposer();
@@ -1460,13 +1459,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _sendMessage();
   }
 
-  Future<void> _toggleGroqRecording() async {
-    if (_isTranscribing || _isResponseInProgress) return;
-
-    if (_isRecording) {
-      await _finishGroqRecording();
+  Future<void> _beginVoiceHold() async {
+    if (_isTranscribing ||
+        _isResponseInProgress ||
+        _isRecording ||
+        _voiceStartInFlight ||
+        _messageController.text.trim().isNotEmpty) {
       return;
     }
+
+    _voiceHoldActive = true;
+    _voiceStartInFlight = true;
+    HapticFeedback.mediumImpact();
 
     try {
       if (!await _audioRecorder.hasPermission()) {
@@ -1479,10 +1483,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         }
         return;
       }
+      if (!_voiceHoldActive || !mounted) return;
       await _audioPlayer.stop();
       final temporaryDirectory = await getTemporaryDirectory();
       final path =
-          '${temporaryDirectory.path}/groq_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+          '${temporaryDirectory.path}/openai_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
       await _audioRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
@@ -1491,48 +1496,78 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
         path: path,
       );
-      if (!mounted) return;
+      if (!mounted || !_voiceHoldActive) {
+        await _audioRecorder.cancel();
+        return;
+      }
       setState(() {
         _isRecording = true;
         _isSpeaking = false;
+        _voiceRecordingStartedAt = DateTime.now();
       });
       _updateCanSend();
     } catch (error) {
-      _showGroqAudioError('Could not start recording', error);
+      _showOpenAIAudioError('Could not start recording', error);
+    } finally {
+      _voiceStartInFlight = false;
+      if (!_isRecording) _voiceHoldActive = false;
     }
   }
 
-  Future<void> _finishGroqRecording() async {
+  Future<void> _endVoiceHold() async {
+    _voiceHoldActive = false;
+    if (_isRecording) await _finishVoiceRecording();
+  }
+
+  Future<void> _cancelVoiceHold() async {
+    _voiceHoldActive = false;
+    if (!_isRecording) return;
     try {
+      await _audioRecorder.cancel();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _voiceRecordingStartedAt = null;
+        });
+      }
+      _updateCanSend();
+    }
+  }
+
+  Future<void> _finishVoiceRecording() async {
+    if (_isFinishingVoiceRecording || !_isRecording) return;
+    _isFinishingVoiceRecording = true;
+    try {
+      final recordedFor = DateTime.now().difference(
+        _voiceRecordingStartedAt ?? DateTime.now(),
+      );
+      if (recordedFor < const Duration(milliseconds: 450)) {
+        await _audioRecorder.cancel();
+        if (!mounted) return;
+        setState(() {
+          _isRecording = false;
+          _voiceRecordingStartedAt = null;
+        });
+        _updateCanSend();
+        showAppToast(
+          context,
+          message: 'Hold a little longer to record a voice message.',
+          type: ToastificationType.info,
+        );
+        return;
+      }
       final path = await _audioRecorder.stop();
       if (!mounted) return;
       setState(() {
         _isRecording = false;
         _isTranscribing = true;
+        _voiceRecordingStartedAt = null;
       });
       _updateCanSend();
       if (path == null) throw StateError('No audio recording was created.');
 
-      final inputProvider =
-          ModelSettingsService.instance.currentVoiceInputProvider;
-      String transcript;
-      if (inputProvider == ModelSettingsService.geminiVoiceInputProviderId) {
-        try {
-          transcript = await _geminiAudioService.transcribe(path);
-        } catch (error) {
-          if (mounted) {
-            showAppToast(
-              context,
-              message:
-                  'Gemini transcription unavailable: $error Using Groq Whisper instead.',
-              type: ToastificationType.warning,
-            );
-          }
-          transcript = await _groqAudioService.transcribe(path);
-        }
-      } else {
-        transcript = await _groqAudioService.transcribe(path);
-      }
+      final transcript = await _openAIAudioService.transcribe(path);
       unawaited(File(path).delete().then<void>((_) {}).catchError((_) {}));
       if (!mounted) return;
       if (transcript.isEmpty) {
@@ -1544,106 +1579,37 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
       setState(() => _isTranscribing = false);
       _updateCanSend();
-      await _sendMessage();
+      await _sendMessage(speakResponse: true);
     } catch (error) {
       if (mounted) {
         setState(() {
           _isRecording = false;
           _isTranscribing = false;
+          _voiceRecordingStartedAt = null;
         });
       }
       _updateCanSend();
-      _showGroqAudioError('Could not transcribe recording', error);
+      _showOpenAIAudioError('Could not transcribe recording', error);
+    } finally {
+      _isFinishingVoiceRecording = false;
+      _voiceHoldActive = false;
     }
   }
 
   Future<void> _speakResponse(String text) async {
-    final speechProvider = ModelSettingsService.instance.currentSpeechProvider;
     try {
       await _audioPlayer.stop();
       if (mounted) setState(() => _isSpeaking = true);
-      if (speechProvider == ModelSettingsService.elevenLabsSpeechProviderId) {
-        try {
-          await _speakWithElevenLabs(text);
-        } catch (error) {
-          if (mounted) {
-            showAppToast(
-              context,
-              message: 'ElevenLabs unavailable: $error Using Groq instead.',
-              type: ToastificationType.warning,
-            );
-          }
-          await _speakWithGroq(text);
-        }
-      } else if (speechProvider ==
-          ModelSettingsService.geminiSpeechProviderId) {
-        try {
-          await _speakWithGemini(text);
-        } catch (error) {
-          if (mounted) {
-            showAppToast(
-              context,
-              message: 'Gemini speech unavailable: $error Using Groq instead.',
-              type: ToastificationType.warning,
-            );
-          }
-          await _speakWithGroq(text);
-        }
-      } else {
-        await _speakWithGroq(text);
+      final chunks = OpenAIAudioService.speechChunks(text);
+      for (var index = 0; index < chunks.length; index++) {
+        final audio = await _openAIAudioService.synthesize(chunks[index]);
+        await _playSpeechFile(audio, index, extension: 'mp3');
       }
     } catch (error) {
-      _showGroqAudioError('Could not play voice response', error);
+      _showOpenAIAudioError('Could not play voice response', error);
     } finally {
       if (mounted) setState(() => _isSpeaking = false);
     }
-  }
-
-  Future<void> _speakWithElevenLabs(String text) async {
-    final voiceId = await _resolveElevenLabsVoiceId();
-    final chunks = ElevenLabsAudioService.speechChunks(text);
-    for (var index = 0; index < chunks.length; index++) {
-      final audio = await _elevenLabsAudioService.synthesize(
-        chunks[index],
-        voiceId: voiceId,
-      );
-      await _playSpeechFile(audio, index, extension: 'mp3');
-    }
-  }
-
-  Future<void> _speakWithGroq(String text) async {
-    final chunks = GroqAudioService.speechChunks(text);
-    for (var index = 0; index < chunks.length; index++) {
-      final audio = await _groqAudioService.synthesize(chunks[index]);
-      await _playSpeechFile(audio, index, extension: 'wav');
-    }
-  }
-
-  Future<void> _speakWithGemini(String text) async {
-    final voiceName = ModelSettingsService.instance.geminiVoiceId.value;
-    final chunks = GeminiAudioService.speechChunks(text);
-    for (var index = 0; index < chunks.length; index++) {
-      final audio = await _geminiAudioService.synthesize(
-        chunks[index],
-        voiceName: voiceName,
-      );
-      await _playSpeechFile(audio, index, extension: 'wav');
-    }
-  }
-
-  Future<String> _resolveElevenLabsVoiceId() async {
-    final settings = ModelSettingsService.instance;
-    final selectedVoiceId = settings.elevenLabsVoiceId.value;
-    if (selectedVoiceId != null && selectedVoiceId.isNotEmpty) {
-      return selectedVoiceId;
-    }
-    final voices = await _elevenLabsAudioService.listVoices();
-    if (voices.isEmpty) {
-      throw StateError('No ElevenLabs voices are available for this account.');
-    }
-    final voice = voices.first;
-    await settings.setElevenLabsVoice(id: voice.id, name: voice.name);
-    return voice.id;
   }
 
   Future<void> _playSpeechFile(
@@ -1685,7 +1651,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  void _showGroqAudioError(String prefix, Object error) {
+  void _showOpenAIAudioError(String prefix, Object error) {
     if (!mounted) return;
     showAppToast(
       context,
@@ -2670,6 +2636,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void didPushNext() {
     _isOnChatScreen = false;
     _unfocusComposer();
+    if (_isRecording) unawaited(_cancelVoiceHold());
   }
 
   @override
@@ -2694,6 +2661,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         state == AppLifecycleState.hidden) {
       _isAppInBackground = true;
       _isAppInactive = false;
+      if (_isRecording) unawaited(_cancelVoiceHold());
       NetworkReachabilityService.instance.stop();
     }
   }
@@ -3039,6 +3007,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final double horizontalPadding = 32 - (32 - 8) * t;
     final double safeAreaBottom = 32 - (32 - 12) * t;
     final isWorking = _isResponseInProgress;
+    final isVoiceProcessing = _isTranscribing;
 
     return SafeArea(
       top: false,
@@ -3049,7 +3018,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ChatWorkingComposerFrame(
-              isWorking: isWorking,
+              isWorking: isWorking || _isRecording || isVoiceProcessing,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -3078,7 +3047,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   ],
                 ),
                 child: IgnorePointer(
-                  ignoring: isWorking,
+                  ignoring: isWorking || isVoiceProcessing,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 280),
                     reverseDuration: const Duration(milliseconds: 220),
@@ -3113,6 +3082,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                     },
                     child: isWorking
                         ? _buildWorkingComposerContent(theme)
+                        : isVoiceProcessing
+                        ? _buildVoiceProcessingComposerContent(theme)
                         : _buildNormalComposerContent(
                             theme,
                             textColor: textColor,
@@ -3140,81 +3111,61 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         SizedBox(
           width: 44,
           height: 44,
-          child: IconButton(
-            tooltip: 'Add',
-            onPressed: () {},
-            icon: const BudgetMarkIcon(size: 28),
-          ),
+          child: _isRecording
+              ? const ChatVoiceRecordingPulse(size: 44)
+              : IconButton(
+                  tooltip: 'Add',
+                  onPressed: () {},
+                  icon: const BudgetMarkIcon(size: 28),
+                ),
         ),
         const SizedBox(width: 2),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: TextField(
-              focusNode: _messageFocusNode,
-              scrollController: _messageInputScrollController,
-              cursorColor: theme.colorScheme.primary,
-              controller: _messageController,
-              enabled: true,
-              autofocus: false,
-              decoration: InputDecoration(
-                hoverColor: Colors.transparent,
-                hintText: 'Ask Budget AI',
-                hintStyle: TextStyle(
-                  color: hintColor.withValues(alpha: 0.72),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                ),
-                border: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                fillColor: Colors.transparent,
-              ),
-              maxLines: 1,
-              minLines: 1,
-              textInputAction: TextInputAction.newline,
-              textCapitalization: TextCapitalization.sentences,
-              style: TextStyle(fontSize: 16, color: textColor),
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        SizedBox(
-          width: 42,
-          height: 44,
-          child: IconButton(
-            tooltip: _isRecording
-                ? 'Stop and send voice message'
-                : _isTranscribing
-                ? 'Transcribing voice message'
-                : _isSpeaking
-                ? 'Recording stops spoken reply'
-                : ModelSettingsService.instance.currentVoiceInputProvider ==
-                      ModelSettingsService.geminiVoiceInputProviderId
-                ? 'Send voice message with Gemini transcription'
-                : 'Send voice message with Groq Whisper',
-            onPressed: _isTranscribing ? null : _toggleGroqRecording,
-            icon: _isTranscribing
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2.2),
-                  )
-                : Icon(
-                    _isRecording
-                        ? CupertinoIcons.stop_circle_fill
-                        : CupertinoIcons.mic_fill,
-                    color: _isRecording
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.primary,
+          child: _isRecording
+              ? const ChatVoiceRecordingStatus()
+              : Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: TextField(
+                    focusNode: _messageFocusNode,
+                    scrollController: _messageInputScrollController,
+                    cursorColor: theme.colorScheme.primary,
+                    controller: _messageController,
+                    enabled: true,
+                    autofocus: false,
+                    decoration: InputDecoration(
+                      hoverColor: Colors.transparent,
+                      hintText: 'Ask Budget AI',
+                      hintStyle: TextStyle(
+                        color: hintColor.withValues(alpha: 0.72),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      fillColor: Colors.transparent,
+                    ),
+                    maxLines: 1,
+                    minLines: 1,
+                    textInputAction: TextInputAction.newline,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(fontSize: 16, color: textColor),
                   ),
-          ),
+                ),
         ),
         const SizedBox(width: 2),
         ValueListenableBuilder<bool>(
-          valueListenable: _canSendNotifier,
-          builder: (context, canSend, child) => _buildComposerSendButton(theme),
+          valueListenable: ModelSettingsService.instance.microphoneEnabled,
+          builder: (context, microphoneEnabled, _) =>
+              ValueListenableBuilder<bool>(
+                valueListenable: _canSendNotifier,
+                builder: (context, canSend, child) => _buildComposerSendButton(
+                  theme,
+                  microphoneEnabled: microphoneEnabled,
+                ),
+              ),
         ),
       ],
     );
@@ -3232,6 +3183,29 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         Expanded(
           child: ChatShimmerText(
             text: 'Budget AI Is Working',
+            style: AppTheme.bodyMedium.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVoiceProcessingComposerContent(ThemeData theme) {
+    return Row(
+      key: const ValueKey('voice-processing-composer'),
+      children: [
+        const SizedBox.square(
+          dimension: 44,
+          child: RepaintBoundary(child: ChatBudgetLoadingIndicator(size: 44)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ChatShimmerText(
+            text: 'Transcribing & Sending',
             style: AppTheme.bodyMedium.copyWith(
               color: theme.colorScheme.onSurface,
               fontSize: 16,
@@ -3262,7 +3236,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Widget _buildComposerSendButton(ThemeData theme) {
+  Widget _buildComposerSendButton(
+    ThemeData theme, {
+    required bool microphoneEnabled,
+  }) {
     if (_isResponseInProgress && !_canSubmitCurrentMessage) {
       return SizedBox(
         width: 44,
@@ -3284,20 +3261,72 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     final canSend = _canSubmitCurrentMessage;
+    final hasText = _messageController.text.trim().isNotEmpty;
+    final canHoldToTalk =
+        microphoneEnabled &&
+        !hasText &&
+        !_isTranscribing &&
+        !_isResponseInProgress;
     final activeColor = theme.colorScheme.primary;
     final disabledColor = theme.colorScheme.primary.withValues(alpha: 0.16);
-    final iconColor = canSend
+    final isActive = canSend || canHoldToTalk;
+    final iconColor = isActive
         ? theme.colorScheme.onPrimary
         : theme.colorScheme.primary.withValues(alpha: 0.56);
 
+    if (canHoldToTalk) {
+      final idleVoiceLabel = _isSpeaking
+          ? 'Press and hold to stop playback and record a voice message'
+          : 'Press and hold to record a voice message';
+      return Semantics(
+        button: true,
+        label: _isRecording
+            ? 'Recording voice message. Release to send.'
+            : idleVoiceLabel,
+        child: GestureDetector(
+          key: const ValueKey('composer-hold-to-talk'),
+          behavior: HitTestBehavior.opaque,
+          onLongPressStart: (_) => unawaited(_beginVoiceHold()),
+          onLongPressEnd: (_) => unawaited(_endVoiceHold()),
+          onLongPressCancel: () => unawaited(_cancelVoiceHold()),
+          child: Tooltip(
+            triggerMode: TooltipTriggerMode.tap,
+            message: _isRecording
+                ? 'Release to send'
+                : _isSpeaking
+                ? 'Hold to interrupt & talk'
+                : 'Press and hold to talk',
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Material(
+                color: activeColor,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: Center(
+                  child: _isRecording
+                      ? const ChatVoiceRecordingButtonIcon()
+                      : Icon(
+                          CupertinoIcons.mic_fill,
+                          color: iconColor,
+                          size: 23,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 180),
-      opacity: canSend ? 1 : 0.65,
+      opacity: isActive ? 1 : 0.65,
       child: SizedBox(
         width: 44,
         height: 44,
         child: Material(
-          color: canSend ? activeColor : disabledColor,
+          color: isActive ? activeColor : disabledColor,
           shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -3322,10 +3351,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     if (message.isUser) {
       final bubbleStyle = BubbleStyleSettingsService.instance.current;
-      final userTextColor = UserBubbleStyleSurface.foregroundColor(
-        context,
-        bubbleStyle,
-      );
 
       Widget buildContent() {
         return Column(
@@ -3335,9 +3360,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             if (message.text.isNotEmpty)
               ExpandableUserMessageText(
                 text: message.text,
-                style: AppTheme.bodyMedium.copyWith(
-                  color: userTextColor,
-                  fontSize: 16,
+                style: UserBubbleStyleSurface.messageTextStyle(
+                  context,
+                  bubbleStyle,
                 ),
               ),
           ],
@@ -3351,9 +3376,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               ? null
               : () => _copyMessage(message.text),
           child: Container(
-            margin: const EdgeInsets.only(left: 12, right: 12),
+            margin: const EdgeInsets.only(right: 12, left: 12),
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+              maxWidth: MediaQuery.sizeOf(context).width,
             ),
             child: UserBubbleStyleSurface(
               style: bubbleStyle,

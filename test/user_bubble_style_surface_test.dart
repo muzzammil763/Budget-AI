@@ -26,11 +26,9 @@ void main() {
                               style: style,
                               child: Text(
                                 'A message using the ${style.label} bubble.',
-                                style: TextStyle(
-                                  color: UserBubbleStyleSurface.foregroundColor(
-                                    context,
-                                    style,
-                                  ),
+                                style: UserBubbleStyleSurface.messageTextStyle(
+                                  context,
+                                  style,
                                 ),
                               ),
                             );
@@ -48,5 +46,34 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'message text uses the readable bubble foreground in ${brightness.name} mode',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(brightness: brightness),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) {
+                  for (final style in UserBubbleStyle.values) {
+                    final textStyle = UserBubbleStyleSurface.messageTextStyle(
+                      context,
+                      style,
+                    );
+                    expect(
+                      textStyle.color,
+                      UserBubbleStyleSurface.foregroundColor(context, style),
+                    );
+                    expect(textStyle.fontSize, 16);
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

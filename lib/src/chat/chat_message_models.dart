@@ -191,8 +191,14 @@ Map<String, dynamic> _extractResponseMetadata(
     final inputTokenDetails = normalizedUsage['input_token_details'];
     final outputTokenDetails = normalizedUsage['output_token_details'];
     metadata['usage'] = normalizedUsage;
-    addNumber('promptTokens', normalizedUsage['prompt_tokens']);
-    addNumber('completionTokens', normalizedUsage['completion_tokens']);
+    addFirstNumber('promptTokens', [
+      normalizedUsage['prompt_tokens'],
+      normalizedUsage['input_tokens'],
+    ]);
+    addFirstNumber('completionTokens', [
+      normalizedUsage['completion_tokens'],
+      normalizedUsage['output_tokens'],
+    ]);
     addNumber('totalTokens', normalizedUsage['total_tokens']);
     addNumber('cacheMissTokens', normalizedUsage['prompt_cache_miss_tokens']);
     addFirstNumber('cacheReadTokens', [
@@ -647,7 +653,8 @@ const String _coreChatBehavior = '''
 You are Budget AI, a personal finance and budget management assistant. Your primary role is to help users track expenses and provide budget advice.
 
 Core behaviors:
-- Be concise, helpful, and focused on personal finance topics.
+- Lead with the answer. Default to 1-3 short sentences and only add detail when it is necessary to complete the request safely or accurately.
+- Preserve required facts, amounts, dates, caveats, decisions, and next actions. Remove introductions, repetition, generic reassurance, and optional background first.
 - When the user asks to add an expense, use finance_add with appropriate category and amount. Short entries like "200 fuel" default to expense.
 - When the user clearly mentions received money, salary, freelance income, refund, bonus, or gift money, use finance_income_add instead of finance_add.
 - Treat loans as ordinary cashflow entries: money lent or a repayment paid is an expense; money borrowed or a repayment received is income. Use category "Loan" and the matching finance_add or finance_income_add tool.
@@ -664,7 +671,7 @@ Keep working until the task is actually complete — but stop the moment it is.
 - Continue autonomously after tool results unless the next step requires an explicit user decision.
 - Batch similar calls: use array parameters instead of N sequential calls.
 - Prefer action over exploration: plan the minimum tool calls needed, then execute.
-- Final responses should be informative: include the outcome and the key specifics the user needs.
+- Final responses should be compact and informative: include the outcome and only the key specifics the user needs.
 - Don't expose or re-explain internal reasoning or intermediate steps. Give the user the outcome and the useful supporting details only.
 ''';
 

@@ -24,15 +24,15 @@ help:
 	@printf "  verify-signing  Check the Budget AI release keystore\n"
 	@printf "\n"
 	@printf "Create $(ENV_FILE) in the project root before building:\n"
-	@printf "  DEEPSEEK_API_KEY=sk-xxx\n"
+	@printf "  OPENAI_API_KEY=sk-xxx\n"
 	@printf "\n"
 
 apk:
-	@key=$$(sed -n 's/^DEEPSEEK_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
+	@key=$$(sed -n 's/^OPENAI_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
 	key="$${key%\"}"; key="$${key#\"}"; key="$${key%\'}"; key="$${key#\'}"; \
 	if [ -z "$$key" ]; then \
-		printf "Missing DEEPSEEK_API_KEY in $(ENV_FILE)\n"; \
-		printf "Create $(ENV_FILE) with: DEEPSEEK_API_KEY=sk-xxx\n"; \
+		printf "Missing OPENAI_API_KEY in $(ENV_FILE)\n"; \
+		printf "Create $(ENV_FILE) with: OPENAI_API_KEY=sk-xxx\n"; \
 		exit 1; \
 	fi; \
 	if [ ! -f "$(KEYSTORE_FILE)" ]; then \
@@ -51,7 +51,7 @@ apk:
 	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
 		"$(KEYSTORE_FILE)" "$(STORE_PASSWORD)" "$(KEY_ALIAS)" "$(KEY_PASSWORD)" \
 		> android/key.properties; \
-	printf "Building with DeepSeek API key from $(ENV_FILE)\n"; \
+	printf "Building with OpenAI API key from $(ENV_FILE)\n"; \
 	flutter build apk --release --target-platform android-arm64 \
 		--split-debug-info=build/debug-info --obfuscate; \
 	status=$$?; rm -f android/key.properties; [ $$status -ne 0 ] && exit $$status; \
@@ -61,11 +61,11 @@ apk:
 	printf "APK ready: $$dest/$(APP_NAME) $$version.apk\n"
 
 apk-split:
-	@key=$$(sed -n 's/^DEEPSEEK_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
+	@key=$$(sed -n 's/^OPENAI_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
 	key="$${key%\"}"; key="$${key#\"}"; key="$${key%\'}"; key="$${key#\'}"; \
 	if [ -z "$$key" ]; then \
-		printf "Missing DEEPSEEK_API_KEY in $(ENV_FILE)\n"; \
-		printf "Create $(ENV_FILE) with: DEEPSEEK_API_KEY=sk-xxx\n"; \
+		printf "Missing OPENAI_API_KEY in $(ENV_FILE)\n"; \
+		printf "Create $(ENV_FILE) with: OPENAI_API_KEY=sk-xxx\n"; \
 		exit 1; \
 	fi; \
 	if [ ! -f "$(KEYSTORE_FILE)" ]; then \
@@ -84,7 +84,7 @@ apk-split:
 	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
 		"$(KEYSTORE_FILE)" "$(STORE_PASSWORD)" "$(KEY_ALIAS)" "$(KEY_PASSWORD)" \
 		> android/key.properties; \
-	printf "Building with DeepSeek API key from $(ENV_FILE)\n"; \
+	printf "Building with OpenAI API key from $(ENV_FILE)\n"; \
 	flutter build apk --release --split-per-abi \
 		--split-debug-info=build/debug-info --obfuscate; \
 	status=$$?; rm -f android/key.properties; [ $$status -ne 0 ] && exit $$status; \
@@ -97,11 +97,11 @@ apk-split:
 	done
 
 aab:
-	@key=$$(sed -n 's/^DEEPSEEK_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
+	@key=$$(sed -n 's/^OPENAI_API_KEY=//p' "$(ENV_FILE)" 2>/dev/null | tail -n 1); \
 	key="$${key%\"}"; key="$${key#\"}"; key="$${key%\'}"; key="$${key#\'}"; \
 	if [ -z "$$key" ]; then \
-		printf "Missing DEEPSEEK_API_KEY in $(ENV_FILE)\n"; \
-		printf "Create $(ENV_FILE) with: DEEPSEEK_API_KEY=sk-xxx\n"; \
+		printf "Missing OPENAI_API_KEY in $(ENV_FILE)\n"; \
+		printf "Create $(ENV_FILE) with: OPENAI_API_KEY=sk-xxx\n"; \
 		exit 1; \
 	fi; \
 	if [ ! -f "$(KEYSTORE_FILE)" ]; then \
@@ -120,7 +120,7 @@ aab:
 	printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
 		"$(KEYSTORE_FILE)" "$(STORE_PASSWORD)" "$(KEY_ALIAS)" "$(KEY_PASSWORD)" \
 		> android/key.properties; \
-	printf "Building with DeepSeek API key from $(ENV_FILE)\n"; \
+	printf "Building with OpenAI API key from $(ENV_FILE)\n"; \
 	flutter build appbundle --release \
 		--split-debug-info=build/debug-info --obfuscate; \
 	status=$$?; rm -f android/key.properties; [ $$status -ne 0 ] && exit $$status; \

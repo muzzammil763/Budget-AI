@@ -10,11 +10,12 @@ import 'package:flutter/material.dart';
 class ModelPickerSheet {
   const ModelPickerSheet._();
 
-  /// Short tier badge for a model id ('FLASH' / 'PRO'), or null.
+  /// Short tier badge for GPT-5.6 family models, or null.
   static String? badgeForModelId(String modelId) {
     final id = modelId.toLowerCase();
-    if (id.contains('flash')) return 'FLASH';
-    if (id.contains('pro')) return 'PRO';
+    if (id.endsWith('-luna')) return 'VALUE';
+    if (id.endsWith('-terra')) return 'BALANCED';
+    if (id.endsWith('-sol')) return 'FRONTIER';
     return null;
   }
 
@@ -23,7 +24,7 @@ class ModelPickerSheet {
     required String selectedModel,
   }) {
     final theme = Theme.of(context);
-    const models = AIModels.deepseekModels;
+    const models = AIModels.openAIModels;
 
     return ResponsiveInfoSheet.show<String>(
       context,
@@ -57,7 +58,7 @@ class ModelPickerSheet {
     AIModel model,
     bool isSelected,
   ) {
-    badgeForModelId(model.id);
+    final badge = badgeForModelId(model.id);
     return InkWell(
       borderRadius: BorderRadius.circular(32),
       onTap: () => Navigator.pop(context, model.id),
@@ -106,6 +107,29 @@ class ModelPickerSheet {
                           ),
                         ),
                       ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            badge,
+                            style: AppTheme.bodySmall.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 3),
