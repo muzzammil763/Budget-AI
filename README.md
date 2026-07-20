@@ -13,13 +13,12 @@ Budget AI is a Flutter personal finance assistant powered directly by OpenAI, wi
 - Voice previews are fixed audio files bundled with the app; replaying them never calls OpenAI or creates API usage.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
 - Settings includes a toggle that enables or disables hold-to-talk. The speech and transcription models remain fixed.
-- The OpenAI usage screen tracks this installation's response tokens, transcription seconds, speech characters, and successful request counts. It is not a substitute for organization billing data.
 
 ## Current app flow
 
 - The app opens directly to chat.
 - Tap the app bar model name to open the OpenAI model selector.
-- Settings includes finances, insights, currency, OpenAI model, microphone, output voice, local API usage, message style, permissions, backup/restore, and onboarding controls.
+- Settings includes finances, insights, currency, OpenAI model, microphone, output voice, message style, permissions, backup/restore, and onboarding controls.
 - Finance data is stored locally. Backup/restore uses dated JSON files and also accepts compatible finance lists from earlier exports.
 
 ## Development

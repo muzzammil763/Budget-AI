@@ -191,7 +191,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: granted
               ? Colors.green.withValues(alpha: 0.5)
@@ -199,7 +199,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             Container(
@@ -207,7 +207,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
               height: 42,
               decoration: BoxDecoration(
                 color: granted ? Colors.green : theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(32),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 granted
@@ -239,7 +239,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     foregroundColor: theme.colorScheme.onPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: _isRequestingRequired
@@ -272,7 +272,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isGranted
               ? Colors.green.withValues(alpha: 0.5)
@@ -280,7 +280,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -291,7 +291,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                   height: 40,
                   decoration: BoxDecoration(
                     color: isGranted ? Colors.green : theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(32),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     icon,
@@ -349,7 +349,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     foregroundColor: theme.colorScheme.onPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),

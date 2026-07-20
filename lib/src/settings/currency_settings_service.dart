@@ -69,7 +69,7 @@ class CurrencySettingsService {
     ...kPresetCurrencyOptions,
     ...customCurrencies.value.map(
       (currency) =>
-          CurrencyOption(displayText: currency, name: 'Custom display'),
+          CurrencyOption(displayText: currency, name: 'Custom Display'),
     ),
   ];
 
@@ -85,14 +85,18 @@ class CurrencySettingsService {
     return '${preset.name} ($current)';
   }
 
-  String formatAmount(double amount, {bool forceSign = false}) {
+  String formatAmount(
+    double amount, {
+    bool forceSign = false,
+    String? currency,
+  }) {
     final sign = amount < 0
         ? '-'
         : forceSign && amount > 0
         ? '+'
         : '';
     final formatted = _formatNumber(amount.abs());
-    final token = current;
+    final token = currency ?? current;
     final prefixSymbols = {r'$', '€', '£', '₹', '¥'};
     if (prefixSymbols.contains(token)) {
       return '$sign$token$formatted';

@@ -22,7 +22,7 @@ class CurrencyDisplayCard extends StatelessWidget {
     for (final option in CurrencySettingsService.instance.availableOptions) {
       if (option.displayText == currency) return option;
     }
-    return CurrencyOption(displayText: currency, name: 'Custom display');
+    return CurrencyOption(displayText: currency, name: 'Custom Display');
   }
 
   String get _currencyName => _selectedOption.name
@@ -51,13 +51,11 @@ class CurrencyDisplayCard extends StatelessWidget {
             screenSize.shortestSide,
             availableHeight / 0.69,
           );
-          final cardRadius = responsiveUnit * 0.07;
           final contentPadding = responsiveUnit * 0.032;
-          final horizontalGap = responsiveUnit * 0.015;
           final majorVerticalGap = responsiveUnit * 0.032;
           final smallVerticalGap = responsiveUnit * 0.012;
           final eyebrowFontSize = responsiveUnit * 0.025;
-          final supportingFontSize = responsiveUnit * 0.034;
+          final supportingFontSize = responsiveUnit * 0.042;
           final currencyNameFontSize = responsiveUnit * 0.048;
           final footerFontSize = responsiveUnit * 0.036;
           final tokenSize = responsiveUnit * 0.140;
@@ -67,7 +65,6 @@ class CurrencyDisplayCard extends StatelessWidget {
           final previewFontSize = (responsiveUnit * 0.07 * 2).round() / 2;
           final minimumPreviewFontSize =
               (previewFontSize * 0.72 * 2).floor() / 2;
-          final globeIconSize = responsiveUnit * 0.1;
           final actionSize = responsiveUnit * 0.1;
           final actionIconSize = responsiveUnit * 0.042;
 
@@ -75,11 +72,11 @@ class CurrencyDisplayCard extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
-              borderRadius: BorderRadius.circular(cardRadius),
+              borderRadius: BorderRadius.circular(12),
               child: Ink(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(cardRadius),
+                  borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -103,7 +100,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(cardRadius),
+                  borderRadius: BorderRadius.circular(12),
                   child: Stack(
                     children: [
                       Positioned(
@@ -140,12 +137,6 @@ class CurrencyDisplayCard extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Icon(
-                                  CupertinoIcons.globe,
-                                  color: foreground,
-                                  size: globeIconSize,
-                                ),
-                                SizedBox(width: horizontalGap),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -231,7 +222,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                                           fontWeight: FontWeight.w900,
                                           letterSpacing:
                                               responsiveUnit * 0.0019,
-                                              fontFamily: "Boldonse"
+                                          fontFamily: "Boldonse",
                                         ),
                                       ),
                                     ],
@@ -242,7 +233,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                                   height: actionSize,
                                   decoration: BoxDecoration(
                                     color: foreground.withValues(alpha: 0.25),
-                                    shape: BoxShape.circle,
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     CupertinoIcons.arrow_up_right,
@@ -255,7 +246,7 @@ class CurrencyDisplayCard extends StatelessWidget {
                             const Spacer(),
                             Center(
                               child: Text(
-                                'Finances  •  Insights  •  AI responses',
+                                'Finances  •  Insights  •  AI Responses',
                                 style: AppTheme.bodySmall.copyWith(
                                   color: foreground.withValues(alpha: 0.75),
                                   fontSize: footerFontSize,

@@ -84,12 +84,12 @@ class _OpenAIVoiceScreenState extends State<OpenAIVoiceScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: InkWell(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(12),
                 onTap: () => _select(voice),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(14, 9, 8, 9),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected == voice.id
                           ? theme.colorScheme.primary

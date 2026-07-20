@@ -60,12 +60,12 @@ class ModelPickerSheet {
   ) {
     final badge = badgeForModelId(model.id);
     return InkWell(
-      borderRadius: BorderRadius.circular(32),
+      borderRadius: BorderRadius.circular(12),
       onTap: () => Navigator.pop(context, model.id),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.primary
@@ -118,7 +118,7 @@ class ModelPickerSheet {
                             color: theme.colorScheme.primary.withValues(
                               alpha: 0.1,
                             ),
-                            borderRadius: BorderRadius.circular(100),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             badge,

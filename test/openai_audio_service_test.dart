@@ -4,7 +4,6 @@ import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/openai_audio_service.dart';
 import 'package:budget_ai/src/chat/openai_voice.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
-import 'package:budget_ai/src/settings/openai_usage_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
@@ -22,7 +21,6 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
     dotenv.testLoad(fileInput: 'OPENAI_API_KEY=test-key');
     await ModelSettingsService.instance.initialize();
-    await OpenAIUsageService.instance.initialize();
   });
 
   test('OpenAI model picker defaults to GPT-5.6 Luna', () {
@@ -106,11 +104,6 @@ void main() {
       expect(requests[1].path, endsWith('/audio/speech'));
       expect((requests[1].data as Map)['model'], 'gpt-4o-mini-tts');
       expect((requests[1].data as Map)['voice'], 'cedar');
-      await Future<void>.delayed(Duration.zero);
-      final usage = OpenAIUsageService.instance.usage.value;
-      expect(usage.transcriptionRequests, 1);
-      expect(usage.speechRequests, 1);
-      expect(usage.speechCharacters, 'Recorded.'.length);
     } finally {
       service.dispose();
       if (await file.exists()) await file.delete();

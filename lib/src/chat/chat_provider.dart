@@ -6,7 +6,6 @@ import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
-import 'package:budget_ai/src/settings/openai_usage_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
@@ -165,7 +164,6 @@ abstract class BaseChatProvider extends ChatProvider {
       );
 
       if (response.statusCode == 200) {
-        _recordResponseUsage(response.data, requestedModel: _selectedModel);
         return _responseOutputText(response.data).trim();
       }
     } catch (e) {
@@ -191,16 +189,6 @@ abstract class BaseChatProvider extends ChatProvider {
       }
     }
     return buffer.toString();
-  }
-
-  void _recordResponseUsage(dynamic payload, {required String requestedModel}) {
-    if (payload is! Map || payload['usage'] is! Map) return;
-    unawaited(
-      OpenAIUsageService.instance.recordResponse(
-        model: payload['model']?.toString() ?? requestedModel,
-        usageData: Map<String, dynamic>.from(payload['usage'] as Map),
-      ),
-    );
   }
 
   @override

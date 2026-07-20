@@ -13,7 +13,7 @@ The AI stack is OpenAI-only:
 - GPT-5 chat requests use low reasoning effort and low text verbosity. Prompts preserve important facts while removing repetition and optional background.
 - Speech playback is scoped to microphone-originated turns. Typed messages never trigger automatic audio.
 - The composer uses one contextual action: Send when text exists, hold-to-talk when empty and enabled, and Stop during an active response. Releasing a voice hold transcribes and sends immediately.
-- Settings exposes a chat-model picker, hold-to-talk toggle, all built-in output voices, bundled zero-API-cost voice previews, and device-local OpenAI usage counters. Speech input/output models are fixed.
+- Settings exposes a chat-model picker, hold-to-talk toggle, all built-in output voices, and bundled zero-API-cost voice previews. Speech input/output models are fixed.
 
 ## Development rules
 

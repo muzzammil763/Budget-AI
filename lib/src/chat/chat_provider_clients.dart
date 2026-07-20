@@ -160,10 +160,6 @@ class ResponsesProvider extends BaseChatProvider {
               final rawResponse = event['response'];
               if (rawResponse is Map) {
                 finalResponsePayload = Map<String, dynamic>.from(rawResponse);
-                _recordResponseUsage(
-                  finalResponsePayload,
-                  requestedModel: _selectedModel,
-                );
                 _mergeCompletedToolCalls(finalResponsePayload, activeToolCalls);
                 final metadata = _extractResponseMetadata(
                   finalResponsePayload,

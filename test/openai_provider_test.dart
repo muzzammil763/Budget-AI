@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
-import 'package:budget_ai/src/settings/openai_usage_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -20,7 +19,6 @@ void main() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
     dotenv.testLoad(fileInput: 'OPENAI_API_KEY=test-key');
-    await OpenAIUsageService.instance.initialize();
   });
 
   test(
@@ -51,8 +49,6 @@ void main() {
       expect(chunks.map((chunk) => chunk.content).join(), 'Done.');
       expect(provider.lastResponseMetadata?['promptTokens'], 20);
       expect(provider.lastResponseMetadata?['completionTokens'], 4);
-      await Future<void>.delayed(Duration.zero);
-      expect(OpenAIUsageService.instance.usage.value.responseRequests, 1);
     },
   );
 

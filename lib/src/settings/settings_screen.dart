@@ -12,16 +12,17 @@ import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
-import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
+import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
+    show InlineNameKeyboard;
 import 'package:budget_ai/src/settings/app_backup_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/chat/openai_voice.dart';
-import 'package:budget_ai/src/settings/openai_usage_screen.dart';
 import 'package:budget_ai/src/settings/openai_voice_screen.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
+import 'package:budget_ai/src/settings/shared_preferences_screen.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -138,17 +139,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          _navTile(
-            theme,
-            icon: CupertinoIcons.chart_bar_alt_fill,
-            title: 'OpenAI usage',
-            subtitle:
-                'Local tokens, audio seconds, speech characters, and requests',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const OpenAIUsageScreen()),
-            ),
-          ),
           ValueListenableBuilder<UserBubbleStyle>(
             valueListenable: BubbleStyleSettingsService.instance.style,
             builder: (context, style, _) => _navTile(
@@ -178,13 +168,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _navTile(
             theme,
-            icon: CupertinoIcons.sparkles,
-            title: 'Onboarding',
-            subtitle: 'Replay the welcome tour',
+            icon: CupertinoIcons.slider_horizontal_3,
+            title: 'Shared Preferences',
+            subtitle: 'Temporary developer preference inspector',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const OnboardingScreen(isReplay: true),
+                builder: (_) => const SharedPreferencesScreen(),
               ),
             ),
           ),
@@ -204,10 +194,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: _tileDecoration(theme),
           child: Row(
             children: [
@@ -286,7 +276,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   BoxDecoration _tileDecoration(ThemeData theme) => BoxDecoration(
-    borderRadius: BorderRadius.circular(100),
+    borderRadius: BorderRadius.circular(12),
     border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.4)),
   );
 
@@ -398,12 +388,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(32),
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: theme.colorScheme.outline.withValues(alpha: 0.35),
           ),
@@ -513,12 +503,12 @@ class _BubbleStyleOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
                 ? theme.colorScheme.primary
@@ -538,14 +528,13 @@ class _BubbleStyleOption extends StatelessWidget {
                   color: selected
                       ? theme.colorScheme.primary
                       : theme.colorScheme.outline,
-                      size: 30,
+                  size: 30,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   style.label,
                   style: AppTheme.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
-                   
                   ),
                 ),
               ],
@@ -556,7 +545,8 @@ class _BubbleStyleOption extends StatelessWidget {
               child: UserBubbleStyleSurface(
                 style: style,
                 child: ExpandableUserMessageText(
-                  text: 'This is how your message will look, take a look and choose your style',
+                  text:
+                      'This is how your message will look, take a look and choose your style',
                   style: UserBubbleStyleSurface.messageTextStyle(
                     context,
                     style,
@@ -719,7 +709,7 @@ class _SettingsNameEditorState extends State<_SettingsNameEditor> {
                 vertical: verticalInset,
               ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(screenSize.shortestSide),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Row(

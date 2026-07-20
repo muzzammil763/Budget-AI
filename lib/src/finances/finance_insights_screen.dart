@@ -269,14 +269,14 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [cardColor, Color.lerp(cardColor, AppTheme.highlight, 0.28)!],
         ),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: cardColor.withValues(alpha: 0.18),
@@ -295,7 +295,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                 height: 42,
                 decoration: BoxDecoration(
                   color: onCard.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(32),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.insights_rounded, color: onCard, size: 24),
               ),
@@ -410,7 +410,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     final scope = _scopeMonth;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,7 +584,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   Widget _buildMetricCard(ThemeData theme, _Metric metric) {
     return Container(
       height: 98,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,7 +627,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
         : insights.activeDays / insights.trackedDays;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -792,7 +792,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -979,7 +979,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1012,12 +1012,12 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   Widget _buildSignalCard(ThemeData theme, _Metric signal) {
     return Container(
       height: 112,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.13),
         ),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1095,7 +1095,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1406,10 +1406,10 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   }) {
     return Container(
       height: 116,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1464,7 +1464,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
         ? insights.topCategories
         : insights.topCategories.take(limit).toList();
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1581,7 +1581,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   static BoxDecoration _cardDecoration(ThemeData theme) {
     return BoxDecoration(
       color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(32),
+      borderRadius: BorderRadius.circular(12),
       border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
       boxShadow: [
         BoxShadow(
@@ -2104,7 +2104,7 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard> {
     final hiddenCount = categories.length - _initialCount;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _FinanceInsightsScreenState._cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -2170,7 +2170,7 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _FinanceInsightsScreenState._cardDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

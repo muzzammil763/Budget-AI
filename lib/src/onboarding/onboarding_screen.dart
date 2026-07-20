@@ -31,11 +31,7 @@ const _pageStateAnimationDuration = Duration(milliseconds: 280);
 const _pageStateAnimationCurve = Curves.easeOutCubic;
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key, this.isReplay = false});
-
-  /// When true the screen is opened from Settings as a tour replay: it pops
-  /// back instead of navigating to chat and never rewrites onboarding state.
-  final bool isReplay;
+  const OnboardingScreen({super.key});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -169,10 +165,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     setState(() => _isFinishing = true);
 
     try {
-      if (widget.isReplay) {
-        Navigator.of(context).pop();
-        return;
-      }
       final preferences = SharedPreferencesAsync();
       await preferences.setBool(_onboardingCompletedKey, true);
       await preferences.setString(
@@ -362,42 +354,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   ];
 
   Widget _buildHeader(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-      child: Row(
-        children: [
-          if (widget.isReplay)
-            _buildHeaderChromeButton(
-              theme,
-              width: 48,
-              tooltip: 'Back',
-              onPressed: Navigator.of(context).pop,
-              child: Icon(
-                CupertinoIcons.back,
-                color: theme.colorScheme.onSurface,
-                size: 25,
-              ),
-            ),
-          const Spacer(),
-          AnimatedOpacity(
-            opacity: _isLastPage ? 0 : 1,
-            duration: const Duration(milliseconds: 200),
-            child: _buildHeaderChromeButton(
-              theme,
-              width: 76,
-              tooltip: 'Skip onboarding',
-              onPressed: _isLastPage ? null : () => _goToPage(_pageCount - 1),
-              child: Text(
-                'Skip',
-                style: AppTheme.bodyMedium.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      children: [
+        const Spacer(),
+        AnimatedOpacity(
+          opacity: _isLastPage ? 0 : 1,
+          duration: const Duration(milliseconds: 200),
+          child: TextButton(onPressed: _isLastPage ? null : () => _goToPage(_pageCount -1 ), child: Text("Skip")),
+        ),
+      ],
     );
   }
 
@@ -408,13 +373,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     required String tooltip,
     required VoidCallback? onPressed,
     required Widget child,
+    double borderRadius = 32,
   }) {
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
           color: theme.brightness == Brightness.dark
               ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
@@ -430,11 +396,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(borderRadius),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(borderRadius),
           child: Tooltip(
             message: tooltip,
             child: Center(child: child),
@@ -454,6 +420,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final collapsedIndicatorWidth = screenSize.width * 0.015;
     final activeIndicatorWidth = screenSize.width * 0.062;
     final backSlotGap = screenSize.width * 0.021;
+    final backButtonWidth = (screenSize.width * 0.24).clamp(88.0, 108.0);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -511,24 +478,39 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: IgnorePointer(
                   ignoring: _currentPage == 0,
                   child: SizedBox(
-                    width: controlSize + backSlotGap,
+                    width: backButtonWidth + backSlotGap,
                     child: Row(
                       children: [
                         SizedBox(
-                          width: controlSize,
+                          width: backButtonWidth,
                           height: controlSize,
                           child: _buildHeaderChromeButton(
                             theme,
-                            width: controlSize,
+                            width: backButtonWidth,
                             height: controlSize,
+                            borderRadius: 12,
                             tooltip: 'Previous page',
                             onPressed: _currentPage == 0
                                 ? null
                                 : () => _goToPage(_currentPage - 1),
-                            child: Icon(
-                              CupertinoIcons.back,
-                              color: theme.colorScheme.onSurface,
-                              size: screenSize.shortestSide * 0.052,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.back,
+                                  color: theme.colorScheme.onSurface,
+                                  size: screenSize.shortestSide * 0.045,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Back',
+                                  style: AppTheme.bodyLarge.copyWith(
+                                    color: theme.colorScheme.onSurface,
+                                    fontSize: screenSize.shortestSide * 0.037,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -548,7 +530,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       foregroundColor: theme.colorScheme.onPrimary,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(100),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: _isFinishing
@@ -576,6 +558,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                              if (_currentPage > 0 && !_isLastPage) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  CupertinoIcons.forward,
+                                  size: screenSize.shortestSide * 0.043,
+                                ),
+                              ],
                             ],
                           ),
                   ),
@@ -1166,7 +1155,7 @@ class _InsightPreviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
         ),
@@ -1268,7 +1257,7 @@ class _OverviewGraphic extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: animate ? 0 : 1, end: 1),
@@ -1309,7 +1298,7 @@ class _OverviewGraphic extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: onCard.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(100),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'ON TRACK',
@@ -1387,7 +1376,7 @@ class _OverviewGraphic extends StatelessWidget {
                   ),
                   SizedBox(height: 3 * contentScale),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
+                    borderRadius: BorderRadius.circular(12),
                     child: LinearProgressIndicator(
                       value: budgetProgress,
                       minHeight: 4 * contentScale,
@@ -1423,7 +1412,7 @@ class _OverviewAmount extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 7 * scale, vertical: 5 * scale),
       decoration: BoxDecoration(
         color: onCard.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1612,7 +1601,7 @@ class _ActivityGraphic extends StatelessWidget {
                           : theme.colorScheme.primary.withValues(
                               alpha: (0.12 + level * 0.82) * progress,
                             ),
-                      borderRadius: BorderRadius.circular(squareSize * 0.28),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
               ],
@@ -1661,7 +1650,7 @@ class _RecentDaysGraphic extends StatelessWidget {
                                   : theme.colorScheme.primary.withValues(
                                       alpha: 0.15,
                                     ),
-                              borderRadius: BorderRadius.circular(32),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
@@ -1907,8 +1896,8 @@ class _ChatPreviewState extends State<_ChatPreview> {
                   color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(4 * displayScale),
-                    topRight: Radius.circular(16 * displayScale),
-                    bottomLeft: Radius.circular(16 * displayScale),
+                    topRight: Radius.circular(12 * displayScale),
+                    bottomLeft: Radius.circular(12 * displayScale),
                     bottomRight: Radius.circular(4 * displayScale),
                   ),
                   border: Border.all(
@@ -2291,11 +2280,11 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(
-          horizontal: horizontalInset,
-          vertical: verticalInset,
+          horizontal: 8,
+          vertical: 8,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(screenSize.shortestSide),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: theme.colorScheme.outline),
         ),
         child: Row(
@@ -2305,12 +2294,12 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
               height: iconContainerSize,
               decoration: BoxDecoration(
                 color: theme.colorScheme.primary,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(12)
               ),
               child: Icon(
                 CupertinoIcons.person_fill,
                 color: theme.colorScheme.onPrimary,
-                size: screenSize.shortestSide * 0.051,
+                size: screenSize.shortestSide * 0.048,
               ),
             ),
             SizedBox(width: horizontalInset),
@@ -2522,135 +2511,117 @@ class InlineNameKeyboard extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(screenSize.shortestSide * 0.026),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(screenSize.shortestSide * 0.046),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.28),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: screenSize.shortestSide * 0.046,
-              offset: Offset(0, screenSize.height * 0.009),
-            ),
-          ],
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final resolver = _KeyboardTouchResolver(
-              width: constraints.maxWidth,
-              keyHeight: screenSize.shortestSide * 0.082,
-              keyGap: keyGap,
-            );
-
-            void dispatch(String fallbackKey) {
-              final key = resolver.resolve(fallbackKey);
-              switch (key) {
-                case _KeyboardTouchResolver.deleteKey:
-                  onBackspace();
-                  return;
-                case _KeyboardTouchResolver.periodKey:
-                  onPeriod();
-                  return;
-                case _KeyboardTouchResolver.spaceKey:
-                  onSpace();
-                  return;
-                case _KeyboardTouchResolver.doneKey:
-                  onDone();
-                  return;
-                default:
-                  onLetter(key);
-                  return;
-              }
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final resolver = _KeyboardTouchResolver(
+            width: constraints.maxWidth,
+            keyHeight: screenSize.shortestSide * 0.082,
+            keyGap: keyGap,
+          );
+      
+          void dispatch(String fallbackKey) {
+            final key = resolver.resolve(fallbackKey);
+            switch (key) {
+              case _KeyboardTouchResolver.deleteKey:
+                onBackspace();
+                return;
+              case _KeyboardTouchResolver.periodKey:
+                onPeriod();
+                return;
+              case _KeyboardTouchResolver.spaceKey:
+                onSpace();
+                return;
+              case _KeyboardTouchResolver.doneKey:
+                onDone();
+                return;
+              default:
+                onLetter(key);
+                return;
             }
-
-            return Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: resolver.track,
-              onPointerMove: resolver.track,
-              onPointerUp: resolver.track,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final row in _rows) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (var i = 0; i < row.length; i++) ...[
-                          if (i > 0) SizedBox(width: keyGap),
-                          Expanded(
-                            child: _InlineKeyboardKey(
-                              label: row[i],
-                              onTap: () => dispatch(row[i]),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    SizedBox(height: keyGap),
-                  ],
+          }
+      
+          return Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: resolver.track,
+            onPointerMove: resolver.track,
+            onPointerUp: resolver.track,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final row in _rows) ...[
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      for (var i = 0; i < _lastLetterRow.length; i++) ...[
+                      for (var i = 0; i < row.length; i++) ...[
                         if (i > 0) SizedBox(width: keyGap),
                         Expanded(
                           child: _InlineKeyboardKey(
-                            label: _lastLetterRow[i],
-                            onTap: () => dispatch(_lastLetterRow[i]),
+                            label: row[i],
+                            onTap: () => dispatch(row[i]),
                           ),
                         ),
                       ],
-                      SizedBox(width: keyGap),
-                      Expanded(
-                        child: _InlineKeyboardKey(
-                          icon: CupertinoIcons.delete_left,
-                          repeatOnLongPress: true,
-                          onTap: () =>
-                              dispatch(_KeyboardTouchResolver.deleteKey),
-                        ),
-                      ),
                     ],
                   ),
                   SizedBox(height: keyGap),
-                  Row(
-                    children: [
+                ],
+                Row(
+                  children: [
+                    for (var i = 0; i < _lastLetterRow.length; i++) ...[
+                      if (i > 0) SizedBox(width: keyGap),
                       Expanded(
-                        flex: 2,
                         child: _InlineKeyboardKey(
-                          label: '.',
-                          onTap: () =>
-                              dispatch(_KeyboardTouchResolver.periodKey),
-                        ),
-                      ),
-                      SizedBox(width: keyGap),
-                      Expanded(
-                        flex: 6,
-                        child: _InlineKeyboardKey(
-                          label: 'SPACE',
-                          onTap: () =>
-                              dispatch(_KeyboardTouchResolver.spaceKey),
-                        ),
-                      ),
-                      SizedBox(width: keyGap),
-                      Expanded(
-                        flex: 2,
-                        child: _InlineKeyboardKey(
-                          icon: CupertinoIcons.check_mark,
-                          emphasized: true,
-                          onTap: () => dispatch(_KeyboardTouchResolver.doneKey),
+                          label: _lastLetterRow[i],
+                          onTap: () => dispatch(_lastLetterRow[i]),
                         ),
                       ),
                     ],
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+                    SizedBox(width: keyGap),
+                    Expanded(
+                      child: _InlineKeyboardKey(
+                        icon: CupertinoIcons.delete_left,
+                        repeatOnLongPress: true,
+                        onTap: () =>
+                            dispatch(_KeyboardTouchResolver.deleteKey),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: keyGap),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: _InlineKeyboardKey(
+                        label: '.',
+                        onTap: () =>
+                            dispatch(_KeyboardTouchResolver.periodKey),
+                      ),
+                    ),
+                    SizedBox(width: keyGap),
+                    Expanded(
+                      flex: 6,
+                      child: _InlineKeyboardKey(
+                        label: 'SPACE',
+                        onTap: () =>
+                            dispatch(_KeyboardTouchResolver.spaceKey),
+                      ),
+                    ),
+                    SizedBox(width: keyGap),
+                    Expanded(
+                      flex: 2,
+                      child: _InlineKeyboardKey(
+                        icon: CupertinoIcons.check_mark,
+                        emphasized: true,
+                        onTap: () => dispatch(_KeyboardTouchResolver.doneKey),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -2860,7 +2831,7 @@ class _InlineKeyboardKeyState extends State<_InlineKeyboardKey> {
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary,
                       borderRadius: BorderRadius.circular(
-                        screenSize.shortestSide * 0.022,
+                        8,
                       ),
                       border: Border.all(
                         color: theme.colorScheme.onPrimary.withValues(
@@ -2985,11 +2956,11 @@ class _PermissionCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(
-        horizontal: horizontalInset,
-        vertical: verticalInset,
+        horizontal: 8,
+        vertical: 8,
       ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isGranted
               ? Colors.green.withValues(alpha: 0.5)
@@ -3003,7 +2974,7 @@ class _PermissionCard extends StatelessWidget {
             height: iconContainerSize,
             decoration: BoxDecoration(
               color: isGranted ? Colors.green : theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,

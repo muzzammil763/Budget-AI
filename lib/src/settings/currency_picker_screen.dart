@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/settings/currency_display_card.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +23,7 @@ class CurrencyPickerScreen extends StatelessWidget {
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
-        title: const Text('Choose currency display'),
+        title: const Text('Choose Currency Display'),
       ),
       body: SafeArea(
         top: false,
@@ -51,6 +50,7 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
   final FocusNode _customFocusNode = FocusNode();
   final GlobalKey _keyboardKey = GlobalKey();
   bool _keyboardVisible = false;
+  bool _isClosing = false;
   int _keyboardTransition = 0;
 
   @override
@@ -129,81 +129,67 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
 
   Future<void> _selectCurrency(String value) async {
     final normalized = value.trim();
-    if (normalized.isEmpty) return;
+    if (normalized.isEmpty || _isClosing) return;
+    _isClosing = true;
+    HapticFeedback.selectionClick();
     await CurrencySettingsService.instance.setCurrency(normalized);
+    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _submitCustom(String value) async {
     final normalized = value.trim();
-    if (normalized.isEmpty) return;
+    if (normalized.isEmpty || _isClosing) return;
+    _isClosing = true;
+    HapticFeedback.selectionClick();
     _customFocusNode.unfocus();
     _keyboardTransition++;
     setState(() => _keyboardVisible = false);
-    _customController.clear();
-    await _selectCurrency(normalized);
+    await CurrencySettingsService.instance.setCurrency(normalized);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final customValue = _customController.text.trim();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        ValueListenableBuilder<String>(
-          valueListenable: CurrencySettingsService.instance.currency,
-          builder: (context, currency, _) => CurrencyDisplayCard(
-            currency: currency,
-            height: MediaQuery.sizeOf(context).height * 0.30,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
+          child: Text(
+            'Choose how Budget AI displays amounts in finances, insights, '
+            'tool results and AI responses.',
+            style: AppTheme.bodySmall.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
-        const SizedBox(height: 12),
         ValueListenableBuilder<List<String>>(
           valueListenable: CurrencySettingsService.instance.customCurrencies,
-          builder: (context, customCurrencies, _) => ValueListenableBuilder<String>(
-            valueListenable: CurrencySettingsService.instance.currency,
-            builder: (context, selectedCurrency, _) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Available Displays',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Choose how Budget AI displays amounts in finances, insights, tool results and AI responses.',
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 13,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final option
-                          in CurrencySettingsService.instance.availableOptions)
-                        _CurrencyOptionChip(
+          builder: (context, customCurrencies, _) =>
+              ValueListenableBuilder<String>(
+                valueListenable: CurrencySettingsService.instance.currency,
+                builder: (context, selectedCurrency, _) => Column(
+                  children: [
+                    for (final option
+                        in CurrencySettingsService.instance.availableOptions)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CurrencyOptionCard(
                           option: option,
                           selected: option.displayText == selectedCurrency,
                           onTap: () => _selectCurrency(option.displayText),
                         ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
+                      ),
+                  ],
+                ),
+              ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Text(
-          'Add a custom display',
+          'Add a Custom Display',
           style: AppTheme.bodyMedium.copyWith(
             color: theme.colorScheme.onSurface,
             fontSize: 14,
@@ -213,10 +199,10 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
         const SizedBox(height: 8),
         Container(
           constraints: const BoxConstraints(minHeight: 58),
-          padding: const EdgeInsets.fromLTRB(16, 7, 7, 7),
+          padding: const EdgeInsets.fromLTRB(12, 7, 7, 7),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(32),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: theme.colorScheme.outline.withValues(alpha: 0.24),
             ),
@@ -271,23 +257,48 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => _submitCustom(_customController.text),
+                onTap: customValue.isEmpty
+                    ? null
+                    : () => _submitCustom(customValue),
                 child: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(32),
+                    color: customValue.isEmpty
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.12)
+                        : theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     CupertinoIcons.arrow_up_right,
-                    color: theme.colorScheme.onPrimary,
+                    color: customValue.isEmpty
+                        ? theme.colorScheme.onSurfaceVariant
+                        : theme.colorScheme.onPrimary,
                     size: 19,
                   ),
                 ),
               ),
             ],
           ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: customValue.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _CurrencyOptionCard(
+                    option: CurrencyOption(
+                      displayText: customValue,
+                      name: 'Custom Display',
+                    ),
+                    selected: false,
+                    preview: true,
+                    onTap: () => _submitCustom(customValue),
+                  ),
+                ),
         ),
         AnimatedSize(
           duration: const Duration(milliseconds: 300),
@@ -308,6 +319,123 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
         ),
         SizedBox(height: 8),
       ],
+    );
+  }
+}
+
+class _CurrencyOptionCard extends StatelessWidget {
+  const _CurrencyOptionCard({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+    this.preview = false,
+  });
+
+  final CurrencyOption option;
+  final bool selected;
+  final bool preview;
+  final VoidCallback onTap;
+
+  String get _displayName => option.name
+      .replaceFirst(' symbol', ' Symbol')
+      .replaceFirst(' code', ' Code');
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final amountPreview = CurrencySettingsService.instance.formatAmount(
+      100,
+      currency: option.displayText,
+    );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.32),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                selected
+                    ? CupertinoIcons.check_mark_circled_solid
+                    : preview
+                    ? CupertinoIcons.eye
+                    : CupertinoIcons.circle,
+                color: selected || preview
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline,
+                size: 23,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    option.displayText,
+                    style: AppTheme.bodyLarge.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    _displayName,
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        preview ? 'LIVE PREVIEW' : 'PREVIEW',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        amountPreview,
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_forward,
+              color: theme.colorScheme.onSurfaceVariant,
+              size: 17,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -613,68 +741,6 @@ class _CurrencyKeyboardKeyState extends State<_CurrencyKeyboardKey> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CurrencyOptionChip extends StatelessWidget {
-  const _CurrencyOptionChip({
-    required this.option,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final CurrencyOption option;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(32),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.32),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              option.displayText,
-              style: AppTheme.bodyMedium.copyWith(
-                color: selected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              option.name,
-              style: AppTheme.bodySmall.copyWith(
-                color: selected
-                    ? theme.colorScheme.onPrimary.withValues(alpha: 0.76)
-                    : theme.colorScheme.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
