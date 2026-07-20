@@ -3139,6 +3139,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                         color: hintColor.withValues(alpha: 0.72),
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
+                        fontFamily: _chatFontFamily,
                       ),
                       border: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -3151,21 +3152,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                     minLines: 1,
                     textInputAction: TextInputAction.newline,
                     textCapitalization: TextCapitalization.sentences,
-                    style: TextStyle(fontSize: 16, color: textColor),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: textColor,
+                      fontFamily: _chatFontFamily,
+                    ),
                   ),
                 ),
         ),
         const SizedBox(width: 2),
         ValueListenableBuilder<bool>(
-          valueListenable: ModelSettingsService.instance.microphoneEnabled,
-          builder: (context, microphoneEnabled, _) =>
-              ValueListenableBuilder<bool>(
-                valueListenable: _canSendNotifier,
-                builder: (context, canSend, child) => _buildComposerSendButton(
-                  theme,
-                  microphoneEnabled: microphoneEnabled,
-                ),
-              ),
+          valueListenable: _canSendNotifier,
+          builder: (context, canSend, child) => _buildComposerSendButton(theme),
         ),
       ],
     );
@@ -3187,6 +3185,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               color: theme.colorScheme.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w700,
+              fontFamily: _chatFontFamily,
             ),
           ),
         ),
@@ -3236,10 +3235,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  Widget _buildComposerSendButton(
-    ThemeData theme, {
-    required bool microphoneEnabled,
-  }) {
+  Widget _buildComposerSendButton(ThemeData theme) {
     if (_isResponseInProgress && !_canSubmitCurrentMessage) {
       return SizedBox(
         width: 44,
@@ -3263,10 +3259,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final canSend = _canSubmitCurrentMessage;
     final hasText = _messageController.text.trim().isNotEmpty;
     final canHoldToTalk =
-        microphoneEnabled &&
-        !hasText &&
-        !_isTranscribing &&
-        !_isResponseInProgress;
+        !hasText && !_isTranscribing && !_isResponseInProgress;
     final activeColor = theme.colorScheme.primary;
     final disabledColor = theme.colorScheme.primary.withValues(alpha: 0.16);
     final isActive = canSend || canHoldToTalk;
@@ -3655,6 +3648,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return ChatResponseMarkdown(
       text: text,
       isStreaming: isStreaming,
+      fontFamily: _chatFontFamily,
       onLinkTap: _handleMarkdownLinkTap,
       onTypewriterProgress: isStreaming ? _scheduleScrollToBottom : null,
       onTypewriterComplete: isStreaming
@@ -3662,6 +3656,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           : null,
     );
   }
+
+  String? get _chatFontFamily => UserBubbleStyleSurface.chatFontFamily(
+    BubbleStyleSettingsService.instance.current,
+  );
 
   void _finishTypewriterForMessage(int messageIndex) {
     if (!mounted || _isStreaming || _streamingMessageIndex != messageIndex) {

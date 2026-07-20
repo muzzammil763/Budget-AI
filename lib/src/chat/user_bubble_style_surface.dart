@@ -28,7 +28,12 @@ class UserBubbleStyleSurface extends StatelessWidget {
     return AppTheme.bodyMedium.copyWith(
       color: foregroundColor(context, style),
       fontSize: 16,
+      fontFamily: chatFontFamily(style),
     );
+  }
+
+  static String? chatFontFamily(UserBubbleStyle style) {
+    return style.usesHandwrittenFont ? AppTheme.handwrittenFontFamily : null;
   }
 
   @override
@@ -137,7 +142,7 @@ class _UserBubblePainter extends CustomPainter {
     final accent = Paint()
       ..color = palette.accent
       ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1.5, size.shortestSide * 0.025)
+      ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
     final detail = Paint()..color = palette.detail;
     final bubble = _bubblePath(size);

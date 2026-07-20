@@ -47,19 +47,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      locale: DevicePreview.locale(context),
-      builder: DevicePreview.appBuilder,
-      title: 'Budget AI',
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
-      navigatorObservers: [appRouteObserver],
-      home: SplashScreen(
-        child: showOnboarding
-            ? const OnboardingScreen()
-            : UnifiedChatScreen(config: ChatModelConfig.openAI),
-      ),
+    return ValueListenableBuilder<UserBubbleStyle>(
+      valueListenable: BubbleStyleSettingsService.instance.style,
+      builder: (context, bubbleStyle, _) {
+        final fontFamily = bubbleStyle.usesHandwrittenFont
+            ? AppTheme.handwrittenFontFamily
+            : AppTheme.defaultFontFamily;
+
+        return MaterialApp(
+          locale: DevicePreview.locale(context),
+          builder: DevicePreview.appBuilder,
+          title: 'Budget AI',
+          theme: AppTheme.light(fontFamily: fontFamily),
+          darkTheme: AppTheme.dark(fontFamily: fontFamily),
+          themeMode: ThemeMode.system,
+          navigatorObservers: [appRouteObserver],
+          home: SplashScreen(
+            child: showOnboarding
+                ? const OnboardingScreen()
+                : UnifiedChatScreen(config: ChatModelConfig.openAI),
+          ),
+        );
+      },
     );
   }
 }

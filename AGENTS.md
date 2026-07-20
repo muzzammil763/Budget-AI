@@ -12,8 +12,9 @@ The AI stack is OpenAI-only:
 - The model catalog lives in `lib/src/chat/ai_models.dart`; the default is `gpt-5.6-luna`.
 - GPT-5 chat requests use low reasoning effort and low text verbosity. Prompts preserve important facts while removing repetition and optional background.
 - Speech playback is scoped to microphone-originated turns. Typed messages never trigger automatic audio.
-- The composer uses one contextual action: Send when text exists, hold-to-talk when empty and enabled, and Stop during an active response. Releasing a voice hold transcribes and sends immediately.
-- Settings exposes a chat-model picker, hold-to-talk toggle, all built-in output voices, and bundled zero-API-cost voice previews. Speech input/output models are fixed.
+- The composer uses one contextual action: Send when text exists, always-available hold-to-talk when empty, and Stop during an active response. Releasing a voice hold transcribes and sends immediately.
+- Settings exposes a chat-model picker, all built-in output voices, and bundled zero-API-cost voice previews. Speech input/output models are fixed; microphone input has no toggle or stored preference.
+- Paper Curl and Sketch Frame select the bundled Patrick Hand font at the app-theme level. Explicit Boldonse branding and monospaced code remain unchanged.
 
 ## Development rules
 

@@ -15,6 +15,7 @@ class ChatResponseMarkdown extends StatefulWidget {
     required this.text,
     required this.isStreaming,
     required this.onLinkTap,
+    this.fontFamily,
     this.onTokenTap,
     this.onTypewriterProgress,
     this.onTypewriterComplete,
@@ -23,6 +24,7 @@ class ChatResponseMarkdown extends StatefulWidget {
   final String text;
   final bool isStreaming;
   final ChatResponseLinkTap onLinkTap;
+  final String? fontFamily;
   final ChatResponseTokenTap? onTokenTap;
   final VoidCallback? onTypewriterProgress;
   final VoidCallback? onTypewriterComplete;
@@ -58,6 +60,9 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
   @override
   void didUpdateWidget(covariant ChatResponseMarkdown oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.fontFamily != widget.fontFamily) {
+      _markdownTheme = _buildMarkdownTheme(Theme.of(context));
+    }
     if (oldWidget.text != widget.text) {
       _completionReported = false;
     }
@@ -153,37 +158,44 @@ class _ChatResponseMarkdownState extends State<ChatResponseMarkdown> {
     final textColor = theme.colorScheme.onSurface;
     return theme.copyWith(
       textTheme: theme.textTheme.copyWith(
-        headlineLarge: AppTheme.headingLarge.copyWith(
+        headlineLarge: theme.textTheme.headlineLarge?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 22,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        headlineMedium: AppTheme.headingMedium.copyWith(
+        headlineMedium: theme.textTheme.headlineMedium?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        headlineSmall: AppTheme.headingSmall.copyWith(
+        headlineSmall: theme.textTheme.headlineSmall?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 18,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        titleLarge: AppTheme.bodyLarge.copyWith(
+        titleLarge: theme.textTheme.titleLarge?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 17,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        titleMedium: AppTheme.bodyMedium.copyWith(
+        titleMedium: theme.textTheme.titleMedium?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        titleSmall: AppTheme.bodySmall.copyWith(
+        titleSmall: theme.textTheme.titleSmall?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        bodyMedium: AppTheme.bodyMedium.copyWith(
+        bodyMedium: theme.textTheme.bodyMedium?.copyWith(
+          fontFamily: widget.fontFamily,
           fontSize: 16,
           color: textColor,
           height: 1.5,
@@ -312,7 +324,7 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
     final theme = Theme.of(context);
     final textColor = theme.colorScheme.onSurface;
 
-    final style = AppTheme.bodyMedium.copyWith(
+    final style = theme.textTheme.bodyMedium!.copyWith(
       color: textColor,
       fontSize: 16,
       height: 1.5,
@@ -342,7 +354,7 @@ class _StandardChatResponseMarkdown extends StatelessWidget {
               onLinkTap: onLinkTap,
             ),
         highlightBuilder: (context, text, style) {
-          final tokenStyle = const TextStyle(
+          final tokenStyle = style.copyWith(
             color: AppTheme.highlight,
             fontWeight: FontWeight.w600,
             fontSize: 16,

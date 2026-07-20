@@ -8,17 +8,17 @@ Budget AI is a Flutter personal finance assistant powered directly by OpenAI, wi
 - The default chat model is `gpt-5.6-luna`. Settings exposes the supported OpenAI model catalog, including GPT-5.6 Sol, Terra, and Luna.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings use `gpt-4o-transcribe` through OpenAI's transcription endpoint.
-- When the composer is empty, its primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button.
+- When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
 - Spoken replies use `gpt-4o-mini-tts`. Settings exposes all 13 built-in voices and defaults to `marin`.
 - Voice previews are fixed audio files bundled with the app; replaying them never calls OpenAI or creates API usage.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
-- Settings includes a toggle that enables or disables hold-to-talk. The speech and transcription models remain fixed.
+- Paper Curl and Sketch Frame message styles switch the app's default typography to the bundled Patrick Hand font while preserving explicitly branded Boldonse text and monospaced code.
 
 ## Current app flow
 
 - The app opens directly to chat.
 - Tap the app bar model name to open the OpenAI model selector.
-- Settings includes finances, insights, currency, OpenAI model, microphone, output voice, message style, permissions, backup/restore, and onboarding controls.
+- Settings includes finances, insights, currency, OpenAI model, output voice, message style, permissions, backup/restore, and onboarding controls.
 - Finance data is stored locally. Backup/restore uses dated JSON files and also accepts compatible finance lists from earlier exports.
 
 ## Development

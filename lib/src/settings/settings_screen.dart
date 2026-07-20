@@ -113,18 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _showModelSheet,
             ),
           ),
-          ValueListenableBuilder<bool>(
-            valueListenable: ModelSettingsService.instance.microphoneEnabled,
-            builder: (context, enabled, _) => _switchTile(
-              theme,
-              icon: CupertinoIcons.mic_fill,
-              title: 'Microphone input',
-              subtitle:
-                  'OpenAI transcription; spoken replies play only for microphone messages',
-              value: enabled,
-              onChanged: ModelSettingsService.instance.setMicrophoneEnabled,
-            ),
-          ),
           ValueListenableBuilder<String>(
             valueListenable: ModelSettingsService.instance.voiceId,
             builder: (context, voiceId, _) => _navTile(
@@ -218,34 +206,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _switchTile(
-    ThemeData theme, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: _tileDecoration(theme),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 32,
-              child: Icon(icon, size: 24, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: _tileText(theme, title, subtitle)),
-            Switch.adaptive(value: value, onChanged: onChanged),
-          ],
         ),
       ),
     );

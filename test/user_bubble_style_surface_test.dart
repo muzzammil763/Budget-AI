@@ -66,6 +66,10 @@ void main() {
                       UserBubbleStyleSurface.foregroundColor(context, style),
                     );
                     expect(textStyle.fontSize, 16);
+                    expect(
+                      textStyle.fontFamily,
+                      UserBubbleStyleSurface.chatFontFamily(style),
+                    );
                   }
                   return const SizedBox.shrink();
                 },

@@ -47,6 +47,7 @@ flutter:
     - .env
     - assets/icons/
     - assets/audio/openai_voices/
+    - assets/fonts/PatrickHand-OFL.txt
 
   fonts:
     - family: Google Sans
@@ -56,3 +57,7 @@ flutter:
     - family: Boldonse
       fonts:
         - asset: assets/fonts/Boldonse.ttf
+
+    - family: Patrick Hand
+      fonts:
+        - asset: assets/fonts/PatrickHand-Regular.ttf

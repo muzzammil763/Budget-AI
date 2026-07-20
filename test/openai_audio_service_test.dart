@@ -28,14 +28,6 @@ void main() {
     expect(AIModels.openAIModels, hasLength(9));
   });
 
-  test('microphone toggle persists', () async {
-    final settings = ModelSettingsService.instance;
-    expect(settings.microphoneEnabled.value, isTrue);
-    await settings.setMicrophoneEnabled(false);
-    await settings.initialize();
-    expect(settings.microphoneEnabled.value, isFalse);
-  });
-
   test('all OpenAI voices are available and selection persists', () async {
     final settings = ModelSettingsService.instance;
     expect(OpenAIVoices.all, hasLength(13));

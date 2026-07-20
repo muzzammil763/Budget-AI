@@ -16,6 +16,9 @@ enum UserBubbleStyle {
   const UserBubbleStyle(this.label);
 
   final String label;
+
+  bool get usesHandwrittenFont =>
+      this == UserBubbleStyle.paperCurl || this == UserBubbleStyle.sketchFrame;
 }
 
 class BubbleStyleSettingsService {
