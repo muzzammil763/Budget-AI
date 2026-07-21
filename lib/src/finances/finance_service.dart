@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
 
 const List<String> kFinanceCategories = [
   'Food',
@@ -346,9 +347,41 @@ class FinanceService {
       final file = await _storageFile();
       final json = jsonEncode(_cache!.map((e) => e.toJson()).toList());
       await file.writeAsString(json);
+      await BudgetHomeWidgetSync.syncEntries(
+        _cache!.map(
+          (entry) => BudgetWidgetFinanceEntry(
+            id: entry.id,
+            type: entry.type.storageValue,
+            date: entry.date,
+            hasTime: entry.hasTime,
+            description: entry.description,
+            amount: entry.amount,
+            category: entry.category,
+            createdAt: entry.createdAt,
+          ),
+        ),
+      );
     } catch (e) {
       debugPrint('[FinanceService] Failed to persist finances: $e');
     }
+  }
+
+  Future<void> syncHomeWidget() async {
+    final entries = await getAll();
+    await BudgetHomeWidgetSync.syncEntries(
+      entries.map(
+        (entry) => BudgetWidgetFinanceEntry(
+          id: entry.id,
+          type: entry.type.storageValue,
+          date: entry.date,
+          hasTime: entry.hasTime,
+          description: entry.description,
+          amount: entry.amount,
+          category: entry.category,
+          createdAt: entry.createdAt,
+        ),
+      ),
+    );
   }
 
   // ── CSV Import ────────────────────────────────────────────────
