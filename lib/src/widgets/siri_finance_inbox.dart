@@ -9,7 +9,14 @@ import 'package:flutter/foundation.dart';
 class SiriFinanceInbox {
   SiriFinanceInbox._();
 
-  static Future<void> importPendingEntries() async {
+  static Future<void> _importQueue = Future<void>.value();
+
+  static Future<void> importPendingEntries() {
+    _importQueue = _importQueue.then((_) => _importPendingEntries());
+    return _importQueue;
+  }
+
+  static Future<void> _importPendingEntries() async {
     if (!Platform.isIOS) return;
     final raw = await BudgetHomeWidgetSync.pendingEntriesJson();
     if (raw == null || raw.trim().isEmpty) return;

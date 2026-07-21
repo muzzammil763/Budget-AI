@@ -6,6 +6,8 @@ import WidgetKit
 private enum BudgetSharedStore {
   static let appGroup = "group.com.muzamil.budget.ai"
   static let widgetKind = "BudgetAIWidget"
+  static let financeChangedNotification =
+    "com.muzamil.budget.ai.financeEntriesChanged" as CFString
 
   static let entriesKey = "budget_ai_widget_entries"
   static let pendingEntriesKey = "budget_ai_pending_entries"
@@ -55,6 +57,13 @@ private enum BudgetSharedStore {
     updateMonthlyTotals(entries: allEntries, defaults: defaults, now: now)
 
     WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+    CFNotificationCenterPostNotification(
+      CFNotificationCenterGetDarwinNotifyCenter(),
+      CFNotificationName(financeChangedNotification),
+      nil,
+      nil,
+      true
+    )
     let currency = defaults.string(forKey: currencyKey) ?? "USD"
     return formattedAmount(amount, currency: currency)
   }

@@ -9,6 +9,7 @@ import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/finances/finance_entry_edit_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
+import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:toastification/toastification.dart';
 
 class FinancesScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
   void initState() {
     super.initState();
     _searchFocusNode.addListener(_handleSearchFocusChanged);
+    SiriFinanceRealtimeSync.revision.addListener(_handleSiriFinanceChanged);
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
     _load();
@@ -40,13 +42,18 @@ class _FinancesScreenState extends State<FinancesScreen> {
   @override
   void dispose() {
     _searchFocusNode.removeListener(_handleSearchFocusChanged);
+    SiriFinanceRealtimeSync.revision.removeListener(_handleSiriFinanceChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
+  void _handleSiriFinanceChanged() {
+    _load(showLoading: false);
+  }
+
+  Future<void> _load({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     FinanceService.instance.invalidateCache();
     await FinanceService.instance.applySavingsRollover();
     final allEntries = await FinanceService.instance.getAll();

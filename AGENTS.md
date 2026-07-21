@@ -16,7 +16,7 @@ The AI stack is OpenAI-only:
 - Settings exposes a chat-model picker, all built-in output voices, and bundled zero-API-cost voice previews. Speech input/output models are fixed; microphone input has no toggle or stored preference.
 - Paper Curl and Sketch Frame select the bundled Patrick Hand font at the app-theme level. Explicit Boldonse branding and monospaced code remain unchanged.
 - `home_widget` mirrors finance summaries and entries into the `group.com.muzamil.budget.ai` App Group. The native iOS 17 `BudgetAIWidget` target renders the Home Screen widget.
-- Native App Intents expose “Add an expense in Budget AI” and “Add income in Budget AI” to Siri. Siri stores entries in the shared App Group, speaks a system confirmation, and Flutter imports the pending-entry inbox on its next launch.
+- Native App Intents expose “Add an expense in Budget AI” and “Add income in Budget AI” to Siri. Siri stores entries in the shared App Group, speaks a system confirmation, and posts a Darwin notification for live Flutter import. Launch and foreground imports cover periods when iOS has suspended the app.
 
 ## Development rules
 

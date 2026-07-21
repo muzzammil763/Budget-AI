@@ -45,7 +45,10 @@ widget.build_configurations.each do |config|
     'APPLICATION_EXTENSION_API_ONLY' => 'YES',
     'CODE_SIGN_ENTITLEMENTS' => 'BudgetAIWidget/BudgetAIWidget.entitlements',
     'CODE_SIGN_STYLE' => 'Automatic',
-    'CURRENT_PROJECT_VERSION' => '$(FLUTTER_BUILD_NUMBER)',
+    # The extension does not inherit Flutter/Generated.xcconfig, so Flutter
+    # variables expand to an empty string when the project runs from Xcode.
+    # Keep explicit values aligned with the app's pubspec version.
+    'CURRENT_PROJECT_VERSION' => '1',
     'DEVELOPMENT_TEAM' => '57F97C6YKT',
     'GENERATE_INFOPLIST_FILE' => 'NO',
     'INFOPLIST_FILE' => 'BudgetAIWidget/Info.plist',
@@ -55,7 +58,7 @@ widget.build_configurations.each do |config|
       '@executable_path/Frameworks',
       '@executable_path/../../Frameworks'
     ],
-    'MARKETING_VERSION' => '$(FLUTTER_BUILD_NAME)',
+    'MARKETING_VERSION' => '1.0.0',
     'PRODUCT_BUNDLE_IDENTIFIER' => 'com.muzamil.budget.ai.BudgetAIWidget',
     'PRODUCT_NAME' => '$(TARGET_NAME)',
     'SKIP_INSTALL' => 'YES',
