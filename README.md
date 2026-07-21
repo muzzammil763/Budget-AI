@@ -48,4 +48,24 @@ flutter test
 make apk
 ```
 
+### Regenerating app icons
+
+The launcher icons use a minimal composition of the Budget AI bars, orbit,
+dot, and spark, with separate light and dark palettes. After changing the
+launcher mark or its brand colours, regenerate the 1024-pixel master plus all
+iOS and Android icon variants with:
+
+```sh
+flutter test tool/generate_app_icons_test.dart
+```
+
+The reusable master PNG is written to
+`assets/icons/budget_mark_1024.png`. Android adaptive foreground and
+monochrome layers are generated inside the platform resource directories.
+iOS and iPadOS receive separate Light, Dark, and Tinted 1024-pixel
+appearances, which the system selects from the user's Home Screen appearance.
+On Android 13 and later, supported launchers use the monochrome adaptive layer
+when the user enables themed icons, tinting it from the wallpaper and system
+theme.
+
 The mobile app currently calls OpenAI directly, so a packaged API key can be extracted by a determined user. For a public production release, route requests through a small authenticated backend that keeps the OpenAI key server-side.
