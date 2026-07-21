@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Monthly Budget AI summary and voice entry shortcut</string>
-    <string name="widget_voice_hint">Open Budget AI voice entry</string>
+    <string name="widget_description">Full-width monthly Budget AI summary</string>
+    <string name="widget_logo_description">Budget AI logo</string>
 
     <string-array name="addExpenseQueries">
         <item>log $amount for $description</item>

@@ -68,7 +68,6 @@ struct BudgetProvider: TimelineProvider {
 
 private struct BudgetAIWidgetView: View {
   let entry: BudgetEntry
-  @Environment(\.widgetFamily) private var family
   @Environment(\.colorScheme) private var colorScheme
 
   private var primary: Color { colorScheme == .dark ? .white : .black }
@@ -76,13 +75,10 @@ private struct BudgetAIWidgetView: View {
   private let accent = Color(red: 0.16, green: 0.42, blue: 1.0)
 
   var body: some View {
-    VStack(alignment: .leading, spacing: family == .systemSmall ? 8 : 12) {
+    VStack(alignment: .leading, spacing: 10) {
       header
-      if family == .systemSmall {
-        smallContent
-      } else {
-        mediumContent
-      }
+      summary
+      latestEntry
     }
     .padding(16)
     .containerBackground(for: .widget) {
@@ -91,46 +87,32 @@ private struct BudgetAIWidgetView: View {
   }
 
   private var header: some View {
-    HStack(spacing: 7) {
-      ZStack {
-        Circle().fill(accent)
-        Image(systemName: "waveform")
-          .font(.system(size: 10, weight: .bold))
-          .foregroundStyle(.white)
+    HStack(spacing: 10) {
+      BudgetMarkView(
+        accent: accent,
+        primary: primary,
+        surface: colorScheme == .dark ? .black : .white
+      )
+        .frame(width: 36, height: 36)
+      VStack(alignment: .leading, spacing: 1) {
+        Text("BUDGET AI")
+          .font(.system(size: 12, weight: .black, design: .rounded))
+          .tracking(0.8)
+          .foregroundStyle(primary)
+        Text("SMART FINANCE OVERVIEW")
+          .font(.system(size: 8, weight: .bold, design: .rounded))
+          .tracking(0.45)
+          .foregroundStyle(secondary)
       }
-      .frame(width: 23, height: 23)
-      Text("BUDGET AI")
-        .font(.system(size: 11, weight: .black, design: .rounded))
-        .tracking(0.8)
-        .foregroundStyle(primary)
-      Spacer(minLength: 2)
-      Image(systemName: "mic.fill")
-        .font(.system(size: 12, weight: .semibold))
+      Spacer()
+      Text(entry.date.formatted(.dateTime.month(.wide)))
+        .font(.system(size: 10, weight: .bold, design: .rounded))
         .foregroundStyle(accent)
     }
   }
 
-  private var smallContent: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text("THIS MONTH")
-        .font(.system(size: 9, weight: .bold, design: .rounded))
-        .tracking(0.5)
-        .foregroundStyle(secondary)
-      Text(format(entry.balance, signed: true))
-        .font(.system(size: 22, weight: .bold, design: .rounded))
-        .minimumScaleFactor(0.65)
-        .lineLimit(1)
-        .foregroundStyle(primary)
-      Spacer(minLength: 0)
-      Label("Say “Add expense…”", systemImage: "waveform")
-        .font(.system(size: 9, weight: .semibold, design: .rounded))
-        .lineLimit(1)
-        .foregroundStyle(accent)
-    }
-  }
-
-  private var mediumContent: some View {
-    HStack(spacing: 14) {
+  private var summary: some View {
+    HStack(spacing: 16) {
       VStack(alignment: .leading, spacing: 5) {
         Text("MONTHLY BALANCE")
           .font(.system(size: 9, weight: .bold, design: .rounded))
@@ -141,10 +123,6 @@ private struct BudgetAIWidgetView: View {
           .minimumScaleFactor(0.65)
           .lineLimit(1)
           .foregroundStyle(primary)
-        HStack(spacing: 8) {
-          summaryPill("IN", value: entry.income, color: .green)
-          summaryPill("OUT", value: entry.expense, color: .red)
-        }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -152,43 +130,118 @@ private struct BudgetAIWidgetView: View {
         .fill(primary.opacity(0.09))
         .frame(width: 1)
 
-      VStack(alignment: .leading, spacing: 5) {
-        Text("ADD BY VOICE")
-          .font(.system(size: 9, weight: .bold, design: .rounded))
-          .tracking(0.5)
-          .foregroundStyle(secondary)
-        Text("“Add an expense in Budget AI”")
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
-          .foregroundStyle(primary)
-          .lineLimit(3)
-        Text("Ask Siri")
-          .font(.system(size: 10, weight: .bold, design: .rounded))
-          .foregroundStyle(accent)
+      HStack(spacing: 18) {
+        metric("INCOME", value: entry.income, color: .green)
+        metric("SPENT", value: entry.expense, color: .red)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 
-  private func summaryPill(_ label: String, value: Double, color: Color) -> some View {
-    HStack(spacing: 3) {
-      Circle().fill(color).frame(width: 5, height: 5)
-      Text("\(label) \(format(value))")
+  private func metric(_ label: String, value: Double, color: Color) -> some View {
+    VStack(alignment: .leading, spacing: 3) {
+      HStack(spacing: 4) {
+        Circle().fill(color).frame(width: 5, height: 5)
+        Text(label)
+      }
+      .font(.system(size: 8, weight: .bold, design: .rounded))
+      .foregroundStyle(secondary)
+      Text(format(value))
+        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .minimumScaleFactor(0.65)
         .lineLimit(1)
+        .foregroundStyle(primary)
     }
-    .font(.system(size: 9, weight: .semibold, design: .rounded))
-    .foregroundStyle(secondary)
   }
 
-  private func format(_ amount: Double, signed: Bool = false) -> String {
+  private var latestEntry: some View {
+    HStack(spacing: 6) {
+      Text("LATEST")
+        .font(.system(size: 8, weight: .bold, design: .rounded))
+        .tracking(0.4)
+        .foregroundStyle(secondary)
+      Text(entry.latestDescription)
+        .font(.system(size: 10, weight: .semibold, design: .rounded))
+        .lineLimit(1)
+        .foregroundStyle(primary)
+      Spacer(minLength: 4)
+      if entry.latestAmount > 0 {
+        Text(format(entry.latestAmount, signed: true, isIncome: entry.latestType == "income"))
+          .font(.system(size: 10, weight: .bold, design: .rounded))
+          .lineLimit(1)
+          .foregroundStyle(entry.latestType == "income" ? .green : .red)
+      }
+    }
+    .padding(.horizontal, 9)
+    .padding(.vertical, 6)
+    .background(primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
+  }
+
+  private func format(
+    _ amount: Double,
+    signed: Bool = false,
+    isIncome: Bool = true
+  ) -> String {
     let number = NumberFormatter()
     number.numberStyle = .decimal
     number.maximumFractionDigits = amount.rounded() == amount ? 0 : 2
-    let sign = signed && amount > 0 ? "+" : ""
+    let sign = signed && amount > 0 ? (isIncome ? "+" : "−") : ""
     let value = number.string(from: NSNumber(value: amount)) ?? String(amount)
     if ["$", "€", "£", "₹", "¥"].contains(entry.currency) {
       return "\(sign)\(entry.currency)\(value)"
     }
     return "\(sign)\(value) \(entry.currency)"
+  }
+}
+
+private struct BudgetMarkView: View {
+  let accent: Color
+  let primary: Color
+  let surface: Color
+
+  var body: some View {
+    GeometryReader { proxy in
+      let size = proxy.size.width
+      ZStack {
+        Circle()
+          .stroke(
+            AngularGradient(
+              colors: [.clear, accent.opacity(0.7), .clear],
+              center: .center
+            ),
+            lineWidth: 1.2
+          )
+        RoundedRectangle(cornerRadius: size * 0.23)
+          .fill(
+            LinearGradient(
+              colors: [primary, accent.opacity(0.84)],
+              startPoint: .topLeading,
+              endPoint: .bottomTrailing
+            )
+          )
+          .frame(width: size * 0.78, height: size * 0.78)
+        HStack(alignment: .bottom, spacing: size * 0.055) {
+          markBar(height: size * 0.18, width: size * 0.10)
+          markBar(height: size * 0.28, width: size * 0.10)
+          markBar(height: size * 0.39, width: size * 0.10)
+        }
+        .offset(y: size * 0.075)
+        Circle()
+          .fill(accent)
+          .frame(width: size * 0.075, height: size * 0.075)
+          .offset(x: size * 0.15, y: -size * 0.19)
+        Image(systemName: "sparkle")
+          .font(.system(size: size * 0.16, weight: .bold))
+          .foregroundStyle(accent)
+          .offset(x: size * 0.34, y: -size * 0.34)
+      }
+    }
+  }
+
+  private func markBar(height: CGFloat, width: CGFloat) -> some View {
+    Capsule()
+      .fill(surface)
+      .frame(width: width, height: height)
   }
 }
 
@@ -201,8 +254,8 @@ struct BudgetAIWidget: Widget {
       BudgetAIWidgetView(entry: entry)
     }
     .configurationDisplayName("Budget AI")
-    .description("See your monthly budget and learn the Siri voice command.")
-    .supportedFamilies([.systemSmall, .systemMedium])
+    .description("See your monthly balance, income, spending, and latest entry.")
+    .supportedFamilies([.systemMedium])
     .contentMarginsDisabled()
   }
 }
