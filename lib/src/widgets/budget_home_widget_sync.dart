@@ -22,6 +22,9 @@ class BudgetHomeWidgetSync {
   static const latestDescriptionKey = 'budget_ai_widget_latest_description';
   static const latestAmountKey = 'budget_ai_widget_latest_amount';
   static const latestTypeKey = 'budget_ai_widget_latest_type';
+  static const previousDescriptionKey = 'budget_ai_widget_previous_description';
+  static const previousAmountKey = 'budget_ai_widget_previous_amount';
+  static const previousTypeKey = 'budget_ai_widget_previous_type';
   static const currencyKey = 'budget_ai_widget_currency';
   static const lastUpdatedKey = 'budget_ai_widget_last_updated';
 
@@ -75,6 +78,7 @@ class BudgetHomeWidgetSync {
         .where((entry) => entry.type == 'income')
         .fold<double>(0, (sum, entry) => sum + entry.amount);
     final latest = list.firstOrNull;
+    final previous = list.length > 1 ? list[1] : null;
 
     try {
       await HomeWidget.saveWidgetData<String>(
@@ -94,6 +98,18 @@ class BudgetHomeWidgetSync {
       await HomeWidget.saveWidgetData<String>(
         latestTypeKey,
         latest?.type ?? 'expense',
+      );
+      await HomeWidget.saveWidgetData<String>(
+        previousDescriptionKey,
+        previous?.description ?? '',
+      );
+      await HomeWidget.saveWidgetData<double>(
+        previousAmountKey,
+        previous?.amount ?? 0,
+      );
+      await HomeWidget.saveWidgetData<String>(
+        previousTypeKey,
+        previous?.type ?? 'expense',
       );
       await HomeWidget.saveWidgetData<String>(
         currencyKey,

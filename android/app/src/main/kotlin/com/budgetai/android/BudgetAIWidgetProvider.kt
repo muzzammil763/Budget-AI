@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -26,6 +27,15 @@ class BudgetAIWidgetProvider : HomeWidgetProvider() {
             "budget_ai_widget_latest_type",
             "expense",
         ) ?: "expense"
+        val previousAmount = number(widgetData, "budget_ai_widget_previous_amount")
+        val previousType = widgetData.getString(
+            "budget_ai_widget_previous_type",
+            "expense",
+        ) ?: "expense"
+        val previous = widgetData.getString(
+            "budget_ai_widget_previous_description",
+            "",
+        ) ?: ""
         val currency = widgetData.getString("budget_ai_widget_currency", "USD") ?: "USD"
         val latest = widgetData.getString(
             "budget_ai_widget_latest_description",
@@ -66,6 +76,28 @@ class BudgetAIWidgetProvider : HomeWidgetProvider() {
                 setTextColor(
                     R.id.widget_latest_amount,
                     Color.parseColor(if (latestType == "income") "#59C879" else "#FF6B6B"),
+                )
+                setViewVisibility(
+                    R.id.widget_previous_row,
+                    if (previousAmount > 0) View.VISIBLE else View.GONE,
+                )
+                setTextViewText(R.id.widget_previous, previous)
+                setTextViewText(
+                    R.id.widget_previous_amount,
+                    if (previousAmount > 0) {
+                        formatAmount(
+                            previousAmount,
+                            currency,
+                            signed = true,
+                            positive = previousType == "income",
+                        )
+                    } else {
+                        ""
+                    },
+                )
+                setTextColor(
+                    R.id.widget_previous_amount,
+                    Color.parseColor(if (previousType == "income") "#59C879" else "#FF6B6B"),
                 )
                 setOnClickPendingIntent(R.id.widget_root, openApp)
             }

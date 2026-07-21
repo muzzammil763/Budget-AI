@@ -16,6 +16,9 @@ private enum BudgetSharedStore {
   static let latestDescriptionKey = "budget_ai_widget_latest_description"
   static let latestAmountKey = "budget_ai_widget_latest_amount"
   static let latestTypeKey = "budget_ai_widget_latest_type"
+  static let previousDescriptionKey = "budget_ai_widget_previous_description"
+  static let previousAmountKey = "budget_ai_widget_previous_amount"
+  static let previousTypeKey = "budget_ai_widget_previous_type"
   static let currencyKey = "budget_ai_widget_currency"
   static let lastUpdatedKey = "budget_ai_widget_last_updated"
 
@@ -50,6 +53,15 @@ private enum BudgetSharedStore {
 
     defaults.set(encodeEntries(allEntries), forKey: entriesKey)
     defaults.set(encodeEntries(pendingEntries), forKey: pendingEntriesKey)
+    if let latestDescription = defaults.string(forKey: latestDescriptionKey),
+       defaults.double(forKey: latestAmountKey) > 0 {
+      defaults.set(latestDescription, forKey: previousDescriptionKey)
+      defaults.set(defaults.double(forKey: latestAmountKey), forKey: previousAmountKey)
+      defaults.set(
+        defaults.string(forKey: latestTypeKey) ?? "expense",
+        forKey: previousTypeKey
+      )
+    }
     defaults.set(normalizedDetails, forKey: latestDescriptionKey)
     defaults.set(amount, forKey: latestAmountKey)
     defaults.set(type, forKey: latestTypeKey)

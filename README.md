@@ -23,7 +23,7 @@ Budget AI is a Flutter personal finance assistant powered directly by OpenAI, wi
 
 ## iOS widget and Siri entry
 
-- The iOS 17 Home Screen widget is one full-width medium summary with the Budget AI splash mark, monthly balance, income, spending, and latest entry. It contains no Siri instructions.
+- The iOS 17 Home Screen widget is one full-width medium summary with the Budget AI splash mark, current balance, income, spending, and up to two newest entries. It contains no Siri instructions.
 - Say “Add an expense in Budget AI” or “Add income in Budget AI” to Siri. Siri asks for the amount and description, saves the entry without presenting the app, and speaks the confirmation.
 - Siri-created entries are written to the shared App Group immediately. A Darwin notification and Flutter method channel import them live when Budget AI is running; launch and foreground imports remain the fallback when iOS has suspended the app.
 - Widget data synchronization uses `home_widget` 0.9.3. The WidgetKit UI and App Intents remain native Swift because iOS widgets cannot be rendered as live Flutter views.

@@ -8,6 +8,9 @@ private enum WidgetStore {
   static let latestDescriptionKey = "budget_ai_widget_latest_description"
   static let latestAmountKey = "budget_ai_widget_latest_amount"
   static let latestTypeKey = "budget_ai_widget_latest_type"
+  static let previousDescriptionKey = "budget_ai_widget_previous_description"
+  static let previousAmountKey = "budget_ai_widget_previous_amount"
+  static let previousTypeKey = "budget_ai_widget_previous_type"
   static let currencyKey = "budget_ai_widget_currency"
 
   static func entry(date: Date = Date()) -> BudgetEntry {
@@ -19,6 +22,9 @@ private enum WidgetStore {
       latestDescription: defaults?.string(forKey: latestDescriptionKey) ?? "No entries yet",
       latestAmount: defaults?.double(forKey: latestAmountKey) ?? 0,
       latestType: defaults?.string(forKey: latestTypeKey) ?? "expense",
+      previousDescription: defaults?.string(forKey: previousDescriptionKey) ?? "",
+      previousAmount: defaults?.double(forKey: previousAmountKey) ?? 0,
+      previousType: defaults?.string(forKey: previousTypeKey) ?? "expense",
       currency: defaults?.string(forKey: currencyKey) ?? "USD"
     )
   }
@@ -31,6 +37,9 @@ struct BudgetEntry: TimelineEntry {
   let latestDescription: String
   let latestAmount: Double
   let latestType: String
+  let previousDescription: String
+  let previousAmount: Double
+  let previousType: String
   let currency: String
 
   var balance: Double { income - expense }
@@ -45,6 +54,9 @@ struct BudgetProvider: TimelineProvider {
       latestDescription: "Groceries",
       latestAmount: 2_400,
       latestType: "expense",
+      previousDescription: "Salary",
+      previousAmount: 90_000,
+      previousType: "income",
       currency: "Rs"
     )
   }
@@ -80,10 +92,10 @@ private struct BudgetAIWidgetView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 8) {
       header
       summary
-      latestEntry
+      recentEntries
     }
     .padding(16)
     .containerBackground(for: .widget) {
@@ -99,26 +111,21 @@ private struct BudgetAIWidgetView: View {
         gradientEnd: markGradientEnd,
         surface: colorScheme == .dark ? .black : .white
       )
-        .frame(width: 36, height: 36)
-      VStack(alignment: .leading, spacing: 1) {
-        Text("Budget AI")
-          .font(.custom("Boldonse", size: 11))
-          .foregroundStyle(primary)
-        Text("Smart Finance Overview")
-          .font(.system(size: 9))
-          .foregroundStyle(secondary)
-      }
+        .frame(width: 42, height: 42)
+      Text("Budget AI")
+        .font(.custom("Boldonse", size: 12))
+        .foregroundStyle(primary)
       Spacer()
       Text(entry.date.formatted(.dateTime.month(.wide)))
-        .font(.system(size: 10))
-        .foregroundStyle(accent)
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(primary)
     }
   }
 
   private var summary: some View {
     HStack(spacing: 16) {
       VStack(alignment: .leading, spacing: 5) {
-        Text("Monthly Balance")
+        Text("Current Balance")
           .font(.system(size: 9))
           .foregroundStyle(secondary)
         Text(format(entry.balance))
@@ -157,21 +164,39 @@ private struct BudgetAIWidgetView: View {
     }
   }
 
-  private var latestEntry: some View {
+  private var recentEntries: some View {
+    VStack(spacing: 2) {
+      recentEntry(
+        description: entry.latestDescription,
+        amount: entry.latestAmount,
+        type: entry.latestType
+      )
+      if entry.previousAmount > 0 {
+        recentEntry(
+          description: entry.previousDescription,
+          amount: entry.previousAmount,
+          type: entry.previousType
+        )
+      }
+    }
+  }
+
+  private func recentEntry(
+    description: String,
+    amount: Double,
+    type: String
+  ) -> some View {
     HStack(spacing: 6) {
-      Text("Latest")
-        .font(.system(size: 9))
-        .foregroundStyle(secondary)
-      Text(entry.latestDescription)
+      Text(description)
         .font(.system(size: 10))
         .lineLimit(1)
         .foregroundStyle(primary)
       Spacer(minLength: 4)
-      if entry.latestAmount > 0 {
-        Text(format(entry.latestAmount, signed: true, isIncome: entry.latestType == "income"))
+      if amount > 0 {
+        Text(format(amount, signed: true, isIncome: type == "income"))
           .font(.system(size: 10))
           .lineLimit(1)
-          .foregroundStyle(entry.latestType == "income" ? .green : .red)
+          .foregroundStyle(type == "income" ? .green : .red)
       }
     }
   }
@@ -256,7 +281,7 @@ struct BudgetAIWidget: Widget {
       BudgetAIWidgetView(entry: entry)
     }
     .configurationDisplayName("Budget AI")
-    .description("See your monthly balance, income, spending, and latest entry.")
+    .description("See your current balance, income, spending, and two newest entries.")
     .supportedFamilies([.systemMedium])
     .contentMarginsDisabled()
   }

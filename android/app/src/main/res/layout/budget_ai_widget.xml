@@ -15,8 +15,8 @@
         android:orientation="horizontal">
 
         <ImageView
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:contentDescription="@string/widget_logo_description"
             android:src="@drawable/ic_budget_mark" />
 
@@ -25,6 +25,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:layout_weight="1"
+            android:gravity="center_vertical"
             android:orientation="vertical">
 
             <TextView
@@ -33,15 +34,7 @@
                 android:fontFamily="@font/boldonse"
                 android:text="Budget AI"
                 android:textColor="#FFFFFFFF"
-                android:textSize="11sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:text="Smart Finance Overview"
-                android:textColor="#99FFFFFF"
-                android:textSize="9sp" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <TextView
@@ -50,8 +43,9 @@
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif"
             android:text="July"
-            android:textColor="#FF4C79FF"
-            android:textSize="10sp" />
+            android:textColor="#FFFFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <LinearLayout
@@ -72,7 +66,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif"
-                android:text="Monthly Balance"
+                android:text="Current Balance"
                 android:textColor="#99FFFFFF"
                 android:textSize="9sp" />
 
@@ -152,37 +146,63 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif"
-            android:text="Latest"
-            android:textColor="#99FFFFFF"
-            android:textSize="8sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/widget_latest"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif"
-            android:maxLines="1"
-            android:text="No entries yet"
-            android:textColor="#FFFFFFFF"
-            android:textSize="10sp" />
+            <TextView
+                android:id="@+id/widget_latest"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:maxLines="1"
+                android:text="No entries yet"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10sp" />
 
-        <TextView
-            android:id="@+id/widget_latest_amount"
-            android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/widget_latest_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:text=""
+                android:textColor="#FFFF6B6B"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_previous_row"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif"
-            android:text=""
-            android:textColor="#FFFF6B6B"
-            android:textSize="10sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_previous"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="#FFFFFFFF"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/widget_previous_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:text=""
+                android:textColor="#FFFF6B6B"
+                android:textSize="10sp" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>
