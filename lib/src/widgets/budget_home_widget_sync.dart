@@ -11,6 +11,9 @@ class BudgetHomeWidgetSync {
 
   static const appGroupId = 'group.com.muzamil.budget.ai';
   static const iOSWidgetKind = 'BudgetAIWidget';
+  static const androidWidgetName = 'BudgetAIWidgetProvider';
+  static const qualifiedAndroidWidgetName =
+      'com.budgetai.android.BudgetAIWidgetProvider';
 
   static const entriesKey = 'budget_ai_widget_entries';
   static const pendingEntriesKey = 'budget_ai_pending_entries';
@@ -25,9 +28,9 @@ class BudgetHomeWidgetSync {
   static bool _groupConfigured = false;
 
   static Future<void> initialize() async {
-    if (!Platform.isIOS || _groupConfigured) return;
+    if ((!Platform.isIOS && !Platform.isAndroid) || _groupConfigured) return;
     try {
-      await HomeWidget.setAppGroupId(appGroupId);
+      if (Platform.isIOS) await HomeWidget.setAppGroupId(appGroupId);
       _groupConfigured = true;
     } catch (error) {
       debugPrint('[BudgetHomeWidget] Could not configure App Group: $error');
@@ -58,7 +61,7 @@ class BudgetHomeWidgetSync {
   static Future<void> syncEntries(
     Iterable<BudgetWidgetFinanceEntry> entries,
   ) async {
-    if (!Platform.isIOS) return;
+    if (!Platform.isIOS && !Platform.isAndroid) return;
     await initialize();
     final list = entries.toList()..sort((a, b) => b.date.compareTo(a.date));
     final now = DateTime.now();
@@ -100,7 +103,11 @@ class BudgetHomeWidgetSync {
         lastUpdatedKey,
         now.toIso8601String(),
       );
-      await HomeWidget.updateWidget(iOSName: iOSWidgetKind);
+      await HomeWidget.updateWidget(
+        androidName: androidWidgetName,
+        qualifiedAndroidName: qualifiedAndroidWidgetName,
+        iOSName: iOSWidgetKind,
+      );
     } catch (error) {
       // Finance persistence must remain successful if the widget is absent or
       // the App Group has not been provisioned on this build.

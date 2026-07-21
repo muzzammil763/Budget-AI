@@ -1,3 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="widget_description">Monthly Budget AI summary and voice entry shortcut</string>
+    <string name="widget_voice_hint">Open Budget AI voice entry</string>
+
+    <string-array name="addExpenseQueries">
+        <item>log $amount for $description</item>
+        <item>add $amount for $description</item>
+        <item>add $amount on $description</item>
+        <item>spent $amount on $description</item>
+        <item>just spent $amount on $description</item>
+        <item>add expense $amount for $description</item>
+    </string-array>
+
+    <string-array name="addIncomeQueries">
+        <item>add $amount income from $description</item>
+        <item>log $amount income from $description</item>
+        <item>received $amount from $description</item>
+        <item>add income $amount from $description</item>
+    </string-array>
 </resources>
