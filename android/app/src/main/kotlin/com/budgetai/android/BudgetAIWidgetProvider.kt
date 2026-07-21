@@ -33,7 +33,7 @@ class BudgetAIWidgetProvider : HomeWidgetProvider() {
         ) ?: "No entries yet"
         val month = DateFormatSymbols.getInstance().months[
             Calendar.getInstance().get(Calendar.MONTH)
-        ].uppercase()
+        ]
         val openApp = HomeWidgetLaunchIntent.getActivity(
             context,
             MainActivity::class.java,
@@ -45,7 +45,7 @@ class BudgetAIWidgetProvider : HomeWidgetProvider() {
                 setTextViewText(R.id.widget_month, month)
                 setTextViewText(
                     R.id.widget_balance,
-                    formatAmount(income - expense, currency, signed = true),
+                    formatAmount(income - expense, currency),
                 )
                 setTextViewText(R.id.widget_income, formatAmount(income, currency))
                 setTextViewText(R.id.widget_expense, formatAmount(expense, currency))

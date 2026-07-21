@@ -72,7 +72,12 @@ private struct BudgetAIWidgetView: View {
 
   private var primary: Color { colorScheme == .dark ? .white : .black }
   private var secondary: Color { primary.opacity(0.62) }
-  private let accent = Color(red: 0.16, green: 0.42, blue: 1.0)
+  private let accent = Color(red: 68 / 255, green: 138 / 255, blue: 1.0)
+  private var markGradientEnd: Color {
+    colorScheme == .dark
+      ? Color(red: 203 / 255, green: 222 / 255, blue: 1.0)
+      : Color(red: 19 / 255, green: 39 / 255, blue: 71 / 255)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -91,22 +96,21 @@ private struct BudgetAIWidgetView: View {
       BudgetMarkView(
         accent: accent,
         primary: primary,
+        gradientEnd: markGradientEnd,
         surface: colorScheme == .dark ? .black : .white
       )
         .frame(width: 36, height: 36)
       VStack(alignment: .leading, spacing: 1) {
-        Text("BUDGET AI")
-          .font(.system(size: 12, weight: .black, design: .rounded))
-          .tracking(0.8)
+        Text("Budget AI")
+          .font(.custom("Boldonse", size: 11))
           .foregroundStyle(primary)
-        Text("SMART FINANCE OVERVIEW")
-          .font(.system(size: 8, weight: .bold, design: .rounded))
-          .tracking(0.45)
+        Text("Smart Finance Overview")
+          .font(.system(size: 9))
           .foregroundStyle(secondary)
       }
       Spacer()
       Text(entry.date.formatted(.dateTime.month(.wide)))
-        .font(.system(size: 10, weight: .bold, design: .rounded))
+        .font(.system(size: 10))
         .foregroundStyle(accent)
     }
   }
@@ -114,12 +118,11 @@ private struct BudgetAIWidgetView: View {
   private var summary: some View {
     HStack(spacing: 16) {
       VStack(alignment: .leading, spacing: 5) {
-        Text("MONTHLY BALANCE")
-          .font(.system(size: 9, weight: .bold, design: .rounded))
-          .tracking(0.5)
+        Text("Monthly Balance")
+          .font(.system(size: 9))
           .foregroundStyle(secondary)
-        Text(format(entry.balance, signed: true))
-          .font(.system(size: 24, weight: .bold, design: .rounded))
+        Text(format(entry.balance))
+          .font(.custom("Boldonse", size: 20))
           .minimumScaleFactor(0.65)
           .lineLimit(1)
           .foregroundStyle(primary)
@@ -131,8 +134,8 @@ private struct BudgetAIWidgetView: View {
         .frame(width: 1)
 
       HStack(spacing: 18) {
-        metric("INCOME", value: entry.income, color: .green)
-        metric("SPENT", value: entry.expense, color: .red)
+        metric("Income", value: entry.income, color: .green)
+        metric("Spent", value: entry.expense, color: .red)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -144,10 +147,10 @@ private struct BudgetAIWidgetView: View {
         Circle().fill(color).frame(width: 5, height: 5)
         Text(label)
       }
-      .font(.system(size: 8, weight: .bold, design: .rounded))
+      .font(.system(size: 9))
       .foregroundStyle(secondary)
       Text(format(value))
-        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .font(.system(size: 13))
         .minimumScaleFactor(0.65)
         .lineLimit(1)
         .foregroundStyle(primary)
@@ -156,25 +159,21 @@ private struct BudgetAIWidgetView: View {
 
   private var latestEntry: some View {
     HStack(spacing: 6) {
-      Text("LATEST")
-        .font(.system(size: 8, weight: .bold, design: .rounded))
-        .tracking(0.4)
+      Text("Latest")
+        .font(.system(size: 9))
         .foregroundStyle(secondary)
       Text(entry.latestDescription)
-        .font(.system(size: 10, weight: .semibold, design: .rounded))
+        .font(.system(size: 10))
         .lineLimit(1)
         .foregroundStyle(primary)
       Spacer(minLength: 4)
       if entry.latestAmount > 0 {
         Text(format(entry.latestAmount, signed: true, isIncome: entry.latestType == "income"))
-          .font(.system(size: 10, weight: .bold, design: .rounded))
+          .font(.system(size: 10))
           .lineLimit(1)
           .foregroundStyle(entry.latestType == "income" ? .green : .red)
       }
     }
-    .padding(.horizontal, 9)
-    .padding(.vertical, 6)
-    .background(primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
   }
 
   private func format(
@@ -197,6 +196,7 @@ private struct BudgetAIWidgetView: View {
 private struct BudgetMarkView: View {
   let accent: Color
   let primary: Color
+  let gradientEnd: Color
   let surface: Color
 
   var body: some View {
@@ -204,36 +204,38 @@ private struct BudgetMarkView: View {
       let size = proxy.size.width
       ZStack {
         Circle()
+          .trim(from: 0, to: 0.75)
           .stroke(
             AngularGradient(
-              colors: [.clear, accent.opacity(0.7), .clear],
+              colors: [.clear, accent.opacity(0.65)],
               center: .center
             ),
-            lineWidth: 1.2
+            style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
           )
+          .rotationEffect(.degrees(-90))
         RoundedRectangle(cornerRadius: size * 0.23)
           .fill(
             LinearGradient(
-              colors: [primary, accent.opacity(0.84)],
+              colors: [primary, gradientEnd],
               startPoint: .topLeading,
               endPoint: .bottomTrailing
             )
           )
           .frame(width: size * 0.78, height: size * 0.78)
-        HStack(alignment: .bottom, spacing: size * 0.055) {
-          markBar(height: size * 0.18, width: size * 0.10)
-          markBar(height: size * 0.28, width: size * 0.10)
-          markBar(height: size * 0.39, width: size * 0.10)
+        HStack(alignment: .bottom, spacing: size * 0.0585) {
+          markBar(height: size * 0.1872, width: size * 0.1014)
+          markBar(height: size * 0.2964, width: size * 0.1014)
+          markBar(height: size * 0.4056, width: size * 0.1014)
         }
-        .offset(y: size * 0.075)
+        .offset(y: size * 0.0156)
         Circle()
           .fill(accent)
           .frame(width: size * 0.075, height: size * 0.075)
-          .offset(x: size * 0.15, y: -size * 0.19)
+          .offset(x: size * 0.188, y: -size * 0.277)
         Image(systemName: "sparkle")
           .font(.system(size: size * 0.16, weight: .bold))
           .foregroundStyle(accent)
-          .offset(x: size * 0.34, y: -size * 0.34)
+          .offset(x: size * 0.429, y: -size * 0.429)
       }
     }
   }

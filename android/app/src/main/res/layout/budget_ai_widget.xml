@@ -30,28 +30,26 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.08"
-                android:text="BUDGET AI"
+                android:fontFamily="@font/boldonse"
+                android:text="Budget AI"
                 android:textColor="#FFFFFFFF"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.04"
-                android:text="SMART FINANCE OVERVIEW"
+                android:fontFamily="sans-serif"
+                android:text="Smart Finance Overview"
                 android:textColor="#99FFFFFF"
-                android:textSize="8sp" />
+                android:textSize="9sp" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/widget_month"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:text="JULY"
+            android:fontFamily="sans-serif"
+            android:text="July"
             android:textColor="#FF4C79FF"
             android:textSize="10sp" />
     </LinearLayout>
@@ -73,9 +71,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.05"
-                android:text="MONTHLY BALANCE"
+                android:fontFamily="sans-serif"
+                android:text="Monthly Balance"
                 android:textColor="#99FFFFFF"
                 android:textSize="9sp" />
 
@@ -84,9 +81,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-black"
+                android:fontFamily="@font/boldonse"
                 android:maxLines="1"
-                android:text="+0 USD"
+                android:text="0 USD"
                 android:textColor="#FFFFFFFF"
                 android:textSize="24sp" />
         </LinearLayout>
@@ -107,8 +104,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="●  INCOME"
+                android:fontFamily="sans-serif"
+                android:text="●  Income"
                 android:textColor="#FF59C879"
                 android:textSize="8sp" />
 
@@ -117,7 +114,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-black"
+                android:fontFamily="sans-serif"
                 android:maxLines="1"
                 android:text="0 USD"
                 android:textColor="#FFFFFFFF"
@@ -134,8 +131,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="●  SPENT"
+                android:fontFamily="sans-serif"
+                android:text="●  Spent"
                 android:textColor="#FFFF6B6B"
                 android:textSize="8sp" />
 
@@ -144,7 +141,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-black"
+                android:fontFamily="sans-serif"
                 android:maxLines="1"
                 android:text="0 USD"
                 android:textColor="#FFFFFFFF"
@@ -155,20 +152,14 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/widget_latest_background"
         android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="9dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="9dp"
-        android:paddingBottom="6dp">
+        android:orientation="horizontal">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.04"
-            android:text="LATEST"
+            android:fontFamily="sans-serif"
+            android:text="Latest"
             android:textColor="#99FFFFFF"
             android:textSize="8sp" />
 
@@ -179,7 +170,7 @@
             android:layout_marginStart="7dp"
             android:layout_weight="1"
             android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="sans-serif"
             android:maxLines="1"
             android:text="No entries yet"
             android:textColor="#FFFFFFFF"
@@ -189,7 +180,7 @@
             android:id="@+id/widget_latest_amount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-black"
+            android:fontFamily="sans-serif"
             android:text=""
             android:textColor="#FFFF6B6B"
             android:textSize="10sp" />
