@@ -31,6 +31,7 @@ const List<String> kFinanceCategories = [
   'Banking',
   'Loan',
   'Savings',
+  'Balance Rollover',
   'Work',
 ];
 
@@ -608,6 +609,7 @@ class FinanceService {
   // ── Savings Rollover ──────────────────────────────────────────
 
   static const String savingsCategory = 'Savings';
+  static const String balanceRolloverCategory = 'Balance Rollover';
 
   static const List<String> _rolloverMonthNames = [
     'January',
@@ -643,14 +645,19 @@ class FinanceService {
 
     return entries.any((entry) {
       if (entry.id == deterministicId) return true;
-      if (entry.category.toLowerCase() != savingsCategory.toLowerCase() ||
+      final category = entry.category.toLowerCase();
+      final isRolloverCategory =
+          category == savingsCategory.toLowerCase() ||
+          category == balanceRolloverCategory.toLowerCase();
+      if (!isRolloverCategory ||
           entry.date.year != target.year ||
           entry.date.month != target.month) {
         return false;
       }
       final description = entry.description.toLowerCase();
       return (description.startsWith('savings from ') ||
-              description.startsWith('overspending from ')) &&
+              description.startsWith('overspending from ') ||
+              description.startsWith('deficit carried from ')) &&
           description.endsWith(sourceLabel);
     });
   }
@@ -672,16 +679,16 @@ class FinanceService {
       hasTime: true,
       description: isSaved
           ? 'Savings From ${_rolloverMonthNames[source.month - 1]} ${source.year}'
-          : 'Overspending From ${_rolloverMonthNames[source.month - 1]} ${source.year}',
+          : 'Deficit Carried From ${_rolloverMonthNames[source.month - 1]} ${source.year}',
       amount: closingBalance.abs(),
-      category: savingsCategory,
+      category: isSaved ? savingsCategory : balanceRolloverCategory,
       createdAt: createdAt ?? DateTime.now(),
     );
   }
 
   /// Carries a month's closing result into the next month at midnight.
   /// Positive results become Savings income; negative results become a
-  /// Savings expense. A deterministic ID makes every month transition
+  /// Balance Rollover expense. A deterministic ID makes every month transition
   /// independently idempotent while allowing later months to roll forward.
   Future<int> applySavingsRollover({DateTime? now}) async {
     final current = now ?? DateTime.now();

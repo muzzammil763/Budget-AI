@@ -24,7 +24,7 @@ void main() {
       expect(entry.description, 'Savings From June 2026');
     });
 
-    test('overspending becomes a Savings expense next month', () {
+    test('overspending becomes a Balance Rollover expense next month', () {
       final entry = FinanceService.buildRolloverEntry(
         sourceMonth: DateTime(2026, 6),
         closingBalance: -750,
@@ -32,10 +32,10 @@ void main() {
 
       expect(entry, isNotNull);
       expect(entry!.type, FinanceEntryType.expense);
-      expect(entry.category, 'Savings');
+      expect(entry.category, 'Balance Rollover');
       expect(entry.amount, 750);
       expect(entry.date, DateTime(2026, 7, 1));
-      expect(entry.description, 'Overspending From June 2026');
+      expect(entry.description, 'Deficit Carried From June 2026');
     });
 
     test('zero closing balance creates no transfer entry', () {
@@ -81,6 +81,24 @@ void main() {
         hasTime: true,
         description: 'Savings from June 2026',
         amount: 2300,
+        category: 'Savings',
+        createdAt: DateTime(2026, 7, 1),
+      );
+
+      expect(
+        FinanceService.hasRolloverForMonth([legacy], DateTime(2026, 6)),
+        isTrue,
+      );
+    });
+
+    test('recognizes an existing legacy overspending transfer', () {
+      final legacy = FinanceEntry(
+        id: 'fin_old_overspending_id',
+        type: FinanceEntryType.expense,
+        date: DateTime(2026, 7, 1),
+        hasTime: true,
+        description: 'Overspending From June 2026',
+        amount: 750,
         category: 'Savings',
         createdAt: DateTime(2026, 7, 1),
       );
