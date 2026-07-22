@@ -20,52 +20,74 @@ void main() {
     await _writeFullColourIcon(
       'assets/icons/budget_mark_1024.png',
       pixels: 1024,
-      markScale: 1,
+      markScale: 0.88,
     );
 
     const iosIconDirectory = 'ios/Runner/Assets.xcassets/AppIcon.appiconset';
     await _writeFullColourIcon(
       '$iosIconDirectory/AppIcon-Light-1024.png',
       pixels: 1024,
-      markScale: 1,
+      markScale: 0.88,
       appearance: _IconAppearance.light,
     );
     await _writeFullColourIcon(
       '$iosIconDirectory/AppIcon-Dark-1024.png',
       pixels: 1024,
-      markScale: 1,
+      markScale: 0.88,
     );
     await _writeMonochromeIcon(
       '$iosIconDirectory/AppIcon-Tinted-1024.png',
       pixels: 1024,
-      markScale: 1,
+      markScale: 0.88,
     );
 
     for (final density in _androidDensities.entries) {
       final directory = 'android/app/src/main/res/mipmap-${density.key}';
+      final nightDirectory =
+          'android/app/src/main/res/mipmap-night-${density.key}';
       final legacyPixels = (48 * density.value).round();
       final adaptivePixels = (108 * density.value).round();
+      await Directory(nightDirectory).create(recursive: true);
 
       await _writeFullColourIcon(
         '$directory/ic_launcher.png',
         pixels: legacyPixels,
-        markScale: 1,
+        markScale: 0.88,
+        appearance: _IconAppearance.light,
       );
       await _writeSolidIcon(
         '$directory/ic_launcher_background.png',
         pixels: adaptivePixels,
-        color: _iconBackground,
+        color: _lightIconBackground,
       );
       await _writeFullColourIcon(
         '$directory/ic_launcher_foreground.png',
         pixels: adaptivePixels,
-        markScale: 0.86,
+        markScale: 0.72,
         transparentBackground: true,
+        appearance: _IconAppearance.light,
       );
       await _writeMonochromeIcon(
         '$directory/ic_launcher_monochrome.png',
         pixels: adaptivePixels,
-        markScale: 0.86,
+        markScale: 0.72,
+      );
+
+      await _writeFullColourIcon(
+        '$nightDirectory/ic_launcher.png',
+        pixels: legacyPixels,
+        markScale: 0.88,
+      );
+      await _writeSolidIcon(
+        '$nightDirectory/ic_launcher_background.png',
+        pixels: adaptivePixels,
+        color: _iconBackground,
+      );
+      await _writeFullColourIcon(
+        '$nightDirectory/ic_launcher_foreground.png',
+        pixels: adaptivePixels,
+        markScale: 0.72,
+        transparentBackground: true,
       );
     }
   });

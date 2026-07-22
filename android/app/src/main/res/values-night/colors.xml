@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launch_background">#020307</color>
+    <color name="widget_background">#FF111111</color>
+    <color name="widget_primary">#FFFFFFFF</color>
+    <color name="widget_secondary">#9EFFFFFF</color>
+    <color name="widget_divider">#24FFFFFF</color>
+    <color name="widget_mark_start">#FFFFFFFF</color>
+    <color name="widget_mark_end">#FFCBDEFF</color>
+    <color name="widget_mark_bar">#FF000000</color>
+    <color name="widget_accent">#FF448AFF</color>
+    <color name="widget_accent_ring">#A6448AFF</color>
+</resources>

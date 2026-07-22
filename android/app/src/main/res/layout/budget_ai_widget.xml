@@ -33,7 +33,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/boldonse"
                 android:text="Budget AI"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_primary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif"
             android:text="July"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/widget_primary"
             android:textSize="12sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -67,7 +67,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif"
                 android:text="Current Balance"
-                android:textColor="#99FFFFFF"
+                android:textColor="@color/widget_secondary"
                 android:textSize="9sp" />
 
             <TextView
@@ -78,7 +78,7 @@
                 android:fontFamily="@font/boldonse"
                 android:maxLines="1"
                 android:text="0 USD"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_primary"
                 android:textSize="24sp" />
         </LinearLayout>
 
@@ -87,7 +87,7 @@
             android:layout_height="46dp"
             android:layout_marginStart="14dp"
             android:layout_marginEnd="14dp"
-            android:background="#24FFFFFF" />
+            android:background="@color/widget_divider" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -111,7 +111,7 @@
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
                 android:text="0 USD"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_primary"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -138,7 +138,7 @@
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
                 android:text="0 USD"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_primary"
                 android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
@@ -163,7 +163,7 @@
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
                 android:text="No entries yet"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_primary"
                 android:textSize="10sp" />
 
             <TextView
@@ -192,7 +192,7 @@
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
                 android:text=""
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_primary"
                 android:textSize="10sp" />
 
             <TextView

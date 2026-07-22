@@ -15,9 +15,9 @@ The AI stack is OpenAI-only:
 - The composer uses one contextual action: Send when text exists, always-available hold-to-talk when empty, and Stop during an active response. Releasing a voice hold transcribes and sends immediately.
 - Settings exposes a chat-model picker, all built-in output voices, and bundled zero-API-cost voice previews. Speech input/output models are fixed; microphone input has no toggle or stored preference.
 - Paper Curl and Sketch Frame select the bundled Patrick Hand font at the app-theme level. Explicit Boldonse branding and monospaced code remain unchanged.
-- `home_widget` mirrors finance summaries and entries into the `group.com.muzamil.budget.ai` App Group. The native iOS 17 `BudgetAIWidget` target renders one medium-width, app-styled financial summary with the splash mark and no voice instructions.
+- `home_widget` mirrors finance summaries and entries into the `group.com.muzamil.budget.ai` App Group. The native iOS 17 `BudgetAIWidget` target renders one medium-width, app-styled financial summary whose surface, text, and splash mark follow the widget Light/Dark color scheme, with no voice instructions.
 - Native App Intents expose “Add an expense in Budget AI” and “Add income in Budget AI” to Siri. Siri stores entries in the shared App Group, speaks a system confirmation, and posts a Darwin notification for live Flutter import. Launch and foreground imports cover periods when iOS has suspended the app.
-- Android exposes matching `home_widget` summary data through one wide, non-resizable `BudgetAIWidgetProvider` layout with the splash mark and no voice instructions. Google Assistant custom App Actions deep-link amount and description parameters into Flutter; successful actions update local finance data and use Android text-to-speech for confirmation.
+- Android exposes matching `home_widget` summary data through one wide, non-resizable `BudgetAIWidgetProvider` layout whose background, text, and splash mark use Light/Dark resource palettes, with no voice instructions. Google Assistant custom App Actions deep-link amount and description parameters into Flutter; successful actions update local finance data and use Android text-to-speech for confirmation.
 
 ## Development rules
 

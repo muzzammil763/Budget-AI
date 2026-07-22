@@ -8,34 +8,34 @@
     <path
         android:fillColor="@android:color/transparent"
         android:pathData="M32,1 A31,31 0,1 1,31.9 1"
-        android:strokeColor="#A6448AFF"
+        android:strokeColor="@color/widget_accent_ring"
         android:strokeLineCap="round"
         android:strokeWidth="2" />
     <path android:pathData="M22,7 H42 C50.28,7 57,13.72 57,22 V42 C57,50.28 50.28,57 42,57 H22 C13.72,57 7,50.28 7,42 V22 C7,13.72 13.72,7 22,7 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:endColor="#FF132747"
+                android:endColor="@color/widget_mark_end"
                 android:endX="57"
                 android:endY="57"
-                android:startColor="#FF000000"
+                android:startColor="@color/widget_mark_start"
                 android:startX="7"
                 android:startY="7"
                 android:type="linear" />
         </aapt:attr>
     </path>
     <path
-        android:fillColor="#FFFFFFFF"
+        android:fillColor="@color/widget_mark_bar"
         android:pathData="M18.52,45.98 V37.25 C18.52,35.46 19.97,34 21.76,34 C23.55,34 25.01,35.46 25.01,37.25 V45.98 Z" />
     <path
-        android:fillColor="#FFFFFFFF"
+        android:fillColor="@color/widget_mark_bar"
         android:pathData="M28.75,45.98 V30.25 C28.75,28.46 30.2,27.01 31.99,27.01 C33.78,27.01 35.24,28.46 35.24,30.25 V45.98 Z" />
     <path
-        android:fillColor="#FFFFFFFF"
+        android:fillColor="@color/widget_mark_bar"
         android:pathData="M38.98,45.98 V23.27 C38.98,21.48 40.43,20.02 42.22,20.02 C44.01,20.02 45.47,21.48 45.47,23.27 V45.98 Z" />
     <path
-        android:fillColor="#FF448AFF"
+        android:fillColor="@color/widget_accent"
         android:pathData="M43.22,11.68 A2.6,2.6 0,1 1,43.12 11.68" />
     <path
-        android:fillColor="#FF448AFF"
+        android:fillColor="@color/widget_accent"
         android:pathData="M59.5,0 L61,3 L64,4.5 L61,6 L59.5,9 L58,6 L55,4.5 L58,3 Z" />
 </vector>
