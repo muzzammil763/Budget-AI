@@ -9,6 +9,8 @@ import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/finances/finance_entry_edit_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
+import 'package:budget_ai/src/storage/local_finance_store.dart';
+import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
 import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:toastification/toastification.dart';
@@ -36,6 +38,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
     _searchFocusNode.addListener(_handleSearchFocusChanged);
     SiriFinanceRealtimeSync.revision.addListener(_handleSiriFinanceChanged);
     AndroidFinanceAppActions.revision.addListener(_handleSiriFinanceChanged);
+    LocalFinanceStore.instance.changes.addListener(_handleSiriFinanceChanged);
+    EncryptedFinanceSyncService.instance.status.addListener(
+      _handleSyncStatusChanged,
+    );
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
     _load();
@@ -46,6 +52,12 @@ class _FinancesScreenState extends State<FinancesScreen> {
     _searchFocusNode.removeListener(_handleSearchFocusChanged);
     SiriFinanceRealtimeSync.revision.removeListener(_handleSiriFinanceChanged);
     AndroidFinanceAppActions.revision.removeListener(_handleSiriFinanceChanged);
+    LocalFinanceStore.instance.changes.removeListener(
+      _handleSiriFinanceChanged,
+    );
+    EncryptedFinanceSyncService.instance.status.removeListener(
+      _handleSyncStatusChanged,
+    );
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -54,6 +66,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
   void _handleSiriFinanceChanged() {
     _load(showLoading: false);
   }
+
+  void _handleSyncStatusChanged() {
+    // The sync status alone can flip the "still fetching" shimmer on/off
+    // even when no local rows changed (e.g. syncing finished with 0 rows).
+    if (mounted) setState(() {});
+  }
+
+  bool get _isInitialSyncPending =>
+      _allEntries.isEmpty &&
+      EncryptedFinanceSyncService.instance.status.value == 'Syncing…';
 
   Future<void> _load({bool showLoading = true}) async {
     if (showLoading) setState(() => _isLoading = true);
@@ -184,10 +206,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final isSearchFieldActive = _isSearchFieldActive;
     final hasAnyEntries = _allEntries.isNotEmpty;
     final hasScopedEntries = scopedEntries.isNotEmpty;
+    final isBusy = _isLoading || _isInitialSyncPending;
     final shouldShowSearchField =
-        !_isLoading &&
-        hasAnyEntries &&
-        (hasScopedEntries || isSearchFieldActive);
+        !isBusy && hasAnyEntries && (hasScopedEntries || isSearchFieldActive);
     final totalExpense = FinanceService.instance.totalAmount(
       scopedEntries,
       type: FinanceEntryType.expense,
@@ -251,7 +272,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                       : _selectMonth(months[index - 1]),
                 ),
                 const SizedBox(height: 12),
-                if (!_isLoading)
+                if (!isBusy)
                   _buildCurrentBalanceCard(
                     theme,
                     currentBalance,
@@ -259,11 +280,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
                     totalExpense,
                     isOverall: _isOverall,
                   ),
-                if (!_isLoading && isSearching)
+                if (!isBusy && isSearching)
                   _buildSearchResultsHeader(theme, visibleEntries.length),
                 Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                  child: isBusy
+                      ? const _FinanceListShimmer()
                       : scopedEntries.isEmpty
                       ? _buildEmpty(theme)
                       : visibleEntries.isEmpty
@@ -1375,5 +1396,58 @@ class _FinancesScreenState extends State<FinancesScreen> {
     return '${date.day.toString().padLeft(2, '0')} '
         '${months[date.month - 1]} ${date.year}, '
         '${_formatClockTime(date)}';
+  }
+}
+
+/// Placeholder shown while entries are being read locally or backfilled by
+/// the encrypted sync, so the finances screen never flashes an empty state
+/// while data is still on its way in.
+class _FinanceListShimmer extends StatelessWidget {
+  const _FinanceListShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 7,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            const ChatShimmerBlock(
+              width: 44,
+              height: 44,
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ChatShimmerBlock(
+                    width: 120 + (index % 3) * 30,
+                    height: 13,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  const SizedBox(height: 8),
+                  const ChatShimmerBlock(
+                    width: 80,
+                    height: 11,
+                    borderRadius: BorderRadius.all(Radius.circular(6)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const ChatShimmerBlock(
+              width: 56,
+              height: 15,
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

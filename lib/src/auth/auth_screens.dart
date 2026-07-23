@@ -95,7 +95,7 @@ class AuthLoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthShell(
+    return AuthShell(
       eyebrow: 'BUDGET AI',
       title: 'Securing your session',
       subtitle: 'Restoring your account and preparing your private workspace.',
@@ -171,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthShell(
+    return AuthShell(
       eyebrow: 'WELCOME BACK',
       title: 'Sign in to Budget AI',
       subtitle:
@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _AuthTextField(
+              AuthTextField(
                 controller: _email,
                 label: 'Email',
                 hint: 'you@example.com',
@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 validator: _validateEmail,
               ),
               const SizedBox(height: 12),
-              _AuthTextField(
+              AuthTextField(
                 controller: _password,
                 label: 'Password',
                 hint: 'Your password',
@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text('Forgot password?'),
                 ),
               ),
-              _AuthPrimaryButton(
+              AuthPrimaryButton(
                 label: 'Sign in',
                 icon: CupertinoIcons.arrow_right,
                 working: _working,
@@ -313,7 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthShell(
+    return AuthShell(
       eyebrow: 'CREATE YOUR ACCOUNT',
       title: 'Start securely',
       subtitle:
@@ -324,7 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _AuthTextField(
+              AuthTextField(
                 controller: _name,
                 label: 'Name',
                 hint: 'What should Budget AI call you?',
@@ -337,7 +337,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     : null,
               ),
               const SizedBox(height: 12),
-              _AuthTextField(
+              AuthTextField(
                 controller: _email,
                 label: 'Email',
                 hint: 'you@example.com',
@@ -348,7 +348,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: _validateEmail,
               ),
               const SizedBox(height: 12),
-              _AuthTextField(
+              AuthTextField(
                 controller: _password,
                 label: 'Password',
                 hint: '8+ characters',
@@ -374,7 +374,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 8),
               const _PasswordHint(),
               const SizedBox(height: 12),
-              _AuthTextField(
+              AuthTextField(
                 controller: _confirmPassword,
                 label: 'Confirm password',
                 hint: 'Repeat your password',
@@ -387,7 +387,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     value != _password.text ? 'Passwords do not match.' : null,
               ),
               const SizedBox(height: 18),
-              _AuthPrimaryButton(
+              AuthPrimaryButton(
                 label: 'Create account',
                 icon: CupertinoIcons.arrow_right,
                 working: _working,
@@ -547,7 +547,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
   @override
   Widget build(BuildContext context) {
-    return _AuthShell(
+    return AuthShell(
       eyebrow: 'ONE MORE STEP',
       title: 'Check your email',
       subtitle:
@@ -561,7 +561,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                 'Tap the confirmation link to return here automatically, or enter the 6-digit code.',
           ),
           const SizedBox(height: 18),
-          _AuthTextField(
+          AuthTextField(
             controller: _code,
             label: 'Confirmation code',
             hint: '000000',
@@ -575,7 +575,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             onSubmitted: (_) => _verifyCode(),
           ),
           const SizedBox(height: 12),
-          _AuthPrimaryButton(
+          AuthPrimaryButton(
             label: 'Verify code',
             icon: CupertinoIcons.checkmark_shield,
             working: _checking,
@@ -665,7 +665,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthShell(
+    return AuthShell(
       eyebrow: 'ACCOUNT RECOVERY',
       title: _sent ? 'Check your inbox' : 'Reset your password',
       subtitle: _sent
@@ -683,7 +683,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     'Open the link on this device. Budget AI will return to a protected password screen.',
               )
             else ...[
-              _AuthTextField(
+              AuthTextField(
                 controller: _email,
                 label: 'Email',
                 hint: 'you@example.com',
@@ -695,7 +695,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 validator: _validateEmail,
               ),
               const SizedBox(height: 18),
-              _AuthPrimaryButton(
+              AuthPrimaryButton(
                 label: 'Send reset link',
                 icon: CupertinoIcons.paperplane,
                 working: _working,
@@ -756,7 +756,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthShell(
+    return AuthShell(
       eyebrow: 'SECURE RECOVERY',
       title: 'Choose a new password',
       subtitle: 'Create a strong password you have not used for this account.',
@@ -766,7 +766,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _AuthTextField(
+              AuthTextField(
                 controller: _password,
                 label: 'New password',
                 hint: '8+ characters',
@@ -792,7 +792,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               const SizedBox(height: 8),
               const _PasswordHint(),
               const SizedBox(height: 12),
-              _AuthTextField(
+              AuthTextField(
                 controller: _confirmPassword,
                 label: 'Confirm new password',
                 hint: 'Repeat your password',
@@ -805,7 +805,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     value != _password.text ? 'Passwords do not match.' : null,
               ),
               const SizedBox(height: 18),
-              _AuthPrimaryButton(
+              AuthPrimaryButton(
                 label: 'Update password',
                 icon: CupertinoIcons.checkmark_shield,
                 working: _working,
@@ -824,8 +824,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 }
 
-class _AuthShell extends StatelessWidget {
-  const _AuthShell({
+class AuthShell extends StatelessWidget {
+  const AuthShell({
+    super.key,
     required this.eyebrow,
     required this.title,
     required this.subtitle,
@@ -1045,8 +1046,9 @@ class _AuthBackdropPainter extends CustomPainter {
       accent != oldDelegate.accent;
 }
 
-class _AuthTextField extends StatelessWidget {
-  const _AuthTextField({
+class AuthTextField extends StatelessWidget {
+  const AuthTextField({
+    super.key,
     required this.controller,
     required this.label,
     required this.hint,
@@ -1100,8 +1102,9 @@ class _AuthTextField extends StatelessWidget {
   }
 }
 
-class _AuthPrimaryButton extends StatelessWidget {
-  const _AuthPrimaryButton({
+class AuthPrimaryButton extends StatelessWidget {
+  const AuthPrimaryButton({
+    super.key,
     required this.label,
     required this.icon,
     required this.working,

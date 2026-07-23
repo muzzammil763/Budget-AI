@@ -197,6 +197,42 @@ class EncryptedFinanceSyncService {
     }
   }
 
+  /// Wipes this account's synced ciphertext, rotates to a brand-new key,
+  /// and re-queues every local entry to push (and re-encrypt) again.
+  /// Returns the new recovery key so the caller can show it once.
+  /// Any other device still holding the old key will no longer be able to
+  /// decrypt anything synced under the new one.
+  Future<String> resetEncryption() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in before resetting encryption.');
+    }
+    status.value = 'Resetting…';
+    try {
+      await _client
+          .from('encrypted_finance_entries')
+          .delete()
+          .eq('user_id', user.id);
+      final recoveryKey = await AccountEncryptionService.instance
+          .rotateRecoveryKey(user.id);
+      final fingerprint = await AccountEncryptionService.instance.fingerprint(
+        user.id,
+      );
+      await _client.from('user_encryption').upsert({
+        'user_id': user.id,
+        'key_fingerprint': fingerprint,
+        'encryption_version': 1,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      await LocalFinanceStore.instance.markAllPending();
+      unawaited(syncNow());
+      return recoveryKey;
+    } catch (error) {
+      status.value = 'Waiting for connection';
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _readRemoteRows(String userId) async {
     final rows = await _client
         .from('encrypted_finance_entries')

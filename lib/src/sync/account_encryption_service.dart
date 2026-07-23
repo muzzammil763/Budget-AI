@@ -42,6 +42,16 @@ class AccountEncryptionService {
     return formatRecoveryKey(keyBytes);
   }
 
+  /// Always generates a brand-new key and overwrites whatever is stored for
+  /// this account, even if one already exists. Used when resetting
+  /// encryption after a lost key or a deliberate rotation — previously
+  /// synced ciphertext under the old key becomes permanently unreadable.
+  Future<String> rotateRecoveryKey(String userId) async {
+    final keyBytes = await _newKeyBytes();
+    await _writeKeyBytes(userId, keyBytes);
+    return formatRecoveryKey(keyBytes);
+  }
+
   Future<void> restoreRecoveryKey(String userId, String recoveryKey) async {
     final keyBytes = parseRecoveryKey(recoveryKey);
     await _writeKeyBytes(userId, keyBytes);

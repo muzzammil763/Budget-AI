@@ -1,5 +1,6 @@
 import 'package:budget_ai/src/auth/auth_screens.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
+import 'package:budget_ai/src/auth/encryption_gate.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/unified_chat_screen.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,9 @@ class AuthGate extends StatelessWidget {
           return ResetPasswordScreen(onCancel: () async => auth.signOut());
         }
         if (auth.isAuthenticated) {
-          return UnifiedChatScreen(config: ChatModelConfig.openAI);
+          return const EncryptionGate(
+            child: UnifiedChatScreen(config: ChatModelConfig.openAI),
+          );
         }
         return const AuthFlow();
       },

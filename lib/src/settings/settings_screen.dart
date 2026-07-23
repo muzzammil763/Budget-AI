@@ -148,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (context, syncStatus, _) => _navTile(
               theme,
               icon: CupertinoIcons.lock_shield,
-              title: 'Encrypted sync',
+              title: 'Encryption',
               subtitle: syncStatus,
               onTap: () => Navigator.push(
                 context,

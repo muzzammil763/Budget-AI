@@ -278,6 +278,38 @@ class LocalFinanceStore {
     }
   }
 
+  /// Marks every local row as pending so the next sync re-pushes (and
+  /// re-encrypts) all of it from scratch. Used when the account's
+  /// encryption key is rotated/reset, since previously-clean rows were
+  /// only ever encrypted under the old key.
+  Future<void> markAllPending() async {
+    final now = DateTime.now().toUtc().microsecondsSinceEpoch;
+    final database = await _database();
+    var changed = false;
+    if (database == null) {
+      for (final row in _memoryRows.values) {
+        row['revision'] = (row['revision']! as int) + 1;
+        row['updated_at'] = now;
+        row['sync_state'] = 'pending';
+        changed = _memoryRows.isNotEmpty;
+      }
+    } else {
+      changed =
+          await database.rawUpdate(
+            '''
+            UPDATE finance_entries
+            SET revision = revision + 1, updated_at = ?, sync_state = 'pending'
+            ''',
+            [now],
+          ) >
+          0;
+    }
+    if (changed) {
+      changes.value++;
+      pendingChanges.value++;
+    }
+  }
+
   Future<void> applyRemoteRows(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     final database = await _database();

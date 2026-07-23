@@ -1,4 +1,5 @@
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/sync/account_encryption_service.dart';
 import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
@@ -64,32 +65,36 @@ class _EncryptionSettingsScreenState extends State<EncryptionSettingsScreen> {
     }
   }
 
-  Future<void> _enable() async {
-    final user = _user;
-    if (user == null || _working) return;
+  Future<void> _confirmReset() async {
+    final confirmed = await ResponsiveInfoSheet.confirm(
+      context,
+      title: 'Reset encryption?',
+      message:
+          'This permanently erases your synced finance history for this '
+          'account and issues a brand-new recovery key. Any other device '
+          'still holding the old key will no longer be able to read new '
+          'data. This cannot be undone.',
+      icon: CupertinoIcons.exclamationmark_triangle_fill,
+      confirmLabel: 'Erase and start fresh',
+    );
+    if (confirmed == true) await _resetEncryption();
+  }
+
+  Future<void> _resetEncryption() async {
+    if (_working) return;
     setState(() => _working = true);
     try {
-      final recoveryKey = await AccountEncryptionService.instance
-          .createRecoveryKey(user.id);
-      final fingerprint = await AccountEncryptionService.instance.fingerprint(
-        user.id,
-      );
-      await Supabase.instance.client.from('user_encryption').upsert({
-        'user_id': user.id,
-        'key_fingerprint': fingerprint,
-        'encryption_version': 1,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      final newKey = await EncryptedFinanceSyncService.instance
+          .resetEncryption();
       if (!mounted) return;
       setState(() {
         _remoteEnabled = true;
         _localKeyAvailable = true;
-        _remoteFingerprint = fingerprint;
-        _visibleRecoveryKey = recoveryKey;
+        _visibleRecoveryKey = newKey;
       });
-      await EncryptedFinanceSyncService.instance.syncNow();
+      await _load();
     } catch (error) {
-      if (mounted) _showError('Encrypted sync could not be enabled.');
+      if (mounted) _showError('Could not reset encryption.');
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -171,7 +176,7 @@ class _EncryptionSettingsScreenState extends State<EncryptionSettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Encrypted sync')),
+      appBar: AppBar(title: const Text('Encryption')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -190,7 +195,7 @@ class _EncryptionSettingsScreenState extends State<EncryptionSettingsScreen> {
                       ? 'Your finance sync is protected'
                       : _remoteEnabled
                       ? 'Enter your recovery key'
-                      : 'Protect finance data across devices',
+                      : 'Finishing setup…',
                   textAlign: TextAlign.center,
                   style: AppTheme.headingLarge.copyWith(fontSize: 25),
                 ),
@@ -207,11 +212,13 @@ class _EncryptionSettingsScreenState extends State<EncryptionSettingsScreen> {
                 ),
                 const SizedBox(height: 24),
                 if (!_remoteEnabled)
-                  ElevatedButton.icon(
-                    onPressed: _working ? null : _enable,
-                    icon: const Icon(CupertinoIcons.lock_fill),
-                    label: Text(
-                      _working ? 'Enabling…' : 'Enable encrypted sync',
+                  Text(
+                    "Encryption is always on for new sessions — this should "
+                    "resolve on its own. If it doesn't, try reopening "
+                    'Budget AI.',
+                    textAlign: TextAlign.center,
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   )
                 else if (!_localKeyAvailable) ...[
@@ -287,6 +294,32 @@ class _EncryptionSettingsScreenState extends State<EncryptionSettingsScreen> {
                   icon: CupertinoIcons.waveform,
                   text: 'Downloaded speech models are never uploaded.',
                 ),
+                if (_remoteEnabled && _localKeyAvailable) ...[
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Lost access to your recovery key, or want to rotate '
+                    'it? Resetting issues a new key and erases the old '
+                    'synced history — other devices will need the new key.',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _working ? null : _confirmReset,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                      side: BorderSide(color: theme.colorScheme.error),
+                    ),
+                    icon: const Icon(CupertinoIcons.arrow_2_circlepath),
+                    label: Text(
+                      _working ? 'Resetting…' : 'Reset encryption',
+                    ),
+                  ),
+                ],
               ],
             ),
     );
