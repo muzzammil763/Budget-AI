@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
@@ -12,6 +13,7 @@ import 'package:budget_ai/src/helpers/app_constants.dart';
 import 'package:budget_ai/src/tools/tool_settings.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 part 'chat_provider_helpers.dart';
 part 'chat_message_models.dart';
@@ -76,6 +78,7 @@ abstract class BaseChatProvider extends ChatProvider {
   final ToolRegistry _toolRegistry;
   Map<String, dynamic>? _lastResponseMetadata;
   final Dio _dio;
+  final String? Function() _accessTokenProvider;
   CancelToken? _cancelToken;
 
   BaseChatProvider(
@@ -83,8 +86,11 @@ abstract class BaseChatProvider extends ChatProvider {
     required String defaultSelectedModel,
     Dio? dio,
     ToolRegistry? toolRegistry,
+    String? Function()? accessTokenProvider,
   }) : _selectedModel = defaultSelectedModel,
        _dio = dio ?? _createProviderDio(),
+       _accessTokenProvider =
+           accessTokenProvider ?? (() => AuthService.instance.accessToken),
        _toolRegistry = toolRegistry ?? ToolRegistry();
 
   static Dio _createProviderDio() {
@@ -100,6 +106,12 @@ abstract class BaseChatProvider extends ChatProvider {
   String get _providerName => config.displayName;
 
   String get _baseUrl;
+
+  Map<String, String> get _additionalRequestHeaders => {
+    'apikey': AppConstants.supabasePublishableKey,
+    if (AppConstants.supabaseFunctionRegion.isNotEmpty)
+      'x-region': AppConstants.supabaseFunctionRegion,
+  };
 
   Map<String, dynamic> get _responseModelOptions {
     if (_selectedModel.startsWith('gpt-5')) {
@@ -121,11 +133,15 @@ abstract class BaseChatProvider extends ChatProvider {
 
   @override
   Future<void> initialize() async {
-    final configuredKey = AppConstants.openAIApiKey;
-    _apiKey = configuredKey.isNotEmpty ? configuredKey : null;
+    _apiKey = _accessTokenProvider();
     _apiKeys = _apiKey != null ? [_apiKey!] : [];
     _selectedModel = ModelSettingsService.instance.current;
     _dio.options.headers = {'Accept': 'application/json'};
+  }
+
+  void _refreshSessionCredential() {
+    _apiKey = _accessTokenProvider();
+    _apiKeys = _apiKey != null && _apiKey!.isNotEmpty ? [_apiKey!] : [];
   }
 
   @override
@@ -144,6 +160,7 @@ abstract class BaseChatProvider extends ChatProvider {
     int maxTokens = 400,
     double temperature = 0.2,
   }) async {
+    _refreshSessionCredential();
     if (_apiKey == null || _apiKey!.isEmpty) {
       return '';
     }
@@ -151,7 +168,7 @@ abstract class BaseChatProvider extends ChatProvider {
     try {
       final response = await _postJsonWithApiKeyFallback(
         dio: _dio,
-        url: '$_baseUrl/responses',
+        url: _baseUrl,
         apiKeys: _apiKeys,
         providerName: _providerName,
         data: {
@@ -159,7 +176,9 @@ abstract class BaseChatProvider extends ChatProvider {
           ..._responseModelOptions,
           'input': prompt,
           'max_output_tokens': maxTokens,
+          'client_turn_id': const Uuid().v4(),
         },
+        additionalHeaders: _additionalRequestHeaders,
         onKeySelected: (apiKey) => _apiKey = apiKey,
       );
 

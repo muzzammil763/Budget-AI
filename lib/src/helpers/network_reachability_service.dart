@@ -18,11 +18,13 @@ class NetworkReachabilityService {
 
   Timer? _pollTimer;
   Future<NetworkReachabilityStatus>? _activeProbe;
+  bool _keepAlive = false;
 
   bool get isOnline => status.value == NetworkReachabilityStatus.online;
   bool get isOffline => status.value == NetworkReachabilityStatus.offline;
 
-  void start() {
+  void start({bool keepAlive = false}) {
+    _keepAlive = _keepAlive || keepAlive;
     _pollTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
       unawaited(refresh());
     });
@@ -30,6 +32,7 @@ class NetworkReachabilityService {
   }
 
   void stop() {
+    if (_keepAlive) return;
     _pollTimer?.cancel();
     _pollTimer = null;
   }

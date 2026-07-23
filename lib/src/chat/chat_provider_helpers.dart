@@ -228,7 +228,7 @@ ChatProviderException _mapHttpFailure(
     case 403:
       return _providerException(
         providerName,
-        '$providerName authentication failed. Check your API key and confirm it has access to the selected model.',
+        'Your secure session has expired or is not authorized. Sign in again and retry.',
         statusCode: statusCode,
         responseData: responseData,
         log: log,
@@ -390,6 +390,7 @@ Future<Response<ResponseBody>> _postStreamWithApiKeyFallback({
   required Object? data,
   required CancelToken? cancelToken,
   required void Function(String apiKey) onKeySelected,
+  Map<String, String> additionalHeaders = const {},
 }) async {
   if (apiKeys.isEmpty) {
     throw _providerException(
@@ -419,6 +420,7 @@ Future<Response<ResponseBody>> _postStreamWithApiKeyFallback({
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $apiKey',
+              ...additionalHeaders,
             },
             responseType: ResponseType.stream,
           ),
@@ -520,6 +522,7 @@ Future<Response<dynamic>> _postJsonWithApiKeyFallback({
   required String providerName,
   required Object? data,
   required void Function(String apiKey) onKeySelected,
+  Map<String, String> additionalHeaders = const {},
 }) async {
   if (apiKeys.isEmpty) {
     throw _providerException(
@@ -549,6 +552,7 @@ Future<Response<dynamic>> _postJsonWithApiKeyFallback({
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $apiKey',
+              ...additionalHeaders,
             },
           ),
           data: data,

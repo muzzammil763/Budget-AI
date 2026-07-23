@@ -1,10 +1,14 @@
 # Budget AI
 
-Budget AI is a Flutter personal finance assistant using OpenAI for chat, with local finance tracking, offline speech, and JSON backup/restore.
+Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
+Supabase authentication, offline-first SQLite finance tracking, optional
+end-to-end encrypted synchronization, and offline speech.
 
 ## AI and voice flow
 
-- Chat and finance tools use OpenAI's Responses API.
+- Chat and finance tools use OpenAI's Responses API through the authenticated
+  Supabase Edge Function at `openai-responses`. The OpenAI API key is never
+  bundled into Flutter.
 - The default chat model is `gpt-5.6-luna`. Settings exposes the supported OpenAI model catalog, including GPT-5.6 Sol, Terra, and Luna.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
@@ -15,12 +19,41 @@ Budget AI is a Flutter personal finance assistant using OpenAI for chat, with lo
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
 
-## Current app flow
+## App flow
 
-- The app opens directly to chat.
+- First launch shows onboarding, followed by the Budget AI account flow.
+- Email/password registration requires email confirmation. Confirmation codes
+  and `budgetai://auth/confirm` links are supported.
+- Sign-in sessions restore automatically. Forgot-password links return through
+  `budgetai://auth/reset-password`, and Settings includes sign-out.
+- Confirmed users enter AI chat. Chat sessions remain local-only. Finance data
+  is read and written through SQLite and can optionally synchronize as
+  AES-256-GCM ciphertext after the user saves a recovery key.
 - Tap the app bar model name to open the OpenAI model selector.
-- Settings includes finances, insights, currency, OpenAI chat model, offline speech models, message style, permissions, backup/restore, and onboarding controls.
-- Finance data is stored locally. Backup/restore uses dated JSON files and also accepts compatible finance lists from earlier exports.
+- Settings includes finances, insights, currency, OpenAI chat model, offline
+  speech models, message style, encrypted sync, permissions, and onboarding
+  controls.
+- Display name, model, currency, and message style use local-first SQLite
+  storage, update the interface immediately, and synchronize in the background.
+  Pending changes retry automatically when internet access returns. Onboarding
+  completion and downloaded speech-model selections remain device-local.
+- Existing `finances.json` and Shared Preferences values are imported once into
+  SQLite. Legacy or restored local finance rows missing from Supabase are
+  automatically queued for encrypted upload when sync is enabled.
+
+## Encrypted synchronization
+
+- Encrypted sync is opt-in under Settings > Encrypted sync.
+- Enabling it generates a random 256-bit account data key. The device copy is
+  protected by iOS Keychain or Android Keystore.
+- Finance payloads are encrypted with AES-256-GCM before upload. Supabase stores
+  ciphertext, nonce, authentication tag, revisions, and sync timestamps—not
+  plaintext descriptions, categories, or amounts.
+- Another device must receive the checksummed `BAI1-...` recovery key before it
+  can decrypt the account. Budget AI and Supabase cannot recover a lost key.
+- Realtime events and restored connectivity trigger a SQLite reconciliation;
+  UI reads and writes remain local-first.
+- Chat history and downloaded speech-model files are never uploaded.
 
 ## iOS widget and Siri entry
 
@@ -33,20 +66,57 @@ Before device testing, create the App Group `group.com.muzamil.budget.ai` in the
 
 On Android, one wide, non-resizable native Home Screen widget reads the same `home_widget` summary keys and follows the app's Light/Dark styling, including the dynamically inverted Budget mark, without voice instructions. Google Assistant custom App Actions accept one-sentence expense and income commands such as “Hey Google, use Budget AI to log 300 for fuel.” Assistant custom intents require an explicit Budget AI invocation and currently support `en-US`. The action opens Budget AI through a deep link, saves the entry, refreshes the widget and open Finances screen, then confirms through Android text-to-speech and a toast.
 
-## Development
+## Supabase setup
 
-Create a root `.env` file before running or building the app:
+The checked-in Supabase project files live in `supabase/`. The client only
+contains the project URL and a modern publishable key; both are public
+identifiers. RLS and authenticated user JWTs provide authorization.
 
 ```sh
-cp .env.example .env
-# then set OPENAI_API_KEY in .env
+# Authenticate the Supabase CLI once.
+npx supabase login
+
+# Store the existing ignored .env value remotely without printing it.
+npx supabase secrets set --env-file .env \
+  --project-ref bzxsgpsacouvhxepfuca
+
+# Deploy the authenticated streaming proxy.
+npx supabase functions deploy openai-responses \
+  --project-ref bzxsgpsacouvhxepfuca --use-api
 ```
+
+In Supabase Dashboard > Authentication:
+
+- Enable Email and password and keep Confirm email enabled.
+- Add `budgetai://auth/confirm` and `budgetai://auth/reset-password` to Redirect
+  URLs.
+- New free-tier projects using Supabase's default SMTP use the standard email
+  templates. To use the branded HTML in `supabase/templates/`, first configure
+  a custom SMTP provider, then install the confirmation and recovery templates.
+
+The local `supabase/config.toml` contains matching settings for local Supabase.
+Never put `OPENAI_API_KEY` in a Flutter asset, Dart define, tracked file, or
+mobile build. Delete the local `.env` after the remote secret is verified if it
+has no other development purpose.
+
+The AI proxy streams OpenAI events immediately and exposes development timing
+headers for quota reservation, OpenAI response headers, and the executing Edge
+Function region. Supabase chooses the closest healthy region automatically. To
+benchmark a specific supported region without changing the security model,
+build with `--dart-define=SUPABASE_FUNCTION_REGION=<aws-region>`. Keep this
+empty in production unless measurements show a consistent improvement because
+an explicit region disables automatic regional failover.
+
+## Development
 
 ```sh
 flutter pub get
-flutter analyze --no-fatal-warnings --no-fatal-infos
+dart format lib test
+flutter analyze
 flutter test
 make apk
 ```
 
-The mobile app currently calls OpenAI directly, so a packaged API key can be extracted by a determined user. For a public production release, route requests through a small authenticated backend that keeps the OpenAI key server-side.
+See `SUPABASE_BACKEND_PLAN.md` for architecture, quota controls, rollout, and
+security verification. See `OFFLINE_FIRST_SYNC_PLAN.md` for local persistence,
+conflict handling, and encryption boundaries.

@@ -3,10 +3,14 @@ part of 'chat_provider.dart';
 /// OpenAI Responses API implementation with streaming and local function tools.
 class ResponsesProvider extends BaseChatProvider {
   @override
-  String get _baseUrl => config.apiBaseUrl;
+  String get _baseUrl => AppConstants.openAIResponsesEndpoint;
 
-  ResponsesProvider(super.config, {super.dio, super.toolRegistry})
-    : super(defaultSelectedModel: AIModels.defaultModelId);
+  ResponsesProvider(
+    super.config, {
+    super.dio,
+    super.toolRegistry,
+    super.accessTokenProvider,
+  }) : super(defaultSelectedModel: AIModels.defaultModelId);
 
   @override
   Stream<String> sendMessageStream(String message) async* {
@@ -23,10 +27,11 @@ class ResponsesProvider extends BaseChatProvider {
     String message, {
     bool enableToolCalls = true,
   }) async* {
+    _refreshSessionCredential();
     if (_apiKey == null || _apiKey!.isEmpty) {
       throw _providerException(
         _providerName,
-        '$_providerName API key is not configured for this build.',
+        'Sign in again to continue using $_providerName.',
       );
     }
 
@@ -34,7 +39,7 @@ class ResponsesProvider extends BaseChatProvider {
     final tools = enableToolCalls ? _toolRegistry.getAvailableTools() : [];
     final hasTools = tools.isNotEmpty;
 
-    debugPrint('[$_providerName] Sending request to $_baseUrl/responses');
+    debugPrint('[$_providerName] Sending authenticated request to $_baseUrl');
     debugPrint('[$_providerName] Model: $_selectedModel');
     debugPrint('[$_providerName] Tool calls enabled: $enableToolCalls');
 
@@ -70,6 +75,7 @@ class ResponsesProvider extends BaseChatProvider {
           'instructions': await _buildChatSystemPrompt(),
           'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,
+          'client_turn_id': const Uuid().v4(),
         };
         if (hasTools) {
           requestData['tools'] = tools
@@ -79,24 +85,43 @@ class ResponsesProvider extends BaseChatProvider {
           requestData['parallel_tool_calls'] = false;
         }
 
+        final requestStopwatch = Stopwatch()..start();
         final response = await _postStreamWithApiKeyFallback(
           dio: _dio,
-          url: '$_baseUrl/responses',
+          url: _baseUrl,
           apiKeys: _apiKeys,
           providerName: _providerName,
           data: requestData,
           cancelToken: _cancelToken,
+          additionalHeaders: _additionalRequestHeaders,
           onKeySelected: (apiKey) => _apiKey = apiKey,
         );
+        if (kDebugMode) {
+          debugPrint(
+            '[$_providerName] Proxy headers received in '
+            '${requestStopwatch.elapsedMilliseconds}ms '
+            '(region: ${response.headers.value('x-budget-ai-edge-region') ?? response.headers.value('x-sb-edge-region') ?? 'unknown'}, '
+            'quota: ${response.headers.value('x-budget-ai-quota-ms') ?? '?'}ms, '
+            'OpenAI headers: ${response.headers.value('x-budget-ai-openai-headers-ms') ?? '?'}ms)',
+          );
+        }
 
         final eventLines = utf8.decoder
             .bind(response.data!.stream)
             .transform(const LineSplitter());
+        var firstEventLogged = false;
         await for (final line in eventLines) {
           if (_cancelToken?.isCancelled ?? false) throw CancelledException();
           if (!line.startsWith('data: ')) continue;
           final data = line.substring(6).trim();
           if (data.isEmpty || data == '[DONE]') continue;
+          if (!firstEventLogged && kDebugMode) {
+            firstEventLogged = true;
+            debugPrint(
+              '[$_providerName] First streamed event received in '
+              '${requestStopwatch.elapsedMilliseconds}ms',
+            );
+          }
 
           final decoded = jsonDecode(data);
           if (decoded is! Map) continue;

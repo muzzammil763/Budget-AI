@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/storage/local_finance_store.dart';
 import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
+import 'package:share_plus/share_plus.dart';
 
 const List<String> kFinanceCategories = [
   'Food',
@@ -217,20 +219,20 @@ class FinanceService {
   Future<List<FinanceEntry>> getAll() async {
     if (_cache != null) return List.unmodifiable(_cache!);
     try {
-      final file = await _storageFile();
-      if (!await file.exists()) {
-        _cache = [];
-        return const [];
+      final store = LocalFinanceStore.instance;
+      if (await store.isEmpty()) {
+        final file = await _storageFile();
+        if (await file.exists()) {
+          final raw = await file.readAsString();
+          if (raw.trim().isNotEmpty) {
+            final legacy = (jsonDecode(raw) as List<dynamic>)
+                .map((entry) => Map<String, dynamic>.from(entry as Map))
+                .toList(growable: false);
+            await store.replaceActive(legacy);
+          }
+        }
       }
-      final raw = await file.readAsString();
-      if (raw.trim().isEmpty) {
-        _cache = [];
-        return const [];
-      }
-      final list = jsonDecode(raw) as List<dynamic>;
-      _cache = list
-          .map((e) => FinanceEntry.fromJson(e as Map<String, dynamic>))
-          .toList();
+      _cache = (await store.readActive()).map(FinanceEntry.fromJson).toList();
       _cache!.sort((a, b) => b.date.compareTo(a.date));
       return List.unmodifiable(_cache!);
     } catch (e) {
@@ -341,15 +343,31 @@ class FinanceService {
     return removed;
   }
 
-  void invalidateCache() => _cache = null;
+  void invalidateCache() {
+    _cache = null;
+    LocalFinanceStore.instance.resetVolatileFallback();
+  }
+
+  void invalidateCacheFromSync() {
+    _cache = null;
+  }
 
   Future<void> _persist() async {
     try {
-      final file = await _storageFile();
-      final json = jsonEncode(_cache!.map((e) => e.toJson()).toList());
-      await file.writeAsString(json);
+      final entries = List<FinanceEntry>.from(_cache!);
+      await LocalFinanceStore.instance.replaceActive(
+        entries.map((entry) => entry.toJson()).toList(growable: false),
+      );
+      unawaited(_syncHomeWidgetInBackground(entries));
+    } catch (e) {
+      debugPrint('[FinanceService] Failed to persist finances: $e');
+    }
+  }
+
+  Future<void> _syncHomeWidgetInBackground(List<FinanceEntry> entries) async {
+    try {
       await BudgetHomeWidgetSync.syncEntries(
-        _cache!.map(
+        entries.map(
           (entry) => BudgetWidgetFinanceEntry(
             id: entry.id,
             type: entry.type.storageValue,
@@ -363,7 +381,7 @@ class FinanceService {
         ),
       );
     } catch (e) {
-      debugPrint('[FinanceService] Failed to persist finances: $e');
+      debugPrint('[FinanceService] Failed to sync the home widget: $e');
     }
   }
 

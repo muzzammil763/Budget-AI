@@ -2790,7 +2790,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }) {
     return Center(
       child: Container(
-        width: 56,
+        width: 48,
         height: 48,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -2819,9 +2819,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             child: Tooltip(
               message: tooltip,
               child: SizedBox(
-                width: 64,
+                width: 48,
                 height: 48,
-                child: Icon(icon, color: theme.colorScheme.onSurface, size: 28),
+                child: Icon(icon, color: theme.colorScheme.onSurface),
               ),
             ),
           ),
@@ -2858,7 +2858,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           onNotification: _handleChatScrollNotification,
           child: ListView.builder(
             padding: EdgeInsets.only(
-              top: Platform.isIOS ? 120 : 100,
+              top: Platform.isIOS ? 112 : 100,
               bottom: 112,
             ),
             controller: _scrollController,

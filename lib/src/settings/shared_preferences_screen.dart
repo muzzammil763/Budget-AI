@@ -1,8 +1,8 @@
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPreferencesScreen extends StatefulWidget {
   const SharedPreferencesScreen({super.key});
@@ -13,11 +13,11 @@ class SharedPreferencesScreen extends StatefulWidget {
 }
 
 class _SharedPreferencesScreenState extends State<SharedPreferencesScreen> {
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final LocalSettingsStore _settings = LocalSettingsStore.instance;
   late Future<Map<String, Object?>> _entries = _loadEntries();
 
   Future<Map<String, Object?>> _loadEntries() async {
-    final entries = await _preferences.getAll();
+    final entries = await _settings.getAll();
     return Map.fromEntries(
       entries.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
     );
@@ -38,7 +38,7 @@ class _SharedPreferencesScreenState extends State<SharedPreferencesScreen> {
     );
     if (confirmed != true) return;
 
-    await _preferences.remove(key);
+    await _settings.remove(key);
     if (mounted) await _refresh();
   }
 
@@ -52,7 +52,7 @@ class _SharedPreferencesScreenState extends State<SharedPreferencesScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shared Preferences'),
+        title: const Text('Local Settings'),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -78,15 +78,13 @@ class _SharedPreferencesScreenState extends State<SharedPreferencesScreen> {
 
           final entries = snapshot.data!;
           if (entries.isEmpty) {
-            return const Center(child: Text('No shared preferences saved.'));
+            return const Center(child: Text('No local settings saved.'));
           }
 
           return ListView.separated(
-            
             itemCount: entries.length,
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-
               final entry = entries.entries.elementAt(index);
               return ListTile(
                 title: Text(

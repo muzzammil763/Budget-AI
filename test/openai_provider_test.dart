@@ -5,7 +5,6 @@ import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -18,45 +17,50 @@ void main() {
   setUp(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
-    dotenv.testLoad(fileInput: 'OPENAI_API_KEY=test-key');
   });
 
-  test(
-    'OpenAI Responses API streams Luna with concise low reasoning',
-    () async {
-      final requests = <RequestOptions>[];
-      final provider = ResponsesProvider(
-        ChatModelConfig.openAI,
-        dio: _streamingDio(requests),
-      );
-      await provider.initialize();
-      provider.updateModel(AIModels.defaultModelId);
+  test('OpenAI Responses API streams Luna with concise low reasoning', () async {
+    final requests = <RequestOptions>[];
+    final provider = ResponsesProvider(
+      ChatModelConfig.openAI,
+      dio: _streamingDio(requests),
+      accessTokenProvider: () => 'test-user-jwt',
+    );
+    await provider.initialize();
+    provider.updateModel(AIModels.defaultModelId);
 
-      final chunks = await provider
-          .sendMessageStreamWithThinking(
-            'Summarize my spending',
-            enableToolCalls: false,
-          )
-          .toList();
+    final chunks = await provider
+        .sendMessageStreamWithThinking(
+          'Summarize my spending',
+          enableToolCalls: false,
+        )
+        .toList();
 
-      expect(requests, hasLength(1));
-      expect(requests.single.path, 'https://api.openai.com/v1/responses');
-      final body = Map<String, dynamic>.from(requests.single.data as Map);
-      expect(body['model'], 'gpt-5.6-luna');
-      expect(body['reasoning'], {'effort': 'low'});
-      expect(body['text'], {'verbosity': 'low'});
-      expect(body['stream'], isTrue);
-      expect(chunks.map((chunk) => chunk.content).join(), 'Done.');
-      expect(provider.lastResponseMetadata?['promptTokens'], 20);
-      expect(provider.lastResponseMetadata?['completionTokens'], 4);
-    },
-  );
+    expect(requests, hasLength(1));
+    expect(
+      requests.single.path,
+      'https://bzxsgpsacouvhxepfuca.supabase.co/functions/v1/openai-responses',
+    );
+    expect(requests.single.headers['Authorization'], 'Bearer test-user-jwt');
+    expect(requests.single.headers['apikey'], startsWith('sb_publishable_'));
+    expect(requests.single.headers.containsKey('x-region'), isFalse);
+    final body = Map<String, dynamic>.from(requests.single.data as Map);
+    expect(body['model'], 'gpt-5.6-luna');
+    expect(body['reasoning'], {'effort': 'low'});
+    expect(body['text'], {'verbosity': 'low'});
+    expect(body['stream'], isTrue);
+    expect(body['client_turn_id'], isNotEmpty);
+    expect(chunks.map((chunk) => chunk.content).join(), 'Done.');
+    expect(provider.lastResponseMetadata?['promptTokens'], 20);
+    expect(provider.lastResponseMetadata?['completionTokens'], 4);
+  });
 
   test('GPT-4.1 request omits GPT-5-only controls', () async {
     final requests = <RequestOptions>[];
     final provider = ResponsesProvider(
       ChatModelConfig.openAI,
       dio: _streamingDio(requests),
+      accessTokenProvider: () => 'test-user-jwt',
     );
     await provider.initialize();
     provider.updateModel('gpt-4.1');
@@ -76,6 +80,7 @@ void main() {
       ChatModelConfig.openAI,
       dio: _toolStreamingDio(requests),
       toolRegistry: _TestToolRegistry(),
+      accessTokenProvider: () => 'test-user-jwt',
     );
     await provider.initialize();
 
@@ -84,6 +89,10 @@ void main() {
         .toList();
 
     expect(requests, hasLength(2));
+    expect(
+      (requests[0].data as Map)['client_turn_id'],
+      isNot((requests[1].data as Map)['client_turn_id']),
+    );
     final secondInput = (requests[1].data as Map)['input'] as List;
     expect(
       secondInput.whereType<Map>().any(

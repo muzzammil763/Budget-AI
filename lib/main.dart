@@ -1,6 +1,7 @@
+import 'package:budget_ai/src/auth/auth_gate.dart';
+import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/chat/chat_model_config.dart';
-import 'package:budget_ai/src/chat/unified_chat_screen.dart';
+import 'package:budget_ai/src/helpers/app_constants.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/splash/splash_screen.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
@@ -11,6 +12,9 @@ import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
+import 'package:budget_ai/src/storage/local_settings_store.dart';
+import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
+import 'package:budget_ai/src/sync/account_settings_sync_service.dart';
 import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:budget_ai/src/widgets/siri_finance_inbox.dart';
@@ -18,15 +22,19 @@ import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:device_preview/device_preview.dart';
 // import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed';
 // const _devicePreviewEnabled = true;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  await Supabase.initialize(
+    url: AppConstants.supabaseUrl,
+    publishableKey: AppConstants.supabasePublishableKey,
+  );
+  await LocalSettingsStore.instance.migrateLegacyPreferences();
+  await AuthService.instance.initialize();
   await CurrencySettingsService.instance.initialize();
   await ModelSettingsService.instance.initialize();
   await LocalSpeechModelManager.instance.initialize();
@@ -39,9 +47,11 @@ Future<void> main() async {
   await NotificationService.instance.initialize();
   await FinanceService.instance.applySavingsRollover();
   await FinanceService.instance.syncHomeWidget();
-  final preferences = SharedPreferencesAsync();
+  await AccountSettingsSyncService.instance.initialize();
+  await EncryptedFinanceSyncService.instance.initialize();
   final onboardingCompleted =
-      await preferences.getBool(_onboardingCompletedKey) ?? false;
+      await LocalSettingsStore.instance.getBool(_onboardingCompletedKey) ??
+      false;
   runApp(MyApp(showOnboarding: !onboardingCompleted));
   // runApp(
   //   DevicePreview(
@@ -70,9 +80,7 @@ class MyApp extends StatelessWidget {
           themeMode: ThemeMode.system,
           navigatorObservers: [appRouteObserver],
           home: SplashScreen(
-            child: showOnboarding
-                ? const OnboardingScreen()
-                : UnifiedChatScreen(config: ChatModelConfig.openAI),
+            child: showOnboarding ? const OnboardingScreen() : const AuthGate(),
           ),
         );
       },

@@ -107,7 +107,7 @@ class ThemedCodeBlock extends StatefulWidget {
     required this.name,
     required this.code,
     this.closed = true,
-    this.fontSize = 13,
+    this.fontSize = 14,
     this.headerHeight = 44,
     this.contentPadding = 8,
     this.borderRadius = 12,
@@ -182,15 +182,10 @@ class _ThemedCodeBlockState extends State<ThemedCodeBlock> {
                 padding: const EdgeInsets.only(left: 8, right: 8),
                 child: Row(
                   children: [
-                    if (widget.showHeaderIcon)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 6),
-                        child: Icon(Icons.code, size: 16),
-                      ),
                     Text(
                       headerText,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
@@ -209,7 +204,7 @@ class _ThemedCodeBlockState extends State<ThemedCodeBlock> {
                                   Text(
                                     'Copied',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                       color: _ghGreen,
                                     ),
@@ -234,7 +229,7 @@ class _ThemedCodeBlockState extends State<ThemedCodeBlock> {
                                     Text(
                                       'Copy',
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w500,
                                         color: Theme.of(
                                           context,

@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:archive/archive_io.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalSpeechDownloadState {
   const LocalSpeechDownloadState({
@@ -67,7 +67,7 @@ class LocalSpeechModelManager {
   );
   final ValueNotifier<Map<String, LocalSpeechDownloadState>> states =
       ValueNotifier(const {});
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final LocalSettingsStore _settings = LocalSettingsStore.instance;
   final Dio _dio = Dio();
   Directory? _modelsDirectory;
 
@@ -75,8 +75,8 @@ class LocalSpeechModelManager {
     final support = await getApplicationSupportDirectory();
     _modelsDirectory = Directory(p.join(support.path, 'speech_models'));
     await _modelsDirectory!.create(recursive: true);
-    final savedStt = await _preferences.getString(_sttKey);
-    final savedTts = await _preferences.getString(_ttsKey);
+    final savedStt = await _settings.getString(_sttKey);
+    final savedTts = await _settings.getString(_ttsKey);
     if (LocalSpeechModels.byId(savedStt ?? '')?.kind ==
         LocalSpeechModelKind.speechToText) {
       selectedSttId.value = savedStt!;
@@ -121,10 +121,10 @@ class LocalSpeechModelManager {
       throw StateError('Download ${model.name} before selecting it.');
     }
     if (model.kind == LocalSpeechModelKind.speechToText) {
-      await _preferences.setString(_sttKey, model.id);
+      await _settings.setString(_sttKey, model.id);
       selectedSttId.value = model.id;
     } else {
-      await _preferences.setString(_ttsKey, model.id);
+      await _settings.setString(_ttsKey, model.id);
       selectedTtsId.value = model.id;
     }
   }

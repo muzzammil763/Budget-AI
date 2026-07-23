@@ -1,19 +1,32 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-/// Runtime constants loaded from the root `.env` Flutter asset.
+/// Public runtime configuration for the Supabase client.
+///
+/// Supabase project URLs and publishable keys are intentionally safe to ship in
+/// client applications. Authorization is enforced by user JWTs and RLS.
 class AppConstants {
   AppConstants._();
 
-  static const String _openAIApiKeyFromBuild = String.fromEnvironment(
-    'OPENAI_API_KEY',
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://bzxsgpsacouvhxepfuca.supabase.co',
+  );
+
+  static const String supabasePublishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'sb_publishable_njsGQE6DXIGGChyjO6Vv7w_SZKyBxzA',
+  );
+
+  /// Optional Edge Function region override for controlled latency tests.
+  ///
+  /// Empty keeps Supabase's automatic closest-region routing and failover.
+  static const String supabaseFunctionRegion = String.fromEnvironment(
+    'SUPABASE_FUNCTION_REGION',
     defaultValue: '',
   );
 
-  /// OpenAI API key bundled from the root `.env` file.
-  static String get openAIApiKey {
-    final envKey = dotenv.env['OPENAI_API_KEY']?.trim() ?? '';
-    return envKey.isNotEmpty ? envKey : _openAIApiKeyFromBuild;
-  }
+  static const String authConfirmRedirect = 'budgetai://auth/confirm';
+  static const String passwordRecoveryRedirect =
+      'budgetai://auth/reset-password';
 
-  static bool get hasOpenAIKey => openAIApiKey.isNotEmpty;
+  static String get openAIResponsesEndpoint =>
+      '$supabaseUrl/functions/v1/openai-responses';
 }

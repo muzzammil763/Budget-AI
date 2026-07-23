@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
+        android:allowBackup="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:label="${appName}">
@@ -38,6 +39,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:host="finance"
+                    android:scheme="budgetai" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="auth"
+                    android:pathPrefix="/confirm"
+                    android:scheme="budgetai" />
+                <data
+                    android:host="auth"
+                    android:pathPrefix="/reset-password"
                     android:scheme="budgetai" />
             </intent-filter>
             <meta-data

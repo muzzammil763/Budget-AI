@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
@@ -14,18 +13,18 @@ import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
     show InlineNameKeyboard;
-import 'package:budget_ai/src/settings/app_backup_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/encryption_settings_screen.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
+import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
 import 'package:budget_ai/src/settings/shared_preferences_screen.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -144,6 +143,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _showBubbleStyleSheet,
             ),
           ),
+          ValueListenableBuilder<String>(
+            valueListenable: EncryptedFinanceSyncService.instance.status,
+            builder: (context, syncStatus, _) => _navTile(
+              theme,
+              icon: CupertinoIcons.lock_shield,
+              title: 'Encrypted sync',
+              subtitle: syncStatus,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const EncryptionSettingsScreen(),
+                ),
+              ),
+            ),
+          ),
           _navTile(
             theme,
             icon: CupertinoIcons.checkmark_shield,
@@ -156,16 +170,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _navTile(
             theme,
-            icon: CupertinoIcons.archivebox,
-            title: 'Backup & Restore',
-            subtitle: 'Backup and restore finance data',
-            onTap: _showBackupRestoreSheet,
-          ),
-          _navTile(
-            theme,
             icon: CupertinoIcons.slider_horizontal_3,
-            title: 'Shared Preferences',
-            subtitle: 'Temporary developer preference inspector',
+            title: 'Local settings',
+            subtitle: 'Temporary SQLite settings inspector',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -173,9 +180,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          _navTile(
+            theme,
+            icon: CupertinoIcons.square_arrow_right,
+            title: 'Sign out',
+            subtitle: AuthService.instance.user?.email ?? 'Signed in',
+            foregroundColor: Colors.red,
+            onTap: _signOut,
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _signOut() async {
+    final confirmed = await ResponsiveInfoSheet.confirm(
+      context,
+      title: 'Sign out?',
+      message:
+          'Your finance data stays on this device. You will need to sign in again to use AI chat.',
+      icon: CupertinoIcons.square_arrow_right,
+      confirmLabel: 'Sign out',
+    );
+    if (confirmed != true) return;
+
+    try {
+      await AuthService.instance.signOut();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      showAppToast(
+        context,
+        message: friendlyAuthError(error),
+        type: ToastificationType.error,
+      );
+    }
   }
 
   Widget _navTile(
@@ -185,6 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    Color? foregroundColor,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -193,23 +234,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: _tileDecoration(theme),
+          decoration: foregroundColor == null
+              ? _tileDecoration(theme)
+              : BoxDecoration(
+                  color: foregroundColor.withValues(alpha: 0.035),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: foregroundColor.withValues(alpha: 0.3),
+                  ),
+                ),
           child: Row(
             children: [
               SizedBox(
                 width: 32,
                 child:
                     leading ??
-                    Icon(icon, size: 24, color: theme.colorScheme.primary),
+                    Icon(
+                      icon,
+                      size: 24,
+                      color: foregroundColor ?? theme.colorScheme.primary,
+                    ),
               ),
               const SizedBox(width: 12),
-              Expanded(child: _tileText(theme, title, subtitle)),
+              Expanded(
+                child: _tileText(
+                  theme,
+                  title,
+                  subtitle,
+                  foregroundColor: foregroundColor,
+                ),
+              ),
               Icon(
                 CupertinoIcons.chevron_right,
                 size: 16,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.5,
-                ),
+                color: (foregroundColor ?? theme.colorScheme.onSurfaceVariant)
+                    .withValues(alpha: 0.5),
               ),
             ],
           ),
@@ -218,14 +277,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _tileText(ThemeData theme, String title, String subtitle) {
+  Widget _tileText(
+    ThemeData theme,
+    String title,
+    String subtitle, {
+    Color? foregroundColor,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
           style: AppTheme.bodyMedium.copyWith(
-            color: theme.colorScheme.onSurface,
+            color: foregroundColor ?? theme.colorScheme.onSurface,
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
@@ -234,7 +298,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text(
           subtitle,
           style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            color:
+                foregroundColor?.withValues(alpha: 0.76) ??
+                theme.colorScheme.onSurfaceVariant,
             fontSize: 12,
           ),
         ),
@@ -305,119 +371,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
       contentWidgets: const [_BubbleStylePicker()],
     );
-  }
-
-  Future<void> _showBackupRestoreSheet() async {
-    final theme = Theme.of(context);
-    await ResponsiveInfoSheet.show<void>(
-      context,
-      title: 'Backup & Restore',
-      headerIcon: Icon(
-        CupertinoIcons.archivebox,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        _sheetAction(
-          theme,
-          icon: CupertinoIcons.cloud_upload,
-          title: 'Backup',
-          subtitle: 'Create a dated JSON backup file',
-          onTap: () {
-            Navigator.pop(context);
-            _exportBackup();
-          },
-        ),
-        const SizedBox(height: 8),
-        _sheetAction(
-          theme,
-          icon: CupertinoIcons.cloud_download,
-          title: 'Restore',
-          subtitle: 'Pick a JSON backup file to restore',
-          onTap: () {
-            Navigator.pop(context);
-            _restoreBackup();
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _sheetAction(
-    ThemeData theme, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
-            Expanded(child: _tileText(theme, title, subtitle)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _exportBackup() async {
-    try {
-      await AppBackupService.instance.shareBackup();
-    } catch (error) {
-      if (!mounted) return;
-      showAppToast(
-        context,
-        message: 'Backup failed: $error',
-        type: ToastificationType.error,
-      );
-    }
-  }
-
-  Future<void> _restoreBackup() async {
-    try {
-      final result = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-      if (result?.path == null) return;
-      final restoreResult = await AppBackupService.instance.restoreFromFile(
-        File(result!.path!),
-      );
-      if (!mounted) return;
-      showAppToast(
-        context,
-        message:
-            restoreResult['message']?.toString() ??
-            restoreResult['error']?.toString() ??
-            'Restore finished',
-        type: restoreResult['ok'] == true
-            ? ToastificationType.success
-            : ToastificationType.error,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      showAppToast(
-        context,
-        message: 'Restore failed: $error',
-        type: ToastificationType.error,
-      );
-    }
   }
 }
 

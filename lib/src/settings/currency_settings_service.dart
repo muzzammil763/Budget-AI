@@ -1,5 +1,5 @@
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const List<CurrencyOption> kPresetCurrencyOptions = [
   CurrencyOption(displayText: 'Rs', name: 'Pakistani Rupee symbol'),
@@ -42,13 +42,13 @@ class CurrencySettingsService {
   final ValueNotifier<String> currency = ValueNotifier<String>('USD');
   final ValueNotifier<List<String>> customCurrencies =
       ValueNotifier<List<String>>(<String>[]);
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final LocalSettingsStore _settings = LocalSettingsStore.instance;
 
   Future<void> initialize() async {
     final savedCustomCurrencies =
-        await _preferences.getStringList(_customCurrenciesKey) ?? <String>[];
+        await _settings.getStringList(_customCurrenciesKey) ?? <String>[];
     customCurrencies.value = _normalizeCustomCurrencies(savedCustomCurrencies);
-    final saved = (await _preferences.getString(_currencyKey))?.trim();
+    final saved = (await _settings.getString(_currencyKey))?.trim();
     if (saved != null && saved.isNotEmpty) {
       currency.value = saved;
       await _saveCustomCurrencyIfNeeded(saved);
@@ -58,9 +58,36 @@ class CurrencySettingsService {
   Future<void> setCurrency(String value) async {
     final normalized = value.trim();
     if (normalized.isEmpty) return;
-    await _saveCustomCurrencyIfNeeded(normalized);
-    await _preferences.setString(_currencyKey, normalized);
     currency.value = normalized;
+    await _saveCustomCurrencyIfNeeded(normalized);
+    await _settings.setString(
+      _currencyKey,
+      normalized,
+      scope: SettingSyncScope.account,
+    );
+  }
+
+  Future<void> applySyncedState(
+    String value,
+    List<String> syncedCustomCurrencies,
+  ) async {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return;
+    final custom = _normalizeCustomCurrencies(syncedCustomCurrencies);
+    customCurrencies.value = custom;
+    currency.value = normalized;
+    await _settings.setValue(
+      _customCurrenciesKey,
+      custom,
+      scope: SettingSyncScope.account,
+      pendingSync: false,
+    );
+    await _settings.setValue(
+      _currencyKey,
+      normalized,
+      scope: SettingSyncScope.account,
+      pendingSync: false,
+    );
   }
 
   String get current => currency.value;
@@ -127,7 +154,11 @@ class CurrencySettingsService {
 
     final updated = [...customCurrencies.value, value];
     customCurrencies.value = updated;
-    await _preferences.setStringList(_customCurrenciesKey, updated);
+    await _settings.setStringList(
+      _customCurrenciesKey,
+      updated,
+      scope: SettingSyncScope.account,
+    );
   }
 
   List<String> _normalizeCustomCurrencies(List<String> values) {

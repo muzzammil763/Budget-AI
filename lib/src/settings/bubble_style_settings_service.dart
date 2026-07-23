@@ -1,5 +1,5 @@
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 enum UserBubbleStyle {
   classic('Classic'),
@@ -31,10 +31,10 @@ class BubbleStyleSettingsService {
   final ValueNotifier<UserBubbleStyle> style = ValueNotifier<UserBubbleStyle>(
     UserBubbleStyle.classic,
   );
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final LocalSettingsStore _settings = LocalSettingsStore.instance;
 
   Future<void> initialize() async {
-    final saved = await _preferences.getString(_styleKey);
+    final saved = await _settings.getString(_styleKey);
     final migrated = switch (saved) {
       'flexingCat' => UserBubbleStyle.paperCurl,
       'facepalm' => UserBubbleStyle.sketchFrame,
@@ -48,7 +48,21 @@ class BubbleStyleSettingsService {
 
   Future<void> setStyle(UserBubbleStyle value) async {
     style.value = value;
-    await _preferences.setString(_styleKey, value.name);
+    await _settings.setString(
+      _styleKey,
+      value.name,
+      scope: SettingSyncScope.account,
+    );
+  }
+
+  Future<void> applySyncedStyle(UserBubbleStyle value) async {
+    style.value = value;
+    await _settings.setValue(
+      _styleKey,
+      value.name,
+      scope: SettingSyncScope.account,
+      pendingSync: false,
+    );
   }
 
   UserBubbleStyle get current => style.value;

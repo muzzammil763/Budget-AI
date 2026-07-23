@@ -5,25 +5,24 @@ import 'dart:math' as math;
 
 import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:budget_ai/src/auth/auth_gate.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
-import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
-import 'package:budget_ai/src/chat/unified_chat_screen.dart';
 import 'package:budget_ai/src/onboarding/onboarding_app_showcase.dart';
 import 'package:budget_ai/src/settings/currency_display_card.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed';
 const _onboardingCompletedAtKey = 'onboarding_completed_at';
@@ -165,19 +164,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     setState(() => _isFinishing = true);
 
     try {
-      final preferences = SharedPreferencesAsync();
-      await preferences.setBool(_onboardingCompletedKey, true);
-      await preferences.setString(
+      await LocalSettingsStore.instance.setBool(_onboardingCompletedKey, true);
+      await LocalSettingsStore.instance.setString(
         _onboardingCompletedAtKey,
         DateTime.now().toIso8601String(),
       );
       if (!mounted) return;
       HapticFeedback.lightImpact();
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => UnifiedChatScreen(config: ChatModelConfig.openAI),
-        ),
-      );
+      await Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthGate()));
     } finally {
       if (mounted) {
         setState(() => _isFinishing = false);
@@ -360,7 +356,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         AnimatedOpacity(
           opacity: _isLastPage ? 0 : 1,
           duration: const Duration(milliseconds: 200),
-          child: TextButton(onPressed: _isLastPage ? null : () => _goToPage(_pageCount -1 ), child: Text("Skip")),
+          child: TextButton(
+            onPressed: _isLastPage ? null : () => _goToPage(_pageCount - 1),
+            child: Text("Skip"),
+          ),
         ),
       ],
     );
@@ -2267,7 +2266,6 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
 
   Widget _buildNameCard(ThemeData theme, Size screenSize) {
     final horizontalInset = screenSize.width * 0.031;
-    final verticalInset = screenSize.height * 0.014;
     final iconContainerSize = screenSize.shortestSide * 0.123;
     final actionSize = screenSize.shortestSide * 0.097;
     final savedName = _nameController.text.trim();
@@ -2279,10 +2277,7 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
       onTap: _toggleKeyboard,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 8,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: theme.colorScheme.outline),
@@ -2294,7 +2289,7 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
               height: iconContainerSize,
               decoration: BoxDecoration(
                 color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(12)
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 CupertinoIcons.person_fill,
@@ -2494,7 +2489,6 @@ class InlineNameKeyboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final screenSize = MediaQuery.sizeOf(context);
     final keyGap = screenSize.width * 0.009;
 
@@ -2518,7 +2512,7 @@ class InlineNameKeyboard extends StatelessWidget {
             keyHeight: screenSize.shortestSide * 0.082,
             keyGap: keyGap,
           );
-      
+
           void dispatch(String fallbackKey) {
             final key = resolver.resolve(fallbackKey);
             switch (key) {
@@ -2539,7 +2533,7 @@ class InlineNameKeyboard extends StatelessWidget {
                 return;
             }
           }
-      
+
           return Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: resolver.track,
@@ -2581,8 +2575,7 @@ class InlineNameKeyboard extends StatelessWidget {
                       child: _InlineKeyboardKey(
                         icon: CupertinoIcons.delete_left,
                         repeatOnLongPress: true,
-                        onTap: () =>
-                            dispatch(_KeyboardTouchResolver.deleteKey),
+                        onTap: () => dispatch(_KeyboardTouchResolver.deleteKey),
                       ),
                     ),
                   ],
@@ -2594,8 +2587,7 @@ class InlineNameKeyboard extends StatelessWidget {
                       flex: 2,
                       child: _InlineKeyboardKey(
                         label: '.',
-                        onTap: () =>
-                            dispatch(_KeyboardTouchResolver.periodKey),
+                        onTap: () => dispatch(_KeyboardTouchResolver.periodKey),
                       ),
                     ),
                     SizedBox(width: keyGap),
@@ -2603,8 +2595,7 @@ class InlineNameKeyboard extends StatelessWidget {
                       flex: 6,
                       child: _InlineKeyboardKey(
                         label: 'SPACE',
-                        onTap: () =>
-                            dispatch(_KeyboardTouchResolver.spaceKey),
+                        onTap: () => dispatch(_KeyboardTouchResolver.spaceKey),
                       ),
                     ),
                     SizedBox(width: keyGap),
@@ -2830,9 +2821,7 @@ class _InlineKeyboardKeyState extends State<_InlineKeyboardKey> {
                     height: keyHeight * 1.08,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(
-                        8,
-                      ),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: theme.colorScheme.onPrimary.withValues(
                           alpha: 0.18,
@@ -2950,15 +2939,11 @@ class _PermissionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final screenSize = MediaQuery.sizeOf(context);
     final horizontalInset = screenSize.width * 0.031;
-    final verticalInset = screenSize.height * 0.014;
     final iconContainerSize = screenSize.shortestSide * 0.123;
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 8,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(

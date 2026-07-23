@@ -2,13 +2,28 @@
 
 ## Architecture
 
-Budget AI is a Flutter application using built-in Flutter state management. Finance data and chat sessions are stored locally.
+Budget AI is a Flutter application using built-in Flutter state management.
+Finance data is stored offline-first in SQLite with optional end-to-end
+encrypted Supabase synchronization. Chat sessions remain local-only.
 
-The chat stack is OpenAI-only, while speech is local:
+The chat backend is OpenAI-only, while authentication is Supabase and speech is
+local:
 
-- `ResponsesProvider` calls `POST https://api.openai.com/v1/responses` for streaming chat and local finance-tool orchestration.
+- `ResponsesProvider` calls the authenticated Supabase `openai-responses` Edge Function for streaming chat and local finance-tool orchestration. The function validates the user JWT, enforces allowlists and per-user quotas, calls `POST https://api.openai.com/v1/responses`, forwards upstream bytes immediately, and finalizes streamed quota usage in a background task. Debug timing headers expose quota, OpenAI-header, and region measurements. `SUPABASE_FUNCTION_REGION` is an optional benchmarking override; empty preserves automatic regional routing and failover.
+- `AuthService` uses Supabase email/password auth with required email confirmation, session restoration, OTP verification, password recovery, and sign-out. `AuthGate` follows first-run onboarding and protects AI chat.
+- `LocalSettingsStore` migrates legacy Shared Preferences into SQLite. Account
+  display name, OpenAI model, currency, and message bubble style synchronize
+  through `user_settings`; onboarding and speech-model selections stay local.
+- `LocalFinanceStore` imports the legacy finance JSON file into SQLite and
+  tracks revisions, pending writes, and deletion tombstones. Legacy local rows
+  missing from the remote encrypted table are queued automatically.
+- `AccountEncryptionService` generates a random 256-bit recovery key, protects
+  the device copy with Keychain/Keystore, and uses AES-256-GCM.
+  `EncryptedFinanceSyncService` uploads only authenticated ciphertext and uses
+  Realtime plus verified connectivity restoration as invalidation signals.
+  Never upload the recovery key or plaintext finance payload.
 - `LocalSpeechService` uses Sherpa-ONNX for on-device Whisper transcription and Piper speech synthesis. `LocalSpeechModelManager` downloads, selects, persists, and removes model archives from application support storage.
-- `OPENAI_API_KEY` is loaded from the root `.env` asset or a Dart build environment value.
+- `OPENAI_API_KEY` exists only as a Supabase Edge Function secret. Flutter contains only the Supabase URL and publishable key; `.env` is not an app asset.
 - The model catalog lives in `lib/src/chat/ai_models.dart`; the default is `gpt-5.6-luna`.
 - GPT-5 chat requests use low reasoning effort and low text verbosity. Prompts preserve important facts while removing repetition and optional background.
 - Speech playback is scoped to microphone-originated turns. Typed messages never trigger automatic audio.
@@ -25,7 +40,9 @@ The chat stack is OpenAI-only, while speech is local:
 - Keep provider-specific request shapes isolated in their service/provider files.
 - Preserve Responses API output items when replaying tool conversations, including reasoning, function-call, function-call-output, and message items.
 - Update `README.md` and this file when setup, models, API surfaces, voice behavior, or architecture changes.
-- Never commit `.env` or an API key. A public production release should proxy OpenAI requests through an authenticated backend instead of shipping the key in the app.
+- Never commit `.env`, an OpenAI key, a Supabase secret/service-role key, or a Supabase access token. All OpenAI traffic must remain behind the authenticated Edge Function.
+- Never claim a lost recovery key can be recovered. Chat history and downloaded
+  speech-model files must remain excluded from Supabase synchronization.
 
 ## Verification
 

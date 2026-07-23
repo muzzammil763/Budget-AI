@@ -1,0 +1,2 @@
+-- Applied separately to the connected project. The function definition is
+-- included in 20260723090607_create_ai_usage_tables.sql for fresh databases.

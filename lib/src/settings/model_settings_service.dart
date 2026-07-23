@@ -1,6 +1,6 @@
 import 'package:budget_ai/src/chat/ai_models.dart';
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ModelSettingsService {
   ModelSettingsService._();
@@ -12,10 +12,10 @@ class ModelSettingsService {
   final ValueNotifier<String> modelId = ValueNotifier<String>(
     AIModels.defaultModelId,
   );
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final LocalSettingsStore _settings = LocalSettingsStore.instance;
 
   Future<void> initialize() async {
-    final savedModel = (await _preferences.getString(_modelKey))?.trim();
+    final savedModel = (await _settings.getString(_modelKey))?.trim();
     modelId.value = AIModels.openAIModels.any((model) => model.id == savedModel)
         ? savedModel!
         : AIModels.defaultModelId;
@@ -24,8 +24,24 @@ class ModelSettingsService {
   Future<void> setModel(String value) async {
     final normalized = value.trim();
     if (!AIModels.openAIModels.any((model) => model.id == normalized)) return;
-    await _preferences.setString(_modelKey, normalized);
     modelId.value = normalized;
+    await _settings.setString(
+      _modelKey,
+      normalized,
+      scope: SettingSyncScope.account,
+    );
+  }
+
+  Future<void> applySyncedModel(String value) async {
+    final normalized = value.trim();
+    if (!AIModels.openAIModels.any((model) => model.id == normalized)) return;
+    modelId.value = normalized;
+    await _settings.setValue(
+      _modelKey,
+      normalized,
+      scope: SettingSyncScope.account,
+      pendingSync: false,
+    );
   }
 
   String get current => modelId.value;
