@@ -7,7 +7,7 @@ ToolDefinition buildFinanceListTool({
 }) => ToolDefinition(
   name: 'finance_list',
   description:
-      'List finance entries with optional date, type, category, and amount filters. Can sort by largest amount for biggest or heavy expense questions. Use this before finance_update or finance_delete when you need to find an entry ID.',
+      'List finance entries with optional date, keyword, type, category, and amount filters. Can sort by largest amount for biggest or heavy expense questions. Use keywords to search for entries matching any of several words (e.g. "find expenses for coffee, uber, or netflix between Jan 1 and today"). Use this before finance_update or finance_delete when you need to find an entry ID.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -19,6 +19,12 @@ ToolDefinition buildFinanceListTool({
         'type': 'string',
         'description':
             'End date filter in YYYY-MM-DD format (inclusive). Defaults to today.',
+      },
+      'keywords': {
+        'type': 'array',
+        'items': {'type': 'string'},
+        'description':
+            'Optional list of search words or phrases. Matches entries whose description or category contains ANY of these words (case-insensitive, OR match). Use this for requests like "expenses about X, Y, or Z".',
       },
       'category': {
         'type': 'string',
@@ -56,6 +62,7 @@ mixin FinanceListToolHandler {
   Future<dynamic> handleFinanceListRequest(Map<String, dynamic> args) async {
     final fromStr = (args['from_date'] as String? ?? '').trim();
     final toStr = (args['to_date'] as String? ?? '').trim();
+    final keywords = _parseKeywords(args['keywords']);
     final category = (args['category'] as String? ?? '').trim().toLowerCase();
     final typeRaw = (args['type'] as String? ?? '').trim();
     final type = typeRaw.isNotEmpty ? FinanceEntryType.fromJson(typeRaw) : null;
@@ -85,6 +92,7 @@ mixin FinanceListToolHandler {
 
       entries = filterFinanceEntriesForList(
         entries,
+        keywords: keywords,
         category: category,
         type: type,
         amountGreaterThan: amountGreaterThan,
@@ -92,11 +100,12 @@ mixin FinanceListToolHandler {
       );
 
       final limited = entries.take(limit).toList();
-      final total = FinanceService.instance.totalAmount(limited);
+      final total = FinanceService.instance.totalAmount(entries);
 
       return {
         'ok': true,
         'count': limited.length,
+        'matched_count': entries.length,
         'total': FinanceEntry.money(total),
         'entries': limited
             .map(
@@ -117,14 +126,38 @@ mixin FinanceListToolHandler {
   }
 }
 
+List<String> _parseKeywords(dynamic raw) {
+  Iterable<String> pieces;
+  if (raw is List) {
+    pieces = raw.map((e) => e.toString());
+  } else if (raw is String) {
+    pieces = raw.split(',');
+  } else {
+    pieces = const [];
+  }
+  return pieces
+      .map((e) => e.trim().toLowerCase())
+      .where((e) => e.isNotEmpty)
+      .toSet()
+      .toList();
+}
+
 List<FinanceEntry> filterFinanceEntriesForList(
   Iterable<FinanceEntry> source, {
+  List<String> keywords = const [],
   String category = '',
   FinanceEntryType? type,
   double? amountGreaterThan,
   String sortBy = 'date_desc',
 }) {
   var entries = source.toList();
+  if (keywords.isNotEmpty) {
+    entries = entries.where((entry) {
+      final haystack =
+          '${entry.description} ${entry.category}'.toLowerCase();
+      return keywords.any((keyword) => haystack.contains(keyword));
+    }).toList();
+  }
   if (category.isNotEmpty) {
     final normalizedCategory = category.trim().toLowerCase();
     entries = entries
