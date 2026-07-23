@@ -19,8 +19,9 @@ import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
-import 'package:budget_ai/src/chat/openai_voice.dart';
-import 'package:budget_ai/src/settings/openai_voice_screen.dart';
+import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
+import 'package:budget_ai/src/speech/local_speech_model.dart';
+import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/settings/permissions_screen.dart';
 import 'package:budget_ai/src/settings/shared_preferences_screen.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
@@ -114,16 +115,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           ValueListenableBuilder<String>(
-            valueListenable: ModelSettingsService.instance.voiceId,
-            builder: (context, voiceId, _) => _navTile(
-              theme,
-              icon: CupertinoIcons.speaker_2_fill,
-              title: 'Output voice',
-              subtitle:
-                  '${OpenAIVoices.byId(voiceId)?.name ?? voiceId} · zero-cost bundled previews',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const OpenAIVoiceScreen()),
+            valueListenable: LocalSpeechModelManager.instance.selectedSttId,
+            builder: (context, sttId, _) => ValueListenableBuilder<String>(
+              valueListenable: LocalSpeechModelManager.instance.selectedTtsId,
+              builder: (context, ttsId, _) => _navTile(
+                theme,
+                icon: CupertinoIcons.waveform,
+                title: 'Offline Speech Models',
+                subtitle:
+                    '${LocalSpeechModels.byId(sttId)?.name ?? sttId} · '
+                    '${LocalSpeechModels.byId(ttsId)?.name ?? ttsId}',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LocalSpeechModelsScreen(),
+                  ),
+                ),
               ),
             ),
           ),

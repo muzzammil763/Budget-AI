@@ -10,6 +10,7 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
+import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:budget_ai/src/widgets/siri_finance_inbox.dart';
@@ -28,6 +29,7 @@ Future<void> main() async {
   await dotenv.load(fileName: '.env');
   await CurrencySettingsService.instance.initialize();
   await ModelSettingsService.instance.initialize();
+  await LocalSpeechModelManager.instance.initialize();
   await UserNameSettingsService.instance.initialize();
   await BubbleStyleSettingsService.instance.initialize();
   await BudgetHomeWidgetSync.initialize();

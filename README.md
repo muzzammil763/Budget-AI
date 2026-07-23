@@ -1,16 +1,17 @@
 # Budget AI
 
-Budget AI is a Flutter personal finance assistant powered directly by OpenAI, with local finance tracking and JSON backup/restore.
+Budget AI is a Flutter personal finance assistant using OpenAI for chat, with local finance tracking, offline speech, and JSON backup/restore.
 
 ## AI and voice flow
 
 - Chat and finance tools use OpenAI's Responses API.
 - The default chat model is `gpt-5.6-luna`. Settings exposes the supported OpenAI model catalog, including GPT-5.6 Sol, Terra, and Luna.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
-- Microphone recordings use `gpt-4o-transcribe` through OpenAI's transcription endpoint.
+- Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
-- Spoken replies use `gpt-4o-mini-tts`. Settings exposes all 13 built-in voices and defaults to `marin`.
-- Voice previews are fixed audio files bundled with the app; replaying them never calls OpenAI or creates API usage.
+- Spoken replies are generated fully on-device with Sherpa-ONNX and a downloaded Piper voice. Audio never leaves the device; only transcribed text is sent to OpenAI for chat.
+- Settings > Offline speech models downloads, selects, and removes Whisper STT and Piper TTS models. No speech model is bundled, so voice chat becomes available after one STT model and one TTS model are downloaded.
+- Downloaded models select on tap and remove with a left swipe. Downloaded Piper voices also provide locally generated, zero-API-cost audio previews.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
 - Paper Curl and Sketch Frame message styles switch the app's default typography to the bundled Patrick Hand font while preserving explicitly branded Boldonse text and monospaced code.
 
@@ -18,7 +19,7 @@ Budget AI is a Flutter personal finance assistant powered directly by OpenAI, wi
 
 - The app opens directly to chat.
 - Tap the app bar model name to open the OpenAI model selector.
-- Settings includes finances, insights, currency, OpenAI model, output voice, message style, permissions, backup/restore, and onboarding controls.
+- Settings includes finances, insights, currency, OpenAI chat model, offline speech models, message style, permissions, backup/restore, and onboarding controls.
 - Finance data is stored locally. Backup/restore uses dated JSON files and also accepts compatible finance lists from earlier exports.
 
 ## iOS widget and Siri entry

@@ -4,16 +4,16 @@
 
 Budget AI is a Flutter application using built-in Flutter state management. Finance data and chat sessions are stored locally.
 
-The AI stack is OpenAI-only:
+The chat stack is OpenAI-only, while speech is local:
 
 - `ResponsesProvider` calls `POST https://api.openai.com/v1/responses` for streaming chat and local finance-tool orchestration.
-- `OpenAIAudioService` calls `/v1/audio/transcriptions` with `gpt-4o-transcribe` and `/v1/audio/speech` with `gpt-4o-mini-tts`. The selected built-in voice defaults to `marin`.
+- `LocalSpeechService` uses Sherpa-ONNX for on-device Whisper transcription and Piper speech synthesis. `LocalSpeechModelManager` downloads, selects, persists, and removes model archives from application support storage.
 - `OPENAI_API_KEY` is loaded from the root `.env` asset or a Dart build environment value.
 - The model catalog lives in `lib/src/chat/ai_models.dart`; the default is `gpt-5.6-luna`.
 - GPT-5 chat requests use low reasoning effort and low text verbosity. Prompts preserve important facts while removing repetition and optional background.
 - Speech playback is scoped to microphone-originated turns. Typed messages never trigger automatic audio.
 - The composer uses one contextual action: Send when text exists, always-available hold-to-talk when empty, and Stop during an active response. Releasing a voice hold transcribes and sends immediately.
-- Settings exposes a chat-model picker, all built-in output voices, and bundled zero-API-cost voice previews. Speech input/output models are fixed; microphone input has no toggle or stored preference.
+- Settings exposes a chat-model picker and an offline speech-model manager. Voice chat requires one downloaded STT model and one downloaded TTS model; model selections persist locally. Downloaded models use swipe removal, and downloaded Piper voices provide locally generated previews.
 - Paper Curl and Sketch Frame select the bundled Patrick Hand font at the app-theme level. Explicit Boldonse branding and monospaced code remain unchanged.
 - `home_widget` mirrors finance summaries and entries into the `group.com.muzamil.budget.ai` App Group. The native iOS 17 `BudgetAIWidget` target renders one medium-width, app-styled financial summary whose surface, text, and splash mark follow the widget Light/Dark color scheme, with no voice instructions.
 - Native App Intents expose “Add an expense in Budget AI” and “Add income in Budget AI” to Siri. Siri stores entries in the shared App Group, speaks a system confirmation, and posts a Darwin notification for live Flutter import. Launch and foreground imports cover periods when iOS has suspended the app.

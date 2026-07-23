@@ -24,7 +24,7 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
-import 'package:budget_ai/src/chat/openai_audio_service.dart';
+import 'package:budget_ai/src/speech/local_speech_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -82,7 +82,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   late ChatModelConfig _activeConfig;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final OpenAIAudioService _openAIAudioService = OpenAIAudioService();
+  final LocalSpeechService _localSpeechService = LocalSpeechService();
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _isSpeaking = false;
@@ -526,7 +526,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     unawaited(_audioRecorder.cancel());
     _audioPlayer.dispose();
     _audioRecorder.dispose();
-    _openAIAudioService.dispose();
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -1473,6 +1472,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     HapticFeedback.mediumImpact();
 
     try {
+      if (!_localSpeechService.isReadyForVoiceTurn) {
+        if (mounted) {
+          showAppToast(
+            context,
+            message: 'Download offline speech models in Settings first.',
+            type: ToastificationType.warning,
+          );
+        }
+        return;
+      }
       if (!await _audioRecorder.hasPermission()) {
         if (mounted) {
           showAppToast(
@@ -1487,7 +1496,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       await _audioPlayer.stop();
       final temporaryDirectory = await getTemporaryDirectory();
       final path =
-          '${temporaryDirectory.path}/openai_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+          '${temporaryDirectory.path}/local_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
       await _audioRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
@@ -1507,7 +1516,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       });
       _updateCanSend();
     } catch (error) {
-      _showOpenAIAudioError('Could not start recording', error);
+      _showLocalSpeechError('Could not start recording', error);
     } finally {
       _voiceStartInFlight = false;
       if (!_isRecording) _voiceHoldActive = false;
@@ -1567,7 +1576,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _updateCanSend();
       if (path == null) throw StateError('No audio recording was created.');
 
-      final transcript = await _openAIAudioService.transcribe(path);
+      final transcript = await _localSpeechService.transcribe(path);
       unawaited(File(path).delete().then<void>((_) {}).catchError((_) {}));
       if (!mounted) return;
       if (transcript.isEmpty) {
@@ -1589,7 +1598,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
       _updateCanSend();
-      _showOpenAIAudioError('Could not transcribe recording', error);
+      _showLocalSpeechError('Could not transcribe recording', error);
     } finally {
       _isFinishingVoiceRecording = false;
       _voiceHoldActive = false;
@@ -1600,13 +1609,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     try {
       await _audioPlayer.stop();
       if (mounted) setState(() => _isSpeaking = true);
-      final chunks = OpenAIAudioService.speechChunks(text);
+      final chunks = LocalSpeechService.speechChunks(text);
       for (var index = 0; index < chunks.length; index++) {
-        final audio = await _openAIAudioService.synthesize(chunks[index]);
-        await _playSpeechFile(audio, index, extension: 'mp3');
+        final audio = await _localSpeechService.synthesize(chunks[index]);
+        await _playSpeechFile(audio, index, extension: 'wav');
       }
     } catch (error) {
-      _showOpenAIAudioError('Could not play voice response', error);
+      _showLocalSpeechError('Could not play voice response', error);
     } finally {
       if (mounted) setState(() => _isSpeaking = false);
     }
@@ -1651,7 +1660,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  void _showOpenAIAudioError(String prefix, Object error) {
+  void _showLocalSpeechError(String prefix, Object error) {
     if (!mounted) return;
     showAppToast(
       context,

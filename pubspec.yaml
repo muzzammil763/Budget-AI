@@ -35,6 +35,8 @@ dependencies:
   record: ^7.1.1
   audioplayers: ^6.8.1
   home_widget: ^0.9.3
+  sherpa_onnx: ^1.13.4
+  archive: ^4.0.9
 
 dev_dependencies:
   flutter_test:
@@ -47,7 +49,6 @@ flutter:
   assets:
     - .env
     - assets/icons/
-    - assets/audio/openai_voices/
     - assets/fonts/PatrickHand-OFL.txt
 
   fonts:
