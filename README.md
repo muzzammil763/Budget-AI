@@ -10,10 +10,10 @@ Budget AI is a Flutter personal finance assistant using OpenAI for chat, with lo
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
 - Spoken replies are generated fully on-device with Sherpa-ONNX and a downloaded Piper voice. Audio never leaves the device; only transcribed text is sent to OpenAI for chat.
-- Settings > Offline speech models downloads, selects, and removes Whisper STT and Piper TTS models. No speech model is bundled, so voice chat becomes available after one STT model and one TTS model are downloaded.
+- Settings > Offline speech models downloads, selects, and removes Whisper STT and Piper TTS models. The mobile-compatible catalog includes Tiny, Base, Small, Medium, and distilled Whisper choices in English and multilingual variants, plus multiple US and British English Piper voices. Downloads show rounded progress, transferred and total size, live speed, and estimated time remaining. No speech model is bundled, so voice chat becomes available after one STT model and one TTS model are downloaded.
 - Downloaded models select on tap and remove with a left swipe. Downloaded Piper voices also provide locally generated, zero-API-cost audio previews.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
-- Paper Curl and Sketch Frame message styles switch the app's default typography to the bundled Patrick Hand font while preserving explicitly branded Boldonse text and monospaced code.
+- All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
 
 ## Current app flow
 
@@ -48,33 +48,5 @@ flutter analyze --no-fatal-warnings --no-fatal-infos
 flutter test
 make apk
 ```
-
-### Regenerating app icons
-
-The launcher icons use a minimal composition of the Budget AI bars, orbit,
-dot, and spark, with separate light and dark palettes. After changing the
-launcher mark or its brand colours, regenerate the 1024-pixel master plus all
-iOS and Android icon variants with:
-
-```sh
-flutter test tool/generate_app_icons_test.dart
-```
-
-The reusable master PNG is written to
-`assets/icons/budget_mark_1024.png`. Android adaptive foreground and
-monochrome layers are generated inside the platform resource directories.
-Default Android resources use the light icon, while `mipmap-night-*`
-alternatives provide the dark icon when the launcher refreshes for the device
-night-mode configuration.
-iOS and iPadOS receive separate Light, Dark, and Tinted 1024-pixel
-appearances, which the system selects from the user's Home Screen appearance.
-On Android 13 and later, supported launchers use the monochrome adaptive layer
-when the user enables themed icons, tinting it from the wallpaper and system
-theme.
-
-The Android native launch screen reuses the adaptive minimal foreground and
-the same light/night background colours. Android 12 and later use the platform
-SplashScreen attributes, while earlier versions render the matching foreground
-from `launch_background.xml` until Flutter draws its first frame.
 
 The mobile app currently calls OpenAI directly, so a packaged API key can be extracted by a determined user. For a public production release, route requests through a small authenticated backend that keeps the OpenAI key server-side.

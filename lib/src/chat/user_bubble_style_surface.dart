@@ -33,7 +33,7 @@ class UserBubbleStyleSurface extends StatelessWidget {
   }
 
   static String? chatFontFamily(UserBubbleStyle style) {
-    return style.usesHandwrittenFont ? AppTheme.handwrittenFontFamily : null;
+    return null;
   }
 
   @override

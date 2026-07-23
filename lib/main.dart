@@ -60,17 +60,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<UserBubbleStyle>(
       valueListenable: BubbleStyleSettingsService.instance.style,
-      builder: (context, bubbleStyle, _) {
-        final fontFamily = bubbleStyle.usesHandwrittenFont
-            ? AppTheme.handwrittenFontFamily
-            : AppTheme.defaultFontFamily;
-
+      builder: (context, _, _) {
         return MaterialApp(
           locale: DevicePreview.locale(context),
           builder: DevicePreview.appBuilder,
           title: 'Budget AI',
-          theme: AppTheme.light(fontFamily: fontFamily),
-          darkTheme: AppTheme.dark(fontFamily: fontFamily),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
           themeMode: ThemeMode.system,
           navigatorObservers: [appRouteObserver],
           home: SplashScreen(

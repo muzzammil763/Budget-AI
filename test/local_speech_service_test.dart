@@ -30,11 +30,11 @@ void main() {
   test('local speech catalog includes selectable STT and TTS models', () {
     expect(
       LocalSpeechModels.ofKind(LocalSpeechModelKind.speechToText),
-      hasLength(2),
+      hasLength(10),
     );
     expect(
       LocalSpeechModels.ofKind(LocalSpeechModelKind.textToSpeech),
-      hasLength(3),
+      hasLength(9),
     );
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultSttId), isNotNull);
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultTtsId), isNotNull);
@@ -46,6 +46,21 @@ void main() {
                 model.directDownloadBaseUrl!.startsWith(
                   'https://huggingface.co/csukuangfj/',
                 )),
+      ),
+      isTrue,
+    );
+    expect(
+      LocalSpeechModels.all.map((model) => model.id).toSet(),
+      hasLength(LocalSpeechModels.all.length),
+    );
+    expect(
+      LocalSpeechModels.all.every(
+        (model) =>
+            model.requiredFiles.isNotEmpty &&
+            model.downloadSizeBytes > 0 &&
+            (model.kind == LocalSpeechModelKind.speechToText
+                ? model.whisperPrefix != null
+                : model.piperPrefix != null),
       ),
       isTrue,
     );

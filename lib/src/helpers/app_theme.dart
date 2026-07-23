@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static const String defaultFontFamily = 'Google Sans';
-  static const String handwrittenFontFamily = 'Patrick Hand';
   static const Color primaryColor = Colors.black;
   static const Color lightSurface = Colors.white;
   static const Color darkSurface = Colors.black;

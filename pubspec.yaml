@@ -12,7 +12,6 @@ dependencies:
   cupertino_icons: ^1.0.9
   dio: ^5.10.0
   crypto: ^3.0.7
-  flutter_svg: ^2.3.0
   gpt_markdown: ^1.1.7
   toastification: ^3.2.0
   path_provider: ^2.1.6
@@ -48,8 +47,6 @@ flutter:
 
   assets:
     - .env
-    - assets/icons/
-    - assets/fonts/PatrickHand-OFL.txt
 
   fonts:
     - family: Google Sans
@@ -59,7 +56,3 @@ flutter:
     - family: Boldonse
       fonts:
         - asset: assets/fonts/Boldonse.ttf
-
-    - family: Patrick Hand
-      fonts:
-        - asset: assets/fonts/PatrickHand-Regular.ttf

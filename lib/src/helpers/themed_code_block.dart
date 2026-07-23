@@ -3,7 +3,6 @@ import 'dart:collection';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_syntax_view/flutter_syntax_view.dart';
 
 const _ghGreen = Color(0xFF3fb950);
@@ -184,21 +183,9 @@ class _ThemedCodeBlockState extends State<ThemedCodeBlock> {
                 child: Row(
                   children: [
                     if (widget.showHeaderIcon)
-                      Builder(
-                        builder: (context) {
-                          final icon = _iconAssetFor(widget.name);
-                          if (icon != null) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: SvgPicture.asset(
-                                icon,
-                                width: 16,
-                                height: 16,
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6),
+                        child: Icon(Icons.code, size: 16),
                       ),
                     Text(
                       headerText,
@@ -358,25 +345,6 @@ class _ThemedCodeBlockState extends State<ThemedCodeBlock> {
         },
       ),
     );
-  }
-
-  String? _iconAssetFor(String name) {
-    final ext = name.trim().toLowerCase();
-    return switch (ext) {
-      'dart' => 'assets/icons/file_dart.svg',
-      'js' || 'javascript' || 'jsx' => 'assets/icons/file_javascript.svg',
-      'ts' || 'typescript' || 'tsx' => 'assets/icons/file_typescript.svg',
-      'py' || 'python' => 'assets/icons/file_python.svg',
-      'java' => 'assets/icons/file_java.svg',
-      'kt' || 'kotlin' => 'assets/icons/file_kotlin.svg',
-      'swift' => 'assets/icons/file_swift.svg',
-      'yaml' || 'yml' => 'assets/icons/file_yaml.svg',
-      'go' => 'assets/icons/file_go.svg',
-      'json' => 'assets/icons/file_json.svg',
-      'html' => 'assets/icons/file_html.svg',
-      'css' => 'assets/icons/file_css.svg',
-      _ => null,
-    };
   }
 
   Syntax? _syntaxFor(String name) {

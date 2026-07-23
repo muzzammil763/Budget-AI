@@ -9,7 +9,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light(fontFamily: AppTheme.handwrittenFontFamily),
+        theme: AppTheme.light(),
         home: Scaffold(
           body: ChatResponseMarkdown(
             text: 'A response from Budget AI.',
@@ -29,11 +29,11 @@ void main() {
 
     expect(
       markdownTheme.data.textTheme.bodyMedium?.fontFamily,
-      AppTheme.handwrittenFontFamily,
+      AppTheme.defaultFontFamily,
     );
     expect(
       markdownTheme.data.textTheme.headlineLarge?.fontFamily,
-      AppTheme.handwrittenFontFamily,
+      AppTheme.defaultFontFamily,
     );
   });
 }

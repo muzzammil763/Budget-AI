@@ -177,7 +177,8 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
                           const SizedBox(height: 2),
                           Text(
                             '${model.description} · '
-                            '${model.installedSizeLabel}',
+                            '${model.installedSizeLabel}'
+                            '${model.kind == LocalSpeechModelKind.textToSpeech ? ' · ${_formatBytes(model.downloadSizeBytes)} download' : ''}',
                             style: AppTheme.bodySmall.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
@@ -201,14 +202,31 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
                 ),
                 if (downloading) ...[
                   const SizedBox(height: 12),
-                  LinearProgressIndicator(value: state?.progress),
-                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        end: (state?.progress ?? 0).clamp(0.0, 1.0),
+                      ),
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.linear,
+                      builder: (context, animatedProgress, _) =>
+                          LinearProgressIndicator(
+                            value: animatedProgress,
+                            minHeight: 8,
+                            color: colors.primary,
+                            backgroundColor: colors.primary.withValues(
+                              alpha: 0.12,
+                            ),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    state?.progress == null
-                        ? 'Downloading…'
-                        : 'Downloading ${(state!.progress! * 100).round()}%',
+                    _downloadStatus(state),
                     style: AppTheme.bodySmall.copyWith(
                       color: colors.onSurfaceVariant,
+                      height: 1.3,
                     ),
                   ),
                 ],
@@ -235,6 +253,51 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
       onDismissed: (_) => unawaited(_removeModel(context, model)),
       child: card,
     );
+  }
+
+  String _downloadStatus(LocalSpeechDownloadState? state) {
+    if (state?.installing ?? false) return 'Installing model…';
+    if (state == null) return 'Preparing download…';
+
+    final details = <String>[
+      if (state.progress != null)
+        '${(state.progress! * 100).clamp(0, 100).round()}%',
+      if (state.totalBytes != null)
+        '${_formatBytes(state.receivedBytes)} of '
+            '${_formatBytes(state.totalBytes!)}',
+      if (state.bytesPerSecond > 0)
+        '${_formatBytes(state.bytesPerSecond.round())}/s',
+      if (state.remainingSeconds != null && state.remainingSeconds! > 0)
+        '${_formatRemaining(state.remainingSeconds!)} remaining',
+    ];
+    return details.isEmpty ? 'Preparing download…' : details.join(' · ');
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1000) return '$bytes B';
+    if (bytes < 1000000) {
+      return '${(bytes / 1000).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1000000000) {
+      return '${(bytes / 1000000).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1000000000).toStringAsFixed(2)} GB';
+  }
+
+  String _formatRemaining(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (minutes < 60) {
+      return remainingSeconds == 0
+          ? '${minutes}m'
+          : '${minutes}m ${remainingSeconds}s';
+    }
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    return remainingMinutes == 0
+        ? '${hours}h'
+        : '${hours}h ${remainingMinutes}m';
   }
 
   Widget _previewButton(ColorScheme colors, LocalSpeechModel model) {

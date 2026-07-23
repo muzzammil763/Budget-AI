@@ -17,12 +17,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('generate minimal Budget AI app icon assets', () async {
-    await _writeFullColourIcon(
-      'assets/icons/budget_mark_1024.png',
-      pixels: 1024,
-      markScale: 0.88,
-    );
-
     const iosIconDirectory = 'ios/Runner/Assets.xcassets/AppIcon.appiconset';
     await _writeFullColourIcon(
       '$iosIconDirectory/AppIcon-Light-1024.png',

@@ -12,13 +12,23 @@ class LocalSpeechDownloadState {
   const LocalSpeechDownloadState({
     this.installed = false,
     this.downloading = false,
+    this.installing = false,
     this.progress,
+    this.receivedBytes = 0,
+    this.totalBytes,
+    this.bytesPerSecond = 0,
+    this.remainingSeconds,
     this.error,
   });
 
   final bool installed;
   final bool downloading;
+  final bool installing;
   final double? progress;
+  final int receivedBytes;
+  final int? totalBytes;
+  final double bytesPerSecond;
+  final int? remainingSeconds;
   final String? error;
 }
 
@@ -121,33 +131,78 @@ class LocalSpeechModelManager {
 
   Future<void> download(LocalSpeechModel model) async {
     if (states.value[model.id]?.downloading ?? false) return;
-    _setState(model.id, const LocalSpeechDownloadState(downloading: true));
+    _setState(
+      model.id,
+      LocalSpeechDownloadState(
+        downloading: true,
+        progress: 0,
+        totalBytes: model.downloadSizeBytes,
+      ),
+    );
     final base = _modelsDirectory ?? (await directoryFor(model)).parent;
     final archive = File(p.join(base.path, '${model.id}.download.tar.bz2'));
     final staging = Directory(p.join(base.path, '${model.id}.installing'));
     final destination = await directoryFor(model);
+    final timer = Stopwatch()..start();
+    var sampledBytes = 0;
+    var sampledAt = Duration.zero;
+    var bytesPerSecond = 0.0;
+
+    void reportProgress(int received, int total) {
+      final elapsed = timer.elapsed;
+      final sampleSeconds =
+          (elapsed - sampledAt).inMicroseconds / Duration.microsecondsPerSecond;
+      if (sampleSeconds >= 0.25 || received >= total) {
+        final bytesSinceSample = received - sampledBytes;
+        if (bytesSinceSample >= 0 && sampleSeconds > 0) {
+          final currentSpeed = bytesSinceSample / sampleSeconds;
+          bytesPerSecond = bytesPerSecond == 0
+              ? currentSpeed
+              : (bytesPerSecond * 0.7) + (currentSpeed * 0.3);
+        }
+        sampledBytes = received;
+        sampledAt = elapsed;
+      }
+      final safeTotal = total > 0 ? total : model.downloadSizeBytes;
+      final remainingBytes = (safeTotal - received).clamp(0, safeTotal);
+      _setState(
+        model.id,
+        LocalSpeechDownloadState(
+          downloading: true,
+          progress: safeTotal > 0
+              ? (received / safeTotal).clamp(0.0, 1.0)
+              : null,
+          receivedBytes: received,
+          totalBytes: safeTotal,
+          bytesPerSecond: bytesPerSecond,
+          remainingSeconds: bytesPerSecond > 0
+              ? (remainingBytes / bytesPerSecond).ceil()
+              : null,
+        ),
+      );
+    }
+
     try {
       if (await archive.exists()) await archive.delete();
       if (await staging.exists()) await staging.delete(recursive: true);
       await staging.create(recursive: true);
       final Directory extracted;
       if (model.directDownloadBaseUrl != null) {
-        await _downloadFiles(model, staging);
+        await _downloadFiles(model, staging, reportProgress);
         extracted = staging;
       } else {
         await _dio.download(
           model.downloadUrl,
           archive.path,
           onReceiveProgress: (received, total) {
-            _setState(
-              model.id,
-              LocalSpeechDownloadState(
-                downloading: true,
-                progress: total > 0 ? received / total : null,
-              ),
+            reportProgress(
+              received,
+              total > 0 ? total : model.downloadSizeBytes,
             );
           },
         );
+        final archiveBytes = await archive.length();
+        _setInstallingState(model, archiveBytes, bytesPerSecond);
         await compute(extractLocalSpeechArchive, (
           inputPath: archive.path,
           outputPath: staging.path,
@@ -180,8 +235,10 @@ class LocalSpeechModelManager {
   Future<void> _downloadFiles(
     LocalSpeechModel model,
     Directory destination,
+    void Function(int received, int total) onProgress,
   ) async {
     final files = model.requiredFiles;
+    var completedBytes = 0;
     for (var index = 0; index < files.length; index++) {
       final relativePath = files[index];
       final output = File(p.join(destination.path, relativePath));
@@ -190,17 +247,32 @@ class LocalSpeechModelManager {
         '${model.directDownloadBaseUrl}/$relativePath?download=true',
         output.path,
         onReceiveProgress: (received, total) {
-          final fileProgress = total > 0 ? received / total : 0.0;
-          _setState(
-            model.id,
-            LocalSpeechDownloadState(
-              downloading: true,
-              progress: (index + fileProgress) / files.length,
-            ),
-          );
+          onProgress(completedBytes + received, model.downloadSizeBytes);
         },
       );
+      completedBytes += await output.length();
+      onProgress(completedBytes, model.downloadSizeBytes);
     }
+    _setInstallingState(model, completedBytes, 0);
+  }
+
+  void _setInstallingState(
+    LocalSpeechModel model,
+    int downloadedBytes,
+    double bytesPerSecond,
+  ) {
+    _setState(
+      model.id,
+      LocalSpeechDownloadState(
+        downloading: true,
+        installing: true,
+        progress: 1,
+        receivedBytes: downloadedBytes,
+        totalBytes: downloadedBytes,
+        bytesPerSecond: bytesPerSecond,
+        remainingSeconds: 0,
+      ),
+    );
   }
 
   Future<void> delete(LocalSpeechModel model) async {
