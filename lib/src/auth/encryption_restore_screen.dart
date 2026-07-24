@@ -1,29 +1,24 @@
-import 'dart:async';
-
 import 'package:budget_ai/src/auth/auth_screens.dart';
-import 'package:budget_ai/src/auth/recovery_key_panel.dart';
+import 'package:budget_ai/src/auth/auth_service.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
-import 'package:budget_ai/src/sync/account_encryption_service.dart';
 import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:toastification/toastification.dart';
 
 /// Shown when this account already has encryption enabled on another
-/// device but this device doesn't hold the key yet (new device, reinstall).
-/// The user must paste their recovery key to unlock their data, or wipe
-/// and start over if the key is gone for good.
+/// device, but this device couldn't unlock it automatically with the
+/// account password (a typo in the password just entered, or the
+/// server-side envelope isn't there yet because no other device has
+/// logged in since password-based unlock was introduced). Signing in
+/// again is the normal way out; starting fresh is the last resort if
+/// that keeps failing.
 class EncryptionRestoreScreen extends StatefulWidget {
-  const EncryptionRestoreScreen({
-    super.key,
-    required this.remoteFingerprint,
-    required this.onDone,
-  });
+  const EncryptionRestoreScreen({super.key, required this.onDone});
 
-  final String? remoteFingerprint;
   final VoidCallback onDone;
 
   @override
@@ -31,152 +26,90 @@ class EncryptionRestoreScreen extends StatefulWidget {
       _EncryptionRestoreScreenState();
 }
 
-enum _RestoreStage { enterKey, saveNewKey }
-
 class _EncryptionRestoreScreenState extends State<EncryptionRestoreScreen> {
-  final _recoveryController = TextEditingController();
-  _RestoreStage _stage = _RestoreStage.enterKey;
   bool _working = false;
-  String? _newRecoveryKey;
 
-  User? get _user => Supabase.instance.client.auth.currentUser;
-
-  @override
-  void dispose() {
-    _recoveryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _restore() async {
-    final user = _user;
-    if (user == null || _working) return;
-    setState(() => _working = true);
-    try {
-      final bytes = AccountEncryptionService.parseRecoveryKey(
-        _recoveryController.text,
-      );
-      final fingerprint = AccountEncryptionService.fingerprintForKey(bytes);
-      if (widget.remoteFingerprint != null &&
-          fingerprint != widget.remoteFingerprint) {
-        throw const FormatException(
-          'Recovery key does not match this account.',
-        );
-      }
-      await AccountEncryptionService.instance.restoreRecoveryKey(
-        user.id,
-        _recoveryController.text,
-      );
-      unawaited(EncryptedFinanceSyncService.instance.syncNow());
-      widget.onDone();
-    } catch (error) {
-      if (mounted) {
-        showAppToast(
-          context,
-          message: error is FormatException
-              ? error.message
-              : 'The recovery key could not be restored.',
-          type: ToastificationType.error,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _working = false);
-    }
-  }
-
-  Future<void> _confirmLostKey() async {
-    final confirmed = await ResponsiveInfoSheet.confirm(
-      context,
-      title: 'Lost your recovery key?',
-      message:
-          'This permanently erases your synced finance history for this '
-          'account and starts fresh with a brand-new key. Any device still '
-          'holding the old key will no longer be able to read new data. '
-          'This cannot be undone.',
-      icon: CupertinoIcons.exclamationmark_triangle_fill,
-      confirmLabel: 'Erase and start fresh',
-    );
-    if (confirmed == true) await _resetEncryption();
-  }
-
-  Future<void> _resetEncryption() async {
+  Future<void> _signOutAndRetry() async {
     if (_working) return;
     setState(() => _working = true);
     try {
-      final newKey = await EncryptedFinanceSyncService.instance
-          .resetEncryption();
-      if (!mounted) return;
-      setState(() {
-        _newRecoveryKey = newKey;
-        _stage = _RestoreStage.saveNewKey;
-      });
+      await AuthService.instance.signOut();
     } catch (error) {
       if (mounted) {
         showAppToast(
           context,
-          message: 'Could not reset encryption. Check your connection.',
+          message: 'Could not sign out. Check your connection.',
           type: ToastificationType.error,
         );
       }
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  Future<void> _confirmReset() async {
+    final confirmed = await ResponsiveInfoSheet.confirm(
+      context,
+      title: 'Start fresh on this device?',
+      message:
+          'This permanently erases your synced finance history for this '
+          'account and starts over with a brand-new key from this device. '
+          'Any other device will need to sign in again to pick up the new '
+          'key. This cannot be undone.',
+      icon: CupertinoIcons.exclamationmark_triangle_fill,
+      confirmLabel: 'Erase and start fresh',
+      isRed: true,
+      onConfirm: () async {
+        try {
+          await EncryptedFinanceSyncService.instance.resetEncryption();
+        } catch (error) {
+          if (mounted) {
+            showAppToast(
+              context,
+              message: 'Could not reset encryption. Check your connection.',
+              type: ToastificationType.error,
+            );
+          }
+          rethrow;
+        }
+      },
+    );
+    if (confirmed == true) widget.onDone();
   }
 
   @override
   Widget build(BuildContext context) {
-    return switch (_stage) {
-      _RestoreStage.enterKey => AuthShell(
-        eyebrow: 'THIS ACCOUNT IS PROTECTED',
-        title: 'Enter your\nrecovery key',
-        subtitle:
-            'Paste the recovery key from the device where you first set '
-            'up encryption to unlock your finance data here.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AuthTextField(
-              controller: _recoveryController,
-              label: 'Recovery key',
-              hint: 'BAI1-…',
-              icon: CupertinoIcons.lock_rotation,
-              textCapitalization: TextCapitalization.characters,
-              onSubmitted: (_) => _restore(),
-            ),
-            const SizedBox(height: 16),
-            AuthPrimaryButton(
-              label: 'Unlock my data',
-              icon: CupertinoIcons.lock_open_fill,
-              working: _working,
-              onPressed: _restore,
-            ),
-            const SizedBox(height: 18),
-            Center(
-              child: TextButton(
-                onPressed: _working ? null : _confirmLostKey,
-                child: Text(
-                  "I lost my recovery key",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return AuthShell(
+      eyebrow: 'THIS ACCOUNT IS PROTECTED',
+      title: "Couldn't unlock\nautomatically",
+      subtitle:
+          "This device couldn't unlock your account with your password. "
+          'Try signing in again, or use the device where your data is '
+          'already unlocked to enable this one.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppButton(
+            text: 'Sign out and try again',
+            icon: CupertinoIcons.arrow_clockwise,
+            isLoading: _working,
+            onPressed: _signOutAndRetry,
+          ),
+          const SizedBox(height: 18),
+          Center(
+            child: TextButton(
+              onPressed: _working ? null : _confirmReset,
+              child: Text(
+                'Start fresh instead',
+                style: AppTheme.bodySmall.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      _RestoreStage.saveNewKey => AuthShell(
-        eyebrow: 'SAVE THIS NOW',
-        title: 'Your new\nrecovery key',
-        subtitle:
-            'Your old encrypted history was erased. This new key protects '
-            'everything going forward — save it before continuing.',
-        child: RecoveryKeyPanel(
-          recoveryKey: _newRecoveryKey!,
-          continueLabel: 'Continue to Budget AI',
-          onContinue: widget.onDone,
-        ),
-      ),
-    };
+    );
   }
 }

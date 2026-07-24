@@ -51,42 +51,67 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
   Widget build(BuildContext context) {
     final manager = LocalSpeechModelManager.instance;
     return Scaffold(
-      appBar: AppBar(title: const Text('Offline Speech Models')),
-      body: ValueListenableBuilder<Map<String, LocalSpeechDownloadState>>(
-        valueListenable: manager.states,
-        builder: (context, states, _) => ListView(
-          padding: const EdgeInsets.all(12),
-          children: [
-            _privacyCard(context),
-            const SizedBox(height: 8),
-            _sectionTitle(context, 'Speech To Text'),
-            const SizedBox(height: 8),
-            ValueListenableBuilder<String>(
-              valueListenable: manager.selectedSttId,
-              builder: (context, selected, _) => Column(
-                children: [
-                  for (final model in LocalSpeechModels.ofKind(
-                    LocalSpeechModelKind.speechToText,
-                  ))
-                    _modelCard(context, model, states[model.id], selected),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            _sectionTitle(context, 'Text To Speech'),
-            const SizedBox(height: 8),
-            ValueListenableBuilder<String>(
-              valueListenable: manager.selectedTtsId,
-              builder: (context, selected, _) => Column(
-                children: [
-                  for (final model in LocalSpeechModels.ofKind(
-                    LocalSpeechModelKind.textToSpeech,
-                  ))
-                    _modelCard(context, model, states[model.id], selected),
-                ],
-              ),
-            ),
-          ],
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: Navigator.of(context).pop,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+        ),
+        title: const Text('Offline Speech Models'),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child:
+                ValueListenableBuilder<Map<String, LocalSpeechDownloadState>>(
+                  valueListenable: manager.states,
+                  builder: (context, states, _) => ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
+                      _privacyCard(context),
+                      const SizedBox(height: 8),
+                      _sectionTitle(context, 'Speech To Text'),
+                      const SizedBox(height: 8),
+                      ValueListenableBuilder<String>(
+                        valueListenable: manager.selectedSttId,
+                        builder: (context, selected, _) => Column(
+                          children: [
+                            for (final model in LocalSpeechModels.ofKind(
+                              LocalSpeechModelKind.speechToText,
+                            ))
+                              _modelCard(
+                                context,
+                                model,
+                                states[model.id],
+                                selected,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _sectionTitle(context, 'Text To Speech'),
+                      const SizedBox(height: 8),
+                      ValueListenableBuilder<String>(
+                        valueListenable: manager.selectedTtsId,
+                        builder: (context, selected, _) => Column(
+                          children: [
+                            for (final model in LocalSpeechModels.ofKind(
+                              LocalSpeechModelKind.textToSpeech,
+                            ))
+                              _modelCard(
+                                context,
+                                model,
+                                states[model.id],
+                                selected,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+          ),
         ),
       ),
     );
@@ -149,8 +174,8 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
           side: BorderSide(
             color: selected
                 ? colors.primary
-                : colors.primary.withValues(alpha: 0.2),
-            width: 1,
+                : colors.outline.withValues(alpha: 0.25),
+            width: 1.5,
           ),
         ),
         child: InkWell(
@@ -333,7 +358,7 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
       alignment: Alignment.centerRight,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(right: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: Icon(CupertinoIcons.trash, color: colors.error),
     );
   }

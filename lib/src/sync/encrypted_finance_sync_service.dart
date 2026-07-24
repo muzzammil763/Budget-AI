@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/storage/local_finance_store.dart';
@@ -198,11 +199,11 @@ class EncryptedFinanceSyncService {
   }
 
   /// Wipes this account's synced ciphertext, rotates to a brand-new key,
-  /// and re-queues every local entry to push (and re-encrypt) again.
-  /// Returns the new recovery key so the caller can show it once.
-  /// Any other device still holding the old key will no longer be able to
-  /// decrypt anything synced under the new one.
-  Future<String> resetEncryption() async {
+  /// and re-queues every local entry to push (and re-encrypt) again. Any
+  /// other device still holding the old key will no longer be able to
+  /// decrypt anything synced under the new one — it will need to sign in
+  /// again to pick up the new key.
+  Future<void> resetEncryption() async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw StateError('Sign in before resetting encryption.');
@@ -213,23 +214,73 @@ class EncryptedFinanceSyncService {
           .from('encrypted_finance_entries')
           .delete()
           .eq('user_id', user.id);
-      final recoveryKey = await AccountEncryptionService.instance
-          .rotateRecoveryKey(user.id);
+      await AccountEncryptionService.instance.rotateDataKey(user.id);
       final fingerprint = await AccountEncryptionService.instance.fingerprint(
         user.id,
       );
-      await _client.from('user_encryption').upsert({
+      final row = <String, dynamic>{
         'user_id': user.id,
         'key_fingerprint': fingerprint,
         'encryption_version': 1,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      };
+      // The old wrap (if any) belonged to the key we just replaced. If a
+      // password is available right now, re-wrap the fresh key with it
+      // immediately; otherwise clear the stale wrap so nothing tries to
+      // unwrap a key that no longer exists — the next fresh sign-in on
+      // this device backfills it automatically.
+      final password = AuthService.instance.pendingPassword;
+      if (password != null) {
+        final wrapped = await AccountEncryptionService.instance
+            .wrapKeyWithPassword(user.id, password);
+        row.addAll({
+          'password_salt': wrapped.salt,
+          'wrapped_key_ciphertext': wrapped.ciphertext,
+          'wrapped_key_nonce': wrapped.nonce,
+          'wrapped_key_mac': wrapped.mac,
+        });
+        AuthService.instance.clearPendingPassword();
+      } else {
+        row.addAll({
+          'password_salt': null,
+          'wrapped_key_ciphertext': null,
+          'wrapped_key_nonce': null,
+          'wrapped_key_mac': null,
+        });
+      }
+      await _client.from('user_encryption').upsert(row);
       await LocalFinanceStore.instance.markAllPending();
       unawaited(syncNow());
-      return recoveryKey;
     } catch (error) {
       status.value = 'Waiting for connection';
       rethrow;
+    }
+  }
+
+  /// Wraps this device's cached data key under [password] and publishes the
+  /// envelope to `user_encryption`, so any other device that knows the
+  /// account password can unwrap the same data key on login instead of
+  /// requiring a manually copied recovery key. Safe to call repeatedly
+  /// (e.g. every login) — each call simply refreshes the stored envelope
+  /// with a fresh salt.
+  Future<void> pushPasswordWrap(String password) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    try {
+      final wrapped = await AccountEncryptionService.instance
+          .wrapKeyWithPassword(user.id, password);
+      await _client
+          .from('user_encryption')
+          .update({
+            'password_salt': wrapped.salt,
+            'wrapped_key_ciphertext': wrapped.ciphertext,
+            'wrapped_key_nonce': wrapped.nonce,
+            'wrapped_key_mac': wrapped.mac,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('user_id', user.id);
+    } catch (error) {
+      debugPrint('[EncryptedFinanceSyncService] Password wrap deferred: $error');
     }
   }
 

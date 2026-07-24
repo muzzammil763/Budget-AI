@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/vibration_manager.dart';
 import 'package:budget_ai/src/splash/splash_motion.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, required this.child});
@@ -46,11 +46,11 @@ class _SplashScreenState extends State<SplashScreen>
           setState(() => _done = true);
         }
       });
-    Future<void>.delayed(const Duration(milliseconds: 650), () {
-      if (mounted) HapticFeedback.lightImpact();
-    });
   }
 
+  // The only splash haptics are the dot particles arriving — the mark forming
+  // and the hand-off to the next screen stay silent so the feedback reads as a
+  // soft patter tied to the dots rather than a series of unrelated taps.
   void _triggerParticleHaptics(double time) {
     for (var i = 0; i < _particles.length; i++) {
       if (_particleHapticFired[i]) continue;
@@ -63,13 +63,9 @@ class _SplashScreenState extends State<SplashScreen>
   void _startReveal() {
     if (!mounted) return;
     setState(() => _appMounted = true);
-    void beginReveal() {
-      if (!mounted) return;
-      HapticFeedback.lightImpact();
-      _reveal.forward();
-    }
-
-    Future<void>.delayed(_breathingPause, beginReveal);
+    Future<void>.delayed(_breathingPause, () {
+      if (mounted) _reveal.forward();
+    });
   }
 
   @override
@@ -102,6 +98,11 @@ class _SplashScreenState extends State<SplashScreen>
                   final time =
                       _intro.value * _introDuration.inMilliseconds / 1000 +
                       _reveal.value * _revealDuration.inMilliseconds / 1000;
+                  final markProgress = SplashMotion.phase(
+                    _intro.value,
+                    0.18,
+                    0.95,
+                  );
                   _triggerParticleHaptics(time);
                   return ClipPath(
                     clipper: _CircleRevealClipper(progress: revealT),
@@ -112,6 +113,7 @@ class _SplashScreenState extends State<SplashScreen>
                         painter: _SplashPainter(
                           t: _intro.value,
                           time: time,
+                          markProgress: markProgress,
                           revealT: revealT,
                           particles: _particles,
                           surface: theme.scaffoldBackgroundColor,
@@ -172,6 +174,7 @@ class _Particle {
     required this.omega,
     required this.wobblePhase,
     required this.alpha,
+    required this.useAccent,
   });
 
   final double startAngle;
@@ -185,6 +188,10 @@ class _Particle {
   final double omega;
   final double wobblePhase;
   final double alpha;
+
+  /// Half the field is tinted with the app highlight color instead of the
+  /// default on-surface tone, alternating so the two colours stay evenly mixed.
+  final bool useAccent;
 
   static List<_Particle> field({required int count, required int seed}) {
     final rnd = math.Random(seed);
@@ -203,6 +210,7 @@ class _Particle {
         omega: 5.5 + rnd.nextDouble() * 3.5,
         wobblePhase: rnd.nextDouble() * math.pi * 2,
         alpha: 0.10 + rnd.nextDouble() * 0.22,
+        useAccent: i.isEven,
       );
     });
   }
@@ -212,6 +220,7 @@ class _SplashPainter extends CustomPainter {
   _SplashPainter({
     required this.t,
     required this.time,
+    required this.markProgress,
     required this.revealT,
     required this.particles,
     required this.surface,
@@ -225,6 +234,7 @@ class _SplashPainter extends CustomPainter {
 
   final double t;
   final double time;
+  final double markProgress;
   final double revealT;
   final List<_Particle> particles;
   final Color surface;
@@ -307,12 +317,9 @@ class _SplashPainter extends CustomPainter {
       final pos = Offset.lerp(start, target, s)!;
 
       final fadeIn = (arriveT * 2.4).clamp(0.0, 1.0);
-      paint.color = onSurface.withValues(alpha: p.alpha * fadeIn);
+      final dotColor = p.useAccent ? accent : onSurface;
+      paint.color = dotColor.withValues(alpha: p.alpha * fadeIn);
       canvas.drawCircle(pos, p.size, paint);
-      if (p.size > 2.0) {
-        paint.color = onSurface.withValues(alpha: p.alpha * fadeIn * 0.25);
-        canvas.drawCircle(pos, p.size * 2.4, paint);
-      }
     }
   }
 
@@ -369,9 +376,9 @@ class _SplashPainter extends CustomPainter {
       trimmed,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
+        ..strokeWidth = 1.9
         ..strokeCap = StrokeCap.round
-        ..color = onSurface.withValues(alpha: 0.10 * drawT),
+        ..color = onSurface.withValues(alpha: 0.18 * drawT),
     );
 
     if (drawT < 1) {
@@ -387,84 +394,36 @@ class _SplashPainter extends CustomPainter {
   }
 
   void _paintLogo(Canvas canvas, Offset center, double shortest) {
-    final entrySeconds = math.max(0.0, time - 0.25);
-    if (entrySeconds <= 0) return;
+    if (markProgress <= 0) return;
 
-    final scale = SplashMotion.spring(entrySeconds, zeta: 0.9, omega: 10);
-    final fadeIn = (entrySeconds * 3.5).clamp(0.0, 1.0);
-    final cardSize = shortest * 0.34;
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.scale(scale.clamp(0.0, 1.5));
-    canvas.translate(-center.dx, -center.dy);
-
-    final rect = Rect.fromCenter(
+    // Render the exact same brand mark the chat empty state uses, so the
+    // splash logo and the in-app logo are visually identical. The shared
+    // painter centers its content in the box it is given; a box of
+    // 0.44 * shortest yields a ~0.34 * shortest card, matching the old size.
+    final markBox = shortest * 0.44;
+    final fade = Curves.easeOut.transform(
+      (markProgress / 0.32).clamp(0.0, 1.0),
+    );
+    final bounds = Rect.fromCenter(
       center: center,
-      width: cardSize,
-      height: cardSize,
-    );
-    final rrect = RRect.fromRectAndRadius(
-      rect,
-      Radius.circular(cardSize * 0.30),
-    );
-    final cardPath = Path()..addRRect(rrect);
-
-    if (isDark) {
-      canvas.drawRRect(
-        rrect.inflate(2),
-        Paint()
-          ..color = accent.withValues(alpha: 0.16 * fadeIn)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
-      );
-    } else {
-      canvas.drawShadow(
-        cardPath,
-        Colors.black.withValues(alpha: fadeIn),
-        14,
-        true,
-      );
-    }
-
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, [
-          primary.withValues(alpha: fadeIn),
-          Color.lerp(primary, accent, 0.28)!.withValues(alpha: fadeIn),
-        ]),
+      width: markBox * 1.8,
+      height: markBox * 1.8,
     );
 
-    final barWidth = cardSize * 0.13;
-    final gap = cardSize * 0.075;
-    final baseline = rect.bottom - cardSize * 0.22;
-    final maxHeights = [cardSize * 0.24, cardSize * 0.38, cardSize * 0.52];
-    final barsLeft = center.dx - (barWidth * 3 + gap * 2) / 2;
-    final barPaint = Paint()..color = surface.withValues(alpha: fadeIn);
-
-    for (var i = 0; i < 3; i++) {
-      final barSeconds = math.max(0.0, time - (0.55 + i * 0.10));
-      final growth = SplashMotion.spring(
-        barSeconds,
-        zeta: 0.85,
-        omega: 9,
-      ).clamp(0.0, 1.1);
-      final height = maxHeights[i] * growth;
-      if (height <= 0) continue;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(
-            barsLeft + i * (barWidth + gap),
-            baseline - height,
-            barWidth,
-            height,
-          ),
-          Radius.circular(barWidth / 2),
-        ),
-        barPaint,
-      );
-    }
-
+    // saveLayer applies the fade to the whole mark at once — the same role
+    // the Opacity widget plays where the empty state renders this painter.
+    canvas.saveLayer(
+      bounds,
+      Paint()..color = Colors.white.withValues(alpha: fade),
+    );
+    canvas.translate(center.dx - markBox / 2, center.dy - markBox / 2);
+    BudgetMarkPainter(
+      progress: markProgress,
+      primary: primary,
+      surface: surface,
+      accent: accent,
+      isDark: isDark,
+    ).paint(canvas, Size(markBox, markBox));
     canvas.restore();
   }
 
@@ -474,7 +433,9 @@ class _SplashPainter extends CustomPainter {
     );
     if (wordT <= 0) return;
 
-    final cardSize = shortest * 0.26;
+    // Positions the wordmark clear of the mark's ring, coin, and spark, which
+    // now extend a little past the card edges.
+    final cardSize = shortest * 0.30;
     final wordY = center.dy + cardSize * 0.80 + 18;
     final tracking = ui.lerpDouble(9.0, 0.6, wordT)!;
     final fontSize = shortest * 0.058;
@@ -604,6 +565,7 @@ class _SplashPainter extends CustomPainter {
   bool shouldRepaint(covariant _SplashPainter oldDelegate) {
     return t != oldDelegate.t ||
         time != oldDelegate.time ||
+        markProgress != oldDelegate.markProgress ||
         revealT != oldDelegate.revealT ||
         surface != oldDelegate.surface ||
         primary != oldDelegate.primary ||

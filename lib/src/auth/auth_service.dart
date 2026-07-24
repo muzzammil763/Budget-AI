@@ -15,6 +15,11 @@ class AuthService extends ChangeNotifier {
   bool _initialized = false;
   bool _passwordRecovery = false;
 
+  // Held only in memory, only long enough for the encryption layer to
+  // derive/verify this device's data key against the account password
+  // right after an auth event. Never persisted, never sent anywhere.
+  String? _pendingPassword;
+
   SupabaseClient get _client => Supabase.instance.client;
 
   bool get initialized => _initialized;
@@ -24,6 +29,14 @@ class AuthService extends ChangeNotifier {
   String? get accessToken => _session?.accessToken;
   bool get isAuthenticated =>
       _session != null && _session!.user.emailConfirmedAt != null;
+
+  /// The most recently typed password, if any consumer has not yet claimed
+  /// it. Does not clear it — call [clearPendingPassword] once done with it.
+  String? get pendingPassword => _pendingPassword;
+
+  void clearPendingPassword() {
+    _pendingPassword = null;
+  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -41,6 +54,7 @@ class AuthService extends ChangeNotifier {
       case AuthChangeEvent.signedOut:
         _passwordRecovery = false;
         _session = null;
+        _pendingPassword = null;
       case AuthChangeEvent.signedIn:
       case AuthChangeEvent.tokenRefreshed:
       case AuthChangeEvent.userUpdated:
@@ -69,17 +83,20 @@ class AuthService extends ChangeNotifier {
       data: {'display_name': normalizedName},
     );
     await UserNameSettingsService.instance.setUserName(normalizedName);
+    _pendingPassword = password;
     return response;
   }
 
   Future<AuthResponse> signIn({
     required String email,
     required String password,
-  }) {
-    return _client.auth.signInWithPassword(
+  }) async {
+    final response = await _client.auth.signInWithPassword(
       email: email.trim().toLowerCase(),
       password: password,
     );
+    _pendingPassword = password;
+    return response;
   }
 
   Future<AuthResponse> verifySignupCode({
@@ -112,6 +129,7 @@ class AuthService extends ChangeNotifier {
     await _client.auth.updateUser(UserAttributes(password: password));
     _passwordRecovery = false;
     _session = _client.auth.currentSession;
+    _pendingPassword = password;
     notifyListeners();
   }
 
@@ -136,6 +154,7 @@ class AuthService extends ChangeNotifier {
     await _client.auth.signOut();
     _session = null;
     _passwordRecovery = false;
+    _pendingPassword = null;
     notifyListeners();
   }
 

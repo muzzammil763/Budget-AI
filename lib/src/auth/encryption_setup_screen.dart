@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:budget_ai/src/auth/auth_screens.dart';
-import 'package:budget_ai/src/auth/recovery_key_panel.dart';
+import 'package:budget_ai/src/auth/auth_service.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/sync/account_encryption_service.dart';
@@ -13,8 +14,9 @@ import 'package:toastification/toastification.dart';
 
 /// First-time encryption setup, shown once right after sign-up/first sign-in
 /// for an account that has never enabled encryption on any device. Generates
-/// the account's key and forces the user to acknowledge saving it before
-/// they can reach the rest of the app.
+/// the account's data key and wraps it under the just-typed account
+/// password, so future devices unlock automatically on a normal login —
+/// no separate key ever needs to be saved or copied.
 class EncryptionSetupScreen extends StatefulWidget {
   const EncryptionSetupScreen({super.key, required this.onDone});
 
@@ -24,39 +26,54 @@ class EncryptionSetupScreen extends StatefulWidget {
   State<EncryptionSetupScreen> createState() => _EncryptionSetupScreenState();
 }
 
-enum _SetupStage { intro, saveKey }
-
 class _EncryptionSetupScreenState extends State<EncryptionSetupScreen> {
-  _SetupStage _stage = _SetupStage.intro;
   bool _working = false;
-  String? _recoveryKey;
+  bool _failed = false;
 
   User? get _user => Supabase.instance.client.auth.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _setUp();
+  }
 
   Future<void> _setUp() async {
     final user = _user;
     if (user == null || _working) return;
-    setState(() => _working = true);
+    setState(() {
+      _working = true;
+      _failed = false;
+    });
     try {
-      final recoveryKey = await AccountEncryptionService.instance
-          .createRecoveryKey(user.id);
+      final password = AuthService.instance.pendingPassword;
+      if (password == null) {
+        throw StateError(
+          'Sign in again to finish setting up encryption.',
+        );
+      }
+      await AccountEncryptionService.instance.createDataKey(user.id);
       final fingerprint = await AccountEncryptionService.instance.fingerprint(
         user.id,
       );
+      final wrapped = await AccountEncryptionService.instance
+          .wrapKeyWithPassword(user.id, password);
       await Supabase.instance.client.from('user_encryption').upsert({
         'user_id': user.id,
         'key_fingerprint': fingerprint,
         'encryption_version': 1,
+        'password_salt': wrapped.salt,
+        'wrapped_key_ciphertext': wrapped.ciphertext,
+        'wrapped_key_nonce': wrapped.nonce,
+        'wrapped_key_mac': wrapped.mac,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       });
+      AuthService.instance.clearPendingPassword();
       unawaited(EncryptedFinanceSyncService.instance.syncNow());
-      if (!mounted) return;
-      setState(() {
-        _recoveryKey = recoveryKey;
-        _stage = _SetupStage.saveKey;
-      });
+      widget.onDone();
     } catch (error) {
       if (mounted) {
+        setState(() => _failed = true);
         showAppToast(
           context,
           message: 'Could not set up encryption. Check your connection.',
@@ -70,54 +87,48 @@ class _EncryptionSetupScreenState extends State<EncryptionSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return switch (_stage) {
-      _SetupStage.intro => AuthShell(
-        eyebrow: 'PRIVATE BY DEFAULT',
-        title: 'Protect your\nfinance data',
-        subtitle:
-            'Budget AI encrypts every expense and income entry on this '
-            'device before it ever leaves it. We only ever store '
-            'ciphertext — not even Budget AI can read your entries.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _EncryptionPoint(
-              icon: CupertinoIcons.lock_shield_fill,
-              text: 'AES-256 encryption, generated fresh on this device.',
-            ),
-            const _EncryptionPoint(
-              icon: CupertinoIcons.cloud_fill,
-              text: 'Supabase only ever sees unreadable ciphertext.',
-            ),
-            const _EncryptionPoint(
-              icon: CupertinoIcons.device_phone_portrait,
-              text:
-                  "You'll get a recovery key to unlock this account on "
-                  'other devices.',
-            ),
-            const SizedBox(height: 8),
-            AuthPrimaryButton(
-              label: 'Set up encryption',
-              icon: CupertinoIcons.lock_fill,
-              working: _working,
+    return AuthShell(
+      eyebrow: 'PRIVATE BY DEFAULT',
+      title: 'Protecting your\nfinance data',
+      subtitle:
+          'Budget AI encrypts every expense and income entry on this '
+          'device before it ever leaves it. We only ever store '
+          'ciphertext — not even Budget AI can read your entries.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _EncryptionPoint(
+            icon: CupertinoIcons.lock_shield_fill,
+            text: 'AES-256 encryption, generated fresh on this device.',
+          ),
+          const _EncryptionPoint(
+            icon: CupertinoIcons.cloud_fill,
+            text: 'Supabase only ever sees unreadable ciphertext.',
+          ),
+          const _EncryptionPoint(
+            icon: CupertinoIcons.device_phone_portrait,
+            text:
+                'Signing in with your password unlocks other devices '
+                'automatically — nothing to copy or save.',
+          ),
+          const SizedBox(height: 8),
+          if (_failed)
+            AppButton(
+              text: 'Try again',
+              icon: CupertinoIcons.arrow_clockwise,
+              isLoading: _working,
               onPressed: _setUp,
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
-          ],
-        ),
+        ],
       ),
-      _SetupStage.saveKey => AuthShell(
-        eyebrow: 'SAVE THIS NOW',
-        title: 'Your recovery key',
-        subtitle:
-            "This is shown once. You'll need it to unlock your finance "
-            'data on any other device — and we cannot recover it for you.',
-        child: RecoveryKeyPanel(
-          recoveryKey: _recoveryKey!,
-          continueLabel: 'Continue to Budget AI',
-          onContinue: widget.onDone,
-        ),
-      ),
-    };
+    );
   }
 }
 

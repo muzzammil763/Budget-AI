@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/pill_nav_bar.dart';
@@ -868,14 +869,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: () => _showEntryDetails(entry),
-          borderRadius: BorderRadius.circular(100),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: onSurface.withValues(alpha: 0.25)),
             ),
             child: Row(
@@ -885,7 +886,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                   height: 38,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(100),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
@@ -1042,7 +1043,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.14)),
       ),
       child: Row(
@@ -1079,7 +1080,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       alignment: Alignment.centerRight,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(right: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
     );
   }
@@ -1089,7 +1090,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       alignment: Alignment.centerLeft,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(left: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: const Icon(CupertinoIcons.pencil, color: AppTheme.highlight),
     );
   }
@@ -1152,44 +1153,17 @@ class _FinancesScreenState extends State<FinancesScreen> {
           spacing: 12,
           children: [
             Expanded(
-              child: SizedBox(
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    foregroundColor: theme.colorScheme.onSurface,
-                    elevation: 0,
-                    side: BorderSide(color: theme.colorScheme.outline),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
+              child: AppButton(
+                text: 'Cancel',
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.pop(context, false),
               ),
             ),
             Expanded(
-              child: SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.error,
-                    foregroundColor: theme.colorScheme.onError,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
+              child: AppButton(
+                text: 'Delete',
+                isRed: true,
+                onPressed: () => Navigator.pop(context, true),
               ),
             ),
           ],
@@ -1418,7 +1392,7 @@ class _FinanceListShimmer extends StatelessWidget {
             const ChatShimmerBlock(
               width: 44,
               height: 44,
-              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderRadius: BorderRadius.all(Radius.circular(10)),
             ),
             const SizedBox(width: 12),
             Expanded(

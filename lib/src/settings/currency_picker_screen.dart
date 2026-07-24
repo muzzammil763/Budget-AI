@@ -154,10 +154,10 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
     final theme = Theme.of(context);
     final customValue = _customController.text.trim();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
           child: Text(
             'Choose how Budget AI displays amounts in finances, insights, '
             'tool results and AI responses.',
@@ -354,17 +354,15 @@ class _CurrencyOptionCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected
-              ? theme.colorScheme.primary.withValues(alpha: 0.08)
-              : theme.colorScheme.surface,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.32),
-            width: selected ? 1.5 : 1,
+                : theme.colorScheme.outline.withValues(alpha: 0.25),
+            width: 1.5,
           ),
         ),
         child: Row(
