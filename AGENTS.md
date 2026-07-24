@@ -44,6 +44,31 @@ local:
 - Never claim a lost recovery key can be recovered. Chat history and downloaded
   speech-model files must remain excluded from Supabase synchronization.
 
+## Change workflow (required for every change request)
+
+Whenever the user asks for a code change, run the full cycle below — do not
+commit straight to `master`. If the user explicitly says to skip it, or for a
+trivial non-code edit, you may commit directly; otherwise default to this.
+
+1. **Open a GitHub issue** with `gh issue create` — concise descriptive title,
+   body covering what was asked, the problem, and the intended approach.
+2. **Branch off an up-to-date `master`** with a descriptive name
+   (`feat/…`, `fix/…`, `chore/…`).
+3. **Do the work.** Keep commits focused; run the verification commands below
+   and make sure they are clean before committing.
+4. **Push and open a PR** into `master` with `gh pr create` — clear title, a
+   structured description of what changed and why, and `Closes #<issue>` so the
+   issue auto-closes.
+5. **Merge the PR** with a merge commit (`gh pr merge <n> --merge`), writing a
+   clean merge subject and a summary body of the highlights. Preserve the
+   individual commits (do not squash) unless asked otherwise.
+6. **Return to `master`** and fast-forward it:
+   `git checkout master && git merge --ff-only origin/master`.
+
+Keep the feature branch after merge unless the user asks to delete it. Use
+Conventional Commit prefixes and end commit messages with the co-author and
+session trailers already used in this repo's history.
+
 ## Verification
 
 ```sh
