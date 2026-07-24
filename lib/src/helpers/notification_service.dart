@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:budget_ai/src/helpers/notification_payload.dart';
+import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'
     hide PendingNotificationRequest;
@@ -196,6 +197,12 @@ class NotificationService {
       return null;
     }
 
+    // Respect the user's soft on/off choice — when notifications are turned
+    // off in settings, nothing is shown even though the OS permission is
+    // still granted.
+    if (!PermissionPreferencesService.instance.notificationsEnabled.value) {
+      return null;
+    }
     if (!responseNotificationsEnabled) return null;
     if (backgroundOnlyEnabled && !appInBackground) return null;
 
@@ -259,6 +266,9 @@ class NotificationService {
     bool appInBackground = true,
   }) async {
     if (!isInitialized) return;
+    if (!PermissionPreferencesService.instance.notificationsEnabled.value) {
+      return;
+    }
     if (backgroundOnlyEnabled && !appInBackground) return;
 
     final androidDetails = AndroidNotificationDetails(

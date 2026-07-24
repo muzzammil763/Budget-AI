@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 
 class ResponsiveInfoSheet extends StatelessWidget {
@@ -183,6 +184,8 @@ class ResponsiveInfoSheet extends StatelessWidget {
     bool isDismissible = true,
     bool enableDrag = true,
     bool showCloseButton = true,
+    bool isRed = false,
+    Future<void> Function()? onConfirm,
   }) {
     final theme = Theme.of(context);
     return show<bool>(
@@ -210,59 +213,90 @@ class ResponsiveInfoSheet extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
-        Row(
-          spacing: 12,
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    foregroundColor: theme.colorScheme.onSurface,
-                    elevation: 0,
-                    side: BorderSide(color: theme.colorScheme.outline),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    cancelLabel,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    confirmLabel,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        _ConfirmButtonsRow(
+          cancelLabel: cancelLabel,
+          confirmLabel: confirmLabel,
+          isRed: isRed,
+          onConfirm: onConfirm,
         ),
       ],
+    );
+  }
+}
+
+/// The Cancel/Confirm row used by [ResponsiveInfoSheet.confirm]. Kept
+/// stateful so that when [onConfirm] is provided, the confirm button can
+/// show its own loading spinner while that action runs — the sheet stays
+/// open until it finishes instead of closing immediately and leaving the
+/// caller to show progress somewhere else.
+class _ConfirmButtonsRow extends StatefulWidget {
+  const _ConfirmButtonsRow({
+    required this.cancelLabel,
+    required this.confirmLabel,
+    required this.isRed,
+    required this.onConfirm,
+  });
+
+  final String cancelLabel;
+  final String confirmLabel;
+  final bool isRed;
+  final Future<void> Function()? onConfirm;
+
+  @override
+  State<_ConfirmButtonsRow> createState() => _ConfirmButtonsRowState();
+}
+
+class _ConfirmButtonsRowState extends State<_ConfirmButtonsRow> {
+  bool _working = false;
+
+  Future<void> _handleConfirm() async {
+    final onConfirm = widget.onConfirm;
+    if (onConfirm == null) {
+      Navigator.pop(context, true);
+      return;
+    }
+    if (_working) return;
+    setState(() => _working = true);
+    try {
+      await onConfirm();
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      // The caller's onConfirm is responsible for surfacing its own error
+      // (e.g. a toast) — this just leaves the sheet open so they can retry.
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      // While the confirmed action is running, block the system back button
+      // so the sheet can't be dismissed and the in-flight work interrupted.
+      canPop: !_working,
+      child: Row(
+        spacing: 12,
+        children: [
+          Expanded(
+            child: AppButton(
+              text: widget.cancelLabel,
+              variant: AppButtonVariant.outlined,
+              fontSize: 15,
+              onPressed: _working
+                  ? null
+                  : () => Navigator.pop(context, false),
+            ),
+          ),
+          Expanded(
+            child: AppButton(
+              text: widget.confirmLabel,
+              isRed: widget.isRed,
+              isLoading: _working,
+              fontSize: 15,
+              onPressed: _handleConfirm,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

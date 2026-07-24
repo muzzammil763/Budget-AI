@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart' as hashes;
 import 'package:cryptography/cryptography.dart';
@@ -19,42 +20,127 @@ class EncryptedPayload {
   final int version;
 }
 
+/// The account data key, encrypted ("wrapped") under a key derived from the
+/// account password. Lets a device unlock the same data key a normal
+/// email/password login would produce, without ever transferring the key
+/// itself between devices.
+class WrappedKeyPayload {
+  const WrappedKeyPayload({
+    required this.salt,
+    required this.ciphertext,
+    required this.nonce,
+    required this.mac,
+  });
+
+  final String salt;
+  final String ciphertext;
+  final String nonce;
+  final String mac;
+}
+
 class AccountEncryptionService {
   AccountEncryptionService._();
 
   static final AccountEncryptionService instance = AccountEncryptionService._();
   static const _keyPrefix = 'budget_ai_account_data_key_v1_';
-  static const _recoveryPrefix = 'BAI1';
 
   final AesGcm _cipher = AesGcm.with256bits();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(),
   );
 
+  // OWASP-recommended Argon2id parameters for interactive password hashing:
+  // https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+  final Argon2id _passwordKdf = Argon2id(
+    parallelism: 1,
+    memory: 19456,
+    iterations: 2,
+    hashLength: 32,
+  );
+
   Future<bool> hasKey(String userId) async {
     return await _secureStorage.containsKey(key: '$_keyPrefix$userId');
   }
 
-  Future<String> createRecoveryKey(String userId) async {
+  /// Creates this account's data key on first-time setup, if one doesn't
+  /// already exist locally. A no-op on a device that already holds one.
+  Future<void> createDataKey(String userId) async {
     final existing = await _readKeyBytes(userId);
-    final keyBytes = existing ?? await _newKeyBytes();
-    if (existing == null) await _writeKeyBytes(userId, keyBytes);
-    return formatRecoveryKey(keyBytes);
+    if (existing != null) return;
+    await _writeKeyBytes(userId, await _newKeyBytes());
   }
 
   /// Always generates a brand-new key and overwrites whatever is stored for
   /// this account, even if one already exists. Used when resetting
-  /// encryption after a lost key or a deliberate rotation — previously
-  /// synced ciphertext under the old key becomes permanently unreadable.
-  Future<String> rotateRecoveryKey(String userId) async {
-    final keyBytes = await _newKeyBytes();
-    await _writeKeyBytes(userId, keyBytes);
-    return formatRecoveryKey(keyBytes);
+  /// encryption — previously synced ciphertext under the old key becomes
+  /// permanently unreadable.
+  Future<void> rotateDataKey(String userId) async {
+    await _writeKeyBytes(userId, await _newKeyBytes());
   }
 
-  Future<void> restoreRecoveryKey(String userId, String recoveryKey) async {
-    final keyBytes = parseRecoveryKey(recoveryKey);
-    await _writeKeyBytes(userId, keyBytes);
+  /// Wraps this device's already-cached data key under a key derived from
+  /// [password], so any device that knows the account password can later
+  /// unwrap the same data key via [unwrapKeyWithPassword] instead of
+  /// requiring a manually copied recovery key. Requires the data key to
+  /// already exist locally (call after setup/restore, or right after a
+  /// password change while this device still holds the key).
+  Future<WrappedKeyPayload> wrapKeyWithPassword(
+    String userId,
+    String password,
+  ) async {
+    final dataKey = await _requiredKeyBytes(userId);
+    final salt = _randomBytes(16);
+    final passwordKey = await _derivePasswordKey(password, salt);
+    final wrapped = await encryptWithKey(passwordKey, {
+      'key': base64UrlEncode(dataKey),
+    });
+    return WrappedKeyPayload(
+      salt: base64UrlEncode(salt).replaceAll('=', ''),
+      ciphertext: wrapped.ciphertext,
+      nonce: wrapped.nonce,
+      mac: wrapped.mac,
+    );
+  }
+
+  /// Recovers the data key from [password] and this account's stored
+  /// [wrapped] envelope, verifies it against [expectedFingerprint], and
+  /// caches it locally on success. Throws if the password is wrong or the
+  /// envelope doesn't match this account.
+  Future<void> unwrapKeyWithPassword(
+    String userId,
+    String password,
+    WrappedKeyPayload wrapped,
+    String expectedFingerprint,
+  ) async {
+    final salt = base64Url.decode(_padded(wrapped.salt));
+    final passwordKey = await _derivePasswordKey(password, salt);
+    final decoded = await decryptWithKey(
+      passwordKey,
+      EncryptedPayload(
+        ciphertext: wrapped.ciphertext,
+        nonce: wrapped.nonce,
+        mac: wrapped.mac,
+      ),
+    );
+    final dataKey = base64Url.decode(_padded(decoded['key']! as String));
+    if (dataKey.length != 32 ||
+        fingerprintForKey(dataKey) != expectedFingerprint) {
+      throw StateError('The derived key does not match this account.');
+    }
+    await _writeKeyBytes(userId, dataKey);
+  }
+
+  Future<List<int>> _derivePasswordKey(String password, List<int> salt) async {
+    final derived = await _passwordKdf.deriveKey(
+      secretKey: SecretKey(utf8.encode(password)),
+      nonce: salt,
+    );
+    return derived.extractBytes();
+  }
+
+  List<int> _randomBytes(int length) {
+    final random = math.Random.secure();
+    return List<int>.generate(length, (_) => random.nextInt(256));
   }
 
   Future<String?> fingerprint(String userId) async {
@@ -142,52 +228,12 @@ class AccountEncryptionService {
 
   Future<void> _writeKeyBytes(String userId, List<int> keyBytes) async {
     if (keyBytes.length != 32) {
-      throw const FormatException('Recovery key must contain 256 bits.');
+      throw const FormatException('Account data key must contain 256 bits.');
     }
     await _secureStorage.write(
       key: '$_keyPrefix$userId',
       value: base64UrlEncode(keyBytes).replaceAll('=', ''),
     );
-  }
-
-  static String formatRecoveryKey(List<int> keyBytes) {
-    if (keyBytes.length != 32) {
-      throw const FormatException('Recovery key must contain 256 bits.');
-    }
-    final checksum = hashes.sha256.convert(keyBytes).bytes.take(4);
-    final encoded = base64UrlEncode([
-      ...keyBytes,
-      ...checksum,
-    ]).replaceAll('=', '');
-    final groups = <String>[];
-    for (var offset = 0; offset < encoded.length; offset += 6) {
-      groups.add(
-        encoded.substring(offset, (offset + 6).clamp(0, encoded.length)),
-      );
-    }
-    return '$_recoveryPrefix-${groups.join('-')}';
-  }
-
-  static List<int> parseRecoveryKey(String value) {
-    final compact = value.trim().replaceAll(RegExp(r'[\s-]'), '');
-    if (!compact.startsWith(_recoveryPrefix)) {
-      throw const FormatException('This is not a Budget AI recovery key.');
-    }
-    final decoded = base64Url.decode(_padded(compact.substring(4)));
-    if (decoded.length != 36) {
-      throw const FormatException('The recovery key has an invalid length.');
-    }
-    final keyBytes = decoded.sublist(0, 32);
-    final expected = hashes.sha256.convert(keyBytes).bytes.take(4).toList();
-    final actual = decoded.sublist(32);
-    var difference = 0;
-    for (var index = 0; index < expected.length; index++) {
-      difference |= expected[index] ^ actual[index];
-    }
-    if (difference != 0) {
-      throw const FormatException('The recovery key checksum is invalid.');
-    }
-    return keyBytes;
   }
 
   static String fingerprintForKey(List<int> keyBytes) {

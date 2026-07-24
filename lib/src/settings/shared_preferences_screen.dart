@@ -35,6 +35,7 @@ class _SharedPreferencesScreenState extends State<SharedPreferencesScreen> {
       message: 'Delete “$key”? This change cannot be undone.',
       icon: CupertinoIcons.trash,
       confirmLabel: 'Delete',
+      isRed: true,
     );
     if (confirmed != true) return;
 

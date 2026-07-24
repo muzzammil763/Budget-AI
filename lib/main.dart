@@ -11,6 +11,7 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
+import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
     publishableKey: AppConstants.supabasePublishableKey,
   );
   await LocalSettingsStore.instance.migrateLegacyPreferences();
+  await PermissionPreferencesService.instance.load();
   await AuthService.instance.initialize();
   await CurrencySettingsService.instance.initialize();
   await ModelSettingsService.instance.initialize();

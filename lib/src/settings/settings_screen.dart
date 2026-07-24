@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
@@ -7,8 +10,10 @@ import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
+import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
+import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
@@ -16,19 +21,17 @@ import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
-import 'package:budget_ai/src/settings/encryption_settings_screen.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
+import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
-import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
-import 'package:budget_ai/src/settings/permissions_screen.dart';
-import 'package:budget_ai/src/settings/shared_preferences_screen.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:toastification/toastification.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -38,15 +41,136 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   PackageInfo? _packageInfo;
+
+  // OS-level permission status, refreshed on open and whenever the app comes
+  // back from the system settings screen. The soft on/off the user controls
+  // lives in PermissionPreferencesService; a feature only counts as "on"
+  // when both are true.
+  bool _notificationPermissionGranted = false;
+  bool _backgroundPermissionGranted = false;
+  bool _busyNotifications = false;
+  bool _busyBackground = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshPermissionStatus();
     PackageInfo.fromPlatform().then((info) {
       if (mounted) setState(() => _packageInfo = info);
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshPermissionStatus();
+  }
+
+  Future<void> _refreshPermissionStatus() async {
+    final notificationGranted = await Permission.notification.status;
+    var backgroundGranted = false;
+    if (Platform.isAndroid) {
+      backgroundGranted =
+          await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
+    }
+    if (!mounted) return;
+    setState(() {
+      _notificationPermissionGranted = notificationGranted.isGranted;
+      _backgroundPermissionGranted = backgroundGranted;
+    });
+    // If the OS permission disappeared (revoked from system settings) while
+    // the soft toggle was still on, drop the soft toggle so the two stay
+    // consistent and the feature genuinely stops.
+    if (!_notificationPermissionGranted &&
+        PermissionPreferencesService.instance.notificationsEnabled.value) {
+      await PermissionPreferencesService.instance.setNotificationsEnabled(
+        false,
+      );
+    }
+    if (Platform.isAndroid &&
+        !_backgroundPermissionGranted &&
+        PermissionPreferencesService.instance.backgroundEnabled.value) {
+      await PermissionPreferencesService.instance.setBackgroundEnabled(false);
+    }
+  }
+
+  Future<void> _onNotificationsToggled(bool value) async {
+    if (_busyNotifications) return;
+    if (!value) {
+      await PermissionPreferencesService.instance.setNotificationsEnabled(
+        false,
+      );
+      return;
+    }
+    setState(() => _busyNotifications = true);
+    try {
+      var granted = _notificationPermissionGranted;
+      if (!granted) {
+        granted = Platform.isIOS
+            ? await NotificationService.instance.requestPermission()
+            : (await Permission.notification.request()).isGranted;
+        granted = granted || (await Permission.notification.status).isGranted;
+      }
+      if (!mounted) return;
+      setState(() => _notificationPermissionGranted = granted);
+      if (granted) {
+        await PermissionPreferencesService.instance.setNotificationsEnabled(
+          true,
+        );
+      } else {
+        await _showPermissionDeniedSheet('Notifications');
+      }
+    } finally {
+      if (mounted) setState(() => _busyNotifications = false);
+    }
+  }
+
+  Future<void> _onBackgroundToggled(bool value) async {
+    if (_busyBackground) return;
+    if (!value) {
+      await PermissionPreferencesService.instance.setBackgroundEnabled(false);
+      return;
+    }
+    setState(() => _busyBackground = true);
+    try {
+      var granted = _backgroundPermissionGranted;
+      if (!granted) {
+        await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
+        granted =
+            await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
+      }
+      if (!mounted) return;
+      setState(() => _backgroundPermissionGranted = granted);
+      if (granted) {
+        await PermissionPreferencesService.instance.setBackgroundEnabled(true);
+      } else {
+        await _showPermissionDeniedSheet('Background Service');
+      }
+    } finally {
+      if (mounted) setState(() => _busyBackground = false);
+    }
+  }
+
+  Future<void> _showPermissionDeniedSheet(String permissionName) async {
+    final confirmed = await ResponsiveInfoSheet.confirm(
+      context,
+      title: '$permissionName Permission Needed',
+      message:
+          'Budget AI needs $permissionName permission for this. Open system '
+          'settings to allow it, then come back and turn it on.',
+      icon: CupertinoIcons.exclamationmark_triangle_fill,
+      confirmLabel: 'Open Settings',
+    );
+    if (confirmed == true) await AppSettings.openAppSettings();
   }
 
   @override
@@ -143,43 +267,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _showBubbleStyleSheet,
             ),
           ),
-          ValueListenableBuilder<String>(
-            valueListenable: EncryptedFinanceSyncService.instance.status,
-            builder: (context, syncStatus, _) => _navTile(
+          ValueListenableBuilder<bool>(
+            valueListenable:
+                PermissionPreferencesService.instance.notificationsEnabled,
+            builder: (context, enabled, _) => _toggleTile(
               theme,
-              icon: CupertinoIcons.lock_shield,
-              title: 'Encryption',
-              subtitle: syncStatus,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const EncryptionSettingsScreen(),
-                ),
+              icon: CupertinoIcons.bell,
+              title: 'Notifications',
+              subtitle: 'Get notified when a response is ready',
+              value: enabled && _notificationPermissionGranted,
+              busy: _busyNotifications,
+              onChanged: _onNotificationsToggled,
+            ),
+          ),
+          if (Platform.isAndroid)
+            ValueListenableBuilder<bool>(
+              valueListenable:
+                  PermissionPreferencesService.instance.backgroundEnabled,
+              builder: (context, enabled, _) => _toggleTile(
+                theme,
+                icon: CupertinoIcons.bolt_horizontal_circle,
+                title: 'Background Service',
+                subtitle: 'Keep replies coming while the app is in background',
+                value: enabled && _backgroundPermissionGranted,
+                busy: _busyBackground,
+                onChanged: _onBackgroundToggled,
               ),
             ),
-          ),
-          _navTile(
-            theme,
-            icon: CupertinoIcons.checkmark_shield,
-            title: 'Permissions',
-            subtitle: 'Notifications and background mode',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PermissionsScreen()),
-            ),
-          ),
-          _navTile(
-            theme,
-            icon: CupertinoIcons.slider_horizontal_3,
-            title: 'Local settings',
-            subtitle: 'Temporary SQLite settings inspector',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const SharedPreferencesScreen(),
-              ),
-            ),
-          ),
           const SizedBox(height: 8),
           _navTile(
             theme,
@@ -202,20 +316,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Your finance data stays on this device. You will need to sign in again to use AI chat.',
       icon: CupertinoIcons.square_arrow_right,
       confirmLabel: 'Sign out',
+      isRed: true,
+      onConfirm: () async {
+        try {
+          await AuthService.instance.signOut();
+        } catch (error) {
+          if (mounted) {
+            showAppToast(
+              context,
+              message: friendlyAuthError(error),
+              type: ToastificationType.error,
+            );
+          }
+          rethrow;
+        }
+      },
     );
-    if (confirmed != true) return;
-
-    try {
-      await AuthService.instance.signOut();
-      if (mounted) Navigator.of(context).pop();
-    } catch (error) {
-      if (!mounted) return;
-      showAppToast(
-        context,
-        message: friendlyAuthError(error),
-        type: ToastificationType.error,
-      );
-    }
+    if (confirmed == true && mounted) Navigator.of(context).pop();
   }
 
   Widget _navTile(
@@ -272,6 +389,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _toggleTile(
+    ThemeData theme, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required bool busy,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: _tileDecoration(theme),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Icon(icon, size: 24, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: _tileText(theme, title, subtitle)),
+            const SizedBox(width: 8),
+            // Fixed footprint so swapping the spinner in and out never
+            // changes the tile height — the earlier jank came from the
+            // spinner and the Switch having different intrinsic sizes.
+            SizedBox(
+              width: 52,
+              height: 32,
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: busy
+                      ? SizedBox(
+                          key: const ValueKey('busy'),
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.colorScheme.primary,
+                          ),
+                        )
+                      : Switch.adaptive(
+                          key: const ValueKey('switch'),
+                          value: value,
+                          activeTrackColor: theme.colorScheme.primary,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          onChanged: onChanged,
+                        ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

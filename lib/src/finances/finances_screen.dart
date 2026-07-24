@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/pill_nav_bar.dart';
@@ -1152,44 +1153,17 @@ class _FinancesScreenState extends State<FinancesScreen> {
           spacing: 12,
           children: [
             Expanded(
-              child: SizedBox(
-                height: 50,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    foregroundColor: theme.colorScheme.onSurface,
-                    elevation: 0,
-                    side: BorderSide(color: theme.colorScheme.outline),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
+              child: AppButton(
+                text: 'Cancel',
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.pop(context, false),
               ),
             ),
             Expanded(
-              child: SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.error,
-                    foregroundColor: theme.colorScheme.onError,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
+              child: AppButton(
+                text: 'Delete',
+                isRed: true,
+                onPressed: () => Navigator.pop(context, true),
               ),
             ),
           ],

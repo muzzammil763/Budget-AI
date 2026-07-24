@@ -5,9 +5,11 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
 import 'package:budget_ai/src/settings/model_settings_service.dart';
+import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
@@ -533,7 +535,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   void _startStreamingDurationTimer(DateTime startedAt) {
     _streamingDurationTimer?.cancel();
-    unawaited(AndroidBackgroundChatService.start());
+    // Android's foreground/background service is user-controlled: only start
+    // it if the background feature is turned on, so it stays dormant even
+    // when the OS battery-optimization exemption was granted earlier. iOS
+    // background task scheduling has no such user toggle and runs as usual.
+    if (PermissionPreferencesService.instance.backgroundEnabled.value) {
+      unawaited(AndroidBackgroundChatService.start());
+    }
     unawaited(IosBackgroundTaskService.start());
     var tickCount = 0;
     _streamingDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -1815,32 +1823,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
+                child: AppButton(
+                  text: 'Cancel',
+                  variant: AppButtonVariant.outlined,
                   onPressed: () => Navigator.of(context).pop(false),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.onSurface,
-                    side: BorderSide(color: theme.colorScheme.outline),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text('Cancel'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: FilledButton(
+                child: AppButton(
+                  text: 'Stop And Go Back',
+                  isRed: true,
                   onPressed: () => Navigator.of(context).pop(true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text('Stop And Go Back'),
                 ),
               ),
             ],
@@ -1922,32 +1916,18 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         Row(
           children: [
             Expanded(
-              child: OutlinedButton(
+              child: AppButton(
+                text: 'Cancel',
+                variant: AppButtonVariant.outlined,
                 onPressed: () => Navigator.of(context).pop(false),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.onSurface,
-                  side: BorderSide(color: theme.colorScheme.outline),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text('Cancel'),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: FilledButton(
+              child: AppButton(
+                text: 'Close',
+                isRed: true,
                 onPressed: () => Navigator.of(context).pop(true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text('Close'),
               ),
             ),
           ],

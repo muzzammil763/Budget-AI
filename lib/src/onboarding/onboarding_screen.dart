@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_gate.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
@@ -520,53 +521,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               Expanded(
-                child: SizedBox(
+                child: AppButton(
+                  text: _currentPage == 0
+                      ? 'Get Started'
+                      : _isLastPage
+                      ? 'Done'
+                      : 'Next',
+                  icon: (_currentPage > 0 && !_isLastPage)
+                      ? CupertinoIcons.forward
+                      : null,
+                  isLoading: _isFinishing,
                   height: controlSize,
-                  child: ElevatedButton(
-                    onPressed: _isFinishing ? null : _next,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isFinishing
-                        ? SizedBox(
-                            width: screenSize.shortestSide * 0.051,
-                            height: screenSize.shortestSide * 0.051,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.onPrimary,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _currentPage == 0
-                                    ? 'Get Started'
-                                    : _isLastPage
-                                    ? 'Done'
-                                    : 'Next',
-                                style: AppTheme.bodyLarge.copyWith(
-                                  color: theme.colorScheme.onPrimary,
-                                  fontSize: screenSize.shortestSide * 0.041,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if (_currentPage > 0 && !_isLastPage) ...[
-                                const SizedBox(width: 8),
-                                Icon(
-                                  CupertinoIcons.forward,
-                                  size: screenSize.shortestSide * 0.043,
-                                ),
-                              ],
-                            ],
-                          ),
-                  ),
+                  fontSize: screenSize.shortestSide * 0.041,
+                  iconSize: screenSize.shortestSide * 0.043,
+                  spinnerSize: screenSize.shortestSide * 0.051,
+                  onPressed: _next,
                 ),
               ),
             ],

@@ -110,6 +110,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           'This will permanently remove every chat session and all messages. This action cannot be undone.',
       icon: CupertinoIcons.trash,
       confirmLabel: 'Continue',
+      isRed: true,
     );
 
     if (confirmed != true || !mounted) return;
@@ -372,6 +373,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           'This will permanently remove "${session.title}" from your history.',
       icon: CupertinoIcons.trash,
       confirmLabel: 'Delete',
+      isRed: true,
     );
     return confirmed == true;
   }
