@@ -1,14 +1,20 @@
-import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
+import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// Bottom sheet for picking the chat model, shared by the chat screen's
-/// model button and the settings screen tile. Resolves with the picked
-/// model id, or null when dismissed.
-class ModelPickerSheet {
-  const ModelPickerSheet._();
+/// Full screen for picking the chat model. Applies the selection in place
+/// and pops, matching the currency and bubble style pickers.
+class ModelPickerScreen extends StatelessWidget {
+  const ModelPickerScreen({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute(builder: (_) => const ModelPickerScreen()));
+  }
 
   /// Short tier badge for GPT-5.6 family models, or null.
   static String? badgeForModelId(String modelId) {
@@ -19,58 +25,105 @@ class ModelPickerSheet {
     return null;
   }
 
-  static Future<String?> show(
-    BuildContext context, {
-    required String selectedModel,
-  }) {
-    final theme = Theme.of(context);
-    const models = AIModels.openAIModels;
-
-    return ResponsiveInfoSheet.show<String>(
-      context,
-      title: 'Choose Model',
-      headerIcon: Icon(
-        CupertinoIcons.slider_horizontal_3,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: Navigator.of(context).pop,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+        ),
+        title: const Text('Choose Model'),
       ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        for (var i = 0; i < models.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _buildModelOption(
-            context,
-            theme,
-            models[i],
-            models[i].id == selectedModel,
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: const _ModelPickerContent(),
           ),
-        ],
-      ],
+        ),
+      ),
     );
   }
+}
 
-  static Widget _buildModelOption(
-    BuildContext context,
-    ThemeData theme,
-    AIModel model,
-    bool isSelected,
-  ) {
-    final badge = badgeForModelId(model.id);
+class _ModelPickerContent extends StatelessWidget {
+  const _ModelPickerContent();
+
+  Future<void> _select(BuildContext context, String modelId) async {
+    if (ModelSettingsService.instance.current == modelId) {
+      Navigator.of(context).pop();
+      return;
+    }
+    HapticFeedback.selectionClick();
+    await ModelSettingsService.instance.setModel(modelId);
+    if (context.mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const models = AIModels.openAIModels;
+    return ValueListenableBuilder<String>(
+      valueListenable: ModelSettingsService.instance.modelId,
+      builder: (context, selectedId, _) => ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+            child: Text(
+              'Choose which OpenAI model powers your chat. Higher tiers are '
+              'more capable; lighter tiers are faster and cheaper.',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          for (final model in models)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ModelOption(
+                model: model,
+                selected: model.id == selectedId,
+                onTap: () => _select(context, model.id),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModelOption extends StatelessWidget {
+  const _ModelOption({
+    required this.model,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AIModel model;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final badge = ModelPickerScreen.badgeForModelId(model.id);
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => Navigator.pop(context, model.id),
-      child: Container(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
+            color: selected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: isSelected ? 1.4 : 1,
+                : theme.colorScheme.outline.withValues(alpha: 0.25),
+            width: 1.5,
           ),
         ),
         child: Row(
@@ -79,11 +132,11 @@ class ModelPickerSheet {
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Icon(
-                isSelected
+                selected
                     ? CupertinoIcons.check_mark_circled_solid
                     : CupertinoIcons.circle,
                 size: 24,
-                color: isSelected
+                color: selected
                     ? theme.colorScheme.primary
                     : theme.colorScheme.outline,
               ),

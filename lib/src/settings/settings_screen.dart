@@ -4,7 +4,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
-import 'package:budget_ai/src/chat/model_picker_sheet.dart';
+import 'package:budget_ai/src/chat/model_picker_screen.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -233,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               icon: CupertinoIcons.sparkles,
               title: 'OpenAI model',
               subtitle: AIModels.getModelById(modelId)?.name ?? modelId,
-              onTap: _showModelSheet,
+              onTap: () => ModelPickerScreen.show(context),
             ),
           ),
           ValueListenableBuilder<String>(
@@ -519,17 +519,6 @@ class _SettingsScreenState extends State<SettingsScreen>
       ),
     );
   }
-
-  Future<void> _showModelSheet() async {
-    final selected = await ModelPickerSheet.show(
-      context,
-      selectedModel: ModelSettingsService.instance.current,
-    );
-    if (selected != null) {
-      await ModelSettingsService.instance.setModel(selected);
-    }
-  }
-
 }
 
 class _SettingsNameEditor extends StatefulWidget {
