@@ -13,8 +13,10 @@ class VibrationManager with WidgetsBindingObserver {
 
   bool _isAppInForeground = true;
   DateTime? _lastStreamingFeedbackAt;
+  DateTime? _lastParticleFeedbackAt;
 
   static const _streamingFeedbackInterval = Duration(milliseconds: 140);
+  static const _particleFeedbackInterval = Duration(milliseconds: 45);
 
   bool get isAppInForeground => _isAppInForeground;
 
@@ -59,6 +61,21 @@ class VibrationManager with WidgetsBindingObserver {
       return;
     }
     _lastStreamingFeedbackAt = now;
+    HapticFeedback.selectionClick();
+  }
+
+  /// A very light haptic tick for granular effects like splash particles
+  /// arriving. Throttled tighter than [triggerStreamingFeedback] so a burst
+  /// of many small events reads as a soft patter instead of a buzz.
+  Future<void> triggerParticleFeedback() async {
+    if (!shouldVibrate) return;
+    final now = DateTime.now();
+    final lastFeedbackAt = _lastParticleFeedbackAt;
+    if (lastFeedbackAt != null &&
+        now.difference(lastFeedbackAt) < _particleFeedbackInterval) {
+      return;
+    }
+    _lastParticleFeedbackAt = now;
     HapticFeedback.selectionClick();
   }
 

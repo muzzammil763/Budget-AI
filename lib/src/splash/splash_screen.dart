@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/vibration_manager.dart';
+import 'package:budget_ai/src/splash/splash_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -18,10 +20,12 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   static const _introDuration = Duration(milliseconds: 2400);
   static const _revealDuration = Duration(milliseconds: 560);
+  static const _breathingPause = Duration(milliseconds: 180);
 
   late final AnimationController _intro;
   late final AnimationController _reveal;
   late final List<_Particle> _particles;
+  late final List<bool> _particleHapticFired;
 
   bool _appMounted = false;
   bool _done = false;
@@ -30,6 +34,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _particles = _Particle.field(count: 64, seed: 7);
+    _particleHapticFired = List<bool>.filled(_particles.length, false);
     _intro = AnimationController(vsync: this, duration: _introDuration)
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) _startReveal();
@@ -46,11 +51,25 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
+  void _triggerParticleHaptics(double time) {
+    for (var i = 0; i < _particles.length; i++) {
+      if (_particleHapticFired[i]) continue;
+      if (time - _particles[i].delay <= 0) continue;
+      _particleHapticFired[i] = true;
+      VibrationManager.instance.triggerParticleFeedback();
+    }
+  }
+
   void _startReveal() {
     if (!mounted) return;
-    HapticFeedback.lightImpact();
     setState(() => _appMounted = true);
-    _reveal.forward();
+    void beginReveal() {
+      if (!mounted) return;
+      HapticFeedback.lightImpact();
+      _reveal.forward();
+    }
+
+    Future<void>.delayed(_breathingPause, beginReveal);
   }
 
   @override
@@ -77,12 +96,13 @@ class _SplashScreenState extends State<SplashScreen>
               child: AnimatedBuilder(
                 animation: Listenable.merge([_intro, _reveal]),
                 builder: (context, _) {
-                  final revealT = Curves.easeInOutQuart.transform(
+                  final revealT = SplashMotion.expoOut.transform(
                     _reveal.value,
                   );
                   final time =
                       _intro.value * _introDuration.inMilliseconds / 1000 +
                       _reveal.value * _revealDuration.inMilliseconds / 1000;
+                  _triggerParticleHaptics(time);
                   return ClipPath(
                     clipper: _CircleRevealClipper(progress: revealT),
                     child: Transform.scale(
@@ -152,7 +172,6 @@ class _Particle {
     required this.omega,
     required this.wobblePhase,
     required this.alpha,
-    required this.isAccent,
   });
 
   final double startAngle;
@@ -166,7 +185,6 @@ class _Particle {
   final double omega;
   final double wobblePhase;
   final double alpha;
-  final bool isAccent;
 
   static List<_Particle> field({required int count, required int seed}) {
     final rnd = math.Random(seed);
@@ -185,7 +203,6 @@ class _Particle {
         omega: 5.5 + rnd.nextDouble() * 3.5,
         wobblePhase: rnd.nextDouble() * math.pi * 2,
         alpha: 0.10 + rnd.nextDouble() * 0.22,
-        isAccent: rnd.nextDouble() < 0.22,
       );
     });
   }
@@ -231,25 +248,6 @@ class _SplashPainter extends CustomPainter {
     0.96,
   ];
 
-  // Analytic under-damped harmonic oscillator, normalized to settle at 1.
-  static double _spring(
-    double seconds, {
-    double zeta = 0.55,
-    double omega = 10,
-  }) {
-    if (seconds <= 0) return 0;
-    final wd = omega * math.sqrt(1 - zeta * zeta);
-    final decay = math.exp(-zeta * omega * seconds);
-    return 1 -
-        decay *
-            (math.cos(wd * seconds) +
-                (zeta * omega / wd) * math.sin(wd * seconds));
-  }
-
-  double _phase(double start, double end) {
-    return ((t - start) / (end - start)).clamp(0.0, 1.0);
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
@@ -266,7 +264,9 @@ class _SplashPainter extends CustomPainter {
   }
 
   void _paintAmbient(Canvas canvas, Size size, Offset center, double shortest) {
-    final glowIn = Curves.easeOut.transform(_phase(0.0, 0.4));
+    final glowIn = SplashMotion.expoOut.transform(
+      SplashMotion.phase(t, 0.0, 0.4),
+    );
     final glowPaint = Paint()
       ..shader = ui.Gradient.radial(center, shortest * 0.72, [
         accent.withValues(alpha: (isDark ? 0.10 : 0.05) * glowIn),
@@ -292,7 +292,7 @@ class _SplashPainter extends CustomPainter {
     for (final p in particles) {
       final arriveT = math.max(0.0, time - p.delay);
       if (arriveT <= 0) continue;
-      final s = _spring(arriveT, zeta: p.zeta, omega: p.omega);
+      final s = SplashMotion.spring(arriveT, zeta: p.zeta, omega: p.omega);
 
       final angle = p.orbitAngle + time * p.orbitSpeed;
       final wobble = 1 + 0.04 * math.sin(time * 1.8 + p.wobblePhase);
@@ -307,18 +307,19 @@ class _SplashPainter extends CustomPainter {
       final pos = Offset.lerp(start, target, s)!;
 
       final fadeIn = (arriveT * 2.4).clamp(0.0, 1.0);
-      final color = p.isAccent ? accent : onSurface;
-      paint.color = color.withValues(alpha: p.alpha * fadeIn);
+      paint.color = onSurface.withValues(alpha: p.alpha * fadeIn);
       canvas.drawCircle(pos, p.size, paint);
       if (p.size > 2.0) {
-        paint.color = color.withValues(alpha: p.alpha * fadeIn * 0.25);
+        paint.color = onSurface.withValues(alpha: p.alpha * fadeIn * 0.25);
         canvas.drawCircle(pos, p.size * 2.4, paint);
       }
     }
   }
 
   void _paintChart(Canvas canvas, Size size, Offset center, double shortest) {
-    final drawT = Curves.easeInOutCubic.transform(_phase(0.28, 0.70));
+    final drawT = SplashMotion.expoOut.transform(
+      SplashMotion.phase(t, 0.28, 0.70),
+    );
     if (drawT <= 0) return;
 
     final chartWidth = size.width * 0.86;
@@ -389,7 +390,7 @@ class _SplashPainter extends CustomPainter {
     final entrySeconds = math.max(0.0, time - 0.25);
     if (entrySeconds <= 0) return;
 
-    final scale = _spring(entrySeconds, zeta: 0.55, omega: 10);
+    final scale = SplashMotion.spring(entrySeconds, zeta: 0.9, omega: 10);
     final fadeIn = (entrySeconds * 3.5).clamp(0.0, 1.0);
     final cardSize = shortest * 0.34;
 
@@ -397,28 +398,6 @@ class _SplashPainter extends CustomPainter {
     canvas.translate(center.dx, center.dy);
     canvas.scale(scale.clamp(0.0, 1.5));
     canvas.translate(-center.dx, -center.dy);
-
-    final ringAlpha = Curves.easeOut.transform(_phase(0.34, 0.55));
-    if (ringAlpha > 0) {
-      final spin = time * 1.7;
-      final ringPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round
-        ..shader = ui.Gradient.sweep(
-          center,
-          [
-            accent.withValues(alpha: 0),
-            accent.withValues(alpha: 0.85 * ringAlpha),
-            accent.withValues(alpha: 0),
-          ],
-          [0.0, 0.3, 0.6],
-          TileMode.clamp,
-          spin,
-          spin + math.pi * 2,
-        );
-      canvas.drawCircle(center, cardSize * 0.82, ringPaint);
-    }
 
     final rect = Rect.fromCenter(
       center: center,
@@ -465,7 +444,11 @@ class _SplashPainter extends CustomPainter {
 
     for (var i = 0; i < 3; i++) {
       final barSeconds = math.max(0.0, time - (0.55 + i * 0.10));
-      final growth = _spring(barSeconds, zeta: 0.5, omega: 9).clamp(0.0, 1.3);
+      final growth = SplashMotion.spring(
+        barSeconds,
+        zeta: 0.85,
+        omega: 9,
+      ).clamp(0.0, 1.1);
       final height = maxHeights[i] * growth;
       if (height <= 0) continue;
       canvas.drawRRect(
@@ -482,56 +465,13 @@ class _SplashPainter extends CustomPainter {
       );
     }
 
-    final coinSeconds = math.max(0.0, time - 0.95);
-    if (coinSeconds > 0) {
-      final drop = _spring(coinSeconds, zeta: 0.30, omega: 12);
-      final coinX = barsLeft + 2 * (barWidth + gap) + barWidth / 2 + 1;
-      final restY = baseline - maxHeights[2] - cardSize * 0.115;
-      final coinY = restY - (1 - drop) * cardSize * 0.36;
-      canvas.drawCircle(
-        Offset(coinX, coinY),
-        cardSize * 0.052,
-        Paint()
-          ..color = accent.withValues(
-            alpha: (coinSeconds * 4).clamp(0.0, 1.0) * fadeIn,
-          ),
-      );
-    }
-
-    final sparkAlpha = Curves.easeOut.transform(_phase(0.48, 0.62));
-    if (sparkAlpha > 0) {
-      final twinkle = 0.78 + 0.22 * math.sin(time * 3.2);
-      final sparkCenter = Offset(
-        rect.right + cardSize * 0.06,
-        rect.top - cardSize * 0.06,
-      );
-      canvas.save();
-      canvas.translate(sparkCenter.dx, sparkCenter.dy);
-      canvas.rotate(time * 0.6);
-      canvas.drawPath(
-        _sparkPath(cardSize * 0.11 * twinkle),
-        Paint()..color = accent.withValues(alpha: sparkAlpha),
-      );
-      canvas.restore();
-    }
-
     canvas.restore();
   }
 
-  Path _sparkPath(double radius) {
-    const pinch = 0.22;
-    final r = radius;
-    return Path()
-      ..moveTo(0, -r)
-      ..quadraticBezierTo(r * pinch, -r * pinch, r, 0)
-      ..quadraticBezierTo(r * pinch, r * pinch, 0, r)
-      ..quadraticBezierTo(-r * pinch, r * pinch, -r, 0)
-      ..quadraticBezierTo(-r * pinch, -r * pinch, 0, -r)
-      ..close();
-  }
-
   void _paintWordmark(Canvas canvas, Offset center, double shortest) {
-    final wordT = Curves.easeOutCubic.transform(_phase(0.42, 0.72));
+    final wordT = SplashMotion.expoOut.transform(
+      SplashMotion.phase(t, 0.42, 0.72),
+    );
     if (wordT <= 0) return;
 
     final cardSize = shortest * 0.26;
@@ -557,7 +497,7 @@ class _SplashPainter extends CustomPainter {
     final taglineGap = (shortest * 0.026).clamp(10.0, 15.0);
     wordPainter.paint(canvas, wordOffset);
 
-    final shimmerT = _phase(0.68, 0.94);
+    final shimmerT = SplashMotion.phase(t, 0.68, 0.94);
     if (shimmerT > 0 && shimmerT < 1) {
       final sweepX = ui.lerpDouble(
         wordOffset.dx - 70,
@@ -587,7 +527,9 @@ class _SplashPainter extends CustomPainter {
       shimmerPainter.paint(canvas, wordOffset);
     }
 
-    final tagT = Curves.easeOut.transform(_phase(0.56, 0.86));
+    final tagT = SplashMotion.expoOut.transform(
+      SplashMotion.phase(t, 0.56, 0.86),
+    );
     if (tagT > 0) {
       final tagPainter = TextPainter(
         text: TextSpan(
@@ -621,7 +563,7 @@ class _SplashPainter extends CustomPainter {
       const Radius.circular(1.5),
     );
     canvas.drawRRect(track, Paint()..color = onSurface.withValues(alpha: 0.08));
-    final fill = trackWidth * Curves.easeInOutCubic.transform(t);
+    final fill = trackWidth * SplashMotion.expoOut.transform(t);
     if (fill > 3) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
