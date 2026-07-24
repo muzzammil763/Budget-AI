@@ -801,6 +801,13 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     final emptyColor = theme.colorScheme.surfaceContainerHighest.withValues(
       alpha: theme.brightness == Brightness.dark ? 0.34 : 0.58,
     );
+    // When tracking started less than a year ago the grid is clipped to the
+    // first entry, so label it by its real span instead of "Last 12 months".
+    final firstDate = insights.firstDate;
+    final windowStart = DateTime.now().subtract(const Duration(days: 364));
+    final rangeLabel = firstDate != null && firstDate.isAfter(windowStart)
+        ? 'Since ${_shortMonthLabel(firstDate)} ${firstDate.year}'
+        : 'Last 12 months';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -812,7 +819,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
             children: [
               Expanded(child: _sectionTitle(theme, 'Spending Activity')),
               Text(
-                'Last 12 months',
+                rangeLabel,
                 style: AppTheme.bodySmall.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontSize: 11,
@@ -1988,7 +1995,13 @@ class _FinanceInsights {
       final day = today.subtract(Duration(days: 29 - index));
       return _DatedTotal(day, totalsByDay[day] ?? 0);
     });
-    final yearlyActivityStart = today.subtract(const Duration(days: 364));
+    // Trailing 12-month window, but never earlier than the first tracked
+    // entry — otherwise the grid renders empty squares for months before any
+    // data existed, which reads as if spending was tracked back then.
+    final yearlyWindowStart = today.subtract(const Duration(days: 364));
+    final yearlyActivityStart = yearlyWindowStart.isBefore(firstDate)
+        ? firstDate
+        : yearlyWindowStart;
     final alignedYearlyActivityStart = yearlyActivityStart.subtract(
       Duration(days: yearlyActivityStart.weekday - 1),
     );
