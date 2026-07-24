@@ -1,11 +1,31 @@
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/tools/finance_entry_tool_helpers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
+
+/// Outcome the edit screen pops with, so the caller can update its list in
+/// place: the entry was saved (with the updated value) or removed (by id).
+sealed class FinanceEntryEditResult {
+  const FinanceEntryEditResult();
+}
+
+class FinanceEntrySaved extends FinanceEntryEditResult {
+  const FinanceEntrySaved(this.entry);
+
+  final FinanceEntry entry;
+}
+
+class FinanceEntryRemoved extends FinanceEntryEditResult {
+  const FinanceEntryRemoved(this.id);
+
+  final String id;
+}
 
 class FinanceEntryEditScreen extends StatefulWidget {
   const FinanceEntryEditScreen({super.key, required this.entry});
@@ -63,6 +83,14 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
         title: const Text('Edit Finance Entry'),
+        actions: [
+          IconButton(
+            tooltip: 'Delete entry',
+            onPressed: _isSaving ? null : _confirmDelete,
+            icon: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -87,6 +115,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                     theme,
                     controller: _descriptionController,
                     label: 'Title',
+                    hint: 'e.g. Groceries, Salary',
                     icon: CupertinoIcons.textformat,
                     textCapitalization: TextCapitalization.words,
                   ),
@@ -94,7 +123,12 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                   _buildTextField(
                     theme,
                     controller: _categoryController,
-                    label: 'Category / income type',
+                    label: _type == FinanceEntryType.income
+                        ? 'Income type'
+                        : 'Category',
+                    hint: _type == FinanceEntryType.income
+                        ? 'e.g. Salary, Freelance'
+                        : 'e.g. Food, Rent',
                     icon: CupertinoIcons.tag,
                     textCapitalization: TextCapitalization.words,
                   ),
@@ -350,12 +384,11 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.22),
+          color: theme.colorScheme.outline.withValues(alpha: 0.25),
         ),
       ),
       child: Column(
@@ -370,17 +403,20 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
               letterSpacing: 1.3,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           child,
         ],
       ),
     );
   }
 
+  // Auth-screen-inspired field: floating label, hint, and prefix icon over the
+  // shared filled 12-radius input theme, for a consistent look across the app.
   Widget _buildTextField(
     ThemeData theme, {
     required TextEditingController controller,
     required String label,
+    required String hint,
     required IconData icon,
     required TextCapitalization textCapitalization,
   }) {
@@ -394,25 +430,9 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
-        // labelText: label,
-        // labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        prefixIcon: Icon(icon, color: theme.colorScheme.primary),
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.075,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
-        ),
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 20),
       ),
     );
   }
@@ -550,7 +570,70 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
       );
       return;
     }
-    Navigator.of(context).pop(saved);
+    Navigator.of(context).pop(FinanceEntrySaved(saved));
+  }
+
+  Future<void> _confirmDelete() async {
+    final theme = Theme.of(context);
+    final confirmed = await ResponsiveInfoSheet.show<bool>(
+      context,
+      title: 'Delete Finance Entry?',
+      headerIcon: Icon(
+        CupertinoIcons.trash,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.error),
+      ),
+      gradientColors: [
+        theme.colorScheme.error,
+        theme.colorScheme.error.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Text(
+          'Delete "${widget.entry.description}" (${widget.entry.displayAmount})? '
+          'This cannot be undone.',
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          spacing: 12,
+          children: [
+            Expanded(
+              child: AppButton(
+                text: 'Cancel',
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.pop(context, false),
+              ),
+            ),
+            Expanded(
+              child: AppButton(
+                text: 'Delete',
+                isRed: true,
+                onPressed: () => Navigator.pop(context, true),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSaving = true);
+    final deleted = await FinanceService.instance.delete(widget.entry.id);
+    if (!mounted) return;
+    if (!deleted) {
+      setState(() => _isSaving = false);
+      showAppToast(
+        context,
+        message: 'Finance entry could not be deleted',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+    Navigator.of(context).pop(FinanceEntryRemoved(widget.entry.id));
   }
 
   String _formatDate(DateTime date) {

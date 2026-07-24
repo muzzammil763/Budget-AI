@@ -1,10 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/pill_nav_bar.dart';
-import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/finances/finance_entry_edit_screen.dart';
@@ -698,7 +696,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 ],
               ),
             ),
-            ...entries.map((entry) => _buildDismissibleEntry(theme, entry)),
+            ...entries.map((entry) => _buildEntryTile(theme, entry)),
           ],
         );
       },
@@ -844,24 +842,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
   }
 
-  Widget _buildDismissibleEntry(ThemeData theme, FinanceEntry entry) {
-    return Dismissible(
-      key: ValueKey('finance-${entry.id}'),
-      direction: DismissDirection.horizontal,
-      background: _buildEditBackground(),
-      secondaryBackground: _buildDeleteBackground(theme),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          await _openEntryEditor(entry);
-          return false;
-        }
-        return _confirmAndDeleteEntry(entry);
-      },
-      onDismissed: (_) => _removeDeletedEntry(entry),
-      child: _buildEntryTile(theme, entry),
-    );
-  }
-
   Widget _buildEntryTile(ThemeData theme, FinanceEntry entry) {
     final timeStr = entry.hasTime ? _formatClockTime(entry.date) : null;
     final onSurface = theme.colorScheme.onSurface;
@@ -871,7 +851,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () => _showEntryDetails(entry),
+          onTap: () => _openEntryEditor(entry),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -959,148 +939,20 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
   }
 
-  Future<void> _showEntryDetails(FinanceEntry entry) {
-    final theme = Theme.of(context);
-    final isIncome = entry.type == FinanceEntryType.income;
-    final accent = isIncome ? Colors.green : theme.colorScheme.error;
-    final readableAccent = AppTheme.readableOn(accent);
-
-    return ResponsiveInfoSheet.show<void>(
-      context,
-      title: isIncome ? 'Income Details' : 'Expense Details',
-      headerIcon: Icon(
-        isIncome
-            ? CupertinoIcons.arrow_down_left
-            : CupertinoIcons.arrow_up_right,
-        size: 32,
-        color: readableAccent,
-      ),
-      gradientColors: [accent, accent.withValues(alpha: 0.78)],
-      contentWidgets: [
-        Center(
-          child: Text(
-            entry.displaySignedAmount,
-            textAlign: TextAlign.center,
-            style: AppTheme.headingLarge.copyWith(
-              color: isIncome ? Colors.green : theme.colorScheme.error,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Center(
-          child: Text(
-            entry.description,
-            textAlign: TextAlign.center,
-            style: AppTheme.headingSmall.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              height: 1.25,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildEntryDetailRow(
-          theme,
-          icon: CupertinoIcons.tag,
-          label: 'Category',
-          value: entry.category,
-        ),
-        _buildEntryDetailRow(
-          theme,
-          icon: CupertinoIcons.calendar,
-          label: 'Date',
-          value: entry.displayDate,
-        ),
-        _buildEntryDetailRow(
-          theme,
-          icon: CupertinoIcons.time,
-          label: 'Logged',
-          value: _fullDateTime(entry.createdAt),
-        ),
-        _buildEntryDetailRow(
-          theme,
-          icon: isIncome
-              ? CupertinoIcons.arrow_down_circle
-              : CupertinoIcons.arrow_up_circle,
-          label: 'Type',
-          value: isIncome ? 'Income' : 'Expense',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEntryDetailRow(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.14)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: theme.colorScheme.primary, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: AppTheme.bodySmall.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            value,
-            textAlign: TextAlign.right,
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeleteBackground(ThemeData theme) {
-    return Container(
-      alignment: Alignment.centerRight,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.only(right: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-      child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
-    );
-  }
-
-  Widget _buildEditBackground() {
-    return Container(
-      alignment: Alignment.centerLeft,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.only(left: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-      child: const Icon(CupertinoIcons.pencil, color: AppTheme.highlight),
-    );
-  }
-
   Future<void> _openEntryEditor(FinanceEntry entry) async {
-    final updated = await Navigator.of(context).push<FinanceEntry>(
+    final result = await Navigator.of(context).push<FinanceEntryEditResult>(
       MaterialPageRoute(builder: (_) => FinanceEntryEditScreen(entry: entry)),
     );
-    if (!mounted || updated == null) return;
+    if (!mounted || result == null) return;
+    switch (result) {
+      case FinanceEntrySaved(entry: final updated):
+        _applyUpdatedEntry(updated);
+      case FinanceEntryRemoved():
+        _removeDeletedEntry(entry);
+    }
+  }
 
+  void _applyUpdatedEntry(FinanceEntry updated) {
     final selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
     final updatedMonth = DateTime(updated.date.year, updated.date.month);
     setState(() {
@@ -1123,67 +975,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
       message: 'Finance entry updated',
       type: ToastificationType.success,
     );
-  }
-
-  Future<bool> _confirmAndDeleteEntry(FinanceEntry entry) async {
-    final theme = Theme.of(context);
-    final confirmed = await ResponsiveInfoSheet.show<bool>(
-      context,
-      title: 'Delete Finance Entry?',
-      headerIcon: Icon(
-        CupertinoIcons.trash,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.error),
-      ),
-      gradientColors: [
-        theme.colorScheme.error,
-        theme.colorScheme.error.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        Text(
-          'Delete "${entry.description}" (${entry.displayAmount})?',
-          style: AppTheme.bodyMedium.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 14,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        Row(
-          spacing: 12,
-          children: [
-            Expanded(
-              child: AppButton(
-                text: 'Cancel',
-                variant: AppButtonVariant.outlined,
-                onPressed: () => Navigator.pop(context, false),
-              ),
-            ),
-            Expanded(
-              child: AppButton(
-                text: 'Delete',
-                isRed: true,
-                onPressed: () => Navigator.pop(context, true),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-    if (confirmed != true) return false;
-
-    final deleted = await FinanceService.instance.delete(entry.id);
-    if (!mounted) return false;
-    if (!deleted) {
-      showAppToast(
-        context,
-        message: 'Finance entry could not be deleted',
-        type: ToastificationType.error,
-      );
-      return false;
-    }
-
-    return true;
   }
 
   void _removeDeletedEntry(FinanceEntry entry) {
@@ -1350,26 +1141,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final minute = date.minute.toString().padLeft(2, '0');
     final period = date.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
-  }
-
-  String _fullDateTime(DateTime date) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${date.day.toString().padLeft(2, '0')} '
-        '${months[date.month - 1]} ${date.year}, '
-        '${_formatClockTime(date)}';
   }
 }
 
