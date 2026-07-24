@@ -42,6 +42,17 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   void initState() {
     super.initState();
     _months = _buildAvailableMonths();
+    // Open scoped to the passed month (the current month from both entry
+    // points) rather than the Overall tab, mirroring how the finances screen
+    // lands on the current month instead of Overall.
+    final month = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month,
+    );
+    _scopeMonth =
+        _months.any((m) => m.year == month.year && m.month == month.month)
+        ? month
+        : null;
   }
 
   @override
