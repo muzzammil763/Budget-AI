@@ -4,9 +4,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
-import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
 import 'package:budget_ai/src/chat/model_picker_sheet.dart';
-import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -18,6 +16,7 @@ import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
     show InlineNameKeyboard;
+import 'package:budget_ai/src/settings/bubble_style_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
@@ -264,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               icon: CupertinoIcons.chat_bubble_2_fill,
               title: 'Message bubble',
               subtitle: '${style.label} style for your messages',
-              onTap: _showBubbleStyleSheet,
+              onTap: () => BubbleStyleScreen.show(context),
             ),
           ),
           ValueListenableBuilder<bool>(
@@ -531,130 +530,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  Future<void> _showBubbleStyleSheet() async {
-    final theme = Theme.of(context);
-    await ResponsiveInfoSheet.show<void>(
-      context,
-      title: 'Select bubble style',
-      headerIcon: Icon(
-        CupertinoIcons.chat_bubble_2_fill,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: const [_BubbleStylePicker()],
-    );
-  }
-}
-
-class _BubbleStylePicker extends StatefulWidget {
-  const _BubbleStylePicker();
-
-  @override
-  State<_BubbleStylePicker> createState() => _BubbleStylePickerState();
-}
-
-class _BubbleStylePickerState extends State<_BubbleStylePicker> {
-  UserBubbleStyle get _selected => BubbleStyleSettingsService.instance.current;
-
-  Future<void> _select(UserBubbleStyle style) async {
-    HapticFeedback.selectionClick();
-    await BubbleStyleSettingsService.instance.setStyle(style);
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < UserBubbleStyle.values.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          _BubbleStyleOption(
-            style: UserBubbleStyle.values[i],
-            selected: _selected == UserBubbleStyle.values[i],
-            onTap: () => _select(UserBubbleStyle.values[i]),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _BubbleStyleOption extends StatelessWidget {
-  const _BubbleStyleOption({
-    required this.style,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final UserBubbleStyle style;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  selected
-                      ? CupertinoIcons.check_mark_circled_solid
-                      : CupertinoIcons.circle,
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outline,
-                  size: 30,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  style.label,
-                  style: AppTheme.bodyMedium.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: UserBubbleStyleSurface(
-                style: style,
-                child: ExpandableUserMessageText(
-                  text:
-                      'This is how your message will look, take a look and choose your style',
-                  style: UserBubbleStyleSurface.messageTextStyle(
-                    context,
-                    style,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _SettingsNameEditor extends StatefulWidget {

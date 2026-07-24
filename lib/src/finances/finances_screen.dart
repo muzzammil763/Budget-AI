@@ -869,14 +869,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: () => _showEntryDetails(entry),
-          borderRadius: BorderRadius.circular(100),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: onSurface.withValues(alpha: 0.25)),
             ),
             child: Row(
@@ -886,7 +886,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                   height: 38,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(100),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
@@ -1043,7 +1043,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.14)),
       ),
       child: Row(
@@ -1080,7 +1080,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       alignment: Alignment.centerRight,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(right: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
     );
   }
@@ -1090,7 +1090,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
       alignment: Alignment.centerLeft,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.only(left: 18),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: const Icon(CupertinoIcons.pencil, color: AppTheme.highlight),
     );
   }
@@ -1392,7 +1392,7 @@ class _FinanceListShimmer extends StatelessWidget {
             const ChatShimmerBlock(
               width: 44,
               height: 44,
-              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderRadius: BorderRadius.all(Radius.circular(10)),
             ),
             const SizedBox(width: 12),
             Expanded(

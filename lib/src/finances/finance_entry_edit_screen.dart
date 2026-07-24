@@ -229,7 +229,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           end: Alignment.bottomRight,
           colors: [accent, accent.withValues(alpha: 0.76)],
         ),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: accent.withValues(alpha: 0.18),
@@ -297,14 +297,14 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
               color: selected
                   ? theme.colorScheme.primary
                   : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(12),
               child: InkWell(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(12),
                 onTap: () => setState(() => _type = type),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected
                           ? theme.colorScheme.primary
@@ -353,7 +353,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.22),
         ),
@@ -402,15 +402,15 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           alpha: 0.075,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.2),
         ),
       ),
@@ -427,10 +427,10 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
   }) {
     return Material(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.075),
-      borderRadius: BorderRadius.circular(32),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
