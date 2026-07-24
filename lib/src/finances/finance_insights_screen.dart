@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -1258,11 +1259,6 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     DateTime month,
     List<_DatedTotal> days,
   ) {
-    final maxTotal = days.fold<double>(
-      0,
-      (max, day) => day.total > max ? day.total : max,
-    );
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(theme),
@@ -1271,7 +1267,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: _sectionTitle(theme, 'Daily Activity')),
+              Expanded(child: _sectionTitle(theme, _fullMonthLabel(month))),
               Text(
                 '${days.length} DAYS',
                 style: AppTheme.bodySmall.copyWith(
@@ -1285,64 +1281,20 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
           const SizedBox(height: 14),
           SizedBox(
             height: 168,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (var i = 0; i < days.length; i++)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 1),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Tooltip(
-                                message: days[i].total == 0
-                                    ? 'No spending on ${_compactDate(days[i].date)}'
-                                    : '${_money(days[i].total)} on ${_compactDate(days[i].date)}',
-                                child: FractionallySizedBox(
-                                  heightFactor: math.max(
-                                    maxTotal == 0
-                                        ? 0.0
-                                        : days[i].total / maxTotal,
-                                    days[i].total == 0 ? 0.05 : 0.12,
-                                  ),
-                                  child: Container(
-                                    width: double.infinity,
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 18,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: days[i].total == 0
-                                          ? theme.colorScheme.outline
-                                                .withValues(alpha: 0.18)
-                                          : theme.colorScheme.secondary,
-                                      borderRadius: BorderRadius.circular(99),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _monthBarLabel(days[i].date, month),
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.visible,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: theme.colorScheme.onSurface,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+            child: _SpendingActivityBars(
+              days: days,
+              barColor: theme.colorScheme.secondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: Text(
+              'Tap or hold a bar to see that day’s total',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -1652,12 +1604,22 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     return days.reduce((a, b) => a.total >= b.total ? a : b);
   }
 
-  String _monthBarLabel(DateTime date, DateTime month) {
-    final lastDay = DateTime(month.year, month.month + 1, 0).day;
-    if (date.day == 1 || date.day == lastDay || (date.day - 1) % 5 == 0) {
-      return '${date.day}';
-    }
-    return '';
+  String _fullMonthLabel(DateTime dt) {
+    const names = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${names[dt.month - 1]} ${dt.year}';
   }
 
   static String _money(double amount) => FinanceEntry.money(amount);
@@ -2228,15 +2190,10 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
               controller: _pageController,
               onPageChanged: (page) => setState(() => _page = page),
               children: [
-                _buildBars(
-                  theme,
-                  widget.insights.lastSevenDays,
-                  compact: false,
-                ),
-                _buildBars(
-                  theme,
-                  widget.insights.lastThirtyDays,
-                  compact: true,
+                _buildBars(theme, widget.insights.lastSevenDays),
+                _SpendingActivityBars(
+                  days: widget.insights.lastThirtyDays,
+                  barColor: theme.colorScheme.secondary,
                 ),
               ],
             ),
@@ -2257,11 +2214,7 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
     );
   }
 
-  Widget _buildBars(
-    ThemeData theme,
-    List<_DatedTotal> days, {
-    required bool compact,
-  }) {
+  Widget _buildBars(ThemeData theme, List<_DatedTotal> days) {
     final maxTotal = days.fold<double>(
       0,
       (max, day) => day.total > max ? day.total : max,
@@ -2273,25 +2226,23 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
         for (var i = 0; i < days.length; i++)
           Expanded(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: compact ? 1 : 3),
+              padding: const EdgeInsets.symmetric(horizontal: 3),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (!compact) ...[
-                    Text(
-                      days[i].total == 0
-                          ? '-'
-                          : FinanceEntry.formatAmount(days[i].total),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  Text(
+                    days[i].total == 0
+                        ? '-'
+                        : FinanceEntry.formatAmount(days[i].total),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 6),
-                  ],
+                  ),
+                  const SizedBox(height: 6),
                   Expanded(
                     child: Align(
                       alignment: Alignment.bottomCenter,
@@ -2317,23 +2268,209 @@ class _DailyTrendsCardState extends State<_DailyTrendsCard> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    compact
-                        ? (i % 5 == 0 || i == days.length - 1
-                              ? '${days[i].date.day}'
-                              : '')
-                        : _FinanceInsightsScreenState._shortDayLabel(
-                            days[i].date,
-                          ),
+                    _FinanceInsightsScreenState._shortDayLabel(days[i].date),
                     maxLines: 2,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.visible,
                     style: AppTheme.bodySmall.copyWith(
                       color: theme.colorScheme.onSurface,
-                      fontSize: compact ? 9 : 10,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Expense bars sized by amount, with no axis labels. Tapping or holding a
+/// bar shows a transient overlay popup with that day's total and date, so the
+/// numbers stay discoverable without cluttering the chart.
+class _SpendingActivityBars extends StatefulWidget {
+  const _SpendingActivityBars({required this.days, required this.barColor});
+
+  final List<_DatedTotal> days;
+  final Color barColor;
+
+  @override
+  State<_SpendingActivityBars> createState() => _SpendingActivityBarsState();
+}
+
+class _SpendingActivityBarsState extends State<_SpendingActivityBars> {
+  OverlayEntry? _popup;
+  Timer? _timer;
+  int? _activeIndex;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _popup?.remove();
+    _popup = null;
+    super.dispose();
+  }
+
+  void _showPopup(Offset globalPosition, _DatedTotal day, int index) {
+    _removePopup();
+    final overlay = Overlay.of(context);
+    final theme = Theme.of(context);
+    final screen = MediaQuery.sizeOf(context);
+    const cardWidth = 140.0;
+    final left = (globalPosition.dx - cardWidth / 2).clamp(
+      8.0,
+      screen.width - cardWidth - 8.0,
+    );
+    final top = (globalPosition.dy - 88.0).clamp(48.0, screen.height - 140.0);
+    final entry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: left,
+        top: top,
+        width: cardWidth,
+        child: IgnorePointer(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            builder: (context, t, child) => Opacity(
+              opacity: t.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, (1 - t) * 6),
+                child: child,
+              ),
+            ),
+            child: _popupCard(theme, day),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+    _timer = Timer(const Duration(milliseconds: 1600), _removePopup);
+    setState(() {
+      _popup = entry;
+      _activeIndex = index;
+    });
+  }
+
+  void _removePopup() {
+    _timer?.cancel();
+    _timer = null;
+    _popup?.remove();
+    _popup = null;
+    if (mounted) setState(() => _activeIndex = null);
+  }
+
+  Widget _popupCard(ThemeData theme, _DatedTotal day) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.inverseSurface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              day.total == 0 ? 'No spending' : FinanceEntry.money(day.total),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodyMedium.copyWith(
+                color: theme.colorScheme.onInverseSurface,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _popupDate(day.date),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onInverseSurface.withValues(
+                  alpha: 0.72,
+                ),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _popupDate(DateTime date) {
+    const names = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${names[date.month - 1]} ${date.day}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final days = widget.days;
+    final maxTotal = days.fold<double>(
+      0,
+      (max, day) => day.total > max ? day.total : max,
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < days.length; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (details) =>
+                    _showPopup(details.globalPosition, days[i], i),
+                onLongPressStart: (details) =>
+                    _showPopup(details.globalPosition, days[i], i),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionallySizedBox(
+                    heightFactor: math.max(
+                      maxTotal == 0 ? 0.0 : days[i].total / maxTotal,
+                      days[i].total == 0 ? 0.05 : 0.12,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxWidth: 18),
+                      decoration: BoxDecoration(
+                        color: days[i].total == 0
+                            ? theme.colorScheme.outline.withValues(alpha: 0.18)
+                            : i == _activeIndex
+                            ? theme.colorScheme.primary
+                            : widget.barColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
