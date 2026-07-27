@@ -1492,7 +1492,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         if (mounted) {
           showAppToast(
             context,
-            message: 'Download offline speech models in Settings first.',
+            message: 'Download offline speech models in Budget Hub first.',
             type: ToastificationType.warning,
           );
         }
@@ -2803,7 +2803,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               icon: const BudgetMarkIcon(size: 28),
             ),
             _buildTopChromeAction(
-              tooltip: 'Settings',
+              tooltip: 'Budget Hub',
               onPressed: _openSettingsScreen,
               icon: Icon(
                 CupertinoIcons.settings,
@@ -3191,12 +3191,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final percentage = (info.quotaFraction * 100).round();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.22),
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -3264,12 +3263,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     required int limit,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.22),
+          color: theme.colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -3302,11 +3300,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Widget _buildAiUsageRenewalCard(ThemeData theme, DateTime renewsOn) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.22),
+          color: theme.colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Column(

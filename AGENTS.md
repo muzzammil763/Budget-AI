@@ -46,8 +46,9 @@ lib/
                                 to first entry; numberless bars w/ tap-to-reveal popups
       finance_service.dart      Finance domain logic, totals, savings rollover
     settings/
-      settings_screen.dart      Name, Finances, Insights, Currency, Speech,
-                                Message bubble, Notifications + (Android) Background toggles, Sign out
+      settings_screen.dart      Budget Hub: Quick Actions bento, Account,
+                                Preferences, and App Behavior sections
+      account_screen.dart       Name, email, password recovery, and sign out
       bubble_style_screen.dart / bubble_style_settings_service.dart
       currency_picker_screen.dart / currency_settings_service.dart / currency_display_card.dart
       ai_usage_service.dart, user_name_settings_service.dart
@@ -90,10 +91,10 @@ speech is on-device.
 
 ## Feature surface
 
-- **Chat** — streaming OpenAI chat that logs/queries finances via tools. Speech playback is scoped to microphone-originated turns; typed messages never trigger audio. The top-right chrome shows one circular monthly AI-usage indicator (the higher of request/token quota fractions) before equal-size Finances (Budget mark) and Settings actions. Tapping usage refreshes it and opens a detail sheet with both exact counters and a centered UTC renewal card. The normal composer has no prefix icon and keeps one contextual trailing action: Send when text exists, hold-to-talk when empty, Stop during a response. The recording pulse still occupies the leading composer slot while recording. The model is not user-facing anywhere in the UI. Chat history is local-only. All styles use the bundled Google Sans font; Boldonse branding and monospaced code are preserved.
+- **Chat** — streaming OpenAI chat that logs/queries finances via tools. Speech playback is scoped to microphone-originated turns; typed messages never trigger audio. The top-right chrome shows one circular monthly AI-usage indicator (the higher of request/token quota fractions) before equal-size Finances (Budget mark) and Budget Hub actions. Tapping usage refreshes it and opens a detail sheet with both exact counters and a centered UTC renewal card. The normal composer has no prefix icon and keeps one contextual trailing action: Send when text exists, hold-to-talk when empty, Stop during a response. The recording pulse still occupies the leading composer slot while recording. The model is not user-facing anywhere in the UI. Chat history is local-only. All styles use the bundled Google Sans font; Boldonse branding and monospaced code are preserved.
 - **Finances** — month/overall pill scope, balance card, and a keyboard-responsive keyword-search row with a circular manual-add button. Tapping an entry opens the shared create/edit form directly (no details sheet, no swipe gestures). Save is available in the AppBar and body; existing entries expose body-level delete backed by a confirmation sheet.
 - **Insights** — opens scoped to the current month (not Overall). The spending heatmap is clipped to the first tracked entry (header reads "Since <Month Year>" until a full year accrues). The 30-day and month activity charts are numberless bars sized by expense; tap or hold a bar for a transient popup with that day's total and date.
-- **Settings** — inline name editor, Finances, Finance Insights, Currency display, Offline Speech Models, Message bubble (dedicated screen), Notifications toggle, Android Background Service toggle, and Sign out. Monthly AI usage lives in the chat top chrome rather than Settings. Bubble-style, currency, and speech-model pickers share one aesthetic (12-radius cards, `outline@0.25`/primary borders, SafeArea + max-width). Encryption is not a settings toggle — it is handled by the mandatory gate.
+- **Budget Hub** — sectioned landing screen with bento-style Finances and Insights Quick Actions, an Account entry, Preferences for Currency display, Offline Speech Models and Message bubble, plus Notifications and Android Background Service controls under App Behavior. The dedicated Account screen contains the existing name editor, read-only email, secure Supabase password-recovery action, and sign out. Monthly AI usage lives in the chat top chrome rather than Budget Hub. Bubble-style, currency, and speech-model pickers share one aesthetic (12-radius cards, `outline@0.25`/primary borders, SafeArea + max-width). Encryption is not a setting — it is handled by the mandatory gate.
 - **Native entry points** — iOS 17 Home Screen widget + Siri App Intents ("Add an expense/income in Budget AI"); Android Home Screen widget + Google Assistant App Actions. Both write to the shared store and import live via Darwin notification / method channel; the widget UI stays native. See README for App Group and setup details.
 
 ## Development rules
