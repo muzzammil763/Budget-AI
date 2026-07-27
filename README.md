@@ -85,10 +85,11 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   characters and can be edited or deleted later. The picker reveals the current
   selection on entry, jumps directly to a newly saved custom display, and stays
   open when the selection changes so users can return with Back. The message
-  bubble picker uses the same searchable bottom control and add action. Its
-  custom editor supports named styles, independent bubble/text/pattern colors,
-  five shapes, five patterns, a floating live preview that remains visible
-  while editing, editing, and deletion.
+  bubble picker currently exposes a searchable bottom control without a custom
+  add action. Existing custom styles remain editable and deletable through
+  their list actions; the custom editor supports named styles, independent
+  bubble/text/pattern colors, five shapes, five patterns, and a floating live
+  preview that remains visible while editing.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding

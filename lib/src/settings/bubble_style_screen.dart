@@ -264,40 +264,7 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
       minimum: EdgeInsets.only(bottom: safeAreaBottom),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: Row(
-          children: [
-            Expanded(child: _buildSearchField(theme)),
-            const SizedBox(width: 10),
-            Tooltip(
-              message: 'Add custom bubble',
-              child: Material(
-                color: theme.colorScheme.primary,
-                shape: CircleBorder(
-                  side: BorderSide(
-                    color: theme.colorScheme.outline.withValues(
-                      alpha: theme.brightness == Brightness.dark ? 0.2 : 0.06,
-                    ),
-                  ),
-                ),
-                elevation: 4,
-                shadowColor: Colors.black.withValues(alpha: 0.2),
-                child: InkWell(
-                  key: const ValueKey('add-custom-bubble'),
-                  customBorder: const CircleBorder(),
-                  onTap: _openCustomEditor,
-                  child: SizedBox.square(
-                    dimension: 56,
-                    child: Icon(
-                      CupertinoIcons.add,
-                      size: 28,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: _buildSearchField(theme),
       ),
     );
   }

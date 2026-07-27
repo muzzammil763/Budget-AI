@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('bubble picker exposes search and custom add controls', (
+  testWidgets('bubble picker exposes search without the custom add action', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: BubbleStyleScreen()));
@@ -15,7 +15,7 @@ void main() {
       find.byKey(const ValueKey('bubble-style-search-field')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('add-custom-bubble')), findsOneWidget);
+    expect(find.byKey(const ValueKey('add-custom-bubble')), findsNothing);
 
     await tester.enterText(
       find.byKey(const ValueKey('bubble-style-search-field')),
@@ -65,16 +65,6 @@ void main() {
     expect(find.text('Ticket'), findsOneWidget);
     expect(find.text('Waves'), findsOneWidget);
     expect(find.text('Delete Bubble'), findsOneWidget);
-  });
-
-  testWidgets('add action opens the custom bubble editor', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: BubbleStyleScreen()));
-    await tester.tap(find.byKey(const ValueKey('add-custom-bubble')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(find.text('Add Custom Bubble'), findsOneWidget);
-    expect(find.byKey(const ValueKey('custom-bubble-name')), findsOneWidget);
   });
 
   testWidgets('all custom shapes and patterns paint with chosen colors', (
