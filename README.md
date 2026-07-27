@@ -15,7 +15,7 @@ end-to-end encrypted synchronization, and offline speech.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
 - Spoken replies are generated fully on-device with Sherpa-ONNX and a downloaded Piper voice. Audio never leaves the device; only transcribed text is sent to OpenAI for chat.
-- Settings > Offline speech models downloads, selects, and removes Whisper STT and Piper TTS models. The mobile-compatible catalog includes Tiny, Base, Small, Medium, and distilled Whisper choices in English and multilingual variants, plus multiple US and British English Piper voices. Downloads show rounded progress, transferred and total size, live speed, and estimated time remaining. No speech model is bundled, so voice chat becomes available after one STT model and one TTS model are downloaded.
+- Budget Hub > Offline Speech Models downloads, selects, and removes Whisper STT and Piper TTS models. The mobile-compatible catalog includes Tiny, Base, Small, Medium, and distilled Whisper choices in English and multilingual variants, plus multiple US and British English Piper voices. Downloads show rounded progress, transferred and total size, live speed, and estimated time remaining. No speech model is bundled, so voice chat becomes available after one STT model and one TTS model are downloaded.
 - Downloaded models select on tap and remove with a left swipe. Downloaded Piper voices also provide locally generated, zero-API-cost audio previews.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
@@ -56,8 +56,9 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
 - First launch shows onboarding, followed by the Budget AI account flow.
 - Email/password registration requires email confirmation. Confirmation codes
   and `budgetai://auth/confirm` links are supported.
-- Sign-in sessions restore automatically. Forgot-password links return through
-  `budgetai://auth/reset-password`, and Settings includes sign-out.
+- Sign-in sessions restore automatically. Forgot-password and Account password
+  changes send secure links that return through
+  `budgetai://auth/reset-password`; sign-out lives on the Account screen.
 - After confirmation, an encryption gate requires each session to generate a
   recovery key (first device on the account) or restore one (later devices)
   before reaching AI chat. Chat sessions remain local-only; finance data is read
@@ -69,14 +70,16 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
 - Chat’s top-right chrome starts with one circular monthly AI-usage indicator,
-  followed by equal-size Finances and Settings actions. The indicator tracks
+  followed by equal-size Finances and Budget Hub actions. The indicator tracks
   whichever request/token quota is closest to full and opens a detail sheet
   with both exact counters and a centered UTC renewal date. The Budget mark
   opens Finances directly, leaving the composer prefix-free during normal text
   entry.
-- Settings includes finances, insights, currency display, offline speech
-  models, message bubble style, a notifications toggle, an Android
-  background-service toggle, and sign-out.
+- Budget Hub groups the app into a bento-style Quick Actions area for Finances
+  and Insights, an Account entry, Preferences for currency, offline speech and
+  message style, and App Behavior controls for notifications and the Android
+  background service. The dedicated Account screen contains the name editor,
+  read-only email, secure password-reset action, and sign-out.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding

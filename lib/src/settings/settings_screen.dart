@@ -14,6 +14,7 @@ import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
     show InlineNameKeyboard;
+import 'package:budget_ai/src/settings/account_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
@@ -189,29 +190,44 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
           const SizedBox(width: 8),
         ],
-        title: const Text('Settings'),
+        title: const Text('Budget Hub'),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
         children: [
-          const _SettingsNameEditor(),
-          _navTile(
+          _sectionHeading(
             theme,
-            icon: CupertinoIcons.money_dollar_circle,
-            title: 'Finances',
-            subtitle: 'View and manage finance data',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FinancesScreen()),
+            eyebrow: 'QUICK ACTIONS',
+            title: 'Your money, one tap away',
+          ),
+          const SizedBox(height: 10),
+          _buildQuickActions(theme),
+          const SizedBox(height: 24),
+          _sectionHeading(
+            theme,
+            eyebrow: 'ACCOUNT',
+            title: 'Profile & security',
+          ),
+          const SizedBox(height: 10),
+          ValueListenableBuilder<String>(
+            valueListenable: UserNameSettingsService.instance.userName,
+            builder: (context, name, _) => _navTile(
+              theme,
+              icon: CupertinoIcons.person_crop_circle,
+              title: name.trim().isEmpty ? 'Your account' : name.trim(),
+              subtitle:
+                  AuthService.instance.user?.email ??
+                  'Manage your profile and security',
+              onTap: _openAccount,
             ),
           ),
-          _navTile(
+          const SizedBox(height: 24),
+          _sectionHeading(
             theme,
-            leading: const BudgetMarkIcon(size: 30),
-            title: 'Finance Insights',
-            subtitle: 'Overall and monthly spending insights',
-            onTap: _openInsights,
+            eyebrow: 'PREFERENCES',
+            title: 'Make Budget AI yours',
           ),
+          const SizedBox(height: 10),
           ValueListenableBuilder<String>(
             valueListenable: CurrencySettingsService.instance.currency,
             builder: (context, currency, _) => _navTile(
@@ -253,6 +269,13 @@ class _SettingsScreenState extends State<SettingsScreen>
               onTap: () => BubbleStyleScreen.show(context),
             ),
           ),
+          const SizedBox(height: 16),
+          _sectionHeading(
+            theme,
+            eyebrow: 'APP BEHAVIOR',
+            title: 'Notifications & background',
+          ),
+          const SizedBox(height: 10),
           ValueListenableBuilder<bool>(
             valueListenable:
                 PermissionPreferencesService.instance.notificationsEnabled,
@@ -280,44 +303,162 @@ class _SettingsScreenState extends State<SettingsScreen>
                 onChanged: _onBackgroundToggled,
               ),
             ),
-          _navTile(
-            theme,
-            icon: CupertinoIcons.square_arrow_right,
-            title: 'Sign out',
-            subtitle: AuthService.instance.user?.email ?? 'Signed in',
-            foregroundColor: Colors.red,
-            onTap: _signOut,
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeading(
+    ThemeData theme, {
+    required String eyebrow,
+    required String title,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow,
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.primary,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.3,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          title,
+          style: AppTheme.headingSmall.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontSize: 17,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(ThemeData theme) {
+    return SizedBox(
+      height: 154,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            flex: 6,
+            child: _quickActionCard(
+              theme,
+              title: 'Finances',
+              subtitle: 'Add, search, and edit entries',
+              icon: CupertinoIcons.money_dollar_circle,
+              color: theme.colorScheme.primary,
+              foreground: theme.colorScheme.onPrimary,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FinancesScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 5,
+            child: _quickActionCard(
+              theme,
+              title: 'Insights',
+              subtitle: 'Trends and activity',
+              leading: const BudgetMarkIcon(size: 31),
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              foreground: theme.colorScheme.onSurface,
+              borderColor: theme.colorScheme.primary.withValues(alpha: 0.35),
+              onTap: _openInsights,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _signOut() async {
-    final confirmed = await ResponsiveInfoSheet.confirm(
-      context,
-      title: 'Sign out?',
-      message:
-          'Your finance data stays on this device. You will need to sign in again to use AI chat.',
-      icon: CupertinoIcons.square_arrow_right,
-      confirmLabel: 'Sign out',
-      isRed: true,
-      onConfirm: () async {
-        try {
-          await AuthService.instance.signOut();
-        } catch (error) {
-          if (mounted) {
-            showAppToast(
-              context,
-              message: friendlyAuthError(error),
-              type: ToastificationType.error,
-            );
-          }
-          rethrow;
-        }
-      },
+  Widget _quickActionCard(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    IconData? icon,
+    Widget? leading,
+    required Color color,
+    required Color foreground,
+    Color? borderColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor ?? color),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: foreground.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: leading ?? Icon(icon, size: 26, color: foreground),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.headingSmall.copyWith(
+                        color: foreground,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    CupertinoIcons.arrow_up_right,
+                    size: 16,
+                    color: foreground.withValues(alpha: 0.78),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.bodySmall.copyWith(
+                  color: foreground.withValues(alpha: 0.74),
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-    if (confirmed == true && mounted) Navigator.of(context).pop();
+  }
+
+  void _openAccount() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AccountScreen(nameEditor: _AccountNameEditor()),
+      ),
+    );
   }
 
   Widget _navTile(
@@ -505,14 +646,14 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 }
 
-class _SettingsNameEditor extends StatefulWidget {
-  const _SettingsNameEditor();
+class _AccountNameEditor extends StatefulWidget {
+  const _AccountNameEditor();
 
   @override
-  State<_SettingsNameEditor> createState() => _SettingsNameEditorState();
+  State<_AccountNameEditor> createState() => _AccountNameEditorState();
 }
 
-class _SettingsNameEditorState extends State<_SettingsNameEditor> {
+class _AccountNameEditorState extends State<_AccountNameEditor> {
   late final TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
   bool _isEditing = false;
