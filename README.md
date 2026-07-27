@@ -68,6 +68,9 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
+- Chat’s top-right chrome groups Finances and Settings into equal-size actions;
+  the Budget mark opens Finances directly, leaving the composer prefix-free
+  during normal text entry.
 - Settings includes finances, insights, currency display, offline speech
   models, message bubble style, a notifications toggle, an Android
   background-service toggle, and sign-out.
