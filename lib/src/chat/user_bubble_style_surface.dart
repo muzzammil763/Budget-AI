@@ -10,23 +10,39 @@ class UserBubbleStyleSurface extends StatelessWidget {
     required this.style,
     required this.child,
     this.preview = false,
+    this.customStyle,
   });
 
   final UserBubbleStyle style;
   final Widget child;
   final bool preview;
+  final CustomBubbleStyle? customStyle;
 
-  static Color foregroundColor(BuildContext context, UserBubbleStyle style) {
-    final background = _palette(Theme.of(context), style).background;
+  static Color foregroundColor(
+    BuildContext context,
+    UserBubbleStyle style, {
+    CustomBubbleStyle? customStyle,
+  }) {
+    final resolvedCustom =
+        customStyle ?? BubbleStyleSettingsService.instance.currentCustomStyle;
+    if (style == UserBubbleStyle.custom && resolvedCustom != null) {
+      return Color(resolvedCustom.textColorValue);
+    }
+    final background = _palette(
+      Theme.of(context),
+      style,
+      resolvedCustom,
+    ).background;
     return AppTheme.readableOn(background);
   }
 
   static TextStyle messageTextStyle(
     BuildContext context,
-    UserBubbleStyle style,
-  ) {
+    UserBubbleStyle style, {
+    CustomBubbleStyle? customStyle,
+  }) {
     return AppTheme.bodyMedium.copyWith(
-      color: foregroundColor(context, style),
+      color: foregroundColor(context, style, customStyle: customStyle),
       fontSize: 16,
       fontFamily: chatFontFamily(style),
     );
@@ -38,11 +54,17 @@ class UserBubbleStyleSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _palette(Theme.of(context), style);
+    final resolvedCustom =
+        customStyle ?? BubbleStyleSettingsService.instance.currentCustomStyle;
+    final palette = _palette(Theme.of(context), style, resolvedCustom);
     final insets = _contentInsets(style, preview: preview);
 
     return CustomPaint(
-      painter: _UserBubblePainter(style: style, palette: palette),
+      painter: _UserBubblePainter(
+        style: style,
+        palette: palette,
+        customStyle: resolvedCustom,
+      ),
       child: Padding(padding: insets, child: child),
     );
   }
@@ -53,6 +75,10 @@ EdgeInsets _contentInsets(UserBubbleStyle style, {required bool preview}) {
     return switch (style) {
       UserBubbleStyle.paperCurl => const EdgeInsets.fromLTRB(14, 12, 20, 12),
       UserBubbleStyle.sketchFrame => const EdgeInsets.fromLTRB(18, 12, 18, 12),
+      UserBubbleStyle.custom => const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
       _ => const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     };
   }
@@ -62,6 +88,10 @@ EdgeInsets _contentInsets(UserBubbleStyle style, {required bool preview}) {
     UserBubbleStyle.vault => const EdgeInsets.fromLTRB(18, 16, 38, 16),
     UserBubbleStyle.cashFlow ||
     UserBubbleStyle.receipt => const EdgeInsets.fromLTRB(18, 16, 18, 21),
+    UserBubbleStyle.custom => const EdgeInsets.symmetric(
+      horizontal: 18,
+      vertical: 16,
+    ),
     _ => const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
   };
 }
@@ -74,7 +104,11 @@ class _BubblePalette {
   final Color detail;
 }
 
-_BubblePalette _palette(ThemeData theme, UserBubbleStyle style) {
+_BubblePalette _palette(
+  ThemeData theme,
+  UserBubbleStyle style, [
+  CustomBubbleStyle? customStyle,
+]) {
   final dark = theme.brightness == Brightness.dark;
   return switch (style) {
     UserBubbleStyle.classic => _BubblePalette(
@@ -127,14 +161,24 @@ _BubblePalette _palette(ThemeData theme, UserBubbleStyle style) {
       dark ? const Color(0xFFF1E9E4) : const Color(0xFF35231D),
       dark ? const Color(0xFFE5B89D) : const Color(0xFF9A654D),
     ),
+    UserBubbleStyle.custom => _BubblePalette(
+      Color((customStyle ?? CustomBubbleStyle.fallback).backgroundColorValue),
+      Color((customStyle ?? CustomBubbleStyle.fallback).textColorValue),
+      Color((customStyle ?? CustomBubbleStyle.fallback).textColorValue),
+    ),
   };
 }
 
 class _UserBubblePainter extends CustomPainter {
-  const _UserBubblePainter({required this.style, required this.palette});
+  const _UserBubblePainter({
+    required this.style,
+    required this.palette,
+    this.customStyle,
+  });
 
   final UserBubbleStyle style;
   final _BubblePalette palette;
+  final CustomBubbleStyle? customStyle;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -148,6 +192,16 @@ class _UserBubblePainter extends CustomPainter {
     final bubble = _bubblePath(size);
 
     canvas.drawPath(bubble, body);
+    if (style == UserBubbleStyle.custom) {
+      _drawCustomPattern(canvas, size, bubble);
+      canvas.drawPath(
+        bubble,
+        Paint()
+          ..color = palette.accent.withValues(alpha: 0.28)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
     if (style == UserBubbleStyle.receipt ||
         style == UserBubbleStyle.paperCurl ||
         style == UserBubbleStyle.sketchFrame) {
@@ -173,6 +227,7 @@ class _UserBubblePainter extends CustomPainter {
         _drawVault(canvas, size, accent, detail);
       case UserBubbleStyle.paperCurl:
       case UserBubbleStyle.sketchFrame:
+      case UserBubbleStyle.custom:
     }
   }
 
@@ -297,7 +352,121 @@ class _UserBubblePainter extends CustomPainter {
           ..lineTo(3, 22)
           ..quadraticBezierTo(3, 8, 22, 5)
           ..close();
+      case UserBubbleStyle.custom:
+        return _customBubblePath(
+          size,
+          (customStyle ?? CustomBubbleStyle.fallback).shape,
+        );
     }
+  }
+
+  Path _customBubblePath(Size size, CustomBubbleShape shape) {
+    final rect = Offset.zero & size;
+    return switch (shape) {
+      CustomBubbleShape.rounded =>
+        Path()
+          ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18))),
+      CustomBubbleShape.conversational =>
+        Path()..addRRect(
+          RRect.fromRectAndCorners(
+            rect,
+            topLeft: const Radius.circular(5),
+            topRight: const Radius.circular(20),
+            bottomLeft: const Radius.circular(20),
+            bottomRight: const Radius.circular(5),
+          ),
+        ),
+      CustomBubbleShape.pill =>
+        Path()..addRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(size.height / 2)),
+        ),
+      CustomBubbleShape.angular =>
+        Path()
+          ..moveTo(12, 0)
+          ..lineTo(size.width - 12, 0)
+          ..lineTo(size.width, 12)
+          ..lineTo(size.width, size.height - 12)
+          ..lineTo(size.width - 12, size.height)
+          ..lineTo(12, size.height)
+          ..lineTo(0, size.height - 12)
+          ..lineTo(0, 12)
+          ..close(),
+      CustomBubbleShape.ticket =>
+        Path()
+          ..moveTo(10, 0)
+          ..lineTo(size.width - 10, 0)
+          ..quadraticBezierTo(size.width, 0, size.width, 10)
+          ..lineTo(size.width, size.height * .38)
+          ..quadraticBezierTo(
+            size.width - 10,
+            size.height / 2,
+            size.width,
+            size.height * .62,
+          )
+          ..lineTo(size.width, size.height - 10)
+          ..quadraticBezierTo(
+            size.width,
+            size.height,
+            size.width - 10,
+            size.height,
+          )
+          ..lineTo(10, size.height)
+          ..quadraticBezierTo(0, size.height, 0, size.height - 10)
+          ..lineTo(0, size.height * .62)
+          ..quadraticBezierTo(10, size.height / 2, 0, size.height * .38)
+          ..lineTo(0, 10)
+          ..quadraticBezierTo(0, 0, 10, 0)
+          ..close(),
+    };
+  }
+
+  void _drawCustomPattern(Canvas canvas, Size size, Path bubble) {
+    final pattern = (customStyle ?? CustomBubbleStyle.fallback).pattern;
+    if (pattern == CustomBubblePattern.none) return;
+    final paint = Paint()
+      ..color = palette.detail.withValues(alpha: 0.16)
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    canvas.save();
+    canvas.clipPath(bubble);
+    switch (pattern) {
+      case CustomBubblePattern.none:
+        break;
+      case CustomBubblePattern.dots:
+        final dots = Paint()
+          ..color = palette.detail.withValues(alpha: 0.18)
+          ..style = PaintingStyle.fill;
+        for (double y = 8; y < size.height; y += 14) {
+          for (double x = 8; x < size.width; x += 14) {
+            canvas.drawCircle(Offset(x, y), 1.5, dots);
+          }
+        }
+      case CustomBubblePattern.diagonal:
+        for (double x = -size.height; x < size.width; x += 13) {
+          canvas.drawLine(
+            Offset(x, size.height),
+            Offset(x + size.height, 0),
+            paint,
+          );
+        }
+      case CustomBubblePattern.grid:
+        for (double x = 10; x < size.width; x += 16) {
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+        }
+        for (double y = 10; y < size.height; y += 16) {
+          canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+        }
+      case CustomBubblePattern.waves:
+        for (double y = 9; y < size.height; y += 14) {
+          final wave = Path()..moveTo(0, y);
+          for (double x = 0; x < size.width; x += 16) {
+            wave.quadraticBezierTo(x + 4, y - 4, x + 8, y);
+            wave.quadraticBezierTo(x + 12, y + 4, x + 16, y);
+          }
+          canvas.drawPath(wave, paint);
+        }
+    }
+    canvas.restore();
   }
 
   void _drawLedger(Canvas canvas, Size size, Paint line, Paint detail) {
@@ -395,5 +564,6 @@ class _UserBubblePainter extends CustomPainter {
       oldDelegate.style != style ||
       oldDelegate.palette.background != palette.background ||
       oldDelegate.palette.accent != palette.accent ||
-      oldDelegate.palette.detail != palette.detail;
+      oldDelegate.palette.detail != palette.detail ||
+      oldDelegate.customStyle != customStyle;
 }

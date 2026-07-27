@@ -174,7 +174,9 @@ class AccountSettingsSyncService {
       'currency_display': CurrencySettingsService.instance.current,
       'custom_currencies':
           CurrencySettingsService.instance.customCurrencies.value,
-      'bubble_style': BubbleStyleSettingsService.instance.current.name,
+      'bubble_style': BubbleStyleSettingsService.instance.syncedSelectionValue,
+      'custom_bubble_styles':
+          BubbleStyleSettingsService.instance.syncedCustomStyles,
       'client_updated_at': updatedAt.toIso8601String(),
       'device_id': await _deviceId(),
     });
@@ -192,12 +194,13 @@ class AccountSettingsSyncService {
           .whereType<String>()
           .toList(growable: false),
     );
-    final bubbleName = remote['bubble_style'] as String? ?? '';
-    final bubble = UserBubbleStyle.values.firstWhere(
-      (value) => value.name == bubbleName,
-      orElse: () => UserBubbleStyle.classic,
+    await BubbleStyleSettingsService.instance.applySyncedState(
+      remote['bubble_style'] as String? ?? 'classic',
+      (remote['custom_bubble_styles'] as List? ?? const [])
+          .whereType<Map>()
+          .map((value) => Map<String, dynamic>.from(value))
+          .toList(growable: false),
     );
-    await BubbleStyleSettingsService.instance.applySyncedStyle(bubble);
   }
 
   Future<String> _deviceId() async {

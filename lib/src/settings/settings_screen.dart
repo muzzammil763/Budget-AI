@@ -265,7 +265,9 @@ class _SettingsScreenState extends State<SettingsScreen>
               theme,
               icon: CupertinoIcons.chat_bubble_2_fill,
               title: 'Message bubble',
-              subtitle: '${style.label} style for your messages',
+              subtitle:
+                  '${BubbleStyleSettingsService.instance.currentLabel} style '
+                  'for your messages',
               onTap: () => BubbleStyleScreen.show(context),
             ),
           ),

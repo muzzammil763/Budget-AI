@@ -84,7 +84,10 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   opens a dedicated custom-currency form; custom displays are limited to five
   characters and can be edited or deleted later. The picker reveals the current
   selection on entry, jumps directly to a newly saved custom display, and stays
-  open when the selection changes so users can return with Back.
+  open when the selection changes so users can return with Back. The message
+  bubble picker uses the same searchable bottom control and add action. Its
+  custom editor supports named styles, independent bubble/text colors, five
+  shapes, five patterns, live previews, editing, and deletion.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
