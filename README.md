@@ -1,7 +1,7 @@
 # Budget AI
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
-Supabase authentication, offline-first SQLite finance tracking, optional
+Supabase authentication, offline-first SQLite finance tracking, mandatory
 end-to-end encrypted synchronization, and offline speech.
 
 ## AI and voice flow
@@ -26,13 +26,17 @@ end-to-end encrypted synchronization, and offline speech.
   and `budgetai://auth/confirm` links are supported.
 - Sign-in sessions restore automatically. Forgot-password links return through
   `budgetai://auth/reset-password`, and Settings includes sign-out.
-- Confirmed users enter AI chat. Chat sessions remain local-only. Finance data
-  is read and written through SQLite and can optionally synchronize as
-  AES-256-GCM ciphertext after the user saves a recovery key.
+- After confirmation, an encryption gate requires each session to generate a
+  recovery key (first device on the account) or restore one (later devices)
+  before reaching AI chat. Chat sessions remain local-only; finance data is read
+  and written through SQLite and always synchronizes as AES-256-GCM ciphertext
+  once the gate is satisfied.
+- In Finances, tapping an entry opens its edit screen directly (view, edit, or
+  delete via the app bar); there are no swipe gestures.
 - Tap the app bar model name to open the OpenAI model selector.
-- Settings includes finances, insights, currency, OpenAI chat model, offline
-  speech models, message style, encrypted sync, permissions, and onboarding
-  controls.
+- Settings includes finances, insights, currency display, OpenAI chat model,
+  offline speech models, message bubble style, a notifications toggle, an
+  Android background-service toggle, and sign-out.
 - Display name, model, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
@@ -43,14 +47,18 @@ end-to-end encrypted synchronization, and offline speech.
 
 ## Encrypted synchronization
 
-- Encrypted sync is opt-in under Settings > Encrypted sync.
-- Enabling it generates a random 256-bit account data key. The device copy is
-  protected by iOS Keychain or Android Keystore.
+- End-to-end encryption is mandatory and handled by the encryption gate after
+  sign-in, not an opt-in setting.
+- The first device on an account generates a random 256-bit account key. It is
+  wrapped two ways—by a checksummed `BAI1-...` recovery key and by a
+  password-derived key—so a later device can unlock with either the recovery key
+  or the account password. The device copy is protected by iOS Keychain or
+  Android Keystore.
 - Finance payloads are encrypted with AES-256-GCM before upload. Supabase stores
   ciphertext, nonce, authentication tag, revisions, and sync timestamps—not
   plaintext descriptions, categories, or amounts.
-- Another device must receive the checksummed `BAI1-...` recovery key before it
-  can decrypt the account. Budget AI and Supabase cannot recover a lost key.
+- Budget AI and Supabase cannot recover the account key if both the recovery key
+  and the account password are lost.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
 - Chat history and downloaded speech-model files are never uploaded.
