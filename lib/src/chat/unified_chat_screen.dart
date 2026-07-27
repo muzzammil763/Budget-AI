@@ -8,6 +8,7 @@ import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
@@ -2749,12 +2750,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                         onPressed: _openHistoryScreen,
                       ),
                       const Spacer(),
-                      _buildFloatingAppBarButton(
-                        theme,
-                        icon: CupertinoIcons.settings,
-                        tooltip: 'Settings',
-                        onPressed: _openSettingsScreen,
-                      ),
+                      _buildTopChromeActionGroup(theme),
                     ],
                   ),
                 ],
@@ -2762,6 +2758,65 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTopChromeActionGroup(ThemeData theme) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? theme.colorScheme.onSurface.withValues(alpha: 0.25)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(32),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTopChromeAction(
+              tooltip: 'Finances',
+              onPressed: _openFinancesScreen,
+              icon: const BudgetMarkIcon(size: 28),
+            ),
+            _buildTopChromeAction(
+              tooltip: 'Settings',
+              onPressed: _openSettingsScreen,
+              icon: Icon(
+                CupertinoIcons.settings,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopChromeAction({
+    required String tooltip,
+    required VoidCallback onPressed,
+    required Widget icon,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      child: Tooltip(
+        message: tooltip,
+        child: SizedBox.square(dimension: 48, child: Center(child: icon)),
       ),
     );
   }
@@ -2984,6 +3039,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _refreshChatConfiguration();
   }
 
+  Future<void> _openFinancesScreen() {
+    return Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FinancesScreen()),
+    );
+  }
+
   Widget _buildInputArea() {
     final theme = Theme.of(context);
     final textColor = theme.colorScheme.onSurface;
@@ -3101,23 +3163,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       key: const ValueKey('normal-composer'),
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        SizedBox(
-          width: 44,
-          height: 44,
-          child: _isRecording
-              ? const ChatVoiceRecordingPulse(size: 44)
-              : IconButton(
-                  tooltip: 'Add',
-                  onPressed: () {},
-                  icon: const BudgetMarkIcon(size: 28),
-                ),
-        ),
-        const SizedBox(width: 2),
+        if (_isRecording) ...[
+          const SizedBox(
+            width: 44,
+            height: 44,
+            child: ChatVoiceRecordingPulse(size: 44),
+          ),
+          const SizedBox(width: 2),
+        ],
         Expanded(
           child: _isRecording
               ? const ChatVoiceRecordingStatus()
               : Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(left: 8, bottom: 10),
                   child: TextField(
                     focusNode: _messageFocusNode,
                     scrollController: _messageInputScrollController,
