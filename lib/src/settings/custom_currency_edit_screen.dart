@@ -159,9 +159,10 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
               AppButton(
                 text: 'Delete Currency',
                 icon: CupertinoIcons.trash,
-                height: 54,
+
                 isRed: true,
                 onPressed: _isSaving ? null : _confirmDelete,
+                variant: AppButtonVariant.outlined,
               ),
             ],
           ],
