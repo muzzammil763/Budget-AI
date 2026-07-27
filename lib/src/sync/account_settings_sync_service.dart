@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
-import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/foundation.dart';
@@ -172,7 +171,6 @@ class AccountSettingsSyncService {
     await _client.from('user_settings').upsert({
       'user_id': user.id,
       'display_name': UserNameSettingsService.instance.current,
-      'model_id': ModelSettingsService.instance.current,
       'currency_display': CurrencySettingsService.instance.current,
       'custom_currencies':
           CurrencySettingsService.instance.customCurrencies.value,
@@ -186,9 +184,6 @@ class AccountSettingsSyncService {
     await UserNameSettingsService.instance.applySyncedName(
       remote['display_name'] as String? ?? '',
       user.id,
-    );
-    await ModelSettingsService.instance.applySyncedModel(
-      remote['model_id'] as String? ?? ModelSettingsService.instance.current,
     );
     await CurrencySettingsService.instance.applySyncedState(
       remote['currency_display'] as String? ??

@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
-import 'package:budget_ai/src/chat/ai_models.dart';
-import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/speech/local_speech_service.dart';
@@ -19,12 +17,6 @@ void main() {
   setUp(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
-    await ModelSettingsService.instance.initialize();
-  });
-
-  test('OpenAI model picker still defaults to GPT-5.6 Luna', () {
-    expect(ModelSettingsService.instance.current, 'gpt-5.6-luna');
-    expect(AIModels.openAIModels, hasLength(9));
   });
 
   test('local speech catalog includes selectable STT and TTS models', () {

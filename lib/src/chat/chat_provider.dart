@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:budget_ai/src/auth/auth_service.dart';
+import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
-import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
@@ -135,7 +135,7 @@ abstract class BaseChatProvider extends ChatProvider {
   Future<void> initialize() async {
     _apiKey = _accessTokenProvider();
     _apiKeys = _apiKey != null ? [_apiKey!] : [];
-    _selectedModel = ModelSettingsService.instance.current;
+    _selectedModel = await ActiveModelResolver.instance.resolve();
     _dio.options.headers = {'Accept': 'application/json'};
   }
 

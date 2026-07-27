@@ -9,7 +9,8 @@ end-to-end encrypted synchronization, and offline speech.
 - Chat and finance tools use OpenAI's Responses API through the authenticated
   Supabase Edge Function at `openai-responses`. The OpenAI API key is never
   bundled into Flutter.
-- The default chat model is `gpt-5.6-luna`. Settings exposes the supported OpenAI model catalog, including GPT-5.6 Sol, Terra, and Luna.
+- The chat model is not user-selectable. The app always uses `gpt-5.4-nano`
+  unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
@@ -18,6 +19,37 @@ end-to-end encrypted synchronization, and offline speech.
 - Downloaded models select on tap and remove with a left swipe. Downloaded Piper voices also provide locally generated, zero-API-cost audio previews.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
+
+### Changing the active AI model
+
+There is no in-app model picker. The app always requests `gpt-5.4-nano`
+(`AIModels.defaultModelId` in `lib/src/chat/ai_models.dart`) unless the
+Supabase table `ai_model_config` says otherwise. The table holds a single
+global row read by `ActiveModelResolver` (`lib/src/chat/active_model_resolver.dart`)
+whenever the chat screen loads or is returned to — no app update or restart
+needed to switch models.
+
+To point the app at a different model, run this against the project's
+Supabase database (SQL Editor, `psql`, or the `execute_sql`/`apply_migration`
+MCP tools):
+
+```sql
+-- Switch to a different model.
+update public.ai_model_config
+set active_model_id = 'gpt-5.6-luna', updated_at = now()
+where id = 1;
+
+-- Revert to the hardcoded default (gpt-5.4-nano).
+update public.ai_model_config
+set active_model_id = null, updated_at = now()
+where id = 1;
+```
+
+`active_model_id` must match one of the ids in `AIModels.openAIModels`
+(`lib/src/chat/ai_models.dart`) — currently `gpt-5.6-luna`, `gpt-5.6-terra`,
+`gpt-5.6-sol`, `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-4.1`,
+or `o3`. Any unset row, unknown id, or read failure (offline, RLS, etc.)
+silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
 
 ## App flow
 
@@ -33,11 +65,10 @@ end-to-end encrypted synchronization, and offline speech.
   once the gate is satisfied.
 - In Finances, tapping an entry opens its edit screen directly (view, edit, or
   delete via the app bar); there are no swipe gestures.
-- Tap the app bar model name to open the OpenAI model selector.
-- Settings includes finances, insights, currency display, OpenAI chat model,
-  offline speech models, message bubble style, a notifications toggle, an
-  Android background-service toggle, and sign-out.
-- Display name, model, currency, and message style use local-first SQLite
+- Settings includes finances, insights, currency display, offline speech
+  models, message bubble style, a notifications toggle, an Android
+  background-service toggle, and sign-out.
+- Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
   completion and downloaded speech-model selections remain device-local.

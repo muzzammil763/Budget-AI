@@ -101,7 +101,7 @@ const List<AIModel> _openAIModels = [
 class AIModels {
   static const List<AIModel> openAIModels = _openAIModels;
 
-  static const String defaultModelId = 'gpt-5.6-luna';
+  static const String defaultModelId = 'gpt-5.4-nano';
 
   static AIModel? getModelById(String modelId) {
     try {

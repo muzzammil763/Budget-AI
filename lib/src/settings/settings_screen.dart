@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
-import 'package:budget_ai/src/chat/ai_models.dart';
-import 'package:budget_ai/src/chat/model_picker_screen.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -20,7 +19,6 @@ import 'package:budget_ai/src/settings/bubble_style_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
-import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
@@ -197,6 +195,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         children: [
+          const _AiUsageCard(),
           const _SettingsNameEditor(),
           _navTile(
             theme,
@@ -224,16 +223,6 @@ class _SettingsScreenState extends State<SettingsScreen>
               subtitle:
                   'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
               onTap: () => CurrencyPickerScreen.show(context),
-            ),
-          ),
-          ValueListenableBuilder<String>(
-            valueListenable: ModelSettingsService.instance.modelId,
-            builder: (context, modelId, _) => _navTile(
-              theme,
-              icon: CupertinoIcons.sparkles,
-              title: 'OpenAI model',
-              subtitle: AIModels.getModelById(modelId)?.name ?? modelId,
-              onTap: () => ModelPickerScreen.show(context),
             ),
           ),
           ValueListenableBuilder<String>(
@@ -293,7 +282,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                 onChanged: _onBackgroundToggled,
               ),
             ),
-          const SizedBox(height: 8),
           _navTile(
             theme,
             icon: CupertinoIcons.square_arrow_right,
@@ -435,12 +423,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                             color: theme.colorScheme.primary,
                           ),
                         )
-                      : Switch.adaptive(
+                      : CupertinoSwitch(
                           key: const ValueKey('switch'),
                           value: value,
-                          activeTrackColor: theme.colorScheme.primary,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
+                          activeTrackColor: Colors.green,
                           onChanged: onChanged,
                         ),
                 ),
@@ -874,5 +860,282 @@ class _SettingsNameEditorState extends State<_SettingsNameEditor> {
         ],
       ),
     );
+  }
+}
+
+class _AiUsageCard extends StatefulWidget {
+  const _AiUsageCard();
+
+  @override
+  State<_AiUsageCard> createState() => _AiUsageCardState();
+}
+
+class _AiUsageCardState extends State<_AiUsageCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    // Every time this card is mounted (i.e. every time Settings is opened),
+    // re-fetch so the numbers never go stale, showing the skeleton below
+    // for the duration of that fetch rather than popping content in.
+    AiUsageService.instance.refresh();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.4),
+          ),
+        ),
+        child: AnimatedBuilder(
+          animation: Listenable.merge([
+            AiUsageService.instance.isLoading,
+            AiUsageService.instance.usage,
+            _pulseController,
+          ]),
+          builder: (context, _) {
+            final isLoading = AiUsageService.instance.isLoading.value;
+            final info = AiUsageService.instance.usage.value;
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: isLoading || info == null
+                  ? _buildSkeleton(theme, key: const ValueKey('skeleton'))
+                  : _buildContent(theme, info, key: const ValueKey('data')),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(ThemeData theme, AiUsageInfo info, {Key? key}) {
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Icon(
+              CupertinoIcons.speedometer,
+              size: 20,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'AI Usage This Month',
+              style: AppTheme.bodyMedium.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            const Spacer(),
+            if (!info.enabled)
+              Text(
+                'Disabled',
+                style: AppTheme.bodySmall.copyWith(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _usageRow(
+          theme,
+          label: 'Requests',
+          used: info.requestsUsed,
+          limit: info.requestsLimit,
+          fraction: info.requestsFraction,
+        ),
+        const SizedBox(height: 10),
+        _usageRow(
+          theme,
+          label: 'Tokens',
+          used: info.tokensUsed,
+          limit: info.tokensLimit,
+          fraction: info.tokensFraction,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Icon(
+              CupertinoIcons.calendar,
+              size: 12,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Renews ${_formatRenewDate(info.renewsOn)}',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static const _monthAbbreviations = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String _formatRenewDate(DateTime date) {
+    final month = _monthAbbreviations[date.month - 1];
+    return '$month ${date.day}, ${date.year}';
+  }
+
+  Widget _usageRow(
+    ThemeData theme, {
+    required String label,
+    required int used,
+    required int limit,
+    required double fraction,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${_formatCount(used)} / ${_formatCount(limit)}',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 6,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              fraction >= 1
+                  ? Colors.red
+                  : fraction >= 0.85
+                  ? Colors.orange
+                  : theme.colorScheme.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeleton(ThemeData theme, {Key? key}) {
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            _skeletonBar(theme, width: 20, height: 20, radius: 6),
+            const SizedBox(width: 8),
+            _skeletonBar(theme, width: 120, height: 14),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _skeletonUsageRow(theme),
+        const SizedBox(height: 12),
+        _skeletonUsageRow(theme),
+        const SizedBox(height: 12),
+        _skeletonBar(theme, width: 96, height: 11),
+      ],
+    );
+  }
+
+  Widget _skeletonUsageRow(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _skeletonBar(theme, width: 56, height: 11),
+            const Spacer(),
+            _skeletonBar(theme, width: 72, height: 11),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _skeletonBar(theme, width: double.infinity, height: 6, radius: 6),
+      ],
+    );
+  }
+
+  Widget _skeletonBar(
+    ThemeData theme, {
+    required double width,
+    required double height,
+    double radius = 4,
+  }) {
+    final alpha = 0.06 + (_pulseController.value * 0.1);
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.onSurface.withValues(alpha: alpha),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
+  String _formatCount(int value) {
+    final str = value.toString();
+    if (str.length <= 3) return str;
+    final buf = StringBuffer();
+    for (var i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buf.write(',');
+      buf.write(str[i]);
+    }
+    return buf.toString();
   }
 }
