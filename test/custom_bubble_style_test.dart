@@ -35,6 +35,7 @@ void main() {
       name: 'Ocean notes',
       backgroundColorValue: 0xFF123456,
       textColorValue: 0xFFFFFFFF,
+      patternColorValue: 0xFFFFAA00,
       shape: CustomBubbleShape.ticket,
       pattern: CustomBubblePattern.waves,
     );
@@ -45,13 +46,20 @@ void main() {
 
     expect(find.text('Edit Custom Bubble'), findsOneWidget);
     expect(find.text('BUBBLE COLOR'), findsOneWidget);
+    final floatingPreview = find.byKey(
+      const ValueKey('floating-bubble-preview'),
+    );
+    final previewTop = tester.getTopLeft(floatingPreview).dy;
     await tester.drag(find.byType(ListView), const Offset(0, -650));
     await tester.pump();
 
     expect(find.text('TEXT COLOR'), findsOneWidget);
+    expect(find.text('PATTERN COLOR'), findsOneWidget);
+    expect(tester.getTopLeft(floatingPreview).dy, previewTop);
     await tester.drag(find.byType(ListView), const Offset(0, -1600));
     await tester.pump();
 
+    expect(tester.getTopLeft(floatingPreview).dy, previewTop);
     expect(find.text('SHAPE'), findsOneWidget);
     expect(find.text('PATTERN'), findsOneWidget);
     expect(find.text('Ticket'), findsOneWidget);
@@ -69,7 +77,7 @@ void main() {
     expect(find.byKey(const ValueKey('custom-bubble-name')), findsOneWidget);
   });
 
-  testWidgets('all custom shapes and patterns paint with chosen text color', (
+  testWidgets('all custom shapes and patterns paint with chosen colors', (
     tester,
   ) async {
     const textColor = Color(0xFFFFEEDD);
@@ -89,6 +97,7 @@ void main() {
                           name: 'Preview',
                           backgroundColorValue: 0xFF264653,
                           textColorValue: 0xFFFFEEDD,
+                          patternColorValue: 0xFFFFAA00,
                           shape: shape,
                           pattern: pattern,
                         ),
@@ -133,10 +142,24 @@ void main() {
       name: 'Sunset',
       backgroundColorValue: 0xFFD75A3D,
       textColorValue: 0xFFFFFFFF,
+      patternColorValue: 0xFF221144,
       shape: CustomBubbleShape.angular,
       pattern: CustomBubblePattern.diagonal,
     );
 
     expect(CustomBubbleStyle.fromJson(style.toJson()), style);
+  });
+
+  test('legacy custom bubbles default pattern color to text color', () {
+    final style = CustomBubbleStyle.fromJson({
+      'id': 'legacy',
+      'name': 'Legacy',
+      'background_color': 0xFF123456,
+      'text_color': 0xFFABCDEF,
+      'shape': 'rounded',
+      'pattern': 'dots',
+    });
+
+    expect(style.patternColorValue, 0xFFABCDEF);
   });
 }

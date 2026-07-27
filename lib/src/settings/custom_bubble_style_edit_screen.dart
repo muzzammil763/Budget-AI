@@ -52,6 +52,7 @@ class _CustomBubbleStyleEditScreenState
   late final TextEditingController _nameController;
   late Color _backgroundColor;
   late Color _textColor;
+  late Color _patternColor;
   late CustomBubbleShape _shape;
   late CustomBubblePattern _pattern;
   bool _isSaving = false;
@@ -67,6 +68,7 @@ class _CustomBubbleStyleEditScreenState
     );
     _backgroundColor = Color(style.backgroundColorValue);
     _textColor = Color(style.textColorValue);
+    _patternColor = Color(style.patternColorValue);
     _shape = style.shape;
     _pattern = style.pattern;
   }
@@ -82,6 +84,7 @@ class _CustomBubbleStyleEditScreenState
     name: _nameController.text.trim(),
     backgroundColorValue: _backgroundColor.toARGB32(),
     textColorValue: _textColor.toARGB32(),
+    patternColorValue: _patternColor.toARGB32(),
     shape: _shape,
     pattern: _pattern,
   );
@@ -114,124 +117,154 @@ class _CustomBubbleStyleEditScreenState
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        child: Stack(
           children: [
-            _buildPreview(theme),
-            const SizedBox(height: 12),
-            _buildSection(
-              theme,
-              title: 'STYLE NAME',
-              child: TextField(
-                key: const ValueKey('custom-bubble-name'),
-                controller: _nameController,
-                autofocus: !_isEditing,
-                maxLength: 30,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.done,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Bubble name',
-                  hintText: 'e.g. Ocean notes',
-                  prefixIcon: Icon(CupertinoIcons.textformat),
-                ),
+            Positioned.fill(
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(12, 162, 12, 24),
+                children: [
+                  _buildSection(
+                    theme,
+                    title: 'STYLE NAME',
+                    child: TextField(
+                      key: const ValueKey('custom-bubble-name'),
+                      controller: _nameController,
+                      autofocus: !_isEditing,
+                      maxLength: 30,
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.done,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Bubble name',
+                        hintText: 'e.g. Ocean notes',
+                        prefixIcon: Icon(CupertinoIcons.textformat),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ColorControl(
+                    title: 'BUBBLE COLOR',
+                    color: _backgroundColor,
+                    onChanged: (color) =>
+                        setState(() => _backgroundColor = color),
+                  ),
+                  const SizedBox(height: 12),
+                  _ColorControl(
+                    title: 'TEXT COLOR',
+                    color: _textColor,
+                    onChanged: (color) => setState(() => _textColor = color),
+                  ),
+                  const SizedBox(height: 12),
+                  _ColorControl(
+                    title: 'PATTERN COLOR',
+                    color: _patternColor,
+                    onChanged: (color) => setState(() => _patternColor = color),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildChoiceSection<CustomBubbleShape>(
+                    theme,
+                    title: 'SHAPE',
+                    values: CustomBubbleShape.values,
+                    selected: _shape,
+                    label: (shape) => shape.label,
+                    onSelected: (shape) => setState(() => _shape = shape),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildChoiceSection<CustomBubblePattern>(
+                    theme,
+                    title: 'PATTERN',
+                    values: CustomBubblePattern.values,
+                    selected: _pattern,
+                    label: (pattern) => pattern.label,
+                    onSelected: (pattern) => setState(() => _pattern = pattern),
+                  ),
+                  const SizedBox(height: 12),
+                  AppButton(
+                    text: actionLabel,
+                    icon: CupertinoIcons.check_mark,
+                    height: 54,
+                    isLoading: _isSaving,
+                    onPressed: _isSaving ? null : _save,
+                  ),
+                  if (_isEditing) ...[
+                    const SizedBox(height: 12),
+                    AppButton(
+                      text: 'Delete Bubble',
+                      icon: CupertinoIcons.trash,
+                      height: 54,
+                      isRed: true,
+                      onPressed: _isSaving ? null : _confirmDelete,
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            _ColorControl(
-              title: 'BUBBLE COLOR',
-              color: _backgroundColor,
-              onChanged: (color) => setState(() => _backgroundColor = color),
-            ),
-            const SizedBox(height: 12),
-            _ColorControl(
-              title: 'TEXT COLOR',
-              color: _textColor,
-              onChanged: (color) => setState(() => _textColor = color),
-            ),
-            const SizedBox(height: 12),
-            _buildChoiceSection<CustomBubbleShape>(
-              theme,
-              title: 'SHAPE',
-              values: CustomBubbleShape.values,
-              selected: _shape,
-              label: (shape) => shape.label,
-              onSelected: (shape) => setState(() => _shape = shape),
-            ),
-            const SizedBox(height: 12),
-            _buildChoiceSection<CustomBubblePattern>(
-              theme,
-              title: 'PATTERN',
-              values: CustomBubblePattern.values,
-              selected: _pattern,
-              label: (pattern) => pattern.label,
-              onSelected: (pattern) => setState(() => _pattern = pattern),
-            ),
-            const SizedBox(height: 12),
-            AppButton(
-              text: actionLabel,
-              icon: CupertinoIcons.check_mark,
-              height: 54,
-              isLoading: _isSaving,
-              onPressed: _isSaving ? null : _save,
-            ),
-            if (_isEditing) ...[
-              const SizedBox(height: 12),
-              AppButton(
-                text: 'Delete Bubble',
-                icon: CupertinoIcons.trash,
-                height: 54,
-                isRed: true,
-                onPressed: _isSaving ? null : _confirmDelete,
+            Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(32, 12, 32, 0),
+                child: _buildFloatingPreview(theme),
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPreview(ThemeData theme) {
+  Widget _buildFloatingPreview(ThemeData theme) {
     final preview = _previewStyle;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'LIVE PREVIEW',
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.primary,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.3,
-            ),
+    return Material(
+      key: const ValueKey('floating-bubble-preview'),
+      color: theme.colorScheme.surface,
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.2),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 130),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.brightness == Brightness.dark
+                ? theme.colorScheme.outline.withValues(alpha: 0.2)
+                : theme.colorScheme.outline.withValues(alpha: 0.08),
           ),
-          const SizedBox(height: 14),
-          Align(
-            alignment: Alignment.centerRight,
-            child: UserBubbleStyleSurface(
-              style: UserBubbleStyle.custom,
-              customStyle: preview,
-              child: ExpandableUserMessageText(
-                text: 'This is your custom message bubble.',
-                style: UserBubbleStyleSurface.messageTextStyle(
-                  context,
-                  UserBubbleStyle.custom,
-                  customStyle: preview,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'LIVE PREVIEW',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.3,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: UserBubbleStyleSurface(
+                style: UserBubbleStyle.custom,
+                customStyle: preview,
+                child: ExpandableUserMessageText(
+                  text: 'This is your custom message bubble.',
+                  style: UserBubbleStyleSurface.messageTextStyle(
+                    context,
+                    UserBubbleStyle.custom,
+                    customStyle: preview,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -316,6 +349,7 @@ class _CustomBubbleStyleEditScreenState
       name: _nameController.text,
       backgroundColorValue: _backgroundColor.toARGB32(),
       textColorValue: _textColor.toARGB32(),
+      patternColorValue: _patternColor.toARGB32(),
       shape: _shape,
       pattern: _pattern,
     );

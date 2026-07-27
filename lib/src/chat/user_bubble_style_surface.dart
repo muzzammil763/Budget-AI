@@ -164,7 +164,7 @@ _BubblePalette _palette(
     UserBubbleStyle.custom => _BubblePalette(
       Color((customStyle ?? CustomBubbleStyle.fallback).backgroundColorValue),
       Color((customStyle ?? CustomBubbleStyle.fallback).textColorValue),
-      Color((customStyle ?? CustomBubbleStyle.fallback).textColorValue),
+      Color((customStyle ?? CustomBubbleStyle.fallback).patternColorValue),
     ),
   };
 }
@@ -424,7 +424,7 @@ class _UserBubblePainter extends CustomPainter {
     final pattern = (customStyle ?? CustomBubbleStyle.fallback).pattern;
     if (pattern == CustomBubblePattern.none) return;
     final paint = Paint()
-      ..color = palette.detail.withValues(alpha: 0.16)
+      ..color = palette.detail.withValues(alpha: 0.42)
       ..strokeWidth = 1.4
       ..style = PaintingStyle.stroke;
     canvas.save();
@@ -434,7 +434,7 @@ class _UserBubblePainter extends CustomPainter {
         break;
       case CustomBubblePattern.dots:
         final dots = Paint()
-          ..color = palette.detail.withValues(alpha: 0.18)
+          ..color = palette.detail.withValues(alpha: 0.45)
           ..style = PaintingStyle.fill;
         for (double y = 8; y < size.height; y += 14) {
           for (double x = 8; x < size.width; x += 14) {

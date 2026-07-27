@@ -57,6 +57,7 @@ class CustomBubbleStyle {
     required this.textColorValue,
     required this.shape,
     required this.pattern,
+    this.patternColorValue = 0xFFFFFFFF,
   });
 
   factory CustomBubbleStyle.fromJson(Map<String, dynamic> json) {
@@ -65,6 +66,10 @@ class CustomBubbleStyle {
       name: json['name'] as String? ?? 'Custom bubble',
       backgroundColorValue: json['background_color'] as int? ?? 0xFF2364AA,
       textColorValue: json['text_color'] as int? ?? 0xFFFFFFFF,
+      patternColorValue:
+          json['pattern_color'] as int? ??
+          json['text_color'] as int? ??
+          0xFFFFFFFF,
       shape: CustomBubbleShape.values.firstWhere(
         (value) => value.name == json['shape'],
         orElse: () => CustomBubbleShape.rounded,
@@ -81,6 +86,7 @@ class CustomBubbleStyle {
     name: 'Custom bubble',
     backgroundColorValue: 0xFF2364AA,
     textColorValue: 0xFFFFFFFF,
+    patternColorValue: 0xFFFFFFFF,
     shape: CustomBubbleShape.rounded,
     pattern: CustomBubblePattern.none,
   );
@@ -89,6 +95,7 @@ class CustomBubbleStyle {
   final String name;
   final int backgroundColorValue;
   final int textColorValue;
+  final int patternColorValue;
   final CustomBubbleShape shape;
   final CustomBubblePattern pattern;
 
@@ -97,6 +104,7 @@ class CustomBubbleStyle {
     'name': name,
     'background_color': backgroundColorValue,
     'text_color': textColorValue,
+    'pattern_color': patternColorValue,
     'shape': shape.name,
     'pattern': pattern.name,
   };
@@ -108,6 +116,7 @@ class CustomBubbleStyle {
       other.name == name &&
       other.backgroundColorValue == backgroundColorValue &&
       other.textColorValue == textColorValue &&
+      other.patternColorValue == patternColorValue &&
       other.shape == shape &&
       other.pattern == pattern;
 
@@ -117,6 +126,7 @@ class CustomBubbleStyle {
     name,
     backgroundColorValue,
     textColorValue,
+    patternColorValue,
     shape,
     pattern,
   );
@@ -184,6 +194,7 @@ class BubbleStyleSettingsService {
     required String name,
     required int backgroundColorValue,
     required int textColorValue,
+    required int patternColorValue,
     required CustomBubbleShape shape,
     required CustomBubblePattern pattern,
   }) async {
@@ -198,6 +209,7 @@ class BubbleStyleSettingsService {
       name: name.trim(),
       backgroundColorValue: backgroundColorValue,
       textColorValue: textColorValue,
+      patternColorValue: patternColorValue,
       shape: shape,
       pattern: pattern,
     );
