@@ -1,8 +1,12 @@
 # Budget AI — Agent Guide
 
 This file is the source of truth for agents working in this repo. Keep it
-accurate: whenever you change the project structure, features, flows, or
-architecture, update this file (and `README.md`) in the same change.
+accurate: **any change that affects what this file describes — the project
+structure, features, flows, or architecture — must update this file (and
+`README.md`) as part of the same change, before the PR is opened.** A change
+that adds/removes/renames files or directories, adds or changes a feature or
+screen, or alters a flow or service is not complete until the docs match. If a
+change touches nothing the docs describe, no doc update is needed.
 
 Budget AI is a Flutter personal-finance assistant: an OpenAI-powered chat that
 logs and edits finances through local tools, offline-first SQLite storage with
@@ -110,13 +114,17 @@ trivial non-code edit, you may commit directly; otherwise default to this.
    (`feat/…`, `fix/…`, `chore/…`, `docs/…`).
 3. **Do the work.** Keep commits focused; run the verification commands below
    and make sure they are clean before committing.
-4. **Push and open a PR** into `master` with `gh pr create` — clear title, a
+4. **Sync the docs.** If the change touched anything this file or `README.md`
+   describes — structure, files/dirs, features, screens, flows, architecture,
+   services, or setup — update those docs in the same branch before the PR.
+   Skip only when the change genuinely affects nothing the docs cover.
+5. **Push and open a PR** into `master` with `gh pr create` — clear title, a
    structured description of what changed and why, and `Closes #<issue>` so the
    issue auto-closes.
-5. **Merge the PR** with a merge commit (`gh pr merge <n> --merge`), writing a
+6. **Merge the PR** with a merge commit (`gh pr merge <n> --merge`), writing a
    clean merge subject and a summary body of the highlights. Preserve the
    individual commits (do not squash) unless asked otherwise.
-6. **Return to `master`** and fast-forward it:
+7. **Return to `master`** and fast-forward it:
    `git checkout master && git fetch origin && git merge --ff-only origin/master`.
 
 Keep the feature branch after merge unless the user asks to delete it. Use
