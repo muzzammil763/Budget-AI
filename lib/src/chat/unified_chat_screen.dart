@@ -4,11 +4,11 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
-import 'package:budget_ai/src/settings/model_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
@@ -145,8 +145,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _initialize() async {
+    final resolvedModel = await ActiveModelResolver.instance.resolve();
+    if (!mounted) return;
     setState(() {
-      _selectedModel = ModelSettingsService.instance.current;
+      _selectedModel = resolvedModel;
     });
     await _refreshProviderState();
     _provider.updateModel(_selectedModel);
@@ -166,8 +168,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _loadSelectedModel() async {
+    final resolvedModel = await ActiveModelResolver.instance.resolve();
+    if (!mounted) return;
     setState(() {
-      _selectedModel = ModelSettingsService.instance.current;
+      _selectedModel = resolvedModel;
     });
     _provider.updateModel(_selectedModel);
   }
