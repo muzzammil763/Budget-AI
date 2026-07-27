@@ -1,5 +1,6 @@
 import 'package:budget_ai/src/finances/finance_entry_edit_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,7 +11,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: FinanceEntryEditScreen()));
 
     expect(find.text('Add Finance Entry'), findsOneWidget);
-    expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.check_mark), findsOneWidget);
 
     await tester.drag(find.byType(ListView), const Offset(0, -1200));
     await tester.pumpAndSettle();
@@ -37,7 +38,7 @@ void main() {
     );
 
     expect(find.text('Edit Finance Entry'), findsOneWidget);
-    expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.check_mark), findsOneWidget);
 
     await tester.drag(find.byType(ListView), const Offset(0, -1200));
     await tester.pumpAndSettle();

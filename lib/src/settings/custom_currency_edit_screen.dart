@@ -67,7 +67,7 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
                     dimension: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.save_outlined),
+                : const Icon(CupertinoIcons.check_mark),
           ),
           const SizedBox(width: 4),
         ],
@@ -76,7 +76,7 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
         top: false,
         child: ListView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           children: [
             Container(
               padding: const EdgeInsets.all(16),
@@ -90,16 +90,6 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'CUSTOM DISPLAY',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   TextField(
                     key: const ValueKey('custom-currency-field'),
                     controller: _currencyController,
@@ -123,40 +113,35 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
                       letterSpacing: 2,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Currency display',
+                      labelText: 'Custom Currency',
                       hintText: 'e.g. CHF',
                       helperText: 'Up to 5 letters, symbols, or characters',
-                      prefixIcon: Icon(CupertinoIcons.money_dollar, size: 22),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'PREVIEW',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: Text(
-                      _value.isEmpty
-                          ? '1,200 —'
-                          : CurrencySettingsService.instance.formatAmount(
-                              1200,
-                              currency: _value,
-                            ),
-                      key: ValueKey(_value),
-                      style: AppTheme.headingSmall.copyWith(
-                        color: _value.isEmpty
-                            ? theme.colorScheme.onSurfaceVariant
-                            : theme.colorScheme.onSurface,
-                        fontSize: 24,
+                  const SizedBox(height: 12),
+                  Row(
+                    spacing: 12,
+                    children: [
+                      Icon(CupertinoIcons.eye, size: 28),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Text(
+                          _value.isEmpty
+                              ? '1,200 —'
+                              : CurrencySettingsService.instance.formatAmount(
+                                  1200,
+                                  currency: _value,
+                                ),
+                          key: ValueKey(_value),
+                          style: AppTheme.headingSmall.copyWith(
+                            color: _value.isEmpty
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.onSurface,
+                            fontSize: 24,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -164,7 +149,7 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
             const SizedBox(height: 12),
             AppButton(
               text: actionLabel,
-              icon: CupertinoIcons.checkmark_alt,
+              icon: CupertinoIcons.check_mark,
               isLoading: _isSaving,
               onPressed: _isSaving ? null : _save,
             ),

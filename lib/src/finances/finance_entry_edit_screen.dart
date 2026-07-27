@@ -99,7 +99,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                     dimension: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.save_outlined),
+                : const Icon(CupertinoIcons.check_mark),
           ),
           const SizedBox(width: 4),
         ],

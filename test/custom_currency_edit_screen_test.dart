@@ -15,7 +15,7 @@ void main() {
 
     expect(find.text('Add Custom Currency'), findsOneWidget);
     expect(find.text('Add Currency'), findsOneWidget);
-    expect(find.byIcon(Icons.save_outlined), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.check_mark), findsWidgets);
 
     await tester.enterText(
       find.byKey(const ValueKey('custom-currency-field')),
@@ -58,6 +58,32 @@ void main() {
     expect(find.byTooltip('Add custom currency'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.pencil), findsOneWidget);
     expect(find.byTooltip('Edit BTC'), findsOneWidget);
+  });
+
+  testWidgets('picker search filters currencies by code and name', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: CurrencyPickerScreen()));
+
+    expect(find.byKey(const ValueKey('currency-search-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('add-custom-currency')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('currency-search-field')),
+      'British',
+    );
+    await tester.pump();
+
+    expect(find.text('GBP'), findsOneWidget);
+    expect(find.text('USD'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('currency-search-field')),
+      'not-a-currency',
+    );
+    await tester.pump();
+
+    expect(find.text('No currencies found'), findsOneWidget);
   });
 
   test('custom currency validation rejects long and duplicate values', () {
