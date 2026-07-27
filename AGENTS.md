@@ -64,11 +64,6 @@ Root docs: `README.md` (user/setup facing), `SUPABASE_BACKEND_PLAN.md`,
 `OFFLINE_FIRST_SYNC_PLAN.md`. Build: `Makefile` (`make apk`), `pubspec.yaml`,
 `analysis_options.yaml`.
 
-Note: `settings/encryption_settings_screen.dart`,
-`settings/shared_preferences_screen.dart`, `settings/app_backup_service.dart`,
-and the empty `loan/` directory are not currently wired into the app — do not
-document or extend them as live features without first wiring them up.
-
 ## Architecture
 
 Flutter with built-in state management (no third-party). Finance data is
