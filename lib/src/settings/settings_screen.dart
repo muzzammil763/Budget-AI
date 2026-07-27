@@ -193,22 +193,22 @@ class _SettingsScreenState extends State<SettingsScreen>
         title: const Text('Budget Hub'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         children: [
           _sectionHeading(
             theme,
             eyebrow: 'QUICK ACTIONS',
             title: 'Your money, one tap away',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildQuickActions(theme),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           _sectionHeading(
             theme,
             eyebrow: 'ACCOUNT',
             title: 'Profile & security',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ValueListenableBuilder<String>(
             valueListenable: UserNameSettingsService.instance.userName,
             builder: (context, name, _) => _navTile(
@@ -221,13 +221,13 @@ class _SettingsScreenState extends State<SettingsScreen>
               onTap: _openAccount,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           _sectionHeading(
             theme,
             eyebrow: 'PREFERENCES',
             title: 'Make Budget AI yours',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ValueListenableBuilder<String>(
             valueListenable: CurrencySettingsService.instance.currency,
             builder: (context, currency, _) => _navTile(
@@ -269,13 +269,13 @@ class _SettingsScreenState extends State<SettingsScreen>
               onTap: () => BubbleStyleScreen.show(context),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _sectionHeading(
             theme,
             eyebrow: 'APP BEHAVIOR',
             title: 'Notifications & background',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ValueListenableBuilder<bool>(
             valueListenable:
                 PermissionPreferencesService.instance.notificationsEnabled,
@@ -344,7 +344,6 @@ class _SettingsScreenState extends State<SettingsScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: 6,
             child: _quickActionCard(
               theme,
               title: 'Finances',
@@ -360,13 +359,12 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           const SizedBox(width: 10),
           Expanded(
-            flex: 5,
             child: _quickActionCard(
               theme,
               title: 'Insights',
-              subtitle: 'Trends and activity',
+              subtitle: 'Trends, activity & more',
               leading: const BudgetMarkIcon(size: 31),
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              color: Colors.transparent,
               foreground: theme.colorScheme.onSurface,
               borderColor: theme.colorScheme.primary.withValues(alpha: 0.35),
               onTap: _openInsights,

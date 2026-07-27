@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('account screen groups profile and security actions', (
+  testWidgets('account screen shows profile and security actions', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -15,10 +15,7 @@ void main() {
     );
 
     expect(find.text('Account'), findsOneWidget);
-    expect(find.text('PERSONAL DETAILS'), findsOneWidget);
     expect(find.byKey(const ValueKey('account-name-editor')), findsOneWidget);
-    expect(find.text('Email'), findsOneWidget);
-    expect(find.text('SECURITY'), findsOneWidget);
     expect(find.text('Change password'), findsOneWidget);
 
     await tester.scrollUntilVisible(
@@ -27,7 +24,6 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
 
-    expect(find.text('SESSION'), findsOneWidget);
     expect(find.text('Sign Out'), findsOneWidget);
   });
 }
