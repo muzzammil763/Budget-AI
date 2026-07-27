@@ -139,8 +139,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   bool get _isSearching => _searchController.text.trim().isNotEmpty;
 
-  bool get _isSearchFieldActive => _searchFocusNode.hasFocus || _isSearching;
-
   List<FinanceEntry> get _scopedEntries =>
       _isOverall ? _allEntries : _monthEntries;
 
@@ -202,12 +200,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final scopedEntries = _scopedEntries;
     final balanceEntries = _isOverall ? _currentMonthEntries : scopedEntries;
     final isSearching = _isSearching;
-    final isSearchFieldActive = _isSearchFieldActive;
-    final hasAnyEntries = _allEntries.isNotEmpty;
-    final hasScopedEntries = scopedEntries.isNotEmpty;
     final isBusy = _isLoading || _isInitialSyncPending;
-    final shouldShowSearchField =
-        !isBusy && hasAnyEntries && (hasScopedEntries || isSearchFieldActive);
+    final shouldShowSearchField = !isBusy;
     final totalExpense = FinanceService.instance.totalAmount(
       scopedEntries,
       type: FinanceEntryType.expense,
@@ -296,7 +290,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
           if (shouldShowSearchField)
             Align(
               alignment: Alignment.bottomCenter,
-              child: _buildFinanceSearchField(),
+              child: _buildFinanceSearchRow(),
             ),
         ],
       ),
@@ -576,7 +570,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Log an expense from the chat\nand it will show up here.',
+            'Use + below to add an entry manually,\nor log one from the chat.',
             textAlign: TextAlign.center,
             style: AppTheme.bodySmall.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -703,11 +697,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
   }
 
-  Widget _buildFinanceSearchField() {
+  Widget _buildFinanceSearchRow() {
     final theme = Theme.of(context);
-    final textColor = theme.colorScheme.onSurface;
-    final hintColor = theme.colorScheme.onSurfaceVariant;
-
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     const kKeyboardHeightApprox = 280.0;
     final t = (bottomInset / kKeyboardHeightApprox).clamp(0.0, 1.0);
@@ -720,123 +711,159 @@ class _FinancesScreenState extends State<FinancesScreen> {
       minimum: EdgeInsets.only(bottom: safeAreaBottom),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: ChatWorkingComposerFrame(
-          isWorking: false,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            constraints: const BoxConstraints(minHeight: 56, maxHeight: 56),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: theme.brightness == Brightness.dark
-                    ? theme.colorScheme.outline.withValues(alpha: 0.2)
-                    : theme.colorScheme.outline.withValues(alpha: 0.06),
-                width: 1,
+        child: Row(
+          children: [
+            Expanded(child: _buildFinanceSearchField(theme)),
+            const SizedBox(width: 10),
+            Tooltip(
+              message: 'Add finance entry',
+              child: Material(
+                color: theme.colorScheme.primary,
+                shape: CircleBorder(
+                  side: BorderSide(
+                    color: theme.colorScheme.outline.withValues(
+                      alpha: theme.brightness == Brightness.dark ? 0.2 : 0.06,
+                    ),
+                  ),
+                ),
+                elevation: 4,
+                shadowColor: Colors.black.withValues(alpha: 0.2),
+                child: InkWell(
+                  key: const ValueKey('add-finance-entry'),
+                  customBorder: const CircleBorder(),
+                  onTap: _openEntryCreator,
+                  child: SizedBox.square(
+                    dimension: 56,
+                    child: Icon(
+                      CupertinoIcons.add,
+                      size: 28,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    tooltip: 'Search finances',
-                    onPressed: () => _searchFocusNode.requestFocus(),
-                    icon: Icon(
-                      CupertinoIcons.search,
-                      size: 26,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TextField(
-                      focusNode: _searchFocusNode,
-                      controller: _searchController,
-                      cursorColor: theme.colorScheme.primary,
-                      onChanged: (_) => setState(() {}),
-                      onSubmitted: (_) => _searchFocusNode.unfocus(),
-                      onTapOutside: (_) => _searchFocusNode.unfocus(),
-                      decoration: InputDecoration(
-                        hoverColor: Colors.transparent,
-                        hintText: 'Search finances',
-                        hintStyle: TextStyle(
-                          color: hintColor.withValues(alpha: 0.72),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        fillColor: Colors.transparent,
-                      ),
-                      maxLines: 1,
-                      minLines: 1,
-                      textInputAction: TextInputAction.search,
-                      textCapitalization: TextCapitalization.sentences,
-                      style: TextStyle(fontSize: 16, color: textColor),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: _searchFocusNode.hasFocus
-                      ? SizedBox(
-                          key: const ValueKey('hide-search-keyboard'),
-                          width: 44,
-                          height: 44,
-                          child: IconButton(
-                            tooltip: 'Hide keyboard',
-                            onPressed: _searchFocusNode.unfocus,
-                            icon: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        )
-                      : _isSearching
-                      ? SizedBox(
-                          key: const ValueKey('clear-search'),
-                          width: 44,
-                          height: 44,
-                          child: IconButton(
-                            tooltip: 'Clear search',
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                            icon: Icon(
-                              CupertinoIcons.xmark_circle_fill,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        )
-                      : const SizedBox(
-                          key: ValueKey('empty-search-action'),
-                          width: 44,
-                          height: 44,
-                        ),
-                ),
-              ],
-            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinanceSearchField(ThemeData theme) {
+    final textColor = theme.colorScheme.onSurface;
+    final hintColor = theme.colorScheme.onSurfaceVariant;
+    return ChatWorkingComposerFrame(
+      isWorking: false,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: theme.brightness == Brightness.dark
+                ? theme.colorScheme.outline.withValues(alpha: 0.2)
+                : theme.colorScheme.outline.withValues(alpha: 0.06),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: IconButton(
+                tooltip: 'Search finances',
+                onPressed: () => _searchFocusNode.requestFocus(),
+                icon: Icon(
+                  CupertinoIcons.search,
+                  size: 26,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(width: 2),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: TextField(
+                  focusNode: _searchFocusNode,
+                  controller: _searchController,
+                  cursorColor: theme.colorScheme.primary,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _searchFocusNode.unfocus(),
+                  onTapOutside: (_) => _searchFocusNode.unfocus(),
+                  decoration: InputDecoration(
+                    hoverColor: Colors.transparent,
+                    hintText: 'Search finances',
+                    hintStyle: TextStyle(
+                      color: hintColor.withValues(alpha: 0.72),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    fillColor: Colors.transparent,
+                  ),
+                  maxLines: 1,
+                  minLines: 1,
+                  textInputAction: TextInputAction.search,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: TextStyle(fontSize: 16, color: textColor),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: _searchFocusNode.hasFocus
+                  ? SizedBox(
+                      key: const ValueKey('hide-search-keyboard'),
+                      width: 44,
+                      height: 44,
+                      child: IconButton(
+                        tooltip: 'Hide keyboard',
+                        onPressed: _searchFocusNode.unfocus,
+                        icon: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : _isSearching
+                  ? SizedBox(
+                      key: const ValueKey('clear-search'),
+                      width: 44,
+                      height: 44,
+                      child: IconButton(
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                        icon: Icon(
+                          CupertinoIcons.xmark_circle_fill,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : const SizedBox(
+                      key: ValueKey('empty-search-action'),
+                      width: 44,
+                      height: 44,
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -952,7 +979,21 @@ class _FinancesScreenState extends State<FinancesScreen> {
     }
   }
 
-  void _applyUpdatedEntry(FinanceEntry updated) {
+  Future<void> _openEntryCreator() async {
+    _searchFocusNode.unfocus();
+    final result = await Navigator.of(context).push<FinanceEntryEditResult>(
+      MaterialPageRoute(builder: (_) => const FinanceEntryEditScreen()),
+    );
+    if (!mounted || result == null) return;
+    switch (result) {
+      case FinanceEntrySaved(entry: final created):
+        _applyUpdatedEntry(created, wasCreated: true);
+      case FinanceEntryRemoved():
+        break;
+    }
+  }
+
+  void _applyUpdatedEntry(FinanceEntry updated, {bool wasCreated = false}) {
     final selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
     final updatedMonth = DateTime(updated.date.year, updated.date.month);
     setState(() {
@@ -972,7 +1013,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     });
     showAppToast(
       context,
-      message: 'Finance entry updated',
+      message: wasCreated ? 'Finance entry added' : 'Finance entry updated',
       type: ToastificationType.success,
     );
   }

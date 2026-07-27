@@ -63,8 +63,11 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   before reaching AI chat. Chat sessions remain local-only; finance data is read
   and written through SQLite and always synchronizes as AES-256-GCM ciphertext
   once the gate is satisfied.
-- In Finances, tapping an entry opens its edit screen directly (view, edit, or
-  delete via the app bar); there are no swipe gestures.
+- In Finances, a circular add button beside the keyboard-responsive search
+  field opens the shared form for manual entry creation. Tapping an existing
+  entry opens the form for editing; save is available in both the AppBar and
+  body, while delete stays in the body behind confirmation. There are no swipe
+  gestures.
 - Settings includes finances, insights, currency display, offline speech
   models, message bubble style, a notifications toggle, an Android
   background-service toggle, and sign-out.

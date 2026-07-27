@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
 
-/// Outcome the edit screen pops with, so the caller can update its list in
-/// place: the entry was saved (with the updated value) or removed (by id).
+/// Outcome the entry form pops with, so the caller can update its list in
+/// place: the entry was created/updated or removed (by id).
 sealed class FinanceEntryEditResult {
   const FinanceEntryEditResult();
 }
@@ -28,9 +28,10 @@ class FinanceEntryRemoved extends FinanceEntryEditResult {
 }
 
 class FinanceEntryEditScreen extends StatefulWidget {
-  const FinanceEntryEditScreen({super.key, required this.entry});
+  const FinanceEntryEditScreen({super.key, this.entry});
 
-  final FinanceEntry entry;
+  /// Null when the form is creating a new manual entry.
+  final FinanceEntry? entry;
 
   @override
   State<FinanceEntryEditScreen> createState() => _FinanceEntryEditScreenState();
@@ -49,16 +50,20 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
   void initState() {
     super.initState();
     final entry = widget.entry;
-    _descriptionController = TextEditingController(text: entry.description);
+    _descriptionController = TextEditingController(
+      text: entry?.description ?? '',
+    );
     _amountController = TextEditingController(
-      text: entry.amount == entry.amount.roundToDouble()
+      text: entry == null
+          ? ''
+          : entry.amount == entry.amount.roundToDouble()
           ? entry.amount.toInt().toString()
           : entry.amount.toString(),
     );
-    _categoryController = TextEditingController(text: entry.category);
-    _type = entry.type;
-    _date = entry.date;
-    _hasTime = entry.hasTime;
+    _categoryController = TextEditingController(text: entry?.category ?? '');
+    _type = entry?.type ?? FinanceEntryType.expense;
+    _date = entry?.date ?? DateTime.now();
+    _hasTime = entry?.hasTime ?? true;
   }
 
   @override
@@ -82,12 +87,19 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
-        title: const Text('Edit Finance Entry'),
+        title: Text(
+          widget.entry == null ? 'Add Finance Entry' : 'Edit Finance Entry',
+        ),
         actions: [
           IconButton(
-            tooltip: 'Delete entry',
-            onPressed: _isSaving ? null : _confirmDelete,
-            icon: Icon(CupertinoIcons.trash, color: theme.colorScheme.error),
+            tooltip: widget.entry == null ? 'Save entry' : 'Save changes',
+            onPressed: _isSaving ? null : _save,
+            icon: _isSaving
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_outlined),
           ),
           const SizedBox(width: 4),
         ],
@@ -154,8 +166,8 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                         ...(_type == FinanceEntryType.income
                             ? kIncomeCategories
                             : kFinanceCategories),
-                        if (widget.entry.category.trim().isNotEmpty)
-                          widget.entry.category.trim(),
+                        if (widget.entry?.category.trim().isNotEmpty ?? false)
+                          widget.entry!.category.trim(),
                       }.toList();
                       return Align(
                         alignment: Alignment.centerLeft,
@@ -244,9 +256,32 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(CupertinoIcons.checkmark_alt),
-                label: Text(_isSaving ? 'Saving' : 'Save Changes'),
+                label: Text(
+                  _isSaving
+                      ? 'Saving'
+                      : widget.entry == null
+                      ? 'Save Entry'
+                      : 'Save Changes',
+                ),
               ),
             ),
+            if (widget.entry != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 54,
+                child: OutlinedButton.icon(
+                  onPressed: _isSaving ? null : _confirmDelete,
+                  icon: const Icon(CupertinoIcons.trash),
+                  label: const Text('Delete Entry'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                    side: BorderSide(
+                      color: theme.colorScheme.error.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -548,24 +583,39 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
     }
 
     setState(() => _isSaving = true);
-    final updated = widget.entry.copyWith(
-      type: _type,
-      date: _date,
-      hasTime: _hasTime,
-      description: normalizeNewFinanceLabel(description),
-      amount: amount,
-      category: normalizeNewFinanceCategory(
-        category,
-        description: normalizeNewFinanceLabel(description),
-      ),
+    final normalizedDescription = normalizeNewFinanceLabel(description);
+    final normalizedCategory = normalizeNewFinanceCategory(
+      category,
+      description: normalizedDescription,
     );
-    final saved = await FinanceService.instance.update(updated);
+    final existingEntry = widget.entry;
+    final saved = existingEntry == null
+        ? await FinanceService.instance.add(
+            FinanceEntry.create(
+              type: _type,
+              date: _date,
+              hasTime: _hasTime,
+              description: normalizedDescription,
+              amount: amount,
+              category: normalizedCategory,
+            ),
+          )
+        : await FinanceService.instance.update(
+            existingEntry.copyWith(
+              type: _type,
+              date: _date,
+              hasTime: _hasTime,
+              description: normalizedDescription,
+              amount: amount,
+              category: normalizedCategory,
+            ),
+          );
     if (!mounted) return;
     if (saved == null) {
       setState(() => _isSaving = false);
       showAppToast(
         context,
-        message: 'Finance entry could not be updated',
+        message: 'Finance entry could not be saved',
         type: ToastificationType.error,
       );
       return;
@@ -574,6 +624,8 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    final entry = widget.entry;
+    if (entry == null) return;
     final theme = Theme.of(context);
     final confirmed = await ResponsiveInfoSheet.show<bool>(
       context,
@@ -589,7 +641,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
       ],
       contentWidgets: [
         Text(
-          'Delete "${widget.entry.description}" (${widget.entry.displayAmount})? '
+          'Delete "${entry.description}" (${entry.displayAmount})? '
           'This cannot be undone.',
           style: AppTheme.bodyMedium.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -622,7 +674,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _isSaving = true);
-    final deleted = await FinanceService.instance.delete(widget.entry.id);
+    final deleted = await FinanceService.instance.delete(entry.id);
     if (!mounted) return;
     if (!deleted) {
       setState(() => _isSaving = false);
@@ -633,7 +685,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
       );
       return;
     }
-    Navigator.of(context).pop(FinanceEntryRemoved(widget.entry.id));
+    Navigator.of(context).pop(FinanceEntryRemoved(entry.id));
   }
 
   String _formatDate(DateTime date) {
