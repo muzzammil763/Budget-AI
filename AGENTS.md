@@ -36,10 +36,12 @@ lib/
       user_bubble_style_surface.dart  Painted user-bubble styles
       chat_response_markdown.dart, markdown_table_view.dart, streaming_text_reveal.dart
     finances/
-      finances_screen.dart      List (month/overall pills, search, balance card);
-                                tap → edit screen; no swipe gestures
-      finance_entry_edit_screen.dart  View/edit one entry; AppBar delete w/ confirm;
-                                auth-style fields; returns FinanceEntryEditResult
+      finances_screen.dart      List (month/overall pills, responsive search +
+                                manual-add button, balance card); tap → edit
+                                screen; no swipe gestures
+      finance_entry_edit_screen.dart  Shared create/edit form; AppBar + body save,
+                                body delete w/ confirm; auth-style fields;
+                                returns FinanceEntryEditResult
       finance_insights_screen.dart    Insights: opens on current month; heatmap clipped
                                 to first entry; numberless bars w/ tap-to-reveal popups
       finance_service.dart      Finance domain logic, totals, savings rollover
@@ -89,7 +91,7 @@ speech is on-device.
 ## Feature surface
 
 - **Chat** — streaming OpenAI chat that logs/queries finances via tools. Speech playback is scoped to microphone-originated turns; typed messages never trigger audio. The composer has one contextual action: Send when text exists, hold-to-talk when empty, Stop during a response. The model is not user-facing anywhere in the UI. Chat history is local-only. All styles use the bundled Google Sans font; Boldonse branding and monospaced code are preserved.
-- **Finances** — month/overall pill scope, balance card, keyword search. Tapping an entry opens the edit screen directly (no details sheet, no swipe gestures). The edit screen views/edits an entry with auth-styled fields and deletes via an AppBar action backed by a confirmation sheet.
+- **Finances** — month/overall pill scope, balance card, and a keyboard-responsive keyword-search row with a circular manual-add button. Tapping an entry opens the shared create/edit form directly (no details sheet, no swipe gestures). Save is available in the AppBar and body; existing entries expose body-level delete backed by a confirmation sheet.
 - **Insights** — opens scoped to the current month (not Overall). The spending heatmap is clipped to the first tracked entry (header reads "Since <Month Year>" until a full year accrues). The 30-day and month activity charts are numberless bars sized by expense; tap or hold a bar for a transient popup with that day's total and date.
 - **Settings** — an always-visible AI usage card (this month's requests/tokens against `ai_user_limits`, with a pulsing skeleton while refreshing) at the top, then inline name editor, Finances, Finance Insights, Currency display, Offline Speech Models, Message bubble (dedicated screen), Notifications toggle, Android Background Service toggle, and Sign out. Bubble-style, currency, and speech-model pickers share one aesthetic (12-radius cards, `outline@0.25`/primary borders, SafeArea + max-width). Encryption is not a settings toggle — it is handled by the mandatory gate.
 - **Native entry points** — iOS 17 Home Screen widget + Siri App Intents ("Add an expense/income in Budget AI"); Android Home Screen widget + Google Assistant App Actions. Both write to the shared store and import live via Darwin notification / method channel; the widget UI stays native. See README for App Group and setup details.
