@@ -39,10 +39,18 @@ void main() {
 
     expect(find.text('Edit Custom Currency'), findsOneWidget);
     expect(find.text('Save Changes'), findsOneWidget);
+    expect(find.text('Delete Currency'), findsOneWidget);
     final field = tester.widget<TextField>(
       find.byKey(const ValueKey('custom-currency-field')),
     );
     expect(field.controller!.text, 'BTC');
+
+    await tester.tap(find.text('Delete Currency'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Delete Custom Currency?'), findsOneWidget);
+    expect(find.text('Delete "BTC"? This cannot be undone.'), findsOneWidget);
   });
 
   testWidgets('picker exposes add and edit actions for custom currencies', (
@@ -56,7 +64,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: CurrencyPickerScreen()));
 
     expect(find.byTooltip('Add custom currency'), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.pencil), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.square_pencil), findsOneWidget);
     expect(find.byTooltip('Edit BTC'), findsOneWidget);
   });
 
@@ -143,14 +151,17 @@ void main() {
       tester.element(find.byType(CustomCurrencyEditScreen)),
     ).pop(true);
     await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 300));
 
     final pickerScroll = find.byKey(const ValueKey('currency-options-scroll'));
     expect(pickerScroll, findsOneWidget);
     final scrollView = tester.widget<SingleChildScrollView>(pickerScroll);
     expect(service.currency.value, 'XAU');
     expect(find.text('Choose Currency Display'), findsOneWidget);
-    expect(scrollView.controller!.offset, greaterThan(0));
+    expect(
+      scrollView.controller!.offset,
+      closeTo(scrollView.controller!.position.maxScrollExtent, 0.1),
+    );
   });
 
   test('custom currency validation rejects long and duplicate values', () {

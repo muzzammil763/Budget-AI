@@ -82,9 +82,9 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   account identity, secure password-reset action, and sign-out. The currency
   picker has a responsive search field and adjacent circular add action that
   opens a dedicated custom-currency form; custom displays are limited to five
-  characters and can be edited later. The picker reveals the current selection
-  on entry, scrolls to a newly saved custom display, and stays open when the
-  selection changes so users can return with Back.
+  characters and can be edited or deleted later. The picker reveals the current
+  selection on entry, jumps directly to a newly saved custom display, and stays
+  open when the selection changes so users can return with Back.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding

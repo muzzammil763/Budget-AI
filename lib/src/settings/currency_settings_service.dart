@@ -135,6 +135,34 @@ class CurrencySettingsService {
     return true;
   }
 
+  Future<bool> deleteCustomCurrency(String value) async {
+    final normalized = value.trim();
+    final updated = [...customCurrencies.value];
+    final index = updated.indexWhere(
+      (currency) => currency.toLowerCase() == normalized.toLowerCase(),
+    );
+    if (index == -1) return false;
+
+    final deleted = updated.removeAt(index);
+    final wasSelected = currency.value.toLowerCase() == deleted.toLowerCase();
+    customCurrencies.value = updated;
+    if (wasSelected) currency.value = 'USD';
+
+    await _settings.setStringList(
+      _customCurrenciesKey,
+      updated,
+      scope: SettingSyncScope.account,
+    );
+    if (wasSelected) {
+      await _settings.setString(
+        _currencyKey,
+        'USD',
+        scope: SettingSyncScope.account,
+      );
+    }
+    return true;
+  }
+
   Future<void> applySyncedState(
     String value,
     List<String> syncedCustomCurrencies,

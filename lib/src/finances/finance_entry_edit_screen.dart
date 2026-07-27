@@ -267,19 +267,12 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
             ),
             if (widget.entry != null) ...[
               const SizedBox(height: 12),
-              SizedBox(
+              AppButton(
+                text: 'Delete Entry',
+                icon: CupertinoIcons.trash,
                 height: 54,
-                child: OutlinedButton.icon(
-                  onPressed: _isSaving ? null : _confirmDelete,
-                  icon: const Icon(CupertinoIcons.trash),
-                  label: const Text('Delete Entry'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                    side: BorderSide(
-                      color: theme.colorScheme.error.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
+                isRed: true,
+                onPressed: _isSaving ? null : _confirmDelete,
               ),
             ],
           ],

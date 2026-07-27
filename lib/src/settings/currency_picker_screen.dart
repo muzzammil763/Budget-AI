@@ -105,10 +105,7 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
     if (!mounted || saved != true) return;
     _searchController.clear();
     setState(() {});
-    _scheduleScrollToCurrency(
-      CurrencySettingsService.instance.current,
-      animated: true,
-    );
+    _scheduleScrollToCurrency(CurrencySettingsService.instance.current);
   }
 
   @override
@@ -507,16 +504,12 @@ class _CurrencyOptionCard extends StatelessWidget {
               ),
             ),
             if (onEdit == null)
-              Icon(
-                CupertinoIcons.chevron_forward,
-                color: theme.colorScheme.onSurfaceVariant,
-                size: 17,
-              )
+              SizedBox.shrink()
             else
               IconButton(
                 tooltip: 'Edit ${option.displayText}',
                 onPressed: onEdit,
-                icon: const Icon(CupertinoIcons.pencil, size: 19),
+                icon: const Icon(CupertinoIcons.square_pencil, size: 19),
                 color: theme.colorScheme.primary,
               ),
           ],

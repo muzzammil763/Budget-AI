@@ -1,5 +1,6 @@
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -153,6 +154,16 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
               isLoading: _isSaving,
               onPressed: _isSaving ? null : _save,
             ),
+            if (_isEditing) ...[
+              const SizedBox(height: 12),
+              AppButton(
+                text: 'Delete Currency',
+                icon: CupertinoIcons.trash,
+                height: 54,
+                isRed: true,
+                onPressed: _isSaving ? null : _confirmDelete,
+              ),
+            ],
           ],
         ),
       ),
@@ -181,6 +192,73 @@ class _CustomCurrencyEditScreenState extends State<CustomCurrencyEditScreen> {
       showAppToast(
         context,
         message: 'Custom currency could not be saved',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
+  Future<void> _confirmDelete() async {
+    final currency = widget.currency;
+    if (currency == null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final theme = Theme.of(context);
+    final confirmed = await ResponsiveInfoSheet.show<bool>(
+      context,
+      title: 'Delete Custom Currency?',
+      headerIcon: Icon(
+        CupertinoIcons.trash,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.error),
+      ),
+      gradientColors: [
+        theme.colorScheme.error,
+        theme.colorScheme.error.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Text(
+          'Delete "$currency"? This cannot be undone.',
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          spacing: 12,
+          children: [
+            Expanded(
+              child: AppButton(
+                text: 'Cancel',
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.pop(context, false),
+              ),
+            ),
+            Expanded(
+              child: AppButton(
+                text: 'Delete',
+                isRed: true,
+                onPressed: () => Navigator.pop(context, true),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSaving = true);
+    final deleted = await CurrencySettingsService.instance.deleteCustomCurrency(
+      currency,
+    );
+    if (!mounted) return;
+    if (!deleted) {
+      setState(() => _isSaving = false);
+      showAppToast(
+        context,
+        message: 'Custom currency could not be deleted',
         type: ToastificationType.error,
       );
       return;
