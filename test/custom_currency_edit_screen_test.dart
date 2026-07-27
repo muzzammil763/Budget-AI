@@ -86,6 +86,73 @@ void main() {
     expect(find.text('No currencies found'), findsOneWidget);
   });
 
+  testWidgets('picker reveals the existing selected currency on entry', (
+    tester,
+  ) async {
+    final currency = CurrencySettingsService.instance.currency;
+    final original = currency.value;
+    addTearDown(() => currency.value = original);
+    currency.value = 'JPY';
+
+    await tester.pumpWidget(const MaterialApp(home: CurrencyPickerScreen()));
+    await tester.pump();
+
+    final scrollView = tester.widget<SingleChildScrollView>(
+      find.byKey(const ValueKey('currency-options-scroll')),
+    );
+    expect(scrollView.controller!.offset, greaterThan(0));
+  });
+
+  testWidgets('selection keeps picker open until the user goes back', (
+    tester,
+  ) async {
+    final currency = CurrencySettingsService.instance.currency;
+    final original = currency.value;
+    addTearDown(() => currency.value = original);
+    currency.value = 'Rs';
+
+    await tester.pumpWidget(const MaterialApp(home: CurrencyPickerScreen()));
+    await tester.tap(find.text('USD'));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(currency.value, 'USD');
+    expect(find.text('Choose Currency Display'), findsOneWidget);
+  });
+
+  testWidgets('new custom currency is selected and scrolled into view', (
+    tester,
+  ) async {
+    final service = CurrencySettingsService.instance;
+    final originalCurrency = service.currency.value;
+    final originalCustomCurrencies = service.customCurrencies.value;
+    addTearDown(() {
+      service.currency.value = originalCurrency;
+      service.customCurrencies.value = originalCustomCurrencies;
+    });
+    service.currency.value = 'USD';
+    service.customCurrencies.value = [];
+
+    await tester.pumpWidget(const MaterialApp(home: CurrencyPickerScreen()));
+    await tester.tap(find.byKey(const ValueKey('add-custom-currency')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    service.customCurrencies.value = ['XAU'];
+    service.currency.value = 'XAU';
+    Navigator.of(
+      tester.element(find.byType(CustomCurrencyEditScreen)),
+    ).pop(true);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final pickerScroll = find.byKey(const ValueKey('currency-options-scroll'));
+    expect(pickerScroll, findsOneWidget);
+    final scrollView = tester.widget<SingleChildScrollView>(pickerScroll);
+    expect(service.currency.value, 'XAU');
+    expect(find.text('Choose Currency Display'), findsOneWidget);
+    expect(scrollView.controller!.offset, greaterThan(0));
+  });
+
   test('custom currency validation rejects long and duplicate values', () {
     final service = CurrencySettingsService.instance;
     final original = service.customCurrencies.value;

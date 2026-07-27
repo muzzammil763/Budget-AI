@@ -40,7 +40,9 @@ class _CurrencyScreenContent extends StatefulWidget {
 class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  bool _isClosing = false;
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _optionKeys = {};
+  bool _didScheduleInitialScroll = false;
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
     _searchFocusNode.removeListener(_handleSearchFocusChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -71,11 +74,41 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
 
   Future<void> _selectCurrency(String value) async {
     final normalized = value.trim();
-    if (normalized.isEmpty || _isClosing) return;
-    _isClosing = true;
+    if (normalized.isEmpty) return;
     HapticFeedback.selectionClick();
     await CurrencySettingsService.instance.setCurrency(normalized);
-    if (mounted) Navigator.of(context).pop();
+  }
+
+  GlobalKey _optionKey(String currency) {
+    return _optionKeys.putIfAbsent(currency, GlobalKey.new);
+  }
+
+  void _scheduleScrollToCurrency(String currency, {bool animated = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final optionContext = _optionKeys[currency]?.currentContext;
+      if (optionContext == null) return;
+      Scrollable.ensureVisible(
+        optionContext,
+        alignment: 0.18,
+        duration: animated ? const Duration(milliseconds: 420) : Duration.zero,
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Future<void> _openCustomCurrencyEditor({String? currency}) async {
+    final saved = await CustomCurrencyEditScreen.show(
+      context,
+      currency: currency,
+    );
+    if (!mounted || saved != true) return;
+    _searchController.clear();
+    setState(() {});
+    _scheduleScrollToCurrency(
+      CurrencySettingsService.instance.current,
+      animated: true,
+    );
   }
 
   @override
@@ -84,69 +117,78 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
     return Stack(
       children: [
         Positioned.fill(
-          child: ListView(
+          child: SingleChildScrollView(
+            key: const ValueKey('currency-options-scroll'),
+            controller: _scrollController,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-                child: Text(
-                  'Choose how Budget AI displays amounts in finances, insights, '
-                  'tool results and AI responses. Use + to add a custom display.',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+                  child: Text(
+                    'Choose how Budget AI displays amounts in finances, insights, '
+                    'tool results and AI responses. Use + to add a custom display.',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ),
-              ValueListenableBuilder<List<String>>(
-                valueListenable:
-                    CurrencySettingsService.instance.customCurrencies,
-                builder: (context, customCurrencies, _) {
-                  final options = [
-                    ...kPresetCurrencyOptions,
-                    ...customCurrencies.map(
-                      (currency) => CurrencyOption(
-                        displayText: currency,
-                        name: 'Custom Display',
+                ValueListenableBuilder<List<String>>(
+                  valueListenable:
+                      CurrencySettingsService.instance.customCurrencies,
+                  builder: (context, customCurrencies, _) {
+                    final options = [
+                      ...kPresetCurrencyOptions,
+                      ...customCurrencies.map(
+                        (currency) => CurrencyOption(
+                          displayText: currency,
+                          name: 'Custom Display',
+                        ),
                       ),
-                    ),
-                  ].where(_matchesSearch).toList();
+                    ].where(_matchesSearch).toList();
 
-                  return ValueListenableBuilder<String>(
-                    valueListenable: CurrencySettingsService.instance.currency,
-                    builder: (context, selectedCurrency, _) {
-                      if (options.isEmpty) {
-                        return _buildNoSearchResults(theme);
-                      }
-                      return Column(
-                        children: [
-                          for (final option in options)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _CurrencyOptionCard(
-                                option: option,
-                                selected:
-                                    option.displayText == selectedCurrency,
-                                onTap: () =>
-                                    _selectCurrency(option.displayText),
-                                onEdit:
-                                    customCurrencies.contains(
-                                      option.displayText,
-                                    )
-                                    ? () => CustomCurrencyEditScreen.show(
-                                        context,
-                                        currency: option.displayText,
+                    return ValueListenableBuilder<String>(
+                      valueListenable:
+                          CurrencySettingsService.instance.currency,
+                      builder: (context, selectedCurrency, _) {
+                        if (!_didScheduleInitialScroll && !_isSearching) {
+                          _didScheduleInitialScroll = true;
+                          _scheduleScrollToCurrency(selectedCurrency);
+                        }
+                        if (options.isEmpty) {
+                          return _buildNoSearchResults(theme);
+                        }
+                        return Column(
+                          children: [
+                            for (final option in options)
+                              Padding(
+                                key: _optionKey(option.displayText),
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _CurrencyOptionCard(
+                                  option: option,
+                                  selected:
+                                      option.displayText == selectedCurrency,
+                                  onTap: () =>
+                                      _selectCurrency(option.displayText),
+                                  onEdit:
+                                      customCurrencies.contains(
+                                        option.displayText,
                                       )
-                                    : null,
+                                      ? () => _openCustomCurrencyEditor(
+                                          currency: option.displayText,
+                                        )
+                                      : null,
+                                ),
                               ),
-                            ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
-            ],
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
         Align(
@@ -219,7 +261,7 @@ class _CurrencyScreenContentState extends State<_CurrencyScreenContent> {
                 child: InkWell(
                   key: const ValueKey('add-custom-currency'),
                   customBorder: const CircleBorder(),
-                  onTap: () => CustomCurrencyEditScreen.show(context),
+                  onTap: _openCustomCurrencyEditor,
                   child: SizedBox.square(
                     dimension: 56,
                     child: Icon(
