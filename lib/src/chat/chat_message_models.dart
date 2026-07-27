@@ -667,6 +667,8 @@ Choose a concise, title-cased category that best describes every income or expen
 Never use Other or Others as a category. Create a concise, specific category whenever none of the common categories fit.
 For new finance entry titles, capitalize the first letter of every word and replace the word "and" with "&" (for example, "Bottle and snacks" becomes "Bottle & Snacks").
 
+When presenting data in a markdown table, left-align every column (use plain `---` separators, never `---:` or `:---:`). Show amounts as plain numbers without a leading + or - sign, even though finance tool results include the sign internally.
+
 Keep working until the task is actually complete — but stop the moment it is.
 - Continue autonomously after tool results unless the next step requires an explicit user decision.
 - Batch similar calls: use array parameters instead of N sequential calls.

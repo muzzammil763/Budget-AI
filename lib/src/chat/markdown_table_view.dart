@@ -33,16 +33,17 @@ class MarkdownTableView extends StatelessWidget {
     final bodyRows = firstRowIsHeader ? tableRows.skip(1).toList() : tableRows;
     final columnCount = tableRows.first.fields.length;
     final theme = Theme.of(context);
-    final columnWidths = _buildColumnWidths(tableRows, columnCount);
+    final baseColumnWidths = _estimateColumnWidths(tableRows, columnCount);
     final dividerColor = theme.colorScheme.onSurface.withValues(
       alpha: theme.brightness == Brightness.dark ? 0.12 : 0.09,
     );
 
-    Widget buildTable() {
+    Widget buildTable(Map<int, TableColumnWidth> columnWidths) {
       return Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         border: TableBorder(
           horizontalInside: BorderSide(color: dividerColor, width: 1.5),
+          verticalInside: BorderSide(color: dividerColor, width: 1.5),
         ),
         columnWidths: columnWidths,
         children: [
@@ -73,6 +74,14 @@ class MarkdownTableView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final resolvedWidths = _resolveColumnWidths(
+            baseColumnWidths,
+            constraints.hasBoundedWidth ? constraints.maxWidth - 24 : null,
+          );
+          final columnWidths = {
+            for (final entry in resolvedWidths.entries)
+              entry.key: FixedColumnWidth(entry.value),
+          };
           final table = constraints.hasBoundedWidth
               ? ConstrainedBox(
                   constraints: BoxConstraints(
@@ -80,9 +89,9 @@ class MarkdownTableView extends StatelessWidget {
                         .clamp(0, double.infinity)
                         .toDouble(),
                   ),
-                  child: buildTable(),
+                  child: buildTable(columnWidths),
                 )
-              : buildTable();
+              : buildTable(columnWidths);
           final scrollView = _MarkdownTableHorizontalScroller(child: table);
 
           if (!constraints.hasBoundedWidth) {
@@ -115,12 +124,7 @@ class MarkdownTableView extends StatelessWidget {
     };
 
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        0,
-        isHeader ? 12 : 12,
-        0,
-        isHeader ? 12 : 12,
-      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 12),
       child: Align(
         alignment: alignment,
         child: DefaultTextStyle(
@@ -144,18 +148,33 @@ class MarkdownTableView extends StatelessWidget {
     );
   }
 
-  Map<int, TableColumnWidth> _buildColumnWidths(
+  Map<int, double> _estimateColumnWidths(
     List<CustomTableRow> rows,
     int columnCount,
   ) {
     return {
       for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
-        columnIndex: FixedColumnWidth(_estimateColumnWidth(rows, columnIndex)),
+        columnIndex: _estimateColumnWidth(rows, columnIndex),
+    };
+  }
+
+  Map<int, double> _resolveColumnWidths(
+    Map<int, double> baseWidths,
+    double? availableWidth,
+  ) {
+    if (availableWidth == null) return baseWidths;
+    final totalBase = baseWidths.values.fold<double>(0, (sum, w) => sum + w);
+    if (totalBase <= 0 || totalBase >= availableWidth) return baseWidths;
+
+    final extra = availableWidth - totalBase;
+    return {
+      for (final entry in baseWidths.entries)
+        entry.key: entry.value + extra * (entry.value / totalBase),
     };
   }
 
   double _estimateColumnWidth(List<CustomTableRow> rows, int columnIndex) {
-    const horizontalCellPadding = 32.0;
+    const horizontalCellPadding = 24.0;
     const minColumnWidth = 68.0;
     const maxColumnWidth = 300.0;
     var widestCell = 0.0;
