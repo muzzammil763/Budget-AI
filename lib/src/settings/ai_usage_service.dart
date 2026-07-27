@@ -26,6 +26,11 @@ class AiUsageInfo {
 
   double get tokensFraction =>
       tokensLimit <= 0 ? 0 : (tokensUsed / tokensLimit).clamp(0, 1);
+
+  /// One operational progress value for compact surfaces. Whichever quota is
+  /// closer to exhaustion governs whether the next AI request can run.
+  double get quotaFraction =>
+      requestsFraction >= tokensFraction ? requestsFraction : tokensFraction;
 }
 
 /// Reads this calendar month's AI usage against the user's monthly limits
