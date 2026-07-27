@@ -80,8 +80,9 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
   message style, and App Behavior controls for notifications and the Android
   background service. The dedicated Account screen contains the name editor,
   account identity, secure password-reset action, and sign-out. The currency
-  picker has a floating add action that opens a dedicated custom-currency form;
-  custom displays are limited to five characters and can be edited later.
+  picker has a responsive search field and adjacent circular add action that
+  opens a dedicated custom-currency form; custom displays are limited to five
+  characters and can be edited later.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
