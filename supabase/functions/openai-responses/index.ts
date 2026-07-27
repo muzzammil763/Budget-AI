@@ -48,8 +48,8 @@ type Reservation = {
   allowed: boolean;
   code: string;
   request_id: string;
-  daily_request_limit: number;
-  daily_token_limit: number;
+  monthly_request_limit: number;
+  monthly_token_limit: number;
   remaining_requests: number;
   remaining_tokens: number;
 };
