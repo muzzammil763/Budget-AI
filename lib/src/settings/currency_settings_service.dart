@@ -1,5 +1,7 @@
 import 'package:budget_ai/src/storage/local_settings_store.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+
+const int kMaxCustomCurrencyCharacters = 5;
 
 const List<CurrencyOption> kPresetCurrencyOptions = [
   CurrencyOption(displayText: 'Rs', name: 'Pakistani Rupee symbol'),
@@ -65,6 +67,72 @@ class CurrencySettingsService {
       normalized,
       scope: SettingSyncScope.account,
     );
+  }
+
+  String? customCurrencyValidationError(String value, {String? originalValue}) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return 'Enter a currency display';
+    if (normalized.characters.length > kMaxCustomCurrencyCharacters) {
+      return 'Use no more than $kMaxCustomCurrencyCharacters characters';
+    }
+    final normalizedLower = normalized.toLowerCase();
+    if (kPresetCurrencyOptions.any(
+      (option) => option.displayText.toLowerCase() == normalizedLower,
+    )) {
+      return 'That currency display is already in the preset list';
+    }
+    final originalLower = originalValue?.trim().toLowerCase();
+    if (customCurrencies.value.any(
+      (currency) =>
+          currency.toLowerCase() == normalizedLower &&
+          currency.toLowerCase() != originalLower,
+    )) {
+      return 'That custom currency already exists';
+    }
+    return null;
+  }
+
+  Future<bool> saveCustomCurrency(String value, {String? originalValue}) async {
+    final normalized = value.trim();
+    if (customCurrencyValidationError(
+          normalized,
+          originalValue: originalValue,
+        ) !=
+        null) {
+      return false;
+    }
+
+    final updated = [...customCurrencies.value];
+    final original = originalValue?.trim();
+    if (original == null) {
+      updated.add(normalized);
+    } else {
+      final index = updated.indexWhere(
+        (currency) => currency.toLowerCase() == original.toLowerCase(),
+      );
+      if (index == -1) return false;
+      updated[index] = normalized;
+    }
+
+    final shouldSelect =
+        original == null ||
+        currency.value.toLowerCase() == original.toLowerCase();
+    customCurrencies.value = updated;
+    if (shouldSelect) currency.value = normalized;
+
+    await _settings.setStringList(
+      _customCurrenciesKey,
+      updated,
+      scope: SettingSyncScope.account,
+    );
+    if (shouldSelect) {
+      await _settings.setString(
+        _currencyKey,
+        normalized,
+        scope: SettingSyncScope.account,
+      );
+    }
+    return true;
   }
 
   Future<void> applySyncedState(
@@ -150,7 +218,11 @@ class CurrencySettingsService {
     final alreadySaved = customCurrencies.value.any(
       (currency) => currency.toLowerCase() == value.toLowerCase(),
     );
-    if (isPreset || alreadySaved) return;
+    if (isPreset ||
+        alreadySaved ||
+        value.characters.length > kMaxCustomCurrencyCharacters) {
+      return;
+    }
 
     final updated = [...customCurrencies.value, value];
     customCurrencies.value = updated;

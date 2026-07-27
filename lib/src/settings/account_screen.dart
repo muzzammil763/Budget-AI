@@ -36,19 +36,12 @@ class _AccountScreenState extends State<AccountScreen> {
         top: false,
         child: ListView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           children: [
             _buildProfileHero(theme),
-            const SizedBox(height: 22),
-            _sectionHeading(theme, 'PERSONAL DETAILS'),
             const SizedBox(height: 8),
-            _buildPersonalDetailsCard(theme),
-            const SizedBox(height: 22),
-            _sectionHeading(theme, 'SECURITY'),
-            const SizedBox(height: 8),
+            widget.nameEditor,
             _buildPasswordCard(theme),
-            const SizedBox(height: 22),
-            _sectionHeading(theme, 'SESSION'),
             const SizedBox(height: 8),
             _buildSignOutCard(theme),
           ],
@@ -66,7 +59,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ? '?'
             : name.trim()[0].toUpperCase();
         return Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -88,13 +81,12 @@ class _AccountScreenState extends State<AccountScreen> {
           child: Row(
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: theme.colorScheme.onPrimary.withValues(alpha: 0.3),
+                    color: theme.colorScheme.onPrimary.withValues(alpha: 0.5),
                   ),
                 ),
                 alignment: Alignment.center,
@@ -107,7 +99,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +113,6 @@ class _AccountScreenState extends State<AccountScreen> {
                         fontSize: 18,
                       ),
                     ),
-                    const SizedBox(height: 4),
                     Text(
                       _email,
                       maxLines: 1,
@@ -139,33 +130,6 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildPersonalDetailsCard(ThemeData theme) {
-    return Column(
-      children: [
-        widget.nameEditor,
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: _cardDecoration(theme),
-          child: InputDecorator(
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(CupertinoIcons.mail, size: 20),
-              helperText: 'Email changes are not available in the app yet',
-            ),
-            child: Text(
-              _email,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -248,18 +212,6 @@ class _AccountScreenState extends State<AccountScreen> {
         minimumSize: const Size.fromHeight(52),
         foregroundColor: theme.colorScheme.error,
         side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
-      ),
-    );
-  }
-
-  Widget _sectionHeading(ThemeData theme, String label) {
-    return Text(
-      label,
-      style: AppTheme.bodySmall.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.2,
       ),
     );
   }
