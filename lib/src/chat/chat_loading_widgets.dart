@@ -806,7 +806,7 @@ class _WorkingComposerBorderPainter extends CustomPainter {
 
     final borderPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isWorking ? 1.7 : 1
+      ..strokeWidth = 1.7
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
         colors: [
