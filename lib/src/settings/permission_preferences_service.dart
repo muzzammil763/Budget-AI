@@ -43,4 +43,20 @@ class PermissionPreferencesService {
     backgroundEnabled.value = value;
     await LocalSettingsStore.instance.setBool(_backgroundKey, value);
   }
+
+  /// Records permissions the user granted from the first-run onboarding flow.
+  ///
+  /// These preferences are intentionally device-local. Signing in, creating an
+  /// account, or pulling account settings must not replace them.
+  Future<void> recordOnboardingGrants({
+    required bool notificationsGranted,
+    required bool backgroundGranted,
+  }) async {
+    await Future.wait([
+      if (notificationsGranted && !notificationsEnabled.value)
+        setNotificationsEnabled(true),
+      if (backgroundGranted && !backgroundEnabled.value)
+        setBackgroundEnabled(true),
+    ]);
+  }
 }
