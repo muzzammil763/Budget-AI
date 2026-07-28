@@ -16,7 +16,10 @@ void main() {
 
     expect(find.text('Account'), findsOneWidget);
     expect(find.byKey(const ValueKey('account-name-editor')), findsOneWidget);
+    expect(find.text('Budget AI account'), findsOneWidget);
+    expect(find.text('Email unavailable'), findsOneWidget);
     expect(find.text('Change password'), findsOneWidget);
+    expect(find.textContaining('Send a secure reset link'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Sign Out'),
