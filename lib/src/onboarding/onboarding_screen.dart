@@ -18,6 +18,7 @@ import 'package:budget_ai/src/onboarding/onboarding_app_showcase.dart';
 import 'package:budget_ai/src/settings/currency_display_card.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/cupertino.dart';
@@ -79,6 +80,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundBatteryGranted =
           await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
     }
+    await PermissionPreferencesService.instance.recordOnboardingGrants(
+      notificationsGranted: notificationStatus.isGranted,
+      backgroundGranted: backgroundBatteryGranted ?? false,
+    );
 
     if (mounted) {
       setState(() {
@@ -94,6 +99,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         : (await Permission.notification.request()).isGranted;
     final status = await Permission.notification.status;
     final isGranted = granted || status.isGranted;
+    await PermissionPreferencesService.instance.recordOnboardingGrants(
+      notificationsGranted: isGranted,
+      backgroundGranted: false,
+    );
     if (mounted) {
       setState(() => _notificationGranted = isGranted);
       if (!isGranted) {
@@ -109,6 +118,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
     final granted =
         await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
+    await PermissionPreferencesService.instance.recordOnboardingGrants(
+      notificationsGranted: _notificationGranted ?? false,
+      backgroundGranted: granted,
+    );
     if (mounted) {
       setState(() => _backgroundBatteryGranted = granted);
     }
