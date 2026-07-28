@@ -493,24 +493,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             onPressed: _currentPage == 0
                                 ? null
                                 : () => _goToPage(_currentPage - 1),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  CupertinoIcons.back,
-                                  color: theme.colorScheme.onSurface,
-                                  size: screenSize.shortestSide * 0.045,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Back',
-                                  style: AppTheme.bodyLarge.copyWith(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    CupertinoIcons.back,
                                     color: theme.colorScheme.onSurface,
-                                    fontSize: screenSize.shortestSide * 0.037,
-                                    fontWeight: FontWeight.w700,
+                                    size: screenSize.shortestSide * 0.045,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Back',
+                                    style: AppTheme.bodyLarge.copyWith(
+                                      color: theme.colorScheme.onSurface,
+                                      fontSize: screenSize.shortestSide * 0.037,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),

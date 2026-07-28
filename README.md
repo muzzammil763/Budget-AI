@@ -54,6 +54,8 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
 ## App flow
 
 - First launch shows onboarding, followed by the Budget AI account flow.
+  Currency presets and custom currency creation are available during onboarding
+  before sign-in, and the choice is kept locally for the later account flow.
 - Email/password registration requires email confirmation. Confirmation codes
   and `budgetai://auth/confirm` links are supported.
 - Sign-in sessions restore automatically. Forgot-password and Account password

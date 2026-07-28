@@ -1,3 +1,4 @@
+import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/custom_currency_edit_screen.dart';
@@ -6,6 +7,64 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('onboarding opens currency choices and custom editor pre-login', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final service = CurrencySettingsService.instance;
+    final originalCurrency = service.currency.value;
+    final originalCustomCurrencies = service.customCurrencies.value;
+    addTearDown(() {
+      service.currency.value = originalCurrency;
+      service.customCurrencies.value = originalCustomCurrencies;
+    });
+    service.currency.value = 'Rs';
+    service.customCurrencies.value = [];
+
+    await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
+    await tester.pump(const Duration(milliseconds: 1200));
+
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    pageView.controller!.jumpToPage(1);
+    await tester.pump();
+    final chooseCurrencyButton = tester.widget<TextButton>(
+      find.ancestor(
+        of: find.text('Tap the card to choose more or add your own'),
+        matching: find.byType(TextButton),
+      ),
+    );
+    chooseCurrencyButton.onPressed!();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(CurrencyPickerScreen), findsOneWidget);
+    await tester.tap(find.text('USD'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(service.current, 'USD');
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('add-custom-currency')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(CustomCurrencyEditScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('custom-currency-field')),
+      'XAU',
+    );
+    await tester.tap(find.text('Add Currency'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(CurrencyPickerScreen), findsOneWidget);
+    expect(service.current, 'XAU');
+    expect(service.customCurrencies.value, contains('XAU'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('add form uses a large field limited to five characters', (
     tester,
   ) async {
