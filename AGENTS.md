@@ -72,7 +72,9 @@ supabase/                       Edge function (openai-responses), migrations, em
 
 Root docs: `README.md` (user/setup facing), `SUPABASE_BACKEND_PLAN.md`,
 `OFFLINE_FIRST_SYNC_PLAN.md`. Build: `Makefile` (`make apk`), `pubspec.yaml`,
-`analysis_options.yaml`.
+`analysis_options.yaml`. GitHub Actions runs the Flutter CI workflow for
+`master` pushes and pull requests targeting `master`, with cached Flutter and
+pub dependencies.
 
 ## Architecture
 
