@@ -44,12 +44,15 @@ class CurrencyDisplayCard extends StatelessWidget {
       height: cardHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+            return const SizedBox.shrink();
+          }
           final availableHeight = constraints.hasBoundedHeight
               ? constraints.maxHeight
               : screenHeight * 0.35;
           final responsiveUnit = math.min(
             screenSize.shortestSide,
-            availableHeight / 0.69,
+            availableHeight / 0.76,
           );
           final contentPadding = responsiveUnit * 0.032;
           final majorVerticalGap = responsiveUnit * 0.032;
