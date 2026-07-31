@@ -246,13 +246,11 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
               ),
             ),
             const SizedBox(height: 12),
-             AppButton(
-                text:  widget.entry == null
-                      ? 'Save Entry'
-                      : 'Save Changes',
-                icon: CupertinoIcons.check_mark,
-                onPressed: _isSaving ? null : _save,
-              ),
+            AppButton(
+              text: widget.entry == null ? 'Save Entry' : 'Save Changes',
+              icon: CupertinoIcons.check_mark,
+              onPressed: _isSaving ? null : _save,
+            ),
             if (widget.entry != null) ...[
               const SizedBox(height: 12),
               AppButton(

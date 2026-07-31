@@ -153,8 +153,7 @@ List<FinanceEntry> filterFinanceEntriesForList(
   var entries = source.toList();
   if (keywords.isNotEmpty) {
     entries = entries.where((entry) {
-      final haystack =
-          '${entry.description} ${entry.category}'.toLowerCase();
+      final haystack = '${entry.description} ${entry.category}'.toLowerCase();
       return keywords.any((keyword) => haystack.contains(keyword));
     }).toList();
   }

@@ -280,7 +280,9 @@ class EncryptedFinanceSyncService {
           })
           .eq('user_id', user.id);
     } catch (error) {
-      debugPrint('[EncryptedFinanceSyncService] Password wrap deferred: $error');
+      debugPrint(
+        '[EncryptedFinanceSyncService] Password wrap deferred: $error',
+      );
     }
   }
 

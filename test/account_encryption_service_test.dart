@@ -15,23 +15,23 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureStorageChannel, (call) async {
-      final args = (call.arguments as Map?)?.cast<String, dynamic>();
-      final key = args?['key'] as String?;
-      switch (call.method) {
-        case 'containsKey':
-          return secureStorage.containsKey(key);
-        case 'read':
-          return secureStorage[key];
-        case 'write':
-          secureStorage[key!] = args!['value'] as String;
-          return null;
-        case 'delete':
-          secureStorage.remove(key);
-          return null;
-        default:
-          return null;
-      }
-    });
+          final args = (call.arguments as Map?)?.cast<String, dynamic>();
+          final key = args?['key'] as String?;
+          switch (call.method) {
+            case 'containsKey':
+              return secureStorage.containsKey(key);
+            case 'read':
+              return secureStorage[key];
+            case 'write':
+              secureStorage[key!] = args!['value'] as String;
+              return null;
+            case 'delete':
+              secureStorage.remove(key);
+              return null;
+            default:
+              return null;
+          }
+        });
   });
 
   test('finance payload uses authenticated encryption', () async {
@@ -64,43 +64,54 @@ void main() {
     );
   });
 
-  test('password wrap round-trips the account data key', () async {
-    final service = AccountEncryptionService.instance;
-    const userId = 'password-wrap-user';
-    await service.createDataKey(userId);
-    final fingerprint = await service.fingerprint(userId);
+  test(
+    'password wrap round-trips the account data key',
+    () async {
+      final service = AccountEncryptionService.instance;
+      const userId = 'password-wrap-user';
+      await service.createDataKey(userId);
+      final fingerprint = await service.fingerprint(userId);
 
-    final wrapped = await service.wrapKeyWithPassword(
-      userId,
-      'correct horse battery staple',
-    );
-    await service.unwrapKeyWithPassword(
-      userId,
-      'correct horse battery staple',
-      wrapped,
-      fingerprint!,
-    );
-
-    expect(await service.fingerprint(userId), fingerprint);
-  }, timeout: const Timeout(Duration(seconds: 60)));
-
-  test('password wrap rejects the wrong password', () async {
-    final service = AccountEncryptionService.instance;
-    const userId = 'password-wrap-wrong-password-user';
-    await service.createDataKey(userId);
-    final fingerprint = await service.fingerprint(userId);
-    final wrapped = await service.wrapKeyWithPassword(userId, 'right-password');
-
-    await expectLater(
-      service.unwrapKeyWithPassword(
+      final wrapped = await service.wrapKeyWithPassword(
         userId,
-        'wrong-password',
+        'correct horse battery staple',
+      );
+      await service.unwrapKeyWithPassword(
+        userId,
+        'correct horse battery staple',
         wrapped,
         fingerprint!,
-      ),
-      throwsA(anything),
-    );
-  }, timeout: const Timeout(Duration(seconds: 60)));
+      );
+
+      expect(await service.fingerprint(userId), fingerprint);
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
+
+  test(
+    'password wrap rejects the wrong password',
+    () async {
+      final service = AccountEncryptionService.instance;
+      const userId = 'password-wrap-wrong-password-user';
+      await service.createDataKey(userId);
+      final fingerprint = await service.fingerprint(userId);
+      final wrapped = await service.wrapKeyWithPassword(
+        userId,
+        'right-password',
+      );
+
+      await expectLater(
+        service.unwrapKeyWithPassword(
+          userId,
+          'wrong-password',
+          wrapped,
+          fingerprint!,
+        ),
+        throwsA(anything),
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 
   test('createDataKey is a no-op when a key already exists', () async {
     final service = AccountEncryptionService.instance;

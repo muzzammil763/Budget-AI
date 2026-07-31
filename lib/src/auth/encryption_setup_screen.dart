@@ -48,9 +48,7 @@ class _EncryptionSetupScreenState extends State<EncryptionSetupScreen> {
     try {
       final password = AuthService.instance.pendingPassword;
       if (password == null) {
-        throw StateError(
-          'Sign in again to finish setting up encryption.',
-        );
+        throw StateError('Sign in again to finish setting up encryption.');
       }
       await AccountEncryptionService.instance.createDataKey(user.id);
       final fingerprint = await AccountEncryptionService.instance.fingerprint(

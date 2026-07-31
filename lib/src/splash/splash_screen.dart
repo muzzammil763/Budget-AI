@@ -92,9 +92,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: AnimatedBuilder(
                 animation: Listenable.merge([_intro, _reveal]),
                 builder: (context, _) {
-                  final revealT = SplashMotion.expoOut.transform(
-                    _reveal.value,
-                  );
+                  final revealT = SplashMotion.expoOut.transform(_reveal.value);
                   final time =
                       _intro.value * _introDuration.inMilliseconds / 1000 +
                       _reveal.value * _revealDuration.inMilliseconds / 1000;

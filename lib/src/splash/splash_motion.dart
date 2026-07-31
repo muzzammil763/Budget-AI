@@ -14,7 +14,11 @@ class SplashMotion {
 
   /// Analytic under-damped harmonic oscillator, normalized to settle at 1.
   /// Higher [zeta] (closer to 1) means less overshoot/bounce.
-  static double spring(double seconds, {double zeta = 0.85, double omega = 10}) {
+  static double spring(
+    double seconds, {
+    double zeta = 0.85,
+    double omega = 10,
+  }) {
     if (seconds <= 0) return 0;
     final wd = omega * math.sqrt(1 - zeta * zeta);
     final decay = math.exp(-zeta * omega * seconds);

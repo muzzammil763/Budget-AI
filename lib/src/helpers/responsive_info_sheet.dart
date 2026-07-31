@@ -281,9 +281,7 @@ class _ConfirmButtonsRowState extends State<_ConfirmButtonsRow> {
               text: widget.cancelLabel,
               variant: AppButtonVariant.outlined,
               fontSize: 15,
-              onPressed: _working
-                  ? null
-                  : () => Navigator.pop(context, false),
+              onPressed: _working ? null : () => Navigator.pop(context, false),
             ),
           ),
           Expanded(

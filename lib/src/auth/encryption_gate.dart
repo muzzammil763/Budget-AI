@@ -56,13 +56,12 @@ class _EncryptionGateState extends State<EncryptionGate> {
     // Local secure-storage read only — no network wait. A device that
     // already holds its data key can go straight to the app; there is
     // nothing the server can tell us that should block that.
-    final hasLocalKey = await AccountEncryptionService.instance.hasKey(
-      user.id,
-    );
+    final hasLocalKey = await AccountEncryptionService.instance.hasKey(user.id);
     final pendingPassword = AuthService.instance.pendingPassword;
 
     if (hasLocalKey) {
-      if (!mounted || user.id != Supabase.instance.client.auth.currentUser?.id) {
+      if (!mounted ||
+          user.id != Supabase.instance.client.auth.currentUser?.id) {
         return;
       }
       setState(() => _state = _EncryptionState.ready);
@@ -102,7 +101,10 @@ class _EncryptionGateState extends State<EncryptionGate> {
         final ciphertext = metadata['wrapped_key_ciphertext'] as String?;
         final nonce = metadata['wrapped_key_nonce'] as String?;
         final mac = metadata['wrapped_key_mac'] as String?;
-        if (salt != null && ciphertext != null && nonce != null && mac != null) {
+        if (salt != null &&
+            ciphertext != null &&
+            nonce != null &&
+            mac != null) {
           try {
             await AccountEncryptionService.instance.unwrapKeyWithPassword(
               user.id,
@@ -158,9 +160,7 @@ class _EncryptionGateState extends State<EncryptionGate> {
     return switch (_state) {
       _EncryptionState.checking => const AuthLoadingScreen(),
       _EncryptionState.needsSetup => EncryptionSetupScreen(onDone: _check),
-      _EncryptionState.needsRestore => EncryptionRestoreScreen(
-        onDone: _check,
-      ),
+      _EncryptionState.needsRestore => EncryptionRestoreScreen(onDone: _check),
       _EncryptionState.ready => widget.child,
     };
   }

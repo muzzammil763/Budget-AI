@@ -95,20 +95,14 @@ class _AuthFlowState extends State<AuthFlow> {
         switchOutCurve: Curves.easeInCubic,
         layoutBuilder: (currentChild, previousChildren) => Stack(
           alignment: Alignment.topCenter,
-          children: [
-            ...previousChildren,
-            ?currentChild,
-          ],
+          children: [...previousChildren, ?currentChild],
         ),
         transitionBuilder: (child, animation) {
           final slide = Tween<Offset>(
             begin: Offset(_forward ? 0.10 : -0.10, 0),
             end: Offset.zero,
           ).animate(animation);
-          final scale = Tween<double>(
-            begin: 0.97,
-            end: 1.0,
-          ).animate(animation);
+          final scale = Tween<double>(begin: 0.97, end: 1.0).animate(animation);
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
@@ -209,87 +203,90 @@ class _LoginScreenState extends State<LoginScreen> {
       // request can't be interrupted mid-way.
       canPop: !_working,
       child: AuthPageContent(
-      eyebrow: 'WELCOME BACK',
-      title: 'Sign in to Budget AI',
-      subtitle:
-          'Your AI assistant for tracking spending and staying on budget.',
-      child: AutofillGroup(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AuthTextField(
-                controller: _email,
-                label: 'Email',
-                hint: 'you@example.com',
-                icon: CupertinoIcons.mail,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.email],
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 12),
-              AuthTextField(
-                controller: _password,
-                label: 'Password',
-                hint: 'Your password',
-                icon: CupertinoIcons.lock,
-                obscureText: _obscurePassword,
-                autofillHints: const [AutofillHints.password],
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Enter your password.'
-                    : null,
-                trailing: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  icon: Icon(
-                    _obscurePassword
-                        ? CupertinoIcons.eye
-                        : CupertinoIcons.eye_slash,
-                    size: 20,
+        eyebrow: 'WELCOME BACK',
+        title: 'Sign in to Budget AI',
+        subtitle:
+            'Your AI assistant for tracking spending and staying on budget.',
+        child: AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthTextField(
+                  controller: _email,
+                  label: 'Email',
+                  hint: 'you@example.com',
+                  icon: CupertinoIcons.mail,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  validator: _validateEmail,
+                ),
+                const SizedBox(height: 12),
+                AuthTextField(
+                  controller: _password,
+                  label: 'Password',
+                  hint: 'Your password',
+                  icon: CupertinoIcons.lock,
+                  obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.password],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'Enter your password.'
+                      : null,
+                  trailing: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? CupertinoIcons.eye
+                          : CupertinoIcons.eye_slash,
+                      size: 20,
+                    ),
                   ),
                 ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _working
+                        ? null
+                        : () => widget.onForgotPassword(_email.text.trim()),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                ListenableBuilder(
+                  listenable: Listenable.merge([_email, _password]),
+                  builder: (context, _) {
+                    final canSubmit =
+                        _email.text.trim().isNotEmpty &&
+                        _password.text.isNotEmpty;
+                    return AppButton(
+                      text: 'Sign in',
+                      icon: CupertinoIcons.arrow_right,
+                      isLoading: _working,
+                      onPressed: canSubmit ? _submit : null,
+                      disabledMessage:
+                          'Enter your email and password to sign in.',
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _AuthSecondaryAction(
+                  prompt: 'New to Budget AI?',
+                  action: 'Create account',
                   onPressed: _working
                       ? null
-                      : () => widget.onForgotPassword(_email.text.trim()),
-                  child: const Text('Forgot password?'),
+                      : () => widget.onCreateAccount(_email.text.trim()),
                 ),
-              ),
-              ListenableBuilder(
-                listenable: Listenable.merge([_email, _password]),
-                builder: (context, _) {
-                  final canSubmit =
-                      _email.text.trim().isNotEmpty &&
-                      _password.text.isNotEmpty;
-                  return AppButton(
-                    text: 'Sign in',
-                    icon: CupertinoIcons.arrow_right,
-                    isLoading: _working,
-                    onPressed: canSubmit ? _submit : null,
-                    disabledMessage: 'Enter your email and password to sign in.',
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _AuthSecondaryAction(
-                prompt: 'New to Budget AI?',
-                action: 'Create account',
-                onPressed: _working
-                    ? null
-                    : () => widget.onCreateAccount(_email.text.trim()),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -363,117 +360,117 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return PopScope(
       canPop: !_working,
       child: AuthPageContent(
-      eyebrow: 'CREATE YOUR ACCOUNT',
-      title: 'Start securely',
-      subtitle:
-          'Create an account to start managing your money with AI.',
-      child: AutofillGroup(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AuthTextField(
-                controller: _name,
-                label: 'Name',
-                hint: 'What should Budget AI call you?',
-                icon: CupertinoIcons.person,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.name],
-                validator: (value) => value == null || value.trim().length < 2
-                    ? 'Enter your name.'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              AuthTextField(
-                controller: _email,
-                label: 'Email',
-                hint: 'you@example.com',
-                icon: CupertinoIcons.mail,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.newUsername],
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 12),
-              AuthTextField(
-                controller: _password,
-                label: 'Password',
-                hint: 'Create a password',
-                icon: CupertinoIcons.lock,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.newPassword],
-                trailing: IconButton(
-                  tooltip: _obscurePassword
-                      ? 'Show passwords'
-                      : 'Hide passwords',
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  icon: Icon(
-                    _obscurePassword
-                        ? CupertinoIcons.eye
-                        : CupertinoIcons.eye_slash,
-                    size: 20,
+        eyebrow: 'CREATE YOUR ACCOUNT',
+        title: 'Start securely',
+        subtitle: 'Create an account to start managing your money with AI.',
+        child: AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthTextField(
+                  controller: _name,
+                  label: 'Name',
+                  hint: 'What should Budget AI call you?',
+                  icon: CupertinoIcons.person,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.name],
+                  validator: (value) => value == null || value.trim().length < 2
+                      ? 'Enter your name.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                AuthTextField(
+                  controller: _email,
+                  label: 'Email',
+                  hint: 'you@example.com',
+                  icon: CupertinoIcons.mail,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.newUsername],
+                  validator: _validateEmail,
+                ),
+                const SizedBox(height: 12),
+                AuthTextField(
+                  controller: _password,
+                  label: 'Password',
+                  hint: 'Create a password',
+                  icon: CupertinoIcons.lock,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.newPassword],
+                  trailing: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show passwords'
+                        : 'Hide passwords',
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? CupertinoIcons.eye
+                          : CupertinoIcons.eye_slash,
+                      size: 20,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ListenableBuilder(
-                listenable: _password,
-                builder: (context, _) =>
-                    _PasswordStrengthBar(password: _password.text),
-              ),
-              const SizedBox(height: 12),
-              AuthTextField(
-                controller: _confirmPassword,
-                label: 'Confirm password',
-                hint: 'Repeat your password',
-                icon: CupertinoIcons.lock_shield,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.newPassword],
-                onSubmitted: (_) => _submit(),
-                validator: (value) =>
-                    value != _password.text ? 'Passwords do not match.' : null,
-              ),
-              const SizedBox(height: 18),
-              ListenableBuilder(
-                listenable: Listenable.merge([
-                  _name,
-                  _email,
-                  _password,
-                  _confirmPassword,
-                ]),
-                builder: (context, _) {
-                  final canSubmit =
-                      _name.text.trim().isNotEmpty &&
-                      _email.text.trim().isNotEmpty &&
-                      _password.text.isNotEmpty &&
-                      _confirmPassword.text.isNotEmpty;
-                  return AppButton(
-                    text: 'Create account',
-                    icon: CupertinoIcons.arrow_right,
-                    isLoading: _working,
-                    onPressed: canSubmit ? _submit : null,
-                    disabledMessage:
-                        'Add your name, email, and password to continue.',
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _AuthSecondaryAction(
-                prompt: 'Already have an account?',
-                action: 'Sign in',
-                onPressed: _working
-                    ? null
-                    : () => widget.onBackToLogin(_email.text.trim()),
-              ),
-            ],
+                const SizedBox(height: 8),
+                ListenableBuilder(
+                  listenable: _password,
+                  builder: (context, _) =>
+                      _PasswordStrengthBar(password: _password.text),
+                ),
+                const SizedBox(height: 12),
+                AuthTextField(
+                  controller: _confirmPassword,
+                  label: 'Confirm password',
+                  hint: 'Repeat your password',
+                  icon: CupertinoIcons.lock_shield,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.newPassword],
+                  onSubmitted: (_) => _submit(),
+                  validator: (value) => value != _password.text
+                      ? 'Passwords do not match.'
+                      : null,
+                ),
+                const SizedBox(height: 18),
+                ListenableBuilder(
+                  listenable: Listenable.merge([
+                    _name,
+                    _email,
+                    _password,
+                    _confirmPassword,
+                  ]),
+                  builder: (context, _) {
+                    final canSubmit =
+                        _name.text.trim().isNotEmpty &&
+                        _email.text.trim().isNotEmpty &&
+                        _password.text.isNotEmpty &&
+                        _confirmPassword.text.isNotEmpty;
+                    return AppButton(
+                      text: 'Create account',
+                      icon: CupertinoIcons.arrow_right,
+                      isLoading: _working,
+                      onPressed: canSubmit ? _submit : null,
+                      disabledMessage:
+                          'Add your name, email, and password to continue.',
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _AuthSecondaryAction(
+                  prompt: 'Already have an account?',
+                  action: 'Sign in',
+                  onPressed: _working
+                      ? null
+                      : () => widget.onBackToLogin(_email.text.trim()),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -620,73 +617,73 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     return PopScope(
       canPop: !_checking,
       child: AuthPageContent(
-      eyebrow: 'ONE MORE STEP',
-      title: 'Check your email',
-      subtitle:
-          'We sent a secure confirmation to ${_maskedEmail(widget.email)}.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _StatusCard(
-            icon: CupertinoIcons.envelope_badge,
-            message:
-                'Tap the confirmation link to return here automatically, or enter the 6-digit code.',
-          ),
-          const SizedBox(height: 18),
-          AuthTextField(
-            controller: _code,
-            label: 'Confirmation code',
-            hint: '000000',
-            icon: CupertinoIcons.number,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(6),
-            ],
-            onSubmitted: (_) => _verifyCode(),
-          ),
-          const SizedBox(height: 12),
-          ListenableBuilder(
-            listenable: _code,
-            builder: (context, _) => AppButton(
-              text: 'Verify code',
-              icon: CupertinoIcons.checkmark_shield,
-              isLoading: _checking,
-              onPressed: _code.text.trim().length == 6 ? _verifyCode : null,
-              disabledMessage: 'Enter the 6-digit code from your email.',
+        eyebrow: 'ONE MORE STEP',
+        title: 'Check your email',
+        subtitle:
+            'We sent a secure confirmation to ${_maskedEmail(widget.email)}.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _StatusCard(
+              icon: CupertinoIcons.envelope_badge,
+              message:
+                  'Tap the confirmation link to return here automatically, or enter the 6-digit code.',
             ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: _checking ? null : _openMail,
-            icon: const Icon(CupertinoIcons.mail, size: 18),
-            label: const Text('Open mail app'),
-          ),
-          TextButton(
-            onPressed: _checking ? null : () => _check(),
-            child: const Text("I've confirmed — check again"),
-          ),
-          TextButton(
-            onPressed: _cooldown == 0 && !_checking ? _resend : null,
-            child: Text(
-              _cooldown == 0
-                  ? 'Resend confirmation email'
-                  : 'Resend available in ${_cooldown}s',
+            const SizedBox(height: 18),
+            AuthTextField(
+              controller: _code,
+              label: 'Confirmation code',
+              hint: '000000',
+              icon: CupertinoIcons.number,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
+              onSubmitted: (_) => _verifyCode(),
             ),
-          ),
-          const Divider(height: 24),
-          _AuthSecondaryAction(
-            prompt: 'Wrong email?',
-            action: 'Use a different email',
-            onPressed: _checking ? null : widget.onUseDifferentEmail,
-          ),
-          TextButton(
-            onPressed: _checking ? null : widget.onBackToLogin,
-            child: const Text('Back to sign in'),
-          ),
-        ],
-      ),
+            const SizedBox(height: 12),
+            ListenableBuilder(
+              listenable: _code,
+              builder: (context, _) => AppButton(
+                text: 'Verify code',
+                icon: CupertinoIcons.checkmark_shield,
+                isLoading: _checking,
+                onPressed: _code.text.trim().length == 6 ? _verifyCode : null,
+                disabledMessage: 'Enter the 6-digit code from your email.',
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _checking ? null : _openMail,
+              icon: const Icon(CupertinoIcons.mail, size: 18),
+              label: const Text('Open mail app'),
+            ),
+            TextButton(
+              onPressed: _checking ? null : () => _check(),
+              child: const Text("I've confirmed — check again"),
+            ),
+            TextButton(
+              onPressed: _cooldown == 0 && !_checking ? _resend : null,
+              child: Text(
+                _cooldown == 0
+                    ? 'Resend confirmation email'
+                    : 'Resend available in ${_cooldown}s',
+              ),
+            ),
+            const Divider(height: 24),
+            _AuthSecondaryAction(
+              prompt: 'Wrong email?',
+              action: 'Use a different email',
+              onPressed: _checking ? null : widget.onUseDifferentEmail,
+            ),
+            TextButton(
+              onPressed: _checking ? null : widget.onBackToLogin,
+              child: const Text('Back to sign in'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -745,57 +742,57 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return PopScope(
       canPop: !_working,
       child: AuthPageContent(
-      eyebrow: 'ACCOUNT RECOVERY',
-      title: _sent ? 'Check your inbox' : 'Reset your password',
-      subtitle: _sent
-          ? 'If an account matches that email, a secure reset link is on its way.'
-          : 'Enter your email and we will send a secure password reset link.',
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_sent)
-              const _StatusCard(
-                icon: CupertinoIcons.paperplane,
-                message:
-                    'Open the link on this device. Budget AI will return to a protected password screen.',
-              )
-            else ...[
-              AuthTextField(
-                controller: _email,
-                label: 'Email',
-                hint: 'you@example.com',
-                icon: CupertinoIcons.mail,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.email],
-                onSubmitted: (_) => _submit(),
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 18),
-              ListenableBuilder(
-                listenable: _email,
-                builder: (context, _) => AppButton(
-                  text: 'Send reset link',
+        eyebrow: 'ACCOUNT RECOVERY',
+        title: _sent ? 'Check your inbox' : 'Reset your password',
+        subtitle: _sent
+            ? 'If an account matches that email, a secure reset link is on its way.'
+            : 'Enter your email and we will send a secure password reset link.',
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_sent)
+                const _StatusCard(
                   icon: CupertinoIcons.paperplane,
-                  isLoading: _working,
-                  onPressed: _email.text.trim().isNotEmpty ? _submit : null,
-                  disabledMessage: 'Enter your email to get a reset link.',
+                  message:
+                      'Open the link on this device. Budget AI will return to a protected password screen.',
+                )
+              else ...[
+                AuthTextField(
+                  controller: _email,
+                  label: 'Email',
+                  hint: 'you@example.com',
+                  icon: CupertinoIcons.mail,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.email],
+                  onSubmitted: (_) => _submit(),
+                  validator: _validateEmail,
                 ),
+                const SizedBox(height: 18),
+                ListenableBuilder(
+                  listenable: _email,
+                  builder: (context, _) => AppButton(
+                    text: 'Send reset link',
+                    icon: CupertinoIcons.paperplane,
+                    isLoading: _working,
+                    onPressed: _email.text.trim().isNotEmpty ? _submit : null,
+                    disabledMessage: 'Enter your email to get a reset link.',
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              _AuthSecondaryAction(
+                prompt: 'Remembered your password?',
+                action: 'Sign in',
+                onPressed: _working
+                    ? null
+                    : () => widget.onBackToLogin(_email.text.trim()),
               ),
             ],
-            const SizedBox(height: 10),
-            _AuthSecondaryAction(
-              prompt: 'Remembered your password?',
-              action: 'Sign in',
-              onPressed: _working
-                  ? null
-                  : () => widget.onBackToLogin(_email.text.trim()),
-            ),
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -844,81 +841,83 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return PopScope(
       canPop: !_working,
       child: AuthShell(
-      eyebrow: 'SECURE RECOVERY',
-      title: 'Choose a new password',
-      subtitle: 'Create a strong password you have not used for this account.',
-      child: AutofillGroup(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AuthTextField(
-                controller: _password,
-                label: 'New password',
-                hint: 'Create a password',
-                icon: CupertinoIcons.lock,
-                obscureText: _obscurePassword,
-                autofillHints: const [AutofillHints.newPassword],
-                textInputAction: TextInputAction.next,
-                trailing: IconButton(
-                  tooltip: _obscurePassword
-                      ? 'Show passwords'
-                      : 'Hide passwords',
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  icon: Icon(
-                    _obscurePassword
-                        ? CupertinoIcons.eye
-                        : CupertinoIcons.eye_slash,
-                    size: 20,
+        eyebrow: 'SECURE RECOVERY',
+        title: 'Choose a new password',
+        subtitle:
+            'Create a strong password you have not used for this account.',
+        child: AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthTextField(
+                  controller: _password,
+                  label: 'New password',
+                  hint: 'Create a password',
+                  icon: CupertinoIcons.lock,
+                  obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.next,
+                  trailing: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Show passwords'
+                        : 'Hide passwords',
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? CupertinoIcons.eye
+                          : CupertinoIcons.eye_slash,
+                      size: 20,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ListenableBuilder(
-                listenable: _password,
-                builder: (context, _) =>
-                    _PasswordStrengthBar(password: _password.text),
-              ),
-              const SizedBox(height: 12),
-              AuthTextField(
-                controller: _confirmPassword,
-                label: 'Confirm new password',
-                hint: 'Repeat your password',
-                icon: CupertinoIcons.lock_shield,
-                obscureText: _obscurePassword,
-                autofillHints: const [AutofillHints.newPassword],
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                validator: (value) =>
-                    value != _password.text ? 'Passwords do not match.' : null,
-              ),
-              const SizedBox(height: 18),
-              ListenableBuilder(
-                listenable: Listenable.merge([_password, _confirmPassword]),
-                builder: (context, _) {
-                  final canSubmit =
-                      _password.text.isNotEmpty &&
-                      _confirmPassword.text.isNotEmpty;
-                  return AppButton(
-                    text: 'Update password',
-                    icon: CupertinoIcons.checkmark_shield,
-                    isLoading: _working,
-                    onPressed: canSubmit ? _submit : null,
-                    disabledMessage: 'Enter and confirm your new password.',
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: _working ? null : widget.onCancel,
-                child: const Text('Cancel and return to sign in'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                ListenableBuilder(
+                  listenable: _password,
+                  builder: (context, _) =>
+                      _PasswordStrengthBar(password: _password.text),
+                ),
+                const SizedBox(height: 12),
+                AuthTextField(
+                  controller: _confirmPassword,
+                  label: 'Confirm new password',
+                  hint: 'Repeat your password',
+                  icon: CupertinoIcons.lock_shield,
+                  obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  validator: (value) => value != _password.text
+                      ? 'Passwords do not match.'
+                      : null,
+                ),
+                const SizedBox(height: 18),
+                ListenableBuilder(
+                  listenable: Listenable.merge([_password, _confirmPassword]),
+                  builder: (context, _) {
+                    final canSubmit =
+                        _password.text.isNotEmpty &&
+                        _confirmPassword.text.isNotEmpty;
+                    return AppButton(
+                      text: 'Update password',
+                      icon: CupertinoIcons.checkmark_shield,
+                      isLoading: _working,
+                      onPressed: canSubmit ? _submit : null,
+                      disabledMessage: 'Enter and confirm your new password.',
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: _working ? null : widget.onCancel,
+                  child: const Text('Cancel and return to sign in'),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -1156,11 +1155,10 @@ class _AuthBackdropState extends State<_AuthBackdrop>
   void initState() {
     super.initState();
     _hapticFired = List<bool>.filled(_hapticMarks.length, false);
-    _entry =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 1600),
-        )..addListener(_maybeHaptic);
+    _entry = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..addListener(_maybeHaptic);
     _spin = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 60),
