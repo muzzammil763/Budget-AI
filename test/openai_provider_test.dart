@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:budget_ai/src/chat/ai_models.dart';
+import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/tools/tools.dart';
@@ -29,7 +29,7 @@ void main() {
         accessTokenProvider: () => 'test-user-jwt',
       );
       await provider.initialize();
-      provider.updateModel(AIModels.defaultModelId);
+      provider.updateModel(ActiveModelResolver.defaultModelId);
 
       final chunks = await provider
           .sendMessageStreamWithThinking(
@@ -47,7 +47,7 @@ void main() {
       expect(requests.single.headers['apikey'], startsWith('sb_publishable_'));
       expect(requests.single.headers.containsKey('x-region'), isFalse);
       final body = Map<String, dynamic>.from(requests.single.data as Map);
-      expect(body['model'], AIModels.defaultModelId);
+      expect(body['model'], ActiveModelResolver.defaultModelId);
       expect(body['reasoning'], {'effort': 'low'});
       expect(body['text'], {'verbosity': 'low'});
       expect(body['stream'], isTrue);

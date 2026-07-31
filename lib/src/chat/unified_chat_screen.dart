@@ -5,7 +5,6 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
-import 'package:budget_ai/src/chat/ai_models.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -833,10 +832,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
 
-      final currentModel = AIModels.getModelById(_selectedModel);
-      final supportsReasoning = currentModel?.supportsThinking ?? false;
-      final supportsToolCall = currentModel?.supportsToolCall ?? false;
-
       bool firstChunk = true;
       int chunkCount = 0;
       String lastDisplayedText = '';
@@ -847,16 +842,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       const activeToolInactivityTimeout = Duration(minutes: 20);
 
       Stream<ChatStreamChunk> createStream() {
-        if (supportsReasoning || supportsToolCall) {
-          return _provider.sendMessageStreamWithThinking(
-            providerMessageText,
-            enableToolCalls: supportsToolCall,
-          );
-        }
-
-        return _provider
-            .sendMessageStream(providerMessageText)
-            .map((content) => ChatStreamChunk(content: content));
+        return _provider.sendMessageStreamWithThinking(
+          providerMessageText,
+          enableToolCalls: true,
+        );
       }
 
       Duration currentStreamTimeout() {
@@ -946,10 +935,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 if (hasReceivedToolCalls) {
                   shouldReplacePlaceholder = true;
                 } else if (hasReceivedContent) {
-                  shouldReplacePlaceholder = true;
-                } else if (!supportsReasoning &&
-                    !supportsToolCall &&
-                    hasReceivedContent) {
                   shouldReplacePlaceholder = true;
                 }
               }

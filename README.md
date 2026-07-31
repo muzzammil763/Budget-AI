@@ -24,7 +24,8 @@ end-to-end encrypted synchronization, and offline speech.
 
 There is no in-app model picker. The app requests the database-selected model
 when configured; otherwise it falls back to `gpt-5.6-luna`
-(`AIModels.defaultModelId` in `lib/src/chat/ai_models.dart`). The Supabase
+(`ActiveModelResolver.defaultModelId` in
+`lib/src/chat/active_model_resolver.dart`). The Supabase
 table `ai_model_config` holds a single
 global row read by `ActiveModelResolver` (`lib/src/chat/active_model_resolver.dart`)
 whenever the chat screen loads or is returned to — no app update or restart
@@ -46,8 +47,8 @@ set active_model_id = null, updated_at = now()
 where id = 1;
 ```
 
-`active_model_id` must match one of the ids in `AIModels.openAIModels`
-(`lib/src/chat/ai_models.dart`) — currently `gpt-5.6-luna`, `gpt-5.6-terra`,
+`active_model_id` must match one of the ids in
+`ActiveModelResolver.supportedModelIds` — currently `gpt-5.6-luna`, `gpt-5.6-terra`,
 `gpt-5.6-sol`, `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-4.1`,
 or `o3`. Any unset row, unknown id, or read failure (offline, RLS, etc.)
 silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.

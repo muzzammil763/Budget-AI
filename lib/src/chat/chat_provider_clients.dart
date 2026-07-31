@@ -10,7 +10,7 @@ class ResponsesProvider extends BaseChatProvider {
     super.dio,
     super.toolRegistry,
     super.accessTokenProvider,
-  }) : super(defaultSelectedModel: AIModels.defaultModelId);
+  }) : super(defaultSelectedModel: ActiveModelResolver.defaultModelId);
 
   @override
   Stream<String> sendMessageStream(String message) async* {
