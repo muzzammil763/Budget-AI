@@ -95,7 +95,10 @@ silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
-  completion and downloaded speech-model selections remain device-local.
+  completion, notification/background choices, and downloaded speech-model
+  selections remain device-local. Granting notifications or Android background
+  access during onboarding records the matching local choice, so its Budget Hub
+  toggle stays on after account creation or sign-in.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.
