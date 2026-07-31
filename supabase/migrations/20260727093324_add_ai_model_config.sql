@@ -1,7 +1,7 @@
 -- Global, backend-controlled override for which OpenAI model the app uses.
 -- Single-row config table: if active_model_id is set (and still a known
 -- model client-side), the app uses it; otherwise it falls back to the
--- hardcoded default (gpt-5.4-nano). No app update needed to switch models.
+-- hardcoded default (gpt-5.6-luna). No app update needed to switch models.
 create table public.ai_model_config (
   id smallint primary key default 1 check (id = 1),
   active_model_id text,

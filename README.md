@@ -9,7 +9,7 @@ end-to-end encrypted synchronization, and offline speech.
 - Chat and finance tools use OpenAI's Responses API through the authenticated
   Supabase Edge Function at `openai-responses`. The OpenAI API key is never
   bundled into Flutter.
-- The chat model is not user-selectable. The app always uses `gpt-5.4-nano`
+- The chat model is not user-selectable. The app always uses `gpt-5.6-luna`
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
@@ -22,9 +22,10 @@ end-to-end encrypted synchronization, and offline speech.
 
 ### Changing the active AI model
 
-There is no in-app model picker. The app always requests `gpt-5.4-nano`
-(`AIModels.defaultModelId` in `lib/src/chat/ai_models.dart`) unless the
-Supabase table `ai_model_config` says otherwise. The table holds a single
+There is no in-app model picker. The app requests the database-selected model
+when configured; otherwise it falls back to `gpt-5.6-luna`
+(`AIModels.defaultModelId` in `lib/src/chat/ai_models.dart`). The Supabase
+table `ai_model_config` holds a single
 global row read by `ActiveModelResolver` (`lib/src/chat/active_model_resolver.dart`)
 whenever the chat screen loads or is returned to — no app update or restart
 needed to switch models.
@@ -39,7 +40,7 @@ update public.ai_model_config
 set active_model_id = 'gpt-5.6-luna', updated_at = now()
 where id = 1;
 
--- Revert to the hardcoded default (gpt-5.4-nano).
+-- Revert to the hardcoded default (gpt-5.6-luna).
 update public.ai_model_config
 set active_model_id = null, updated_at = now()
 where id = 1;
@@ -49,7 +50,7 @@ where id = 1;
 (`lib/src/chat/ai_models.dart`) — currently `gpt-5.6-luna`, `gpt-5.6-terra`,
 `gpt-5.6-sol`, `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-4.1`,
 or `o3`. Any unset row, unknown id, or read failure (offline, RLS, etc.)
-silently falls back to `gpt-5.4-nano`, so a bad value can never break chat.
+silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 
 ## App flow
 

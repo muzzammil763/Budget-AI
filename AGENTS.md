@@ -30,7 +30,7 @@ lib/
       chat_provider*.dart       Streaming client, helpers, tool-call replay
       chat_session_repository.dart  Local-only chat history (SQLite)
       chat_history_screen.dart, chat_system_prompt.dart, chat_model_config.dart
-      ai_models.dart            OpenAI model catalog (default gpt-5.4-nano)
+      ai_models.dart            OpenAI model catalog (default gpt-5.6-luna)
       active_model_resolver.dart  Resolves active model from Supabase `ai_model_config`,
                                 falling back to the default; no in-app picker
       user_bubble_style_surface.dart  Painted user-bubble styles
@@ -90,7 +90,7 @@ speech is on-device.
 - `LocalFinanceStore` imports the legacy finance JSON file into SQLite and tracks revisions, pending writes, and deletion tombstones. Legacy local rows missing from the remote encrypted table are queued automatically.
 - `LocalSpeechService` uses Sherpa-ONNX for on-device Whisper transcription and Piper synthesis. `LocalSpeechModelManager` downloads, selects, persists, and removes model archives from application support storage.
 - `OPENAI_API_KEY` exists only as a Supabase Edge Function secret. Flutter contains only the Supabase URL and publishable key; `.env` is not an app asset.
-- The model catalog lives in `lib/src/chat/ai_models.dart`; the default is `gpt-5.4-nano`. There is no in-app model picker — `ActiveModelResolver` reads a single global override row from the Supabase `ai_model_config` table (falling back to the default on any missing/invalid/error case) so the model can be changed from the backend without an app update; see README "Changing the active AI model". GPT-5 chat requests use low reasoning effort and low text verbosity; prompts preserve important facts while removing repetition.
+- The model catalog lives in `lib/src/chat/ai_models.dart`; the default is `gpt-5.6-luna`. There is no in-app model picker — `ActiveModelResolver` reads a single global override row from the Supabase `ai_model_config` table (falling back to the default on any missing/invalid/error case) so the model can be changed from the backend without an app update; see README "Changing the active AI model". GPT-5 chat requests use low reasoning effort and low text verbosity; prompts preserve important facts while removing repetition.
 - Finance tools (`lib/src/tools/`, registered in `tools.dart`): `finance_add`, `finance_income_add`, `finance_list`, `finance_summary`, `finance_update`, `finance_delete`.
 
 ## Feature surface
