@@ -1,3 +1,5 @@
+import 'package:budget_ai/src/speech/local_piper_voice_catalog.dart';
+
 enum LocalSpeechModelKind { speechToText, textToSpeech }
 
 class LocalSpeechModel {
@@ -38,7 +40,7 @@ class LocalSpeechModels {
   static const String defaultSttId = 'whisper-tiny-en-int8';
   static const String defaultTtsId = 'piper-lessac-medium';
 
-  static const List<LocalSpeechModel> all = [
+  static const List<LocalSpeechModel> _speechToTextModels = [
     LocalSpeechModel(
       id: defaultSttId,
       kind: LocalSpeechModelKind.speechToText,
@@ -230,133 +232,91 @@ class LocalSpeechModels {
       directDownloadBaseUrl:
           'https://huggingface.co/csukuangfj/sherpa-onnx-whisper-medium/resolve/main',
     ),
-    LocalSpeechModel(
-      id: defaultTtsId,
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Lessac',
-      description: 'Clear US English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-lessac-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_US-lessac-medium',
-      requiredFiles: [
-        'en_US-lessac-medium.onnx',
-        'tokens.txt',
-        'espeak-ng-data',
-      ],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67230653,
-      recommended: true,
-      piperPrefix: 'en_US-lessac-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-amy-low',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Amy',
-      description: 'Compact US English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-amy-low.tar.bz2',
-      archiveRoot: 'vits-piper-en_US-amy-low',
-      requiredFiles: ['en_US-amy-low.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'small, fastest download',
-      downloadSizeBytes: 67095344,
-      piperPrefix: 'en_US-amy-low',
-    ),
-    LocalSpeechModel(
-      id: 'piper-ryan-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Ryan',
-      description: 'Natural US English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-ryan-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_US-ryan-medium',
-      requiredFiles: ['en_US-ryan-medium.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67213100,
-      piperPrefix: 'en_US-ryan-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-kristin-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Kristin',
-      description: 'Warm US English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-kristin-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_US-kristin-medium',
-      requiredFiles: [
-        'en_US-kristin-medium.onnx',
-        'tokens.txt',
-        'espeak-ng-data',
-      ],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67259230,
-      piperPrefix: 'en_US-kristin-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-sam-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Sam',
-      description: 'Smooth US English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-sam-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_US-sam-medium',
-      requiredFiles: ['en_US-sam-medium.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67249919,
-      piperPrefix: 'en_US-sam-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-joe-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Joe',
-      description: 'Conversational US English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-joe-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_US-joe-medium',
-      requiredFiles: ['en_US-joe-medium.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67169394,
-      piperPrefix: 'en_US-joe-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-cori-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Cori',
-      description: 'Natural British English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_GB-cori-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_GB-cori-medium',
-      requiredFiles: ['en_GB-cori-medium.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67257412,
-      piperPrefix: 'en_GB-cori-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-alba-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Alba',
-      description: 'Clear British English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_GB-alba-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_GB-alba-medium',
-      requiredFiles: ['en_GB-alba-medium.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67212349,
-      piperPrefix: 'en_GB-alba-medium',
-    ),
-    LocalSpeechModel(
-      id: 'piper-alan-medium',
-      kind: LocalSpeechModelKind.textToSpeech,
-      name: 'Alan',
-      description: 'Classic British English Piper voice',
-      downloadUrl:
-          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_GB-alan-medium.tar.bz2',
-      archiveRoot: 'vits-piper-en_GB-alan-medium',
-      requiredFiles: ['en_GB-alan-medium.onnx', 'tokens.txt', 'espeak-ng-data'],
-      installedSizeLabel: 'medium quality',
-      downloadSizeBytes: 67220121,
-      piperPrefix: 'en_GB-alan-medium',
-    ),
   ];
+
+  static const String _defaultTtsPrefix = 'en_US-lessac-medium';
+
+  static const Map<String, String> _legacyPiperIds = {
+    'en_US-lessac-medium': defaultTtsId,
+    'en_US-amy-low': 'piper-amy-low',
+    'en_US-ryan-medium': 'piper-ryan-medium',
+    'en_US-kristin-medium': 'piper-kristin-medium',
+    'en_US-sam-medium': 'piper-sam-medium',
+    'en_US-joe-medium': 'piper-joe-medium',
+    'en_GB-cori-medium': 'piper-cori-medium',
+    'en_GB-alba-medium': 'piper-alba-medium',
+    'en_GB-alan-medium': 'piper-alan-medium',
+  };
+
+  static final List<LocalSpeechModel> _textToSpeechModels = [
+    _piperModel(
+      piperVoiceAssets.firstWhere((asset) => asset.prefix == _defaultTtsPrefix),
+    ),
+    for (final asset in piperVoiceAssets)
+      if (asset.prefix != _defaultTtsPrefix) _piperModel(asset),
+  ];
+
+  static final List<LocalSpeechModel> all = List.unmodifiable([
+    ..._speechToTextModels,
+    ..._textToSpeechModels,
+  ]);
+
+  static LocalSpeechModel _piperModel(PiperVoiceAsset asset) {
+    final localeSeparator = asset.prefix.indexOf('-');
+    final locale = asset.prefix.substring(0, localeSeparator);
+    final voiceAndQuality = asset.prefix.substring(localeSeparator + 1);
+    final qualitySuffix = _qualitySuffix(voiceAndQuality);
+    final voiceSlug = qualitySuffix.isEmpty
+        ? voiceAndQuality
+        : voiceAndQuality.substring(
+            0,
+            voiceAndQuality.length - qualitySuffix.length,
+          );
+    final voiceName = voiceSlug
+        .split(RegExp('[-_]'))
+        .where((part) => part.isNotEmpty)
+        .map(_capitalize)
+        .join(' ');
+    final archiveRoot = 'vits-piper-${asset.prefix}';
+
+    return LocalSpeechModel(
+      id: _legacyPiperIds[asset.prefix] ?? 'piper-${asset.prefix}',
+      kind: LocalSpeechModelKind.textToSpeech,
+      name: '$voiceName (${locale.replaceAll('_', '-')})',
+      description: 'Offline Piper voice',
+      downloadUrl:
+          'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/'
+          '$archiveRoot.tar.bz2',
+      archiveRoot: archiveRoot,
+      requiredFiles: ['${asset.prefix}.onnx', 'tokens.txt', 'espeak-ng-data'],
+      installedSizeLabel: _qualityLabel(qualitySuffix),
+      downloadSizeBytes: asset.downloadSizeBytes,
+      recommended: asset.prefix == _defaultTtsPrefix,
+      piperPrefix: asset.prefix,
+    );
+  }
+
+  static String _qualitySuffix(String voiceAndQuality) {
+    for (final suffix in const ['-x_low', '-medium', '-high', '-low', '_low']) {
+      if (voiceAndQuality.endsWith(suffix)) return suffix;
+    }
+    return '';
+  }
+
+  static String _qualityLabel(String suffix) {
+    return switch (suffix) {
+      '-x_low' => 'extra-low quality',
+      '-low' || '_low' => 'low quality',
+      '-medium' => 'medium quality',
+      '-high' => 'high quality',
+      _ => 'standard quality',
+    };
+  }
+
+  static String _capitalize(String value) {
+    if (value.isEmpty) return value;
+    return '${value[0].toUpperCase()}${value.substring(1)}';
+  }
 
   static Iterable<LocalSpeechModel> ofKind(LocalSpeechModelKind kind) =>
       all.where((model) => model.kind == kind);

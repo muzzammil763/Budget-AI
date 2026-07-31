@@ -26,7 +26,7 @@ void main() {
     );
     expect(
       LocalSpeechModels.ofKind(LocalSpeechModelKind.textToSpeech),
-      hasLength(9),
+      hasLength(185),
     );
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultSttId), isNotNull);
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultTtsId), isNotNull);
@@ -53,6 +53,18 @@ void main() {
             (model.kind == LocalSpeechModelKind.speechToText
                 ? model.whisperPrefix != null
                 : model.piperPrefix != null),
+      ),
+      isTrue,
+    );
+    final ttsModels = LocalSpeechModels.ofKind(
+      LocalSpeechModelKind.textToSpeech,
+    ).toList();
+    expect(ttsModels.first.id, LocalSpeechModels.defaultTtsId);
+    expect(
+      ttsModels.every(
+        (model) =>
+            model.archiveRoot == 'vits-piper-${model.piperPrefix}' &&
+            model.requiredFiles.first == '${model.piperPrefix}.onnx',
       ),
       isTrue,
     );
