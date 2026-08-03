@@ -95,6 +95,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   DateTime? _voiceRecordingStartedAt;
   int? _streamingMessageIndex;
   bool _isStreaming = false;
+  bool _skipStreamingReveal = false;
   bool _isReconnectingStream = false;
   bool _isWaitingForNetwork = false;
   DateTime? _suppressNetworkWaitingUntil;
@@ -544,11 +545,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     // Android's foreground/background service is user-controlled: only start
     // it if the background feature is turned on, so it stays dormant even
     // when the OS battery-optimization exemption was granted earlier. iOS
-    // background task scheduling has no such user toggle and runs as usual.
+    // background execution begins only when the app actually leaves the
+    // foreground, preserving its limited allowance for when it is needed.
     if (PermissionPreferencesService.instance.backgroundEnabled.value) {
       unawaited(AndroidBackgroundChatService.start());
     }
-    unawaited(IosBackgroundTaskService.start());
     var tickCount = 0;
     _streamingDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !_isStreaming) {
@@ -715,6 +716,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     setState(() {
       _isLoading = true;
+      _skipStreamingReveal = _isAppInBackground || _isAppInactive;
       if (appendUserMessage) {
         _appendTimelineMessage(provisionalUserMessage, entryId: null);
       }
@@ -1170,6 +1172,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
         if (!willAutoContinueToolTurn) {
           _isStreaming = false;
+          if (_skipStreamingReveal) {
+            _streamingMessageIndex = null;
+          }
         }
         _isReconnectingStream = false;
         _isWaitingForNetwork = false;
@@ -1180,9 +1185,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         if (mounted) _streamingBubble.value = null;
       });
       if (!willAutoContinueToolTurn) {
-        _stopStreamingDurationTimer();
         final shouldNotifyResponseComplete =
             _isAppInBackground || _isAppInactive || !_isOnChatScreen;
+        _streamingDurationTimer?.cancel();
+        _streamingDurationTimer = null;
+        unawaited(AndroidBackgroundChatService.stop());
         if (shouldNotifyResponseComplete) {
           final toolCallCount = _countToolCallsInMessage(finalAssistantMessage);
           final responseText = finalAssistantMessage.text;
@@ -1198,13 +1205,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             timestamp: DateTime.now(),
             hasError: false,
           );
-          unawaited(
-            NotificationService.instance.showResponseReadyNotification(
-              responsePayload,
-              appInBackground: shouldNotifyResponseComplete,
-            ),
+          await NotificationService.instance.showResponseReadyNotification(
+            responsePayload,
+            appInBackground: shouldNotifyResponseComplete,
           );
         }
+        unawaited(IosBackgroundTaskService.stop());
         if (!_isAppInBackground && _isOnChatScreen) {
           // Medium haptic removed; keep only streaming haptics.
         }
@@ -2627,6 +2633,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (state == AppLifecycleState.resumed) {
       _isAppInBackground = false;
       _isAppInactive = false;
+      unawaited(IosBackgroundTaskService.stop());
       _suppressNetworkWaitingUntil = DateTime.now().add(
         const Duration(seconds: 3),
       );
@@ -2640,10 +2647,22 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
     } else if (state == AppLifecycleState.inactive) {
       _isAppInactive = true;
+      if (_isResponseInProgress) {
+        unawaited(IosBackgroundTaskService.start());
+        if (!_skipStreamingReveal && mounted) {
+          setState(() => _skipStreamingReveal = true);
+        }
+      }
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _isAppInBackground = true;
       _isAppInactive = false;
+      if (_isResponseInProgress) {
+        unawaited(IosBackgroundTaskService.start());
+        if (!_skipStreamingReveal && mounted) {
+          setState(() => _skipStreamingReveal = true);
+        }
+      }
       if (_isRecording) unawaited(_cancelVoiceHold());
       NetworkReachabilityService.instance.stop();
     }
@@ -4002,7 +4021,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }) {
     return ChatResponseMarkdown(
       text: text,
-      isStreaming: isStreaming,
+      isStreaming: isStreaming && !_skipStreamingReveal,
       fontFamily: _chatFontFamily,
       onLinkTap: _handleMarkdownLinkTap,
       onTypewriterProgress: isStreaming ? _scheduleScrollToBottom : null,
