@@ -116,17 +116,15 @@ class MarkdownTableView extends StatelessWidget {
       fontSize: isHeader ? 16 : (textStyle.fontSize ?? 16),
     );
     final trimmedData = field.data.trim();
-    final textAlign = field.alignment;
-    final alignment = switch (textAlign) {
-      TextAlign.center => Alignment.center,
-      TextAlign.right || TextAlign.end => AlignmentDirectional.centerEnd,
-      _ => AlignmentDirectional.centerStart,
-    };
+    // Chat tables use one consistent reading edge. Model-generated separator
+    // alignment markers must not push numeric or comparison columns to the
+    // far side of wide cells.
+    const textAlign = TextAlign.start;
 
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 12),
       child: Align(
-        alignment: alignment,
+        alignment: AlignmentDirectional.centerStart,
         child: DefaultTextStyle(
           style: cellTextStyle,
           child: _containsMarkdownSyntax(trimmedData)

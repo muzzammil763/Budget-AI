@@ -106,7 +106,14 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   its notification uses the complete response converted from Markdown into
   readable plain text. Android exposes that content through its expandable
   large-text notification; the operating system still controls how much is
-  visible in the collapsed notification and on the lock screen.
+  visible in the collapsed notification and on the lock screen. Leaving the
+  app during an active response also disables the buffered typewriter reveal,
+  requests iOS background execution time, and schedules the completion
+  notification before releasing that task. iOS ultimately controls the
+  available background time, so unusually long responses can still resume
+  after the app returns.
+- Chat Markdown tables left-align every header and value column for a
+  consistent reading edge, including numeric comparison columns.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.
