@@ -7,13 +7,13 @@ import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
+import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
-import 'package:budget_ai/src/settings/account_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
@@ -49,6 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _backgroundPermissionGranted = false;
   bool _busyNotifications = false;
   bool _busyBackground = false;
+  bool _isSendingReset = false;
+  bool _isDeletingAccount = false;
 
   @override
   void initState() {
@@ -197,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _sectionHeading(
             theme,
             eyebrow: 'QUICK ACTIONS',
-            title: 'Your money, one tap away',
+            title: 'Your Money, One Tap Away',
           ),
           const SizedBox(height: 8),
           _buildQuickActions(theme),
@@ -205,26 +207,30 @@ class _SettingsScreenState extends State<SettingsScreen>
           _sectionHeading(
             theme,
             eyebrow: 'ACCOUNT',
-            title: 'Profile & security',
+            title: 'Profile & Security',
           ),
           const SizedBox(height: 8),
-          ValueListenableBuilder<String>(
-            valueListenable: UserNameSettingsService.instance.userName,
-            builder: (context, name, _) => _navTile(
-              theme,
-              icon: CupertinoIcons.person_crop_circle,
-              title: name.trim().isEmpty ? 'Your account' : name.trim(),
-              subtitle:
-                  AuthService.instance.user?.email ??
-                  'Manage your profile and security',
-              onTap: _openAccount,
-            ),
+          const _AccountNameEditor(),
+          _accountInfoTile(
+            theme,
+            icon: CupertinoIcons.envelope,
+            title: 'Email',
+            value: AuthService.instance.user?.email ?? 'Email unavailable',
+          ),
+          _navTile(
+            theme,
+            icon: CupertinoIcons.lock,
+            title: 'Change Password',
+            subtitle: _isSendingReset
+                ? 'Sending secure reset link…'
+                : 'Send a secure reset link to your email',
+            onTap: _isSendingReset ? () {} : _sendPasswordReset,
           ),
           const SizedBox(height: 12),
           _sectionHeading(
             theme,
             eyebrow: 'PREFERENCES',
-            title: 'Make Budget AI yours',
+            title: 'Make Budget AI Yours',
           ),
           const SizedBox(height: 8),
           ValueListenableBuilder<String>(
@@ -232,7 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             builder: (context, currency, _) => _navTile(
               theme,
               leading: _currencyLeading(theme, currency),
-              title: 'Currency display',
+              title: 'Currency Display',
               subtitle:
                   'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
               onTap: () => CurrencyPickerScreen.show(context),
@@ -262,8 +268,8 @@ class _SettingsScreenState extends State<SettingsScreen>
             valueListenable: BubbleStyleSettingsService.instance.style,
             builder: (context, style, _) => _navTile(
               theme,
-              icon: CupertinoIcons.chat_bubble_2_fill,
-              title: 'Message bubble',
+              icon: CupertinoIcons.chat_bubble_2,
+              title: 'Message Bubble',
               subtitle:
                   '${BubbleStyleSettingsService.instance.currentLabel} style '
                   'for your messages',
@@ -274,7 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           _sectionHeading(
             theme,
             eyebrow: 'APP BEHAVIOR',
-            title: 'Notifications & background',
+            title: 'Notifications & Background',
           ),
           const SizedBox(height: 8),
           ValueListenableBuilder<bool>(
@@ -307,8 +313,8 @@ class _SettingsScreenState extends State<SettingsScreen>
           _navTile(
             theme,
             key: const ValueKey('replay-onboarding'),
-            icon: CupertinoIcons.sparkles,
-            title: 'Replay onboarding',
+            icon: CupertinoIcons.restart,
+            title: 'Replay Onboarding',
             subtitle: 'Revisit the complete Budget AI introduction and setup',
             onTap: () => Navigator.push(
               context,
@@ -316,6 +322,30 @@ class _SettingsScreenState extends State<SettingsScreen>
                 builder: (_) => const OnboardingScreen(isRevisit: true),
               ),
             ),
+          ),
+          const SizedBox(height: 20),
+          _sectionHeading(
+            theme,
+            eyebrow: 'DANGER ZONE',
+            title: 'Account Actions',
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(height: 8),
+          _dangerAction(
+            theme,
+            key: const ValueKey('settings-sign-out'),
+            icon: CupertinoIcons.square_arrow_right,
+            title: 'Sign Out',
+            subtitle: 'Leave this account on this device',
+            onTap: _signOut,
+          ),
+          _dangerAction(
+            theme,
+            key: const ValueKey('settings-delete-account'),
+            icon: CupertinoIcons.delete,
+            title: _isDeletingAccount ? 'Deleting Account …' : 'Delete Account',
+            subtitle: 'Permanently delete your account and synced data',
+            onTap: _isDeletingAccount ? null : _deleteAccount,
           ),
         ],
       ),
@@ -326,6 +356,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     ThemeData theme, {
     required String eyebrow,
     required String title,
+    Color? color,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,7 +364,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         Text(
           eyebrow,
           style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.primary,
+            color: color ?? theme.colorScheme.primary,
             fontSize: 10,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.3,
@@ -464,11 +495,72 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  void _openAccount() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AccountScreen(nameEditor: _AccountNameEditor()),
+  Widget _accountInfoTile(
+    ThemeData theme, {
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      key: const ValueKey('settings-account-email'),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: _tileDecoration(theme),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Icon(icon, size: 24, color: theme.colorScheme.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: _tileText(theme, title, value)),
+          Icon(
+            CupertinoIcons.lock_fill,
+            size: 14,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dangerAction(
+    ThemeData theme, {
+    required Key key,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+  }) {
+    final error = theme.colorScheme.error;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        key: key,
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: error.withValues(alpha: 0.035),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: error.withValues(alpha: 0.42)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(width: 32, child: Icon(icon, color: error, size: 23)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _tileText(
+                  theme,
+                  title,
+                  subtitle,
+                  foregroundColor: error,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -644,6 +736,106 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
+  Future<void> _sendPasswordReset() async {
+    final email = AuthService.instance.user?.email;
+    if (email == null || email.isEmpty) {
+      showAppToast(
+        context,
+        message: 'No account email is available',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+    final confirmed = await ResponsiveInfoSheet.confirm(
+      context,
+      title: 'Change Password?',
+      message:
+          'Budget AI will email a secure password-reset link to $email. '
+          'Open that link on this device to choose a new password.',
+      icon: CupertinoIcons.lock_rotation,
+      confirmLabel: 'Send Email',
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _isSendingReset = true);
+    try {
+      await AuthService.instance.sendPasswordRecovery(email);
+      if (!mounted) return;
+      showAppToast(
+        context,
+        message: 'Password reset email sent to $email',
+        type: ToastificationType.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showAppToast(
+        context,
+        message: friendlyAuthError(error),
+        type: ToastificationType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
+    }
+  }
+
+  Future<void> _signOut() async {
+    final confirmed = await ResponsiveInfoSheet.confirm(
+      context,
+      title: 'Sign Out?',
+      message:
+          'Your finance data stays on this device. You will need to sign in '
+          'again to use AI chat.',
+      icon: CupertinoIcons.square_arrow_right,
+      confirmLabel: 'Sign Out',
+      isRed: true,
+      onConfirm: AuthService.instance.signOut,
+    );
+    if (confirmed == true && mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteAccount() async {
+    final theme = Theme.of(context);
+    final firstConfirmation = await ResponsiveInfoSheet.show<bool>(
+      context,
+      title: 'Delete Account?',
+      headerIcon: Icon(
+        CupertinoIcons.delete,
+        size: 30,
+        color: AppTheme.readableOn(theme.colorScheme.error),
+      ),
+      gradientColors: [
+        theme.colorScheme.error,
+        theme.colorScheme.error.withValues(alpha: 0.78),
+      ],
+      contentWidgets: const [_DeleteAccountPhraseConfirmation()],
+    );
+    if (firstConfirmation != true || !mounted) return;
+    final finalConfirmation = await ResponsiveInfoSheet.confirm(
+      context,
+      title: 'This Cannot Be Undone',
+      message:
+          'Your recovery key cannot restore an account after deletion. Are '
+          'you absolutely sure you want to permanently delete it?',
+      icon: CupertinoIcons.exclamationmark_triangle_fill,
+      confirmLabel: 'Confirm Delete',
+      isRed: true,
+    );
+    if (finalConfirmation != true || !mounted) return;
+    setState(() => _isDeletingAccount = true);
+    try {
+      await AuthService.instance.deleteAccount();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      showAppToast(
+        context,
+        message: friendlyAuthError(error),
+        type: ToastificationType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isDeletingAccount = false);
+    }
+  }
+
   Future<void> _openInsights() async {
     final entries = await FinanceService.instance.getAll();
     if (!mounted) return;
@@ -656,6 +848,185 @@ class _SettingsScreenState extends State<SettingsScreen>
           selectedMonth: DateTime(now.year, now.month),
         ),
       ),
+    );
+  }
+}
+
+class _DeleteAccountPhraseConfirmation extends StatefulWidget {
+  const _DeleteAccountPhraseConfirmation();
+
+  @override
+  State<_DeleteAccountPhraseConfirmation> createState() =>
+      _DeleteAccountPhraseConfirmationState();
+}
+
+class _DeleteAccountPhraseConfirmationState
+    extends State<_DeleteAccountPhraseConfirmation>
+    with SingleTickerProviderStateMixin {
+  static const requiredPhrase = 'DELETE MY ACCOUNT';
+  String _enteredPhrase = '';
+  late final AnimationController _cursorController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cursorController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 530),
+      lowerBound: 0.15,
+      upperBound: 1,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _cursorController.dispose();
+    super.dispose();
+  }
+
+  bool get _matches => _enteredPhrase == requiredPhrase;
+
+  void _enterLetter(String letter) {
+    if (_enteredPhrase.length >= requiredPhrase.length) return;
+    setState(() => _enteredPhrase += letter.toUpperCase());
+  }
+
+  void _enterSpace() {
+    if (_enteredPhrase.isEmpty ||
+        _enteredPhrase.endsWith(' ') ||
+        _enteredPhrase.length >= requiredPhrase.length) {
+      return;
+    }
+    setState(() => _enteredPhrase += ' ');
+  }
+
+  void _backspace() {
+    if (_enteredPhrase.isEmpty) return;
+    setState(
+      () => _enteredPhrase = _enteredPhrase.substring(
+        0,
+        _enteredPhrase.length - 1,
+      ),
+    );
+  }
+
+  void _continue() {
+    if (_matches) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'This permanently deletes your Budget AI account, encrypted cloud '
+          'finance data, synced preferences, encryption recovery data, and AI '
+          'usage records. Data remaining only on this device is not removed.',
+          textAlign: TextAlign.center,
+          style: AppTheme.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Enter $requiredPhrase to continue',
+          textAlign: TextAlign.center,
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.error,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          key: const ValueKey('delete-account-phrase-field'),
+          height: 52,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _matches
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.outline,
+              width: _matches ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_enteredPhrase.isNotEmpty)
+                Text(
+                  _enteredPhrase,
+                  maxLines: 1,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              FadeTransition(
+                opacity: _cursorController,
+                child: Container(
+                  key: const ValueKey('delete-account-phrase-cursor'),
+                  width: 2,
+                  height: 23,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.error,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              if (_enteredPhrase.isEmpty) ...[
+                const SizedBox(width: 2),
+                Text(
+                  'DELETE MY ACCOUNT',
+                  maxLines: 1,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.35,
+                    ),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        InlineNameKeyboard(
+          onLetter: _enterLetter,
+          onPeriod: () {},
+          onSpace: _enterSpace,
+          onBackspace: _backspace,
+          onDone: _continue,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          spacing: 12,
+          children: [
+            Expanded(
+              child: AppButton(
+                text: 'Cancel',
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+            ),
+            Expanded(
+              child: AppButton(
+                key: const ValueKey('confirm-delete-account-phrase'),
+                text: 'Delete',
+                isRed: true,
+                onPressed: _matches ? _continue : null,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -785,210 +1156,103 @@ class _AccountNameEditorState extends State<_AccountNameEditor> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final screenSize = MediaQuery.sizeOf(context);
     final savedName = UserNameSettingsService.instance.current;
-    final firstName = savedName.split(RegExp(r'\s+')).firstOrNull ?? '';
-    final showSavedSummary = savedName.isNotEmpty && !_isEditing;
-    final iconContainerSize = screenSize.shortestSide * 0.123;
-    final actionSize = screenSize.shortestSide * 0.097;
-    final horizontalInset = screenSize.width * 0.031;
-    final verticalInset = screenSize.height * 0.014;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          InkWell(
+            key: const ValueKey('settings-account-name'),
+            borderRadius: BorderRadius.circular(12),
             onTap: _toggleKeyboard,
             child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalInset,
-                vertical: verticalInset,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.colorScheme.outline),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                ),
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: iconContainerSize,
-                    height: iconContainerSize,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
+                  SizedBox(
+                    width: 32,
                     child: Icon(
-                      CupertinoIcons.person_fill,
-                      size: screenSize.shortestSide * 0.051,
-                      color: theme.colorScheme.onPrimary,
+                      CupertinoIcons.person,
+                      size: 24,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
-                  SizedBox(width: horizontalInset),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: SizedBox(
-                      height: iconContainerSize,
-                      child: Center(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          child: showSavedSummary
-                              ? Align(
-                                  key: const ValueKey(
-                                    'settings-saved-name-summary',
-                                  ),
-                                  alignment: Alignment.centerLeft,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              savedName,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: AppTheme.headingSmall
-                                                  .copyWith(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .onSurface,
-                                                    fontSize:
-                                                        screenSize
-                                                            .shortestSide *
-                                                        0.04,
-                                                  ),
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: screenSize.width * 0.01,
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 2,
-                                            ),
-                                            child: Icon(
-                                              CupertinoIcons.pencil,
-                                              color: theme.colorScheme.primary,
-                                              size:
-                                                  screenSize.shortestSide *
-                                                  0.04,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Text(
-                                        'I’ll call you $firstName',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTheme.bodySmall.copyWith(
-                                          color: theme
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                          fontSize:
-                                              screenSize.shortestSide * 0.032,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : TextField(
-                                  key: const ValueKey(
-                                    'settings-name-edit-field',
-                                  ),
-                                  controller: _controller,
-                                  focusNode: _focusNode,
-                                  readOnly: true,
-                                  showCursor: _isEditing,
-                                  enableInteractiveSelection: false,
-                                  onTap: _toggleKeyboard,
-                                  maxLines: 1,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  cursorColor: theme.colorScheme.primary,
-                                  cursorWidth: screenSize.shortestSide * 0.0075,
-                                  cursorHeight: screenSize.shortestSide * 0.07,
-                                  cursorRadius: const Radius.circular(32),
-                                  style: TextStyle(
-                                    color: theme.colorScheme.onSurface,
-                                    fontFamily: 'Boldonse',
-                                    fontSize: screenSize.shortestSide * 0.046,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'What should I call you?',
-                                    hintStyle: TextStyle(
-                                      color: theme.colorScheme.primary
-                                          .withValues(alpha: 0.3),
-                                      fontFamily: 'Boldonse',
-                                      fontSize: screenSize.shortestSide * 0.04,
-                                    ),
-                                    isDense: true,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (!showSavedSummary) ...[
-                    SizedBox(width: screenSize.width * 0.021),
-                    SizedBox(
-                      width: actionSize,
-                      height: actionSize,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: _isSaving
-                            ? Material(
-                                key: const ValueKey('settings-name-saving'),
-                                color: theme.colorScheme.primary,
-                                shape: const CircleBorder(),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: actionSize * 0.42,
-                                    height: actionSize * 0.42,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth:
-                                          screenSize.shortestSide * 0.005,
-                                      color: theme.colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Material(
-                                key: ValueKey(
-                                  _isEditing
-                                      ? 'settings-name-close'
-                                      : 'settings-name-edit',
-                                ),
-                                color: theme.colorScheme.primary,
-                                shape: const CircleBorder(),
-                                child: InkWell(
-                                  onTap: _isEditing
-                                      ? _closeKeyboard
-                                      : _startEditing,
-                                  customBorder: const CircleBorder(),
-                                  child: Center(
-                                    child: Icon(
-                                      _isEditing
-                                          ? CupertinoIcons.xmark
-                                          : CupertinoIcons.pencil,
-                                      color: theme.colorScheme.onPrimary,
-                                      size: actionSize * 0.48,
-                                    ),
-                                  ),
+                    child: _isEditing
+                        ? TextField(
+                            key: const ValueKey('settings-name-edit-field'),
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            readOnly: true,
+                            showCursor: true,
+                            enableInteractiveSelection: false,
+                            onTap: () {},
+                            maxLines: 1,
+                            cursorColor: theme.colorScheme.primary,
+                            decoration: const InputDecoration(
+                              hintText: 'What should I call you?',
+                              isDense: true,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          )
+                        : Column(
+                            key: const ValueKey('settings-saved-name-summary'),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Name',
+                                style: AppTheme.bodyMedium.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
+                              const SizedBox(height: 2),
+                              Text(
+                                savedName.isEmpty ? 'Add your name' : savedName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                  if (_isSaving)
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: theme.colorScheme.primary,
+                      ),
+                    )
+                  else
+                    Icon(
+                      _isEditing ? CupertinoIcons.xmark : CupertinoIcons.pencil,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
                       ),
                     ),
-                  ],
                 ],
               ),
             ),

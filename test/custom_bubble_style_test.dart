@@ -6,6 +6,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('Outline is the second bubble preset', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: BubbleStyleScreen()));
+
+    final classicTop = tester.getTopLeft(find.text('Classic').first).dy;
+    final outlineTop = tester.getTopLeft(find.text('Outline').first).dy;
+    final ledgerTop = tester.getTopLeft(find.text('Ledger').first).dy;
+
+    expect(classicTop, lessThan(outlineTop));
+    expect(outlineTop, lessThan(ledgerTop));
+  });
+
   testWidgets('bubble picker exposes search without the custom add action', (
     tester,
   ) async {

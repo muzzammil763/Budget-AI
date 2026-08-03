@@ -158,6 +158,28 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteAccount() async {
+    try {
+      final response = await _client.functions.invoke('delete-account');
+      if (response.status < 200 || response.status >= 300) {
+        throw AuthException('Account deletion could not be completed.');
+      }
+    } on FunctionException catch (error) {
+      if (error.status == 404) {
+        throw AuthException('Account deletion service is not deployed yet.');
+      }
+      throw AuthException('Account deletion could not be completed.');
+    }
+    // Deleting a Supabase user does not itself clear the JWT stored on this
+    // device. A local sign-out removes it immediately; the server already
+    // removed the user and all account-owned rows cascade with that deletion.
+    await _client.auth.signOut(scope: SignOutScope.local);
+    _session = null;
+    _passwordRecovery = false;
+    _pendingPassword = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _authSubscription?.cancel();
@@ -191,6 +213,12 @@ String friendlyAuthError(Object error) {
   }
   if (message.contains('network') || message.contains('socket')) {
     return 'Check your internet connection and try again.';
+  }
+  if (message.contains('account deletion service')) {
+    return 'Account deletion is not available on the server yet.';
+  }
+  if (message.contains('account deletion')) {
+    return 'Your account could not be deleted. Please try again.';
   }
   return 'Authentication could not be completed. Please try again.';
 }

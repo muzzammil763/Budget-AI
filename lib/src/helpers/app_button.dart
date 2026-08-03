@@ -128,12 +128,16 @@ class AppButton extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (text != null)
-                        Text(
-                          text!,
-                          style: TextStyle(
-                            fontSize: fontSize,
-                            fontWeight: FontWeight.w700,
-                            color: content,
+                        Flexible(
+                          child: Text(
+                            text!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w700,
+                              color: content,
+                            ),
                           ),
                         ),
                       if (icon != null && text != null)

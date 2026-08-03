@@ -28,6 +28,9 @@ class UserBubbleStyleSurface extends StatelessWidget {
     if (style == UserBubbleStyle.custom && resolvedCustom != null) {
       return Color(resolvedCustom.textColorValue);
     }
+    if (style == UserBubbleStyle.outline) {
+      return Theme.of(context).colorScheme.primary;
+    }
     final background = _palette(
       Theme.of(context),
       style,
@@ -71,29 +74,7 @@ class UserBubbleStyleSurface extends StatelessWidget {
 }
 
 EdgeInsets _contentInsets(UserBubbleStyle style, {required bool preview}) {
-  if (preview) {
-    return switch (style) {
-      UserBubbleStyle.paperCurl => const EdgeInsets.fromLTRB(14, 12, 20, 12),
-      UserBubbleStyle.sketchFrame => const EdgeInsets.fromLTRB(18, 12, 18, 12),
-      UserBubbleStyle.custom => const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
-      ),
-      _ => const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    };
-  }
-  return switch (style) {
-    UserBubbleStyle.paperCurl => const EdgeInsets.fromLTRB(18, 17, 24, 17),
-    UserBubbleStyle.sketchFrame => const EdgeInsets.fromLTRB(22, 17, 22, 19),
-    UserBubbleStyle.vault => const EdgeInsets.fromLTRB(18, 16, 38, 16),
-    UserBubbleStyle.cashFlow ||
-    UserBubbleStyle.receipt => const EdgeInsets.fromLTRB(18, 16, 18, 21),
-    UserBubbleStyle.custom => const EdgeInsets.symmetric(
-      horizontal: 18,
-      vertical: 16,
-    ),
-    _ => const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-  };
+  return const EdgeInsets.all(12);
 }
 
 class _BubblePalette {
@@ -115,6 +96,11 @@ _BubblePalette _palette(
       theme.colorScheme.primary,
       theme.colorScheme.primary,
       theme.colorScheme.onPrimary,
+    ),
+    UserBubbleStyle.outline => _BubblePalette(
+      Colors.transparent,
+      theme.colorScheme.primary,
+      theme.colorScheme.primary,
     ),
     UserBubbleStyle.ledger => _BubblePalette(
       dark ? const Color(0xFF006B68) : const Color(0xFF087F79),
@@ -186,12 +172,15 @@ class _UserBubblePainter extends CustomPainter {
     final accent = Paint()
       ..color = palette.accent
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
+      ..strokeWidth = style == UserBubbleStyle.outline ? 1.5 : 2
       ..strokeCap = StrokeCap.round;
     final detail = Paint()..color = palette.detail;
     final bubble = _bubblePath(size);
 
     canvas.drawPath(bubble, body);
+    if (style == UserBubbleStyle.outline) {
+      canvas.drawPath(bubble, accent);
+    }
     if (style == UserBubbleStyle.custom) {
       _drawCustomPattern(canvas, size, bubble);
       canvas.drawPath(
@@ -210,6 +199,7 @@ class _UserBubblePainter extends CustomPainter {
 
     switch (style) {
       case UserBubbleStyle.classic:
+      case UserBubbleStyle.outline:
         break;
       case UserBubbleStyle.ledger:
         _drawLedger(canvas, size, accent, detail);
@@ -236,6 +226,7 @@ class _UserBubblePainter extends CustomPainter {
     final h = size.height;
     switch (style) {
       case UserBubbleStyle.classic:
+      case UserBubbleStyle.outline:
         return Path()..addRRect(
           RRect.fromRectAndCorners(
             Offset.zero & size,

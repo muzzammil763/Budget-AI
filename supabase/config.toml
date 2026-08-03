@@ -436,3 +436,11 @@ entrypoint = "./functions/openai-responses/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/openai-responses/*.html" ]
+
+[functions.delete-account]
+enabled = true
+# Authentication is verified inside the function by @supabase/server so it
+# supports the project's modern publishable-key setup.
+verify_jwt = false
+import_map = "./functions/delete-account/deno.json"
+entrypoint = "./functions/delete-account/index.ts"

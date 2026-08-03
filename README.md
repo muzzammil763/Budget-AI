@@ -92,17 +92,22 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   expandable grouped summary. Expanding reveals the arguments and result while
   preserving the response text in chronological order.
 - Budget Hub groups the app into a bento-style Quick Actions area for Finances
-  and Insights, an Account entry, Preferences for currency, offline speech and
+  and Insights, inline Account controls for the editable name, read-only email,
+  and secure password reset, Preferences for currency, offline speech and
   message style, and App Behavior controls for notifications and the Android
-  background service. The dedicated Account screen contains the name editor,
-  account identity, secure password-reset action, and sign-out. The currency
+  background service. A final Danger Zone contains sign-out and permanent
+  account deletion. Deletion requires entering `DELETE MY ACCOUNT` with the
+  inline keyboard and accepting one final warning; account-owned encrypted
+  cloud data is deleted with the account while device-only data remains local. The currency
   picker has a responsive search field and adjacent circular add action that
   opens a dedicated custom-currency form; custom displays are limited to five
   characters and can be edited or deleted later. The picker reveals the current
   selection on entry, jumps directly to a newly saved custom display, and stays
   open when the selection changes so users can return with Back. The message
   bubble picker currently exposes a searchable bottom control without a custom
-  add action. Existing custom styles remain editable and deletable through
+  add action. Its second preset is Outline: the Primary bubble shape with a
+  transparent fill and 1.5 px primary-color border. Bubble content uses 12 px
+  padding on every side. Existing custom styles remain editable and deletable through
   their list actions; the custom editor supports named styles, independent
   bubble/text/pattern colors, five shapes, five patterns, and a floating live
   preview that remains visible while editing.

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 enum UserBubbleStyle {
   classic('Classic'),
+  outline('Outline'),
   ledger('Ledger'),
   savings('Savings'),
   cashFlow('Cash flow'),
