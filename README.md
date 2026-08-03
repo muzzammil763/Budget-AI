@@ -87,6 +87,10 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   with both exact counters and a centered UTC renewal date. The Budget mark
   opens Finances directly, leaving the composer prefix-free during normal text
   entry.
+- Finance tool calls appear inline in assistant turns with live status. A
+  single call shows its named expandable row; consecutive calls use an
+  expandable grouped summary. Expanding reveals the arguments and result while
+  preserving the response text in chronological order.
 - Budget Hub groups the app into a bento-style Quick Actions area for Finances
   and Insights, an Account entry, Preferences for currency, offline speech and
   message style, and App Behavior controls for notifications and the Android

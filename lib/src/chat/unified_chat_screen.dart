@@ -27,6 +27,7 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
+import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/speech/local_speech_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
@@ -3964,30 +3965,114 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         messageIndex == _messages.length - 1 ||
         _messages[messageIndex + 1].isUser;
     final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn);
-    final responseBuffer = StringBuffer();
-    for (final block in blocks) {
-      if (block.type == ChatMessageBlockType.response) {
-        responseBuffer.write(block.text ?? '');
+    final children = <Widget>[];
+    final lastResponseIndex = blocks.lastIndexWhere(
+      (block) =>
+          block.type == ChatMessageBlockType.response &&
+          (block.text?.isNotEmpty ?? false),
+    );
+    var lastRenderedWasResponse = false;
+
+    void addChild(Widget child, {required bool isResponse}) {
+      if (children.isNotEmpty) {
+        children.add(const SizedBox(height: 6));
       }
-    }
-    final responseText = responseBuffer.toString();
-    if (responseText.trim().isEmpty) {
-      if (isCurrentlyStreaming) {
-        return const ChatResponseShimmer();
-      }
-      return const SizedBox.shrink();
+      children.add(child);
+      lastRenderedWasResponse = isResponse;
     }
 
+    var index = 0;
+    while (index < blocks.length) {
+      final block = blocks[index];
+      if (block.type == ChatMessageBlockType.response) {
+        final responseBuffer = StringBuffer();
+        var groupLastIndex = index;
+        while (index < blocks.length &&
+            blocks[index].type == ChatMessageBlockType.response) {
+          responseBuffer.write(blocks[index].text ?? '');
+          groupLastIndex = index;
+          index++;
+        }
+        final responseText = responseBuffer.toString();
+        if (responseText.trim().isNotEmpty) {
+          addChild(
+            _buildResponseMarkdown(
+              responseText,
+              isStreaming:
+                  isCurrentlyStreaming && groupLastIndex == lastResponseIndex,
+              messageIndex: messageIndex,
+            ),
+            isResponse: true,
+          );
+        }
+        continue;
+      }
+
+      if (block.type == ChatMessageBlockType.toolCall &&
+          block.toolCall != null) {
+        final toolCalls = <ToolCall>[];
+        final toolGroupStartIndex = index;
+        while (index < blocks.length &&
+            blocks[index].type == ChatMessageBlockType.toolCall &&
+            blocks[index].toolCall != null) {
+          toolCalls.add(blocks[index].toolCall!);
+          index++;
+        }
+        final themeColor = Theme.of(context).colorScheme.primary;
+        final toolWidget = toolCalls.length == 1
+            ? ChatToolCallSection(
+                key: ValueKey(
+                  'tool_${messageIndex}_${toolGroupStartIndex}_${toolCalls.first.id ?? 'legacy'}',
+                ),
+                toolCall: toolCalls.first,
+                themeColor: themeColor,
+                isInProgress: !toolCalls.first.isComplete,
+                markdownNormalizer: normalizeChatResponseMarkdown,
+                onLinkTap: _handleMarkdownLinkTap,
+                linkBuilder: (context, linkText, url, style) =>
+                    buildChatResponseMarkdownLink(
+                      context,
+                      linkText: linkText,
+                      url: url,
+                      style: style,
+                      onLinkTap: _handleMarkdownLinkTap,
+                    ),
+              )
+            : ChatToolCallGroupSection(
+                key: ValueKey(
+                  'tool_group_${messageIndex}_$toolGroupStartIndex',
+                ),
+                toolCalls: toolCalls,
+                themeColor: themeColor,
+                isInProgress: toolCalls.any((tool) => !tool.isComplete),
+                markdownNormalizer: normalizeChatResponseMarkdown,
+                onLinkTap: _handleMarkdownLinkTap,
+                linkBuilder: (context, linkText, url, style) =>
+                    buildChatResponseMarkdownLink(
+                      context,
+                      linkText: linkText,
+                      url: url,
+                      style: style,
+                      onLinkTap: _handleMarkdownLinkTap,
+                    ),
+              );
+        addChild(toolWidget, isResponse: false);
+        continue;
+      }
+
+      index++;
+    }
+
+    if (isCurrentlyStreaming &&
+        (children.isEmpty || !lastRenderedWasResponse)) {
+      addChild(const ChatResponseShimmer(), isResponse: false);
+    }
+
+    if (children.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildResponseMarkdown(
-          responseText,
-          isStreaming: isCurrentlyStreaming,
-          messageIndex: messageIndex,
-        ),
-      ],
+      children: children,
     );
   }
 

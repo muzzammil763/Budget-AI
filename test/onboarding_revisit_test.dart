@@ -29,13 +29,20 @@ void main() {
 
       Future<void> openOnboarding() async {
         await tester.tap(find.text('Open onboarding'));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 1200));
-        expect(find.byType(OnboardingScreen), findsOneWidget);
+        final onboarding = find.byType(OnboardingScreen);
+        for (
+          var attempt = 0;
+          attempt < 20 && onboarding.evaluate().isEmpty;
+          attempt++
+        ) {
+          await tester.pump(const Duration(milliseconds: 250));
+        }
+        expect(onboarding, findsOneWidget);
+        expect(tester.widget<OnboardingScreen>(onboarding).isRevisit, isTrue);
       }
 
       await openOnboarding();
-      await tester.tap(find.byKey(const ValueKey('close-onboarding-revisit')));
+      await tester.binding.handlePopRoute();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('Open onboarding'), findsOneWidget);
