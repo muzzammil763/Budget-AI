@@ -152,6 +152,12 @@ class BubbleStyleSettingsService {
     _applySerialized(await _settings.getString(_styleKey) ?? '');
   }
 
+  void resetLocalState() {
+    _activeCustomStyleId = null;
+    customStyles.value = <CustomBubbleStyle>[];
+    style.value = UserBubbleStyle.classic;
+  }
+
   Future<void> setStyle(UserBubbleStyle value) async {
     if (value == UserBubbleStyle.custom && currentCustomStyle == null) return;
     style.value = value;

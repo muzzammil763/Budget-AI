@@ -308,6 +308,11 @@ class NotificationService {
     await _notifications.cancelAll();
   }
 
+  Future<void> clearForAccountExit() async {
+    _pendingActionQueue.clear();
+    if (_isInitialized) await cancelAll();
+  }
+
   Future<List<dynamic>> getPendingNotifications() async {
     return await _notifications.pendingNotificationRequests();
   }

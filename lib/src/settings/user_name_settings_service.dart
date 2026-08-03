@@ -17,6 +17,10 @@ class UserNameSettingsService {
     await syncFromUser(Supabase.instance.client.auth.currentUser);
   }
 
+  void resetLocalState() {
+    userName.value = '';
+  }
+
   Future<void> setUserName(String value) async {
     final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
     final user = Supabase.instance.client.auth.currentUser;

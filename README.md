@@ -118,6 +118,10 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   selections remain device-local. Granting notifications or Android background
   access during onboarding records the matching local choice, so its Budget Hub
   toggle stays on after account creation or sign-in.
+- Signing out clears the previous user's local finances, chat history,
+  preferences, encryption key, widget data, and legacy storage. Downloaded
+  offline speech-model files and the completed-onboarding flag are preserved;
+  model selections reset to defaults.
 - Budget Hub exposes Replay onboarding. It opens the same five-page onboarding
   experience with a route-level Back control; Back or completing the final page
   returns to Budget Hub instead of restarting the authentication flow.

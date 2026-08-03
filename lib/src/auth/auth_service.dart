@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:budget_ai/src/helpers/app_constants.dart';
+import 'package:budget_ai/src/auth/local_privacy_reset_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -151,7 +152,9 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    final exitingUserId = user?.id;
     await _client.auth.signOut();
+    await LocalPrivacyResetService.clearAfterAccountExit(userId: exitingUserId);
     _session = null;
     _passwordRecovery = false;
     _pendingPassword = null;
@@ -159,6 +162,7 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> deleteAccount() async {
+    final exitingUserId = user?.id;
     try {
       final response = await _client.functions.invoke('delete-account');
       if (response.status < 200 || response.status >= 300) {
@@ -174,6 +178,7 @@ class AuthService extends ChangeNotifier {
     // device. A local sign-out removes it immediately; the server already
     // removed the user and all account-owned rows cascade with that deletion.
     await _client.auth.signOut(scope: SignOutScope.local);
+    await LocalPrivacyResetService.clearAfterAccountExit(userId: exitingUserId);
     _session = null;
     _passwordRecovery = false;
     _pendingPassword = null;

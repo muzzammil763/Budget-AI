@@ -376,4 +376,12 @@ class LocalFinanceStore {
   void resetVolatileFallback() {
     _memoryRows.clear();
   }
+
+  Future<void> clearAll() async {
+    final database = await _database();
+    _memoryRows.clear();
+    if (database != null) await database.delete('finance_entries');
+    changes.value++;
+    pendingChanges.value++;
+  }
 }

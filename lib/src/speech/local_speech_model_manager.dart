@@ -88,6 +88,11 @@ class LocalSpeechModelManager {
     await refresh();
   }
 
+  void resetSelectionsWithoutRemovingDownloads() {
+    selectedSttId.value = LocalSpeechModels.defaultSttId;
+    selectedTtsId.value = LocalSpeechModels.defaultTtsId;
+  }
+
   Future<Directory> directoryFor(LocalSpeechModel model) async {
     if (_modelsDirectory == null) await initialize();
     return Directory(p.join(_modelsDirectory!.path, model.id));

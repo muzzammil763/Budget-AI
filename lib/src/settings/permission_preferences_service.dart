@@ -34,6 +34,11 @@ class PermissionPreferencesService {
         await LocalSettingsStore.instance.getBool(_backgroundKey) ?? false;
   }
 
+  void resetLocalState() {
+    notificationsEnabled.value = false;
+    backgroundEnabled.value = false;
+  }
+
   Future<void> setNotificationsEnabled(bool value) async {
     notificationsEnabled.value = value;
     await LocalSettingsStore.instance.setBool(_notificationsKey, value);

@@ -286,4 +286,24 @@ class LocalSettingsStore {
       [updatedAt],
     );
   }
+
+  Future<void> clearExcept(Set<String> preservedKeys) async {
+    final database = await _database();
+    _memoryFallback.removeWhere((key, _) => !preservedKeys.contains(key));
+    _memoryRows.removeWhere((key, _) => !preservedKeys.contains(key));
+    if (database != null) {
+      if (preservedKeys.isEmpty) {
+        await database.delete('local_settings');
+      } else {
+        final placeholders = List.filled(preservedKeys.length, '?').join(',');
+        await database.delete(
+          'local_settings',
+          where: 'key NOT IN ($placeholders)',
+          whereArgs: preservedKeys.toList(growable: false),
+        );
+      }
+    }
+    changes.value++;
+    accountPendingChanges.value++;
+  }
 }

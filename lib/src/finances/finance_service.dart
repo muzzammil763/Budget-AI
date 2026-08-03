@@ -352,6 +352,15 @@ class FinanceService {
     _cache = null;
   }
 
+  Future<void> clearLocalData() async {
+    _cache = const [];
+    await LocalFinanceStore.instance.clearAll();
+    final legacyFile = await _storageFile();
+    if (await legacyFile.exists()) await legacyFile.delete();
+    await BudgetHomeWidgetSync.clearPendingEntries();
+    await syncHomeWidget();
+  }
+
   Future<void> _persist() async {
     try {
       final entries = List<FinanceEntry>.from(_cache!);

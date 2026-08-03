@@ -62,6 +62,10 @@ class AccountEncryptionService {
     return await _secureStorage.containsKey(key: '$_keyPrefix$userId');
   }
 
+  Future<void> clearDataKey(String userId) {
+    return _secureStorage.delete(key: '$_keyPrefix$userId');
+  }
+
   /// Creates this account's data key on first-time setup, if one doesn't
   /// already exist locally. A no-op on a device that already holds one.
   Future<void> createDataKey(String userId) async {

@@ -23,6 +23,7 @@ lib/
       auth_gate.dart            Routes: loading → recovery → EncryptionGate(chat) → AuthFlow
       auth_screens.dart         Onboarding-styled sign in/up, confirm, reset; AuthTextField
       auth_service.dart         Supabase email/password, sessions, OTP, recovery
+      local_privacy_reset_service.dart  Clears prior-user device data on account exit
       encryption_gate.dart      Mandatory E2E gate: checking → needsSetup → needsRestore → ready
       encryption_setup_screen.dart / encryption_restore_screen.dart
     chat/                       Chat UI + OpenAI Responses streaming + tool loop

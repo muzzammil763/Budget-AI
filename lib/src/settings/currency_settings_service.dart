@@ -57,6 +57,11 @@ class CurrencySettingsService {
     }
   }
 
+  void resetLocalState() {
+    currency.value = 'USD';
+    customCurrencies.value = <String>[];
+  }
+
   Future<void> setCurrency(String value) async {
     final normalized = value.trim();
     if (normalized.isEmpty) return;
