@@ -376,13 +376,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          if (widget.isRevisit)
-            IconButton(
-              key: const ValueKey('close-onboarding-revisit'),
-              tooltip: 'Back to Budget Hub',
-              onPressed: Navigator.of(context).pop,
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            ),
           const Spacer(),
           AnimatedOpacity(
             opacity: _isLastPage ? 0 : 1,
