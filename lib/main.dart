@@ -19,13 +19,10 @@ import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:budget_ai/src/widgets/siri_finance_inbox.dart';
 import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
-import 'package:device_preview/device_preview.dart';
-// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _onboardingCompletedKey = 'onboarding_completed';
-// const _devicePreviewEnabled = true;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,12 +50,6 @@ Future<void> main() async {
       await LocalSettingsStore.instance.getBool(_onboardingCompletedKey) ??
       false;
   runApp(MyApp(showOnboarding: !onboardingCompleted));
-  // runApp(
-  //   DevicePreview(
-  //     enabled: kDebugMode && _devicePreviewEnabled,
-  //     builder: (_) => MyApp(showOnboarding: !onboardingCompleted),
-  //   ),
-  // );
 }
 
 class MyApp extends StatelessWidget {
@@ -72,8 +63,6 @@ class MyApp extends StatelessWidget {
       valueListenable: BubbleStyleSettingsService.instance.style,
       builder: (context, _, _) {
         return MaterialApp(
-          locale: DevicePreview.locale(context),
-          builder: DevicePreview.appBuilder,
           title: 'Budget AI',
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
