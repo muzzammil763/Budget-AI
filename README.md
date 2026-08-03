@@ -102,6 +102,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   selections remain device-local. Granting notifications or Android background
   access during onboarding records the matching local choice, so its Budget Hub
   toggle stays on after account creation or sign-in.
+- When a response finishes while Budget AI is away from the foreground chat,
+  its notification uses the complete response converted from Markdown into
+  readable plain text. Android exposes that content through its expandable
+  large-text notification; the operating system still controls how much is
+  visible in the collapsed notification and on the lock screen.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.
