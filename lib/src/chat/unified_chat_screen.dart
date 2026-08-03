@@ -2971,7 +2971,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           onNotification: _handleChatScrollNotification,
           child: ListView.builder(
             padding: EdgeInsets.only(
-              top: Platform.isIOS ? 112 : 100,
+              top: Platform.isIOS ? 116 : 100,
               bottom: 112,
             ),
             controller: _scrollController,
