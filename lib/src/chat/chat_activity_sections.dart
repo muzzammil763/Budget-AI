@@ -304,6 +304,7 @@ class _ChatToolCallGroupSectionState extends State<ChatToolCallGroupSection> {
                     style: AppTheme.bodySmall.copyWith(
                       color: hintColor,
                       fontWeight: FontWeight.w700,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -497,7 +498,7 @@ class _CompactToolCallBatchSectionState
                         : isInProgress
                         ? Icons.pending_outlined
                         : CupertinoIcons.check_mark_circled,
-                    size: 16,
+                    size: 22,
                     color: failedCount > 0
                         ? Colors.red
                         : isInProgress
@@ -510,6 +511,7 @@ class _CompactToolCallBatchSectionState
                       _buildReadBatchTitle(fileLabel),
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w700,
+                        fontSize: 14,
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
@@ -519,7 +521,7 @@ class _CompactToolCallBatchSectionState
                       '$failedCount failed',
                       style: AppTheme.bodySmall.copyWith(
                         color: Colors.red,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -541,7 +543,7 @@ class _CompactToolCallBatchSectionState
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 0, 8),
+              padding: const EdgeInsets.fromLTRB(12, 0, 0, 8),
               child: Text(
                 paths.isEmpty
                     ? '${widget.toolCalls.length} read calls'
@@ -670,7 +672,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                       formatToolNameForUi(widget.toolCall.name),
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13.5 * widget.displayScale,
+                        fontSize: 14 * widget.displayScale,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
