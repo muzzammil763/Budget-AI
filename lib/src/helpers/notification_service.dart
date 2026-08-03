@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:budget_ai/src/helpers/notification_payload.dart';
+import 'package:budget_ai/src/helpers/notification_text_formatter.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'
@@ -210,7 +211,11 @@ class NotificationService {
     final title = payload.hasError
         ? 'Budget AI response error'
         : 'Budget AI response ready';
-    final body = payload.summary ?? 'Your AI response is ready.';
+    final responseText = payload.summary?.trim();
+    final plainText = responseText == null || responseText.isEmpty
+        ? ''
+        : notificationPlainText(responseText);
+    final body = plainText.isEmpty ? 'Your AI response is ready.' : plainText;
     final tapPayload = ResponseReadyPayload(
       chatId: payload.chatId,
       modelUsed: payload.modelUsed,
