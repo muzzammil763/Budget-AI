@@ -32,7 +32,10 @@ const _pageStateAnimationDuration = Duration(milliseconds: 280);
 const _pageStateAnimationCurve = Curves.easeOutCubic;
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({super.key, this.isRevisit = false});
+
+  /// Reuses onboarding from Budget Hub without changing the app's root flow.
+  final bool isRevisit;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -178,6 +181,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     setState(() => _isFinishing = true);
 
     try {
+      if (widget.isRevisit) {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).pop();
+        return;
+      }
       await LocalSettingsStore.instance.setBool(_onboardingCompletedKey, true);
       await LocalSettingsStore.instance.setString(
         _onboardingCompletedAtKey,
@@ -364,18 +372,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   ];
 
   Widget _buildHeader(ThemeData theme) {
-    return Row(
-      children: [
-        const Spacer(),
-        AnimatedOpacity(
-          opacity: _isLastPage ? 0 : 1,
-          duration: const Duration(milliseconds: 200),
-          child: TextButton(
-            onPressed: _isLastPage ? null : () => _goToPage(_pageCount - 1),
-            child: Text("Skip"),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          if (widget.isRevisit)
+            IconButton(
+              key: const ValueKey('close-onboarding-revisit'),
+              tooltip: 'Back to Budget Hub',
+              onPressed: Navigator.of(context).pop,
+              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            ),
+          const Spacer(),
+          AnimatedOpacity(
+            opacity: _isLastPage ? 0 : 1,
+            duration: const Duration(milliseconds: 200),
+            child: TextButton(
+              onPressed: _isLastPage ? null : () => _goToPage(_pageCount - 1),
+              child: const Text('Skip'),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

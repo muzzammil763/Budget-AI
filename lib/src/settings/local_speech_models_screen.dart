@@ -201,11 +201,10 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${model.description} · '
-                            '${model.installedSizeLabel}'
-                            '${model.kind == LocalSpeechModelKind.textToSpeech ? ' · ${_formatBytes(model.downloadSizeBytes)} download' : ''}',
+                            model.description,
                             style: AppTheme.bodySmall.copyWith(
                               color: colors.onSurfaceVariant,
+                              height: 1.4,
                             ),
                           ),
                         ],
@@ -225,6 +224,43 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
                     ],
                   ],
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  'MODEL DETAILS',
+                  style: AppTheme.bodySmall.copyWith(
+                    color: colors.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                for (final detail in model.details)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '•',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            detail,
+                            style: AppTheme.bodySmall.copyWith(
+                              color: colors.onSurfaceVariant,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (downloading) ...[
                   const SizedBox(height: 12),
                   ClipRRect(

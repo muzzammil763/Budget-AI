@@ -12,8 +12,7 @@ import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
-import 'package:budget_ai/src/onboarding/onboarding_screen.dart'
-    show InlineNameKeyboard;
+import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/account_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
@@ -305,6 +304,19 @@ class _SettingsScreenState extends State<SettingsScreen>
                 onChanged: _onBackgroundToggled,
               ),
             ),
+          _navTile(
+            theme,
+            key: const ValueKey('replay-onboarding'),
+            icon: CupertinoIcons.sparkles,
+            title: 'Replay onboarding',
+            subtitle: 'Revisit the complete Budget AI introduction and setup',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const OnboardingScreen(isRevisit: true),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -463,6 +475,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Widget _navTile(
     ThemeData theme, {
+    Key? key,
     IconData? icon,
     Widget? leading,
     required String title,
@@ -473,6 +486,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
+        key: key,
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(

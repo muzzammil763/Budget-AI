@@ -15,9 +15,16 @@ end-to-end encrypted synchronization, and offline speech.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
 - Spoken replies are generated fully on-device with Sherpa-ONNX and a downloaded Piper voice. Audio never leaves the device; only transcribed text is sent to OpenAI for chat.
-- Budget Hub > Offline Speech Models downloads, selects, and removes Whisper STT and Piper TTS models. The mobile-compatible catalog includes Tiny, Base, Small, Medium, and distilled Whisper choices in English and multilingual variants, plus all 185 full-precision Piper voice/quality packages published in the official Sherpa-ONNX `tts-models` release across 50 locales. FP16 and INT8 duplicates of those same voices are omitted. Downloads show rounded progress, transferred and total size, live speed, and estimated time remaining. No speech model is bundled, so voice chat becomes available after one STT model and one TTS model are downloaded.
-- Downloaded models select on tap and remove with a left swipe. Downloaded Piper voices also provide locally generated, zero-API-cost audio previews.
-- The source Piper catalog can be explored in the [Sherpa-ONNX pretrained TTS documentation](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/index.html) and the official [`tts-models` release](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models).
+- Budget Hub > Offline Speech Models offers a focused on-device catalog:
+  Whisper Small English, Whisper Small Multilingual, and the Piper Lessac
+  medium US-English voice. Model cards explain accuracy/speed trade-offs,
+  storage and engine details; the multilingual card lists all 99 languages
+  supported by the downloaded Whisper tokenizer. Downloads show rounded
+  progress, transferred and total size, live speed, and estimated time
+  remaining. No speech model is bundled, so voice chat becomes available after
+  one STT model and Lessac are downloaded.
+- Downloaded models select on tap and remove with a left swipe. Downloaded
+  Lessac also provides a locally generated, zero-API-cost audio preview.
 - A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
 
@@ -102,6 +109,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   selections remain device-local. Granting notifications or Android background
   access during onboarding records the matching local choice, so its Budget Hub
   toggle stays on after account creation or sign-in.
+- Budget Hub exposes Replay onboarding. It opens the same five-page onboarding
+  experience with a route-level Back control; Back or completing the final page
+  returns to Budget Hub instead of restarting the authentication flow.
 - When a response finishes while Budget AI is away from the foreground chat,
   its notification uses the complete response converted from Markdown into
   readable plain text. Android exposes that content through its expandable

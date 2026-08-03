@@ -22,11 +22,11 @@ void main() {
   test('local speech catalog includes selectable STT and TTS models', () {
     expect(
       LocalSpeechModels.ofKind(LocalSpeechModelKind.speechToText),
-      hasLength(10),
+      hasLength(2),
     );
     expect(
       LocalSpeechModels.ofKind(LocalSpeechModelKind.textToSpeech),
-      hasLength(185),
+      hasLength(1),
     );
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultSttId), isNotNull);
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultTtsId), isNotNull);
@@ -66,6 +66,15 @@ void main() {
             model.archiveRoot == 'vits-piper-${model.piperPrefix}' &&
             model.requiredFiles.first == '${model.piperPrefix}.onnx',
       ),
+      isTrue,
+    );
+    expect(LocalSpeechModels.whisperLanguages, hasLength(99));
+    expect(
+      LocalSpeechModels.whisperLanguages,
+      containsAll(['English', 'Urdu']),
+    );
+    expect(
+      LocalSpeechModels.all.every((model) => model.details.length >= 4),
       isTrue,
     );
   });
