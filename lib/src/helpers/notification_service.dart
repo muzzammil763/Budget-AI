@@ -209,8 +209,8 @@ class NotificationService {
 
     final id = payload.chatId.hashCode.abs();
     final title = payload.hasError
-        ? 'Budget AI response error'
-        : 'Budget AI response ready';
+        ? 'Budget AI Response Error'
+        : 'Budget AI Response Ready';
     final responseText = payload.summary?.trim();
     final plainText = responseText == null || responseText.isEmpty
         ? ''
