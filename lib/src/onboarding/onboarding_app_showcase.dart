@@ -339,9 +339,7 @@ You’re ready to start budgeting.''';
                       ),
                     ),
                   ),
-                  if (typedAnswer.isEmpty)
-                    const ChatResponseShimmer()
-                  else
+                  if (typedAnswer.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: ChatResponseMarkdown(
@@ -507,16 +505,7 @@ class _ChatComposer extends StatelessWidget {
                       child: ChatBudgetLoadingIndicator(size: 44),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: ChatShimmerText(
-                        text: 'Budget AI Is Working',
-                        style: TextStyle(
-                          color: colors.onSurface,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+                    const Expanded(child: ChatWorkingWord(fontSize: 18)),
                   ],
                 )
               : Row(

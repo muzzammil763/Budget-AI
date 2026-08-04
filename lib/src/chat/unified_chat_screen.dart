@@ -3517,17 +3517,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           child: RepaintBoundary(child: ChatBudgetLoadingIndicator(size: 44)),
         ),
         const SizedBox(width: 8),
-        Expanded(
-          child: ChatShimmerText(
-            text: 'Budget AI Is Working',
-            style: AppTheme.bodyMedium.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              fontFamily: _chatFontFamily,
-            ),
-          ),
-        ),
+        const Expanded(child: ChatWorkingWord(fontSize: 18)),
       ],
     );
   }
@@ -3942,14 +3932,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           block.type == ChatMessageBlockType.response &&
           (block.text?.isNotEmpty ?? false),
     );
-    var lastRenderedWasResponse = false;
-
     void addChild(Widget child, {required bool isResponse}) {
       if (children.isNotEmpty) {
         children.add(const SizedBox(height: 6));
       }
       children.add(child);
-      lastRenderedWasResponse = isResponse;
     }
 
     var index = 0;
@@ -4032,11 +4019,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
 
       index++;
-    }
-
-    if (isCurrentlyStreaming &&
-        (children.isEmpty || !lastRenderedWasResponse)) {
-      addChild(const ChatResponseShimmer(), isResponse: false);
     }
 
     if (children.isEmpty) return const SizedBox.shrink();

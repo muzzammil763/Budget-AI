@@ -180,45 +180,156 @@ class _ChatShimmerTextState extends State<ChatShimmerText>
   }
 }
 
-class ChatResponseShimmer extends StatelessWidget {
-  const ChatResponseShimmer({super.key});
+class ChatWorkingWord extends StatefulWidget {
+  const ChatWorkingWord({super.key, this.fontSize = 22});
+
+  final double fontSize;
+
+  @override
+  State<ChatWorkingWord> createState() => _ChatWorkingWordState();
+}
+
+class _ChatWorkingWordState extends State<ChatWorkingWord> {
+  static const _words = [
+    'Clauding',
+    'Bruzzling',
+    'Snuzzing',
+    'Zuzzling',
+    'Brewzing',
+    'Thinkling',
+    'Floopzing',
+    'Glimbling',
+    'Juzzling',
+    'Klinkling',
+    'Luzzling',
+    'Mibbling',
+    'Pluzzling',
+    'Ruzzling',
+    'Truzzling',
+    'Vizzling',
+    'Wuzzling',
+    'Yuzzling',
+    'Zibbling',
+    'Brumbling',
+    'Chuzzling',
+    'Dazzmbling',
+    'Frumbling',
+    'Kluzzing',
+    'Ploofing',
+    'Squzzing',
+    'Thrumbling',
+    'Bloopling',
+    'Crimbling',
+    'Drumbling',
+    'Fluzzing',
+    'Grozzling',
+    'Huzzling',
+    'Prumbling',
+    'Swoozling',
+    'Bluzzing',
+    'Crumblingo',
+    'Drizzbling',
+    'Frozzling',
+    'Quzzling',
+    'Snimbling',
+    'Vroombling',
+  ];
+
+  final math.Random _random = math.Random();
+  late final Timer _timer;
+  late List<int> _shuffledWordIndexes;
+  int _shufflePosition = 0;
+  late int _wordIndex;
+  int _dotCount = 1;
+  int _ticks = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _shuffledWordIndexes = List.generate(_words.length, (index) => index)
+      ..shuffle(_random);
+    _wordIndex = _shuffledWordIndexes.first;
+    _timer = Timer.periodic(const Duration(milliseconds: 480), (_) {
+      if (!mounted) return;
+      setState(() {
+        _dotCount = (_dotCount % 3) + 1;
+        _ticks++;
+        if (_ticks % 4 == 0) {
+          _shufflePosition++;
+          if (_shufflePosition >= _shuffledWordIndexes.length) {
+            final previousIndex = _wordIndex;
+            do {
+              _shuffledWordIndexes.shuffle(_random);
+            } while (_shuffledWordIndexes.first == previousIndex);
+            _shufflePosition = 0;
+          }
+          _wordIndex = _shuffledWordIndexes[_shufflePosition];
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurface;
+    final style = AppTheme.headingLarge.copyWith(
+      color: color,
+      fontSize: widget.fontSize,
+      fontWeight: FontWeight.w800,
+      height: 1.4,
+      fontFamily: 'Boldonse',
+    );
     return Semantics(
       liveRegion: true,
-      label: 'Budget AI is preparing a response',
+      label: 'Budget AI is working',
       child: ExcludeSemantics(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = math.max(0, constraints.maxWidth - 24);
-            return Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ChatShimmerBlock(
-                    width: width * 0.88,
-                    height: 14,
-                    reverse: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 520),
+              curve: Curves.easeInOutCubic,
+              alignment: AlignmentDirectional.centerStart,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 520),
+                switchInCurve: Curves.easeInOutCubic,
+                switchOutCurve: Curves.easeInOutCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.985, end: 1).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: child,
                   ),
-                  const SizedBox(height: 9),
-                  ChatShimmerBlock(
-                    width: width * 0.96,
-                    height: 14,
-                    reverse: true,
-                  ),
-                  const SizedBox(height: 9),
-                  ChatShimmerBlock(
-                    width: width * 0.58,
-                    height: 14,
-                    reverse: true,
-                  ),
-                ],
+                ),
+                child: Text(
+                  _words[_wordIndex],
+                  key: ValueKey(_wordIndex),
+                  maxLines: 1,
+                  style: style,
+                ),
               ),
-            );
-          },
+            ),
+            SizedBox(
+              width: widget.fontSize * 0.9,
+              child: Text(
+                List.filled(_dotCount, '.').join(),
+                maxLines: 1,
+                style: style,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -873,9 +984,6 @@ class _ChatBudgetLoadingIndicatorState extends State<ChatBudgetLoadingIndicator>
               progress: _controller.value,
               primary: theme.colorScheme.primary,
               secondary: theme.colorScheme.tertiary,
-              surface: theme.colorScheme.surface,
-              outline: theme.colorScheme.outline,
-              onSurface: theme.colorScheme.onSurface,
             ),
           );
         },
@@ -888,69 +996,21 @@ class _BudgetAiLoadingPainter extends CustomPainter {
   final double progress;
   final Color primary;
   final Color secondary;
-  final Color surface;
-  final Color outline;
-  final Color onSurface;
 
   const _BudgetAiLoadingPainter({
     required this.progress,
     required this.primary,
     required this.secondary,
-    required this.surface,
-    required this.outline,
-    required this.onSurface,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final shortest = math.min(size.width, size.height);
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = shortest * 0.43;
-    final pulse = 0.5 + 0.5 * math.sin(progress * math.pi * 2);
-
-    final glowPaint = Paint()
-      ..color = primary.withValues(alpha: 0.08 + pulse * 0.05)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius * (0.95 + pulse * 0.08), glowPaint);
-
-    final basePaint = Paint()
-      ..color = surface
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius * 0.92, basePaint);
-
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = shortest * 0.055
-      ..strokeCap = StrokeCap.round
-      ..color = outline.withValues(alpha: 0.20);
-    canvas.drawCircle(center, radius * 0.84, ringPaint);
-
-    final activeRingPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = shortest * 0.055
-      ..strokeCap = StrokeCap.round
-      ..shader = SweepGradient(
-        colors: [
-          primary.withValues(alpha: 0),
-          primary,
-          secondary,
-          primary.withValues(alpha: 0),
-        ],
-        stops: const [0.0, 0.42, 0.72, 1.0],
-        transform: GradientRotation(progress * math.pi * 2),
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius * 0.84),
-      -math.pi / 2 + progress * math.pi * 2,
-      math.pi * 1.35,
-      false,
-      activeRingPaint,
-    );
-
-    final chartBottom = center.dy + radius * 0.34;
-    final barWidth = shortest * 0.105;
-    final gap = shortest * 0.052;
-    final maxHeight = radius * 0.82;
+    final chartBottom = center.dy + shortest * 0.25;
+    final barWidth = shortest * 0.16;
+    final gap = shortest * 0.09;
+    final maxHeight = shortest * 0.64;
     final barStartX = center.dx - (barWidth * 1.5 + gap);
     final barPaint = Paint()..style = PaintingStyle.fill;
 
@@ -971,54 +1031,13 @@ class _BudgetAiLoadingPainter extends CustomPainter {
       )!.withValues(alpha: 0.86);
       canvas.drawRRect(rect, barPaint);
     }
-
-    final axisPaint = Paint()
-      ..color = onSurface.withValues(alpha: 0.18)
-      ..strokeWidth = shortest * 0.025
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(center.dx - radius * 0.42, chartBottom + shortest * 0.01),
-      Offset(center.dx + radius * 0.43, chartBottom + shortest * 0.01),
-      axisPaint,
-    );
-
-    final coinAngle = -math.pi / 2 + progress * math.pi * 2;
-    final coinCenter =
-        center +
-        Offset(
-          math.cos(coinAngle) * radius * 0.84,
-          math.sin(coinAngle) * radius * 0.84,
-        );
-    final coinRadius = shortest * 0.105;
-    final coinPaint = Paint()
-      ..color = secondary
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(coinCenter, coinRadius, coinPaint);
-
-    final coinMarkPaint = Paint()
-      ..color = surface.withValues(alpha: 0.94)
-      ..strokeWidth = shortest * 0.026
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      coinCenter.translate(0, -coinRadius * 0.45),
-      coinCenter.translate(0, coinRadius * 0.45),
-      coinMarkPaint,
-    );
-    canvas.drawLine(
-      coinCenter.translate(-coinRadius * 0.30, 0),
-      coinCenter.translate(coinRadius * 0.30, 0),
-      coinMarkPaint,
-    );
   }
 
   @override
   bool shouldRepaint(covariant _BudgetAiLoadingPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.primary != primary ||
-        oldDelegate.secondary != secondary ||
-        oldDelegate.surface != surface ||
-        oldDelegate.outline != outline ||
-        oldDelegate.onSurface != onSurface;
+        oldDelegate.secondary != secondary;
   }
 }
 
