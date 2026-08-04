@@ -28,7 +28,6 @@ dependencies:
   uuid: ^4.5.3
   auto_size_text: ^3.0.0
   record: ^7.1.1
-  audioplayers: ^6.8.1
   home_widget: ^0.9.3
   sherpa_onnx: ^1.13.4
   archive: ^4.0.9

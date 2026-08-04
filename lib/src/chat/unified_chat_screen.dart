@@ -39,8 +39,8 @@ import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 import 'package:uuid/uuid.dart';
@@ -85,13 +85,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   late ChatProvider _provider;
   late ChatModelConfig _activeConfig;
   final AudioRecorder _audioRecorder = AudioRecorder();
-  final AudioPlayer _audioPlayer = AudioPlayer();
   final LocalSpeechService _localSpeechService = LocalSpeechService();
   bool _isRecording = false;
   bool _isTranscribing = false;
-  bool _isSpeaking = false;
   bool _voiceHoldActive = false;
   bool _voiceStartInFlight = false;
+  int? _voiceHoldPointer;
+  Directory? _temporaryDirectory;
+  bool _microphonePermissionKnownGranted = false;
+  Future<void>? _voiceCapturePrewarm;
   bool _isFinishingVoiceRecording = false;
   DateTime? _voiceRecordingStartedAt;
   int? _streamingMessageIndex;
@@ -134,6 +136,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _handleNetworkStatusChanged,
     );
     NetworkReachabilityService.instance.start();
+    _voiceCapturePrewarm = _prewarmVoiceCapture();
     _initialize();
     unawaited(_refreshAiUsage());
 
@@ -532,9 +535,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _stopStreamingThrottleTimer();
     _streamingBubble.dispose();
     _notificationActionSubscription?.cancel();
-    unawaited(_audioPlayer.stop());
     unawaited(_audioRecorder.cancel());
-    _audioPlayer.dispose();
     _audioRecorder.dispose();
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -689,7 +690,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     bool removeProviderMessageFromHistory = false,
     int? replaceAssistantMessageIndex,
     int automaticToolContinuationDepth = 0,
-    bool speakResponse = false,
   }) async {
     final hasText = _messageController.text.trim().isNotEmpty;
 
@@ -758,7 +758,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     ChatMessage? finalAssistantMessage;
     int? assistantEntryId;
     bool shouldSilentlyContinueAfterToolError = false;
-    bool turnCompletedSuccessfully = false;
 
     try {
       final replacingAssistant =
@@ -1222,7 +1221,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           message: finalAssistantMessage,
         );
       }
-      turnCompletedSuccessfully = true;
     } on TimeoutException catch (_) {
       _provider.cancelRequest();
       final blocks = _cloneBlocks(
@@ -1448,22 +1446,29 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         removeProviderMessageFromHistory: true,
         replaceAssistantMessageIndex: aiMessageIndex,
         automaticToolContinuationDepth: automaticToolContinuationDepth + 1,
-        speakResponse: speakResponse,
       );
       return;
     }
 
     await _handlePostTurnSessionState();
     unawaited(_refreshAiUsage());
-    if (turnCompletedSuccessfully && speakResponse) {
-      unawaited(_speakResponse(finalAssistantMessage.text));
-    }
     _unfocusComposer();
     _scrollToBottom();
   }
 
   Future<void> _handleComposerSubmit() async {
     await _sendMessage();
+  }
+
+  Future<void> _prewarmVoiceCapture() async {
+    try {
+      _temporaryDirectory = await getTemporaryDirectory();
+      _microphonePermissionKnownGranted =
+          (await Permission.microphone.status).isGranted;
+    } catch (_) {
+      // Finger-down performs the same checks again, so pre-warming is only a
+      // latency optimization and never prevents recording from being used.
+    }
   }
 
   Future<void> _beginVoiceHold() async {
@@ -1476,7 +1481,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     _voiceHoldActive = true;
-    _voiceStartInFlight = true;
+    setState(() => _voiceStartInFlight = true);
     HapticFeedback.mediumImpact();
 
     try {
@@ -1490,7 +1495,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         }
         return;
       }
-      if (!await _audioRecorder.hasPermission()) {
+      await (_voiceCapturePrewarm ??= _prewarmVoiceCapture());
+      final microphoneGranted =
+          _microphonePermissionKnownGranted ||
+          await _audioRecorder.hasPermission();
+      _microphonePermissionKnownGranted = microphoneGranted;
+      if (!microphoneGranted) {
         if (mounted) {
           showAppToast(
             context,
@@ -1501,8 +1511,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         return;
       }
       if (!_voiceHoldActive || !mounted) return;
-      await _audioPlayer.stop();
-      final temporaryDirectory = await getTemporaryDirectory();
+      final temporaryDirectory = _temporaryDirectory ??=
+          await getTemporaryDirectory();
       final path =
           '${temporaryDirectory.path}/local_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
       await _audioRecorder.start(
@@ -1519,24 +1529,29 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
       setState(() {
         _isRecording = true;
-        _isSpeaking = false;
         _voiceRecordingStartedAt = DateTime.now();
       });
       _updateCanSend();
     } catch (error) {
       _showLocalSpeechError('Could not start recording', error);
     } finally {
-      _voiceStartInFlight = false;
+      if (mounted) {
+        setState(() => _voiceStartInFlight = false);
+      } else {
+        _voiceStartInFlight = false;
+      }
       if (!_isRecording) _voiceHoldActive = false;
     }
   }
 
   Future<void> _endVoiceHold() async {
+    _voiceHoldPointer = null;
     _voiceHoldActive = false;
     if (_isRecording) await _finishVoiceRecording();
   }
 
   Future<void> _cancelVoiceHold() async {
+    _voiceHoldPointer = null;
     _voiceHoldActive = false;
     if (!_isRecording) return;
     try {
@@ -1596,7 +1611,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
       setState(() => _isTranscribing = false);
       _updateCanSend();
-      await _sendMessage(speakResponse: true);
+      await _sendMessage();
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -1610,61 +1625,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     } finally {
       _isFinishingVoiceRecording = false;
       _voiceHoldActive = false;
-    }
-  }
-
-  Future<void> _speakResponse(String text) async {
-    try {
-      await _audioPlayer.stop();
-      if (mounted) setState(() => _isSpeaking = true);
-      final chunks = LocalSpeechService.speechChunks(text);
-      for (var index = 0; index < chunks.length; index++) {
-        final audio = await _localSpeechService.synthesize(chunks[index]);
-        await _playSpeechFile(audio, index, extension: 'wav');
-      }
-    } catch (error) {
-      _showLocalSpeechError('Could not play voice response', error);
-    } finally {
-      if (mounted) setState(() => _isSpeaking = false);
-    }
-  }
-
-  Future<void> _playSpeechFile(
-    List<int> audio,
-    int chunkIndex, {
-    required String extension,
-  }) async {
-    final temporaryDirectory = await getTemporaryDirectory();
-    final audioFile = File(
-      '${temporaryDirectory.path}/budget_ai_reply_'
-      '${DateTime.now().microsecondsSinceEpoch}_$chunkIndex.$extension',
-    );
-    await audioFile.writeAsBytes(audio, flush: true);
-
-    final completed = Completer<void>();
-    Object? playbackError;
-    final completionSubscription = _audioPlayer.onPlayerComplete.listen(
-      (_) {
-        if (!completed.isCompleted) completed.complete();
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        playbackError = error;
-        if (!completed.isCompleted) completed.complete();
-      },
-    );
-
-    try {
-      await _audioPlayer.play(DeviceFileSource(audioFile.path));
-      await completed.future.timeout(const Duration(minutes: 2));
-      if (playbackError != null) throw playbackError!;
-    } finally {
-      await completionSubscription.cancel();
-      try {
-        if (await audioFile.exists()) await audioFile.delete();
-      } catch (_) {
-        // Temporary audio cleanup should not turn successful playback into an
-        // error shown to the user.
-      }
     }
   }
 
@@ -2626,7 +2586,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   void didPushNext() {
     _isOnChatScreen = false;
     _unfocusComposer();
-    if (_isRecording) unawaited(_cancelVoiceHold());
+    if (_isRecording || _voiceStartInFlight) {
+      unawaited(_cancelVoiceHold());
+    }
   }
 
   @override
@@ -2664,7 +2626,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           setState(() => _skipStreamingReveal = true);
         }
       }
-      if (_isRecording) unawaited(_cancelVoiceHold());
+      if (_isRecording || _voiceStartInFlight) {
+        unawaited(_cancelVoiceHold());
+      }
       NetworkReachabilityService.instance.stop();
     }
   }
@@ -3643,26 +3607,33 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         : theme.colorScheme.primary.withValues(alpha: 0.56);
 
     if (canHoldToTalk) {
-      final idleVoiceLabel = _isSpeaking
-          ? 'Press and hold to stop playback and record a voice message'
-          : 'Press and hold to record a voice message';
       return Semantics(
         button: true,
         label: _isRecording
             ? 'Recording voice message. Release to send.'
-            : idleVoiceLabel,
-        child: GestureDetector(
+            : 'Press and hold to record a voice message',
+        child: Listener(
           key: const ValueKey('composer-hold-to-talk'),
           behavior: HitTestBehavior.opaque,
-          onLongPressStart: (_) => unawaited(_beginVoiceHold()),
-          onLongPressEnd: (_) => unawaited(_endVoiceHold()),
-          onLongPressCancel: () => unawaited(_cancelVoiceHold()),
+          onPointerDown: (event) {
+            if (_voiceHoldPointer != null) return;
+            _voiceHoldPointer = event.pointer;
+            unawaited(_beginVoiceHold());
+          },
+          onPointerUp: (event) {
+            if (_voiceHoldPointer != event.pointer) return;
+            _voiceHoldPointer = null;
+            unawaited(_endVoiceHold());
+          },
+          onPointerCancel: (event) {
+            if (_voiceHoldPointer != event.pointer) return;
+            _voiceHoldPointer = null;
+            unawaited(_cancelVoiceHold());
+          },
           child: Tooltip(
             triggerMode: TooltipTriggerMode.tap,
             message: _isRecording
                 ? 'Release to send'
-                : _isSpeaking
-                ? 'Hold to interrupt & talk'
                 : 'Press and hold to talk',
             child: SizedBox(
               width: 44,
@@ -3672,7 +3643,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 shape: const CircleBorder(),
                 clipBehavior: Clip.antiAlias,
                 child: Center(
-                  child: _isRecording
+                  child: _isRecording || _voiceStartInFlight
                       ? const ChatVoiceRecordingButtonIcon()
                       : Icon(
                           CupertinoIcons.mic_fill,

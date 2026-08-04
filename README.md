@@ -13,19 +13,15 @@ end-to-end encrypted synchronization, and offline speech.
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
-- When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: hold to record and release to transcribe and send. There is no separate microphone button or microphone setting.
-- Spoken replies are generated fully on-device with Sherpa-ONNX and a downloaded Piper voice. Audio never leaves the device; only transcribed text is sent to OpenAI for chat.
+- When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
 - Budget Hub > Offline Speech Models offers a focused on-device catalog:
-  Whisper Small English, Whisper Small Multilingual, and the Piper Lessac
-  medium US-English voice. Model cards explain accuracy/speed trade-offs,
-  storage and engine details; the multilingual card lists all 99 languages
-  supported by the downloaded Whisper tokenizer. Downloads show rounded
+  Whisper Small English. Its model card explains accuracy/speed trade-offs,
+  storage and engine details. Downloads show rounded
   progress, transferred and total size, live speed, and estimated time
   remaining. No speech model is bundled, so voice chat becomes available after
-  one STT model and Lessac are downloaded.
-- Downloaded models select on tap and remove with a left swipe. Downloaded
-  Lessac also provides a locally generated, zero-API-cost audio preview.
-- A reply is spoken only when its user message was submitted through the microphone. Text-submitted messages remain silent.
+  one speech-to-text model is downloaded.
+- The model downloads directly with no selection UI and removes with a left swipe. Voice is
+  input-only; assistant replies are never synthesized or played aloud.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
 
 ### Changing the active AI model

@@ -20,8 +20,6 @@ import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
-import 'package:budget_ai/src/speech/local_speech_model.dart';
-import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -244,23 +242,15 @@ class _SettingsScreenState extends State<SettingsScreen>
               onTap: () => CurrencyPickerScreen.show(context),
             ),
           ),
-          ValueListenableBuilder<String>(
-            valueListenable: LocalSpeechModelManager.instance.selectedSttId,
-            builder: (context, sttId, _) => ValueListenableBuilder<String>(
-              valueListenable: LocalSpeechModelManager.instance.selectedTtsId,
-              builder: (context, ttsId, _) => _navTile(
-                theme,
-                icon: CupertinoIcons.waveform,
-                title: 'Offline Speech Models',
-                subtitle:
-                    '${LocalSpeechModels.byId(sttId)?.name ?? sttId} · '
-                    '${LocalSpeechModels.byId(ttsId)?.name ?? ttsId}',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LocalSpeechModelsScreen(),
-                  ),
-                ),
+          _navTile(
+            theme,
+            icon: CupertinoIcons.waveform,
+            title: 'Offline Speech Model',
+            subtitle: 'Whisper Small English',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const LocalSpeechModelsScreen(),
               ),
             ),
           ),
@@ -394,8 +384,9 @@ class _SettingsScreenState extends State<SettingsScreen>
               title: 'Finances',
               subtitle: 'Add, search, and edit entries',
               icon: CupertinoIcons.money_dollar_circle,
-              color: theme.colorScheme.primary,
-              foreground: theme.colorScheme.onPrimary,
+              color: Colors.transparent,
+              foreground: theme.colorScheme.onSurface,
+              borderColor: theme.colorScheme.primary.withValues(alpha: 0.35),
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const FinancesScreen()),
@@ -542,7 +533,6 @@ class _SettingsScreenState extends State<SettingsScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color: error.withValues(alpha: 0.035),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: error.withValues(alpha: 0.42)),
           ),
@@ -1198,6 +1188,7 @@ class _AccountNameEditorState extends State<_AccountNameEditor> {
                             maxLines: 1,
                             cursorColor: theme.colorScheme.primary,
                             decoration: const InputDecoration(
+                              fillColor: Colors.transparent,
                               hintText: 'What should I call you?',
                               isDense: true,
                               border: InputBorder.none,
@@ -1205,6 +1196,7 @@ class _AccountNameEditorState extends State<_AccountNameEditor> {
                               focusedBorder: InputBorder.none,
                               contentPadding: EdgeInsets.zero,
                             ),
+
                             style: AppTheme.bodyMedium.copyWith(
                               color: theme.colorScheme.onSurface,
                               fontWeight: FontWeight.w600,

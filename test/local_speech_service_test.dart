@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
-import 'package:budget_ai/src/speech/local_speech_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
@@ -19,17 +18,12 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  test('local speech catalog includes selectable STT and TTS models', () {
+  test('local speech catalog contains only Whisper Small English', () {
     expect(
       LocalSpeechModels.ofKind(LocalSpeechModelKind.speechToText),
-      hasLength(2),
-    );
-    expect(
-      LocalSpeechModels.ofKind(LocalSpeechModelKind.textToSpeech),
       hasLength(1),
     );
     expect(LocalSpeechModels.byId(LocalSpeechModels.defaultSttId), isNotNull);
-    expect(LocalSpeechModels.byId(LocalSpeechModels.defaultTtsId), isNotNull);
     expect(
       LocalSpeechModels.all.every(
         (model) =>
@@ -50,28 +44,10 @@ void main() {
         (model) =>
             model.requiredFiles.isNotEmpty &&
             model.downloadSizeBytes > 0 &&
-            (model.kind == LocalSpeechModelKind.speechToText
-                ? model.whisperPrefix != null
-                : model.piperPrefix != null),
+            model.kind == LocalSpeechModelKind.speechToText &&
+            model.whisperPrefix != null,
       ),
       isTrue,
-    );
-    final ttsModels = LocalSpeechModels.ofKind(
-      LocalSpeechModelKind.textToSpeech,
-    ).toList();
-    expect(ttsModels.first.id, LocalSpeechModels.defaultTtsId);
-    expect(
-      ttsModels.every(
-        (model) =>
-            model.archiveRoot == 'vits-piper-${model.piperPrefix}' &&
-            model.requiredFiles.first == '${model.piperPrefix}.onnx',
-      ),
-      isTrue,
-    );
-    expect(LocalSpeechModels.whisperLanguages, hasLength(99));
-    expect(
-      LocalSpeechModels.whisperLanguages,
-      containsAll(['English', 'Urdu']),
     );
     expect(
       LocalSpeechModels.all.every((model) => model.details.length >= 4),
@@ -79,23 +55,12 @@ void main() {
     );
   });
 
-  test('speech chunks are normalized and bounded for local synthesis', () {
-    final chunks = LocalSpeechService.speechChunks(
-      List<String>.filled(500, 'Budget AI gives a clear answer.').join(' '),
-    );
-    expect(chunks, isNotEmpty);
-    expect(chunks.every((chunk) => chunk.length <= 1200), isTrue);
-    expect(LocalSpeechService.speechChunks(' **Hello**  world '), [
-      'Hello world',
-    ]);
-  });
-
-  test('Piper archive extraction uses only sendable isolate data', () async {
+  test('model archive extraction uses only sendable isolate data', () async {
     final root = await Directory.systemTemp.createTemp(
       'budget_ai_speech_extract_',
     );
     try {
-      final source = Directory('${root.path}/piper-model');
+      final source = Directory('${root.path}/whisper-model');
       final output = Directory('${root.path}/output');
       await source.create();
       await File('${source.path}/tokens.txt').writeAsString('test tokens');
@@ -113,7 +78,7 @@ void main() {
       ));
 
       expect(
-        await File('${output.path}/piper-model/tokens.txt').readAsString(),
+        await File('${output.path}/whisper-model/tokens.txt').readAsString(),
         'test tokens',
       );
     } finally {

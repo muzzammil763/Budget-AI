@@ -57,13 +57,9 @@ class LocalSpeechModelManager {
 
   static final LocalSpeechModelManager instance = LocalSpeechModelManager._();
   static const _sttKey = 'budget_local_stt_model_id';
-  static const _ttsKey = 'budget_local_tts_model_id';
 
   final ValueNotifier<String> selectedSttId = ValueNotifier(
     LocalSpeechModels.defaultSttId,
-  );
-  final ValueNotifier<String> selectedTtsId = ValueNotifier(
-    LocalSpeechModels.defaultTtsId,
   );
   final ValueNotifier<Map<String, LocalSpeechDownloadState>> states =
       ValueNotifier(const {});
@@ -76,21 +72,15 @@ class LocalSpeechModelManager {
     _modelsDirectory = Directory(p.join(support.path, 'speech_models'));
     await _modelsDirectory!.create(recursive: true);
     final savedStt = await _settings.getString(_sttKey);
-    final savedTts = await _settings.getString(_ttsKey);
     if (LocalSpeechModels.byId(savedStt ?? '')?.kind ==
         LocalSpeechModelKind.speechToText) {
       selectedSttId.value = savedStt!;
-    }
-    if (LocalSpeechModels.byId(savedTts ?? '')?.kind ==
-        LocalSpeechModelKind.textToSpeech) {
-      selectedTtsId.value = savedTts!;
     }
     await refresh();
   }
 
   void resetSelectionsWithoutRemovingDownloads() {
     selectedSttId.value = LocalSpeechModels.defaultSttId;
-    selectedTtsId.value = LocalSpeechModels.defaultTtsId;
   }
 
   Future<Directory> directoryFor(LocalSpeechModel model) async {
@@ -125,13 +115,8 @@ class LocalSpeechModelManager {
     if (!await isInstalled(model)) {
       throw StateError('Download ${model.name} before selecting it.');
     }
-    if (model.kind == LocalSpeechModelKind.speechToText) {
-      await _settings.setString(_sttKey, model.id);
-      selectedSttId.value = model.id;
-    } else {
-      await _settings.setString(_ttsKey, model.id);
-      selectedTtsId.value = model.id;
-    }
+    await _settings.setString(_sttKey, model.id);
+    selectedSttId.value = model.id;
   }
 
   Future<void> download(LocalSpeechModel model) async {

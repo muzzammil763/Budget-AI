@@ -1,12 +1,10 @@
 import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/speech/local_speech_model.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
-import 'package:budget_ai/src/speech/local_speech_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
@@ -20,33 +18,6 @@ class LocalSpeechModelsScreen extends StatefulWidget {
 }
 
 class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
-  static const _previewText =
-      'Hello, this is how I will sound when reading your Budget AI replies.';
-
-  final AudioPlayer _previewPlayer = AudioPlayer();
-  final LocalSpeechService _speechService = LocalSpeechService();
-  StreamSubscription<void>? _previewCompletionSubscription;
-  String? _loadingPreviewId;
-  String? _playingPreviewId;
-
-  @override
-  void initState() {
-    super.initState();
-    _previewCompletionSubscription = _previewPlayer.onPlayerComplete.listen((
-      _,
-    ) {
-      if (!mounted) return;
-      setState(() => _playingPreviewId = null);
-    });
-  }
-
-  @override
-  void dispose() {
-    _previewCompletionSubscription?.cancel();
-    _previewPlayer.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final manager = LocalSpeechModelManager.instance;
@@ -73,40 +44,13 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
                       const SizedBox(height: 8),
                       _sectionTitle(context, 'Speech To Text'),
                       const SizedBox(height: 8),
-                      ValueListenableBuilder<String>(
-                        valueListenable: manager.selectedSttId,
-                        builder: (context, selected, _) => Column(
-                          children: [
-                            for (final model in LocalSpeechModels.ofKind(
-                              LocalSpeechModelKind.speechToText,
-                            ))
-                              _modelCard(
-                                context,
-                                model,
-                                states[model.id],
-                                selected,
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _sectionTitle(context, 'Text To Speech'),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<String>(
-                        valueListenable: manager.selectedTtsId,
-                        builder: (context, selected, _) => Column(
-                          children: [
-                            for (final model in LocalSpeechModels.ofKind(
-                              LocalSpeechModelKind.textToSpeech,
-                            ))
-                              _modelCard(
-                                context,
-                                model,
-                                states[model.id],
-                                selected,
-                              ),
-                          ],
-                        ),
+                      Column(
+                        children: [
+                          for (final model in LocalSpeechModels.ofKind(
+                            LocalSpeechModelKind.speechToText,
+                          ))
+                            _modelCard(context, model, states[model.id]),
+                        ],
                       ),
                     ],
                   ),
@@ -133,8 +77,8 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Microphone audio and spoken replies stay on this device. '
-              'Only the transcribed text is sent to OpenAI for chat.',
+              'Microphone audio stays on this device. Only the transcribed '
+              'text is sent to OpenAI for chat.',
               style: AppTheme.bodySmall.copyWith(
                 color: colors.onSurface,
                 height: 1.35,
@@ -158,11 +102,9 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
     BuildContext context,
     LocalSpeechModel model,
     LocalSpeechDownloadState? state,
-    String selectedId,
   ) {
     final colors = Theme.of(context).colorScheme;
     final installed = state?.installed ?? false;
-    final selected = installed && selectedId == model.id;
     final downloading = state?.downloading ?? false;
     final card = Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -172,134 +114,132 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: selected
-                ? colors.primary
-                : colors.outline.withValues(alpha: 0.25),
+            color: colors.outline.withValues(alpha: 0.25),
             width: 1.5,
           ),
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: installed && !selected ? () => _select(context, model) : null,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            model.name,
-                            style: AppTheme.bodyMedium.copyWith(
-                              color: colors.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            model.description,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: colors.onSurfaceVariant,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (installed &&
-                        model.kind == LocalSpeechModelKind.textToSpeech) ...[
-                      const SizedBox(width: 8),
-                      _previewButton(colors, model),
-                    ],
-                    if (!installed && !downloading) ...[
-                      const SizedBox(width: 8),
-                      FilledButton.tonal(
-                        onPressed: () => _download(context, model),
-                        child: const Text('Download'),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'MODEL DETAILS',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: colors.primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                for (final detail in model.details)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 5),
-                    child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '•',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: colors.primary,
-                            fontWeight: FontWeight.w800,
+                          model.name,
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: colors.onSurface,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: Text(
-                            detail,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: colors.onSurfaceVariant,
-                              height: 1.4,
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          model.description,
+                          style: AppTheme.bodySmall.copyWith(
+                            color: colors.onSurfaceVariant,
+                            height: 1.4,
                           ),
                         ),
                       ],
                     ),
                   ),
-                if (downloading) ...[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween<double>(
-                        end: (state?.progress ?? 0).clamp(0.0, 1.0),
+                  if (!installed && !downloading) ...[
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: () => _download(context, model),
+                      child: const Text('Download'),
+                    ),
+                  ] else if (installed) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      'Downloaded',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w700,
                       ),
-                      duration: const Duration(milliseconds: 280),
-                      curve: Curves.linear,
-                      builder: (context, animatedProgress, _) =>
-                          LinearProgressIndicator(
-                            value: animatedProgress,
-                            minHeight: 8,
-                            color: colors.primary,
-                            backgroundColor: colors.primary.withValues(
-                              alpha: 0.12,
-                            ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'MODEL DETAILS',
+                style: AppTheme.bodySmall.copyWith(
+                  color: colors.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              for (final detail in model.details)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '•',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: colors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          detail,
+                          style: AppTheme.bodySmall.copyWith(
+                            color: colors.onSurfaceVariant,
+                            height: 1.4,
                           ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (downloading) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(
+                      end: (state?.progress ?? 0).clamp(0.0, 1.0),
                     ),
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.linear,
+                    builder: (context, animatedProgress, _) =>
+                        LinearProgressIndicator(
+                          value: animatedProgress,
+                          minHeight: 8,
+                          color: colors.primary,
+                          backgroundColor: colors.primary.withValues(
+                            alpha: 0.12,
+                          ),
+                        ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _downloadStatus(state),
-                    style: AppTheme.bodySmall.copyWith(
-                      color: colors.onSurfaceVariant,
-                      height: 1.3,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _downloadStatus(state),
+                  style: AppTheme.bodySmall.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.3,
                   ),
-                ],
-                if (state?.error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    state!.error!,
-                    style: AppTheme.bodySmall.copyWith(color: colors.error),
-                  ),
-                ],
+                ),
               ],
-            ),
+              if (state?.error != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  state!.error!,
+                  style: AppTheme.bodySmall.copyWith(color: colors.error),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -361,34 +301,6 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
         : '${hours}h ${remainingMinutes}m';
   }
 
-  Widget _previewButton(ColorScheme colors, LocalSpeechModel model) {
-    final loading = _loadingPreviewId == model.id;
-    final playing = _playingPreviewId == model.id;
-    return SizedBox.square(
-      dimension: 40,
-      child: loading
-          ? const Center(
-              child: SizedBox.square(
-                dimension: 26,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              ),
-            )
-          : IconButton(
-              tooltip: playing ? 'Stop voice preview' : 'Play voice preview',
-              onPressed: () => _togglePreview(model),
-              padding: EdgeInsets.zero,
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: colors.primary,
-              ),
-              icon: Icon(
-                playing ? CupertinoIcons.stop_fill : CupertinoIcons.play_fill,
-                size: 24,
-              ),
-            ),
-    );
-  }
-
   Widget _deleteBackground(ColorScheme colors) {
     return Container(
       alignment: Alignment.centerRight,
@@ -405,7 +317,7 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
       if (!context.mounted) return;
       showAppToast(
         context,
-        message: '${model.name} is downloaded and selected.',
+        message: '${model.name} is downloaded.',
         type: ToastificationType.success,
       );
     } catch (_) {
@@ -413,60 +325,6 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
       showAppToast(
         context,
         message: 'Could not download ${model.name}.',
-        type: ToastificationType.error,
-      );
-    }
-  }
-
-  Future<void> _select(BuildContext context, LocalSpeechModel model) async {
-    await LocalSpeechModelManager.instance.select(model);
-    if (!context.mounted) return;
-    showAppToast(
-      context,
-      message: '${model.name} selected.',
-      type: ToastificationType.success,
-    );
-  }
-
-  Future<void> _togglePreview(LocalSpeechModel model) async {
-    if (_loadingPreviewId == model.id || _playingPreviewId == model.id) {
-      await _previewPlayer.stop();
-      if (mounted) {
-        setState(() {
-          _loadingPreviewId = null;
-          _playingPreviewId = null;
-        });
-      }
-      return;
-    }
-
-    await _previewPlayer.stop();
-    if (!mounted) return;
-    setState(() {
-      _loadingPreviewId = model.id;
-      _playingPreviewId = null;
-    });
-    try {
-      final audio = await _speechService.synthesize(
-        _previewText,
-        modelId: model.id,
-      );
-      if (!mounted || _loadingPreviewId != model.id) return;
-      await _previewPlayer.play(BytesSource(audio, mimeType: 'audio/wav'));
-      if (!mounted || _loadingPreviewId != model.id) return;
-      setState(() {
-        _loadingPreviewId = null;
-        _playingPreviewId = model.id;
-      });
-    } catch (_) {
-      if (!mounted || _loadingPreviewId != model.id) return;
-      setState(() {
-        _loadingPreviewId = null;
-        _playingPreviewId = null;
-      });
-      showAppToast(
-        context,
-        message: 'Could not play the ${model.name} preview.',
         type: ToastificationType.error,
       );
     }
@@ -549,15 +407,6 @@ class _LocalSpeechModelsScreenState extends State<LocalSpeechModelsScreen> {
       ],
     );
     if (confirmed != true) return false;
-    if (_loadingPreviewId == model.id || _playingPreviewId == model.id) {
-      await _previewPlayer.stop();
-      if (mounted) {
-        setState(() {
-          _loadingPreviewId = null;
-          _playingPreviewId = null;
-        });
-      }
-    }
     return true;
   }
 
