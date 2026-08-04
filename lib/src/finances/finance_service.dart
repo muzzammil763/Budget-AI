@@ -62,6 +62,27 @@ enum FinanceEntryType {
   }
 }
 
+enum FinanceEntrySource {
+  manual,
+  bank;
+
+  static FinanceEntrySource fromJson(String? value) =>
+      value == 'bank' ? FinanceEntrySource.bank : FinanceEntrySource.manual;
+}
+
+enum BankTransactionState {
+  pending,
+  posted,
+  removed;
+
+  static BankTransactionState? fromJson(String? value) => switch (value) {
+    'pending' => BankTransactionState.pending,
+    'posted' => BankTransactionState.posted,
+    'removed' => BankTransactionState.removed,
+    _ => null,
+  };
+}
+
 class FinanceEntry {
   final String id;
   final FinanceEntryType type;
@@ -71,6 +92,17 @@ class FinanceEntry {
   final double amount;
   final String category;
   final DateTime createdAt;
+  final FinanceEntrySource source;
+  final String? provider;
+  final String? connectionId;
+  final String? accountId;
+  final String? externalTransactionId;
+  final String? pendingTransactionId;
+  final String? merchantName;
+  final String? currencyCode;
+  final BankTransactionState? bankState;
+  final bool excludedFromBudget;
+  final bool userModified;
 
   const FinanceEntry({
     required this.id,
@@ -81,6 +113,17 @@ class FinanceEntry {
     required this.amount,
     required this.category,
     required this.createdAt,
+    this.source = FinanceEntrySource.manual,
+    this.provider,
+    this.connectionId,
+    this.accountId,
+    this.externalTransactionId,
+    this.pendingTransactionId,
+    this.merchantName,
+    this.currencyCode,
+    this.bankState,
+    this.excludedFromBudget = false,
+    this.userModified = false,
   });
 
   factory FinanceEntry.create({
@@ -112,6 +155,17 @@ class FinanceEntry {
     createdAt:
         DateTime.tryParse(json['created_at'] as String? ?? '') ??
         DateTime.now(),
+    source: FinanceEntrySource.fromJson(json['source'] as String?),
+    provider: json['provider'] as String?,
+    connectionId: json['connection_id'] as String?,
+    accountId: json['account_id'] as String?,
+    externalTransactionId: json['external_transaction_id'] as String?,
+    pendingTransactionId: json['pending_transaction_id'] as String?,
+    merchantName: json['merchant_name'] as String?,
+    currencyCode: json['currency_code'] as String?,
+    bankState: BankTransactionState.fromJson(json['bank_state'] as String?),
+    excludedFromBudget: json['excluded_from_budget'] as bool? ?? false,
+    userModified: json['user_modified'] as bool? ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -123,6 +177,19 @@ class FinanceEntry {
     'amount': amount,
     'category': category,
     'created_at': createdAt.toIso8601String(),
+    'source': source.name,
+    if (provider != null) 'provider': provider,
+    if (connectionId != null) 'connection_id': connectionId,
+    if (accountId != null) 'account_id': accountId,
+    if (externalTransactionId != null)
+      'external_transaction_id': externalTransactionId,
+    if (pendingTransactionId != null)
+      'pending_transaction_id': pendingTransactionId,
+    if (merchantName != null) 'merchant_name': merchantName,
+    if (currencyCode != null) 'currency_code': currencyCode,
+    if (bankState != null) 'bank_state': bankState!.name,
+    'excluded_from_budget': excludedFromBudget,
+    'user_modified': userModified,
   };
 
   FinanceEntry copyWith({
@@ -132,6 +199,17 @@ class FinanceEntry {
     String? description,
     double? amount,
     String? category,
+    FinanceEntrySource? source,
+    String? provider,
+    String? connectionId,
+    String? accountId,
+    String? externalTransactionId,
+    String? pendingTransactionId,
+    String? merchantName,
+    String? currencyCode,
+    BankTransactionState? bankState,
+    bool? excludedFromBudget,
+    bool? userModified,
   }) => FinanceEntry(
     id: id,
     type: type ?? this.type,
@@ -141,7 +219,20 @@ class FinanceEntry {
     amount: amount ?? this.amount,
     category: category ?? this.category,
     createdAt: createdAt,
+    source: source ?? this.source,
+    provider: provider ?? this.provider,
+    connectionId: connectionId ?? this.connectionId,
+    accountId: accountId ?? this.accountId,
+    externalTransactionId: externalTransactionId ?? this.externalTransactionId,
+    pendingTransactionId: pendingTransactionId ?? this.pendingTransactionId,
+    merchantName: merchantName ?? this.merchantName,
+    currencyCode: currencyCode ?? this.currencyCode,
+    bankState: bankState ?? this.bankState,
+    excludedFromBudget: excludedFromBudget ?? this.excludedFromBudget,
+    userModified: userModified ?? this.userModified,
   );
+
+  bool get isBankImported => source == FinanceEntrySource.bank;
 
   String get displayDate {
     const months = [
@@ -174,8 +265,14 @@ class FinanceEntry {
   }
 
   String get displayAmount => money(amount);
-  String get displaySignedAmount =>
-      money(type == FinanceEntryType.income ? amount : -amount);
+  String get displaySignedAmount {
+    final signed = type == FinanceEntryType.income ? amount : -amount;
+    if (isBankImported && currencyCode != null) {
+      final sign = signed < 0 ? '-' : '+';
+      return '$sign$currencyCode ${signed.abs().toStringAsFixed(2)}';
+    }
+    return money(signed);
+  }
 
   static String money(double amount, {bool forceSign = false}) {
     return CurrencySettingsService.instance.formatAmount(
@@ -311,6 +408,25 @@ class FinanceService {
     final entries = List<FinanceEntry>.from(await getAll());
     final index = entries.indexWhere((e) => e.id == updated.id);
     if (index < 0) return null;
+    final existing = entries[index];
+    if (existing.isBankImported) {
+      updated = updated.copyWith(
+        type: existing.type,
+        date: existing.date,
+        hasTime: existing.hasTime,
+        amount: existing.amount,
+        source: existing.source,
+        provider: existing.provider,
+        connectionId: existing.connectionId,
+        accountId: existing.accountId,
+        externalTransactionId: existing.externalTransactionId,
+        pendingTransactionId: existing.pendingTransactionId,
+        merchantName: existing.merchantName,
+        currencyCode: existing.currencyCode,
+        bankState: existing.bankState,
+        userModified: true,
+      );
+    }
     entries[index] = updated;
     entries.sort((a, b) => b.date.compareTo(a.date));
     _cache = entries;
@@ -318,8 +434,19 @@ class FinanceService {
     return updated;
   }
 
+  /// Reconciles an authoritative batch (for example Plaid cursor updates) in
+  /// one SQLite write so observers never see a half-applied bank update.
+  Future<void> replaceAll(List<FinanceEntry> entries) async {
+    _cache = List<FinanceEntry>.from(entries)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    await _persist();
+  }
+
   Future<bool> delete(String id) async {
     final entries = List<FinanceEntry>.from(await getAll());
+    if (entries.any((entry) => entry.id == id && entry.isBankImported)) {
+      return false;
+    }
     final before = entries.length;
     entries.removeWhere((e) => e.id == id);
     if (entries.length == before) return false;
@@ -335,7 +462,7 @@ class FinanceService {
     final idSet = ids.toSet();
     final entries = List<FinanceEntry>.from(await getAll());
     final before = entries.length;
-    entries.removeWhere((e) => idSet.contains(e.id));
+    entries.removeWhere((e) => idSet.contains(e.id) && !e.isBankImported);
     final removed = before - entries.length;
     if (removed == 0) return 0;
     _cache = entries;
@@ -765,7 +892,11 @@ class FinanceService {
 
   double totalAmount(List<FinanceEntry> entries, {FinanceEntryType? type}) =>
       entries
-          .where((entry) => type == null || entry.type == type)
+          .where(
+            (entry) =>
+                !entry.excludedFromBudget &&
+                (type == null || entry.type == type),
+          )
           .fold(0.0, (sum, e) => sum + e.amount);
 
   Map<String, double> categorySummary(
@@ -773,7 +904,9 @@ class FinanceService {
     FinanceEntryType type = FinanceEntryType.expense,
   }) {
     final map = <String, double>{};
-    for (final e in entries.where((entry) => entry.type == type)) {
+    for (final e in entries.where(
+      (entry) => !entry.excludedFromBudget && entry.type == type,
+    )) {
       map[e.category] = (map[e.category] ?? 0) + e.amount;
     }
     return Map.fromEntries(

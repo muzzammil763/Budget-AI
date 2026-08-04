@@ -4,6 +4,10 @@ Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
 Supabase authentication, offline-first SQLite finance tracking, mandatory
 end-to-end encrypted synchronization, and offline speech.
 
+The bank-first branch also supports optional Plaid Link connections for users
+with supported US, Canadian, UK, and European institutions. Bank imports and
+manual/AI entries feed the same encrypted local finance model.
+
 ## AI and voice flow
 
 - Chat and finance tools use OpenAI's Responses API through the authenticated
@@ -78,6 +82,16 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
+- Budget Hub > Connected Banks opens the Plaid-powered multi-bank dashboard.
+  A user can connect multiple institutions and accounts, choose an initial
+  history range (up to the 24 months Plaid may provide), synchronize each bank,
+  inspect per-account activity, open a combined bank view, and review the last
+  30 synchronization results. Imported amounts, entry type, dates, and
+  pending/posted state follow the bank and are read-only. Users may override a
+  note/category or exclude a transaction from budget totals without deleting
+  the bank record. Added, modified, removed, and pending-to-posted changes are
+  reconciled by Plaid transaction id; refunds, income, transfers, and provider
+  categories remain identifiable in the shared finance model.
 - Chat’s top-right chrome starts with one circular monthly AI-usage indicator,
   followed by equal-size Finances and Budget Hub actions. The indicator tracks
   whichever request/token quota is closest to full and opens a detail sheet
@@ -155,6 +169,12 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
 - Chat history and downloaded speech-model files are never uploaded.
+- Plaid access tokens are encrypted separately with a server-held AES-256-GCM
+key in service-role-only database tables and never returned to Flutter. Plaid
+  transaction plaintext passes transiently through an authenticated Edge
+  Function, then is persisted locally and uploaded through the existing
+  device-side encrypted finance sync. Plaid webhooks store no transaction
+  payload; they only mark a connection as needing synchronization.
 
 ## iOS widget and Siri entry
 
@@ -199,6 +219,36 @@ The local `supabase/config.toml` contains matching settings for local Supabase.
 Never put `OPENAI_API_KEY` in a Flutter asset, Dart define, tracked file, or
 mobile build. Delete the local `.env` after the remote secret is verified if it
 has no other development purpose.
+
+### Plaid bank synchronization
+
+Create a Plaid application and set these Edge Function secrets. The token key
+must decode to exactly 32 random bytes; never reuse the finance recovery key.
+
+```sh
+supabase secrets set \
+  PLAID_CLIENT_ID='<plaid-client-id>' \
+  PLAID_SECRET='<sandbox-or-production-secret>' \
+  PLAID_ENV='sandbox' \
+  PLAID_TOKEN_ENCRYPTION_KEY='<base64-encoded-32-byte-key>' \
+  --project-ref bzxsgpsacouvhxepfuca
+
+supabase db push
+supabase functions deploy plaid-banking --use-api
+supabase functions deploy plaid-webhook --use-api --no-verify-jwt
+```
+
+Register the deployed `plaid-webhook` URL with Plaid. Register the iOS OAuth
+redirect as an HTTPS Universal Link and the Android package name in the Plaid
+Dashboard before production testing. Production country access and the
+Transactions product must be approved by Plaid; an institution appearing in
+Link does not guarantee Transactions support. The app requests 30–730 days
+based on the chosen import range, while the institution may return less.
+
+The Flutter plugin requires iOS 14 or newer and Android API 21 or newer. Budget
+AI targets iOS 14+ for the main Runner and Android API 24+. Ordinary Plaid
+transaction checks are not instant: Budget AI imports available changes when
+the user synchronizes, while signed webhooks mark connections with updates.
 
 The AI proxy streams OpenAI events immediately and exposes development timing
 headers for quota reservation, OpenAI response headers, and the executing Edge

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
+import 'package:budget_ai/src/banking/connected_banks_screen.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -202,6 +203,24 @@ class _SettingsScreenState extends State<SettingsScreen>
           const SizedBox(height: 8),
           _buildQuickActions(theme),
           const SizedBox(height: 20),
+          _sectionHeading(
+            theme,
+            eyebrow: 'BANKING',
+            title: 'Automatic Entries',
+          ),
+          const SizedBox(height: 8),
+          _navTile(
+            theme,
+            key: const ValueKey('connected-banks'),
+            icon: CupertinoIcons.building_2_fill,
+            title: 'Connected Banks',
+            subtitle: 'Connect, combine, and synchronize multiple accounts',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ConnectedBanksScreen()),
+            ),
+          ),
+          const SizedBox(height: 12),
           _sectionHeading(
             theme,
             eyebrow: 'ACCOUNT',
