@@ -51,6 +51,7 @@ class BankConnectionService {
     required String countryCode,
     required DateTime importStart,
     required DateTime importEnd,
+    void Function()? onLinkOpened,
   }) async {
     final daysRequested = importEnd
         .difference(importStart)
@@ -109,6 +110,7 @@ class BankConnectionService {
       ),
     );
     await PlaidLink.open();
+    onLinkOpened?.call();
     return completer.future;
   }
 

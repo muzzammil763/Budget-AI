@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:budget_ai/src/banking/bank_connection_service.dart';
 import 'package:budget_ai/src/banking/bank_models.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -15,6 +17,7 @@ class ConnectedBanksScreen extends StatefulWidget {
 class _ConnectedBanksScreenState extends State<ConnectedBanksScreen> {
   late Future<BankDashboardData> _dashboard;
   String? _busyConnection;
+  bool _isLaunchingPlaid = false;
 
   @override
   void initState() {
@@ -68,18 +71,29 @@ class _ConnectedBanksScreenState extends State<ConnectedBanksScreen> {
       saveText: 'Continue',
     );
     if (importRange == null) return;
-    setState(() => _busyConnection = 'new');
+    setState(() {
+      _busyConnection = 'new';
+      _isLaunchingPlaid = true;
+    });
     try {
       await BankConnectionService.instance.connect(
         countryCode: country,
         importStart: importRange.start,
         importEnd: importRange.end,
+        onLinkOpened: () {
+          if (mounted) setState(() => _isLaunchingPlaid = false);
+        },
       );
       if (mounted) setState(_reload);
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
-      if (mounted) setState(() => _busyConnection = null);
+      if (mounted) {
+        setState(() {
+          _busyConnection = null;
+          _isLaunchingPlaid = false;
+        });
+      }
     }
   }
 
@@ -140,114 +154,198 @@ class _ConnectedBanksScreenState extends State<ConnectedBanksScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Connected Banks'),
-        actions: [
-          IconButton(
-            tooltip: 'Connect another bank',
-            onPressed: _busyConnection == null ? _connect : null,
-            icon: const Icon(CupertinoIcons.plus),
-          ),
-        ],
-      ),
-      body: FutureBuilder<BankDashboardData>(
-        future: _dashboard,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _ErrorState(
-              error: snapshot.error,
-              onRetry: () => setState(_reload),
-            );
-          }
-          final data = snapshot.data!;
-          return RefreshIndicator(
-            onRefresh: () async => setState(_reload),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
-              children: [
-                Text(
-                  'YOUR BANKS',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
+    return PopScope(
+      canPop: !_isLaunchingPlaid,
+      child: Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              title: const Text('Connected Banks'),
+              actions: [
+                IconButton(
+                  tooltip: 'Connect another bank',
+                  onPressed: _busyConnection == null ? _connect : null,
+                  icon: const Icon(CupertinoIcons.plus),
                 ),
-                const SizedBox(height: 8),
-                if (data.connections.isEmpty)
-                  _EmptyBanks(onConnect: _connect)
-                else ...[
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FinancesScreen(
-                          title: 'All Bank Activity',
-                          bankOnly: true,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(CupertinoIcons.rectangle_3_offgrid),
-                    label: const Text('View combined finances'),
-                  ),
-                  const SizedBox(height: 10),
-                  for (final connection in data.connections)
-                    _ConnectionCard(
-                      connection: connection,
-                      busy: _busyConnection == connection.id,
-                      onSync: () => _sync(connection),
-                      onDisconnect: () => _disconnect(connection),
-                      onOpenAccount: (account) => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FinancesScreen(
-                            connectionId: connection.id,
-                            accountId: account.id,
-                            title: account.name,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-                const SizedBox(height: 20),
-                Text(
-                  'SYNC HISTORY',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (data.history.isEmpty)
-                  const Text('No bank transactions have been synchronized yet.')
-                else
-                  for (final record in data.history.take(30))
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const CircleAvatar(
-                        child: Icon(CupertinoIcons.arrow_2_circlepath),
-                      ),
-                      title: Text(record.institutionName),
-                      subtitle: Text(
-                        '${record.added} added • ${record.modified} updated • ${record.removed} removed',
-                      ),
-                      trailing: Text(_shortDate(record.startedAt)),
-                    ),
               ],
             ),
-          );
-        },
+            body: FutureBuilder<BankDashboardData>(
+              future: _dashboard,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _ErrorState(
+                    error: snapshot.error,
+                    onRetry: () => setState(_reload),
+                  );
+                }
+                final data = snapshot.data!;
+                return RefreshIndicator(
+                  onRefresh: () async => setState(_reload),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+                    children: [
+                      Text(
+                        'YOUR BANKS',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (data.connections.isEmpty)
+                        _EmptyBanks(onConnect: _connect)
+                      else ...[
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FinancesScreen(
+                                title: 'All Bank Activity',
+                                bankOnly: true,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(CupertinoIcons.rectangle_3_offgrid),
+                          label: const Text('View combined finances'),
+                        ),
+                        const SizedBox(height: 10),
+                        for (final connection in data.connections)
+                          _ConnectionCard(
+                            connection: connection,
+                            busy: _busyConnection == connection.id,
+                            onSync: () => _sync(connection),
+                            onDisconnect: () => _disconnect(connection),
+                            onOpenAccount: (account) => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FinancesScreen(
+                                  connectionId: connection.id,
+                                  accountId: account.id,
+                                  title: account.name,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                      const SizedBox(height: 20),
+                      Text(
+                        'SYNC HISTORY',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (data.history.isEmpty)
+                        const Text(
+                          'No bank transactions have been synchronized yet.',
+                        )
+                      else
+                        for (final record in data.history.take(30))
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const CircleAvatar(
+                              child: Icon(CupertinoIcons.arrow_2_circlepath),
+                            ),
+                            title: Text(record.institutionName),
+                            subtitle: Text(
+                              '${record.added} added • ${record.modified} updated • ${record.removed} removed',
+                            ),
+                            trailing: Text(_shortDate(record.startedAt)),
+                          ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          if (_isLaunchingPlaid) const BankLaunchOverlay(),
+        ],
       ),
     );
   }
 
   static String _shortDate(DateTime value) =>
       '${value.day}/${value.month}/${value.year}';
+}
+
+class BankLaunchOverlay extends StatelessWidget {
+  const BankLaunchOverlay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Positioned.fill(
+      key: const ValueKey('bank-connect-loading-overlay'),
+      child: Material(
+        color: Colors.transparent,
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: ColoredBox(
+              color: theme.colorScheme.scrim.withValues(alpha: 0.28),
+              child: Center(
+                child: Semantics(
+                  label: 'Opening secure bank connection',
+                  liveRegion: true,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    margin: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 24,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: .25),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .16),
+                          blurRadius: 30,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Opening Plaid',
+                          style: AppTheme.headingSmall.copyWith(
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Preparing your secure bank connection…',
+                          textAlign: TextAlign.center,
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ConnectionCard extends StatelessWidget {

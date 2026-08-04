@@ -85,6 +85,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Budget Hub > Connected Banks opens the Plaid-powered multi-bank dashboard.
   A user can connect multiple institutions and accounts, choose an initial
   history range (up to the 24 months Plaid may provide), synchronize each bank,
+  see a full-screen blurred loading overlay while the secure Plaid sheet is
+  prepared,
   inspect per-account activity, open a combined bank view, and review the last
   30 synchronization results. Imported amounts, entry type, dates, and
   pending/posted state follow the bank and are read-only. Users may override a
