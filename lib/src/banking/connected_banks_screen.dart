@@ -4,6 +4,7 @@ import 'package:budget_ai/src/banking/bank_connection_service.dart';
 import 'package:budget_ai/src/banking/bank_models.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -28,33 +29,75 @@ class _ConnectedBanksScreenState extends State<ConnectedBanksScreen> {
   void _reload() => _dashboard = BankConnectionService.instance.dashboard();
 
   Future<void> _connect() async {
-    final country = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ListTile(
-              title: Text('Where is your bank?'),
-              subtitle: Text('Availability depends on Plaid product access.'),
-            ),
-            for (final option in const {
-              'GB': 'United Kingdom',
-              'CA': 'Canada',
-              'US': 'United States',
-              'IE': 'Ireland',
-              'FR': 'France',
-              'DE': 'Germany',
-            }.entries)
-              ListTile(
-                title: Text(option.value),
-                trailing: Text(option.key),
-                onTap: () => Navigator.pop(context, option.key),
-              ),
-          ],
-        ),
+    final theme = Theme.of(context);
+    final country = await ResponsiveInfoSheet.show<String>(
+      context,
+      title: 'Where is your bank?',
+      headerIcon: Icon(
+        CupertinoIcons.building_2_fill,
+        color: AppTheme.readableOn(theme.colorScheme.primary),
+        size: 28,
       ),
+      gradientColors: [
+        theme.colorScheme.primary,
+        theme.colorScheme.primary.withValues(alpha: 0.78),
+      ],
+      contentWidgets: [
+        Text(
+          'Availability depends on Plaid product access.',
+          style: AppTheme.bodySmall.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (final option in const {
+          'GB': 'United Kingdom',
+          'CA': 'Canada',
+          'US': 'United States',
+          'IE': 'Ireland',
+          'FR': 'France',
+          'DE': 'Germany',
+        }.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => Navigator.pop(context, option.key),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        option.value,
+                        style: AppTheme.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      option.key,
+                      style: AppTheme.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
     if (country == null) return;
     if (!mounted) return;
@@ -319,20 +362,14 @@ class BankLaunchOverlay extends StatelessWidget {
                       children: [
                         CircularProgressIndicator(
                           color: theme.colorScheme.primary,
+                          strokeWidth: 2,
+                          strokeCap: StrokeCap.round,
                         ),
                         const SizedBox(height: 18),
                         Text(
                           'Opening Plaid',
                           style: AppTheme.headingSmall.copyWith(
                             color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Preparing your secure bank connection…',
-                          textAlign: TextAlign.center,
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -346,6 +383,23 @@ class BankLaunchOverlay extends StatelessWidget {
       ),
     );
   }
+}
+
+BoxDecoration _bankCardDecoration(ThemeData theme) {
+  return BoxDecoration(
+    color: theme.colorScheme.surface,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.18)),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(
+          alpha: theme.brightness == Brightness.dark ? 0.16 : 0.05,
+        ),
+        blurRadius: 14,
+        offset: const Offset(0, 6),
+      ),
+    ],
+  );
 }
 
 class _ConnectionCard extends StatelessWidget {
@@ -365,14 +419,9 @@ class _ConnectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: .25),
-        ),
-      ),
+      decoration: _bankCardDecoration(theme),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -461,7 +510,8 @@ class _EmptyBanks extends StatelessWidget {
   const _EmptyBanks({required this.onConnect});
   final VoidCallback onConnect;
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => Container(
+    decoration: _bankCardDecoration(Theme.of(context)),
     child: Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
