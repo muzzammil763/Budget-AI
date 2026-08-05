@@ -13,7 +13,7 @@ import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
-import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
+import 'package:budget_ai/src/sync/plain_finance_sync_service.dart';
 import 'package:budget_ai/src/sync/account_settings_sync_service.dart';
 import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
@@ -45,7 +45,7 @@ Future<void> main() async {
   await FinanceService.instance.applySavingsRollover();
   await FinanceService.instance.syncHomeWidget();
   await AccountSettingsSyncService.instance.initialize();
-  await EncryptedFinanceSyncService.instance.initialize();
+  await PlainFinanceSyncService.instance.initialize();
   final onboardingCompleted =
       await LocalSettingsStore.instance.getBool(_onboardingCompletedKey) ??
       false;

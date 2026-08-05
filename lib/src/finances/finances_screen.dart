@@ -9,7 +9,7 @@ import 'package:budget_ai/src/finances/finance_entry_edit_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/storage/local_finance_store.dart';
-import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
+import 'package:budget_ai/src/sync/plain_finance_sync_service.dart';
 import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:toastification/toastification.dart';
@@ -49,7 +49,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     SiriFinanceRealtimeSync.revision.addListener(_handleSiriFinanceChanged);
     AndroidFinanceAppActions.revision.addListener(_handleSiriFinanceChanged);
     LocalFinanceStore.instance.changes.addListener(_handleSiriFinanceChanged);
-    EncryptedFinanceSyncService.instance.status.addListener(
+    PlainFinanceSyncService.instance.status.addListener(
       _handleSyncStatusChanged,
     );
     final now = DateTime.now();
@@ -65,7 +65,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     LocalFinanceStore.instance.changes.removeListener(
       _handleSiriFinanceChanged,
     );
-    EncryptedFinanceSyncService.instance.status.removeListener(
+    PlainFinanceSyncService.instance.status.removeListener(
       _handleSyncStatusChanged,
     );
     _searchController.dispose();
@@ -85,7 +85,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   bool get _isInitialSyncPending =>
       _allEntries.isEmpty &&
-      EncryptedFinanceSyncService.instance.status.value == 'Syncing…';
+      PlainFinanceSyncService.instance.status.value == 'Syncing…';
 
   Future<void> _load({bool showLoading = true}) async {
     if (showLoading) setState(() => _isLoading = true);
