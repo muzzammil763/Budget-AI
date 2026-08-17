@@ -78,9 +78,10 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
-- Chat’s top-right chrome starts with one circular monthly AI-usage indicator,
-  followed by equal-size Finances and Budget Hub actions. The indicator tracks
-  whichever request/token quota is closest to full and opens immediately with
+- Chat’s top-right chrome contains equal-size Finances and Budget Hub actions.
+  Chat preloads monthly usage and authorized admin data in the background. A
+  circular AI-usage action lives in the Budget Hub AppBar, tracks whichever
+  request/token quota is closest to full, and opens immediately with
   loading placeholders, exact request/token/Fast counters, and a centered UTC
   renewal date. Administratively blocked accounts show a red indicator and an
   explanatory sheet. The Budget mark
@@ -95,7 +96,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   and secure password reset, Preferences for currency, offline speech and
   message style, and App Behavior controls for Fast Responses, notifications,
   and the Android background service. Authorized admins also get user AI
-  access and monthly quota controls plus confirmed local-preference inspection;
+  access and monthly quota controls plus a dedicated, confirmed local-preference screen;
   superadmins additionally manage roles. Fast Responses is off by default and
   requests OpenAI Fast mode (`service_tier: "fast"`), which lowers latency but
   carries higher per-token pricing. The backend grants 100 Fast requests per

@@ -78,6 +78,10 @@ void main() {
     expect(find.byKey(const ValueKey('settings-account-name')), findsOneWidget);
     expect(find.text('Name'), findsOneWidget);
     expect(find.text('Email unavailable'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-ai-usage-action')),
+      findsOneWidget,
+    );
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('settings-delete-account')),
       500,

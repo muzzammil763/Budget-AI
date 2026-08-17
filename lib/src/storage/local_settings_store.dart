@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 enum SettingSyncScope { local, account }
@@ -12,7 +11,6 @@ class LocalSettingsStore {
   LocalSettingsStore._();
 
   static final LocalSettingsStore instance = LocalSettingsStore._();
-  static const _migrationKey = 'legacy_shared_preferences_migrated_v1';
 
   final Map<String, Object?> _memoryFallback = {};
   final Map<String, Map<String, Object?>> _memoryRows = {};
@@ -29,7 +27,7 @@ class LocalSettingsStore {
       final root = await getDatabasesPath();
       return openDatabase(
         p.join(root, 'budget_ai_local.db'),
-        version: 1,
+        version: 2,
         onCreate: (database, _) async {
           await database.execute('''
             CREATE TABLE local_settings (
@@ -47,6 +45,15 @@ class LocalSettingsStore {
             ON local_settings (sync_scope, sync_state, updated_at)
           ''');
         },
+        onUpgrade: (database, oldVersion, _) async {
+          if (oldVersion < 2) {
+            await database.delete(
+              'local_settings',
+              where: 'key = ?',
+              whereArgs: const ['legacy_shared_preferences_migrated_v1'],
+            );
+          }
+        },
       );
     } on MissingPluginException catch (error) {
       debugPrint('[LocalSettingsStore] Using memory fallback: $error');
@@ -55,41 +62,6 @@ class LocalSettingsStore {
       debugPrint('[LocalSettingsStore] Could not open SQLite: $error');
       return null;
     }
-  }
-
-  Future<void> migrateLegacyPreferences() async {
-    if (await getBool(_migrationKey) == true) return;
-    final legacy = await SharedPreferencesAsync().getAll();
-    for (final entry in legacy.entries) {
-      if (entry.value is! String &&
-          entry.value is! bool &&
-          entry.value is! int &&
-          entry.value is! double &&
-          entry.value is! List<String>) {
-        continue;
-      }
-      if (await containsKey(entry.key)) continue;
-      await setValue(
-        entry.key,
-        entry.value,
-        scope: _scopeForLegacyKey(entry.key),
-        pendingSync: _scopeForLegacyKey(entry.key) == SettingSyncScope.account,
-      );
-    }
-    await setBool(_migrationKey, true);
-  }
-
-  SettingSyncScope _scopeForLegacyKey(String key) {
-    const accountKeys = {
-      'budget_user_name',
-      'budget_selected_model_id',
-      'budget_currency_display_text',
-      'budget_custom_currencies',
-      'budget_user_bubble_style',
-    };
-    return accountKeys.contains(key)
-        ? SettingSyncScope.account
-        : SettingSyncScope.local;
   }
 
   Future<bool> containsKey(String key) async {
