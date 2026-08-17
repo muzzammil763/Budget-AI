@@ -16,6 +16,7 @@ import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
@@ -105,6 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       await PermissionPreferencesService.instance.setNotificationsEnabled(
         false,
       );
+      await NotificationService.instance.cancelAll();
       return;
     }
     setState(() => _busyNotifications = true);
@@ -123,6 +125,9 @@ class _SettingsScreenState extends State<SettingsScreen>
           true,
         );
       } else {
+        await PermissionPreferencesService.instance.setNotificationsEnabled(
+          false,
+        );
         await _showPermissionDeniedSheet('Notifications');
       }
     } finally {
@@ -270,9 +275,23 @@ class _SettingsScreenState extends State<SettingsScreen>
           _sectionHeading(
             theme,
             eyebrow: 'APP BEHAVIOR',
-            title: 'Notifications & Background',
+            title: 'Responses & Background',
           ),
           const SizedBox(height: 8),
+          ValueListenableBuilder<bool>(
+            valueListenable:
+                AiResponseSettingsService.instance.fastResponsesEnabled,
+            builder: (context, enabled, _) => _toggleTile(
+              theme,
+              icon: CupertinoIcons.bolt_fill,
+              title: 'Fast Responses',
+              subtitle: 'Lower latency with higher OpenAI token pricing',
+              value: enabled,
+              busy: false,
+              onChanged:
+                  AiResponseSettingsService.instance.setFastResponsesEnabled,
+            ),
+          ),
           ValueListenableBuilder<bool>(
             valueListenable:
                 PermissionPreferencesService.instance.notificationsEnabled,

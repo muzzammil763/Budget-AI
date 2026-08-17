@@ -51,6 +51,7 @@ void main() {
       expect(body['reasoning'], {'effort': 'low'});
       expect(body['text'], {'verbosity': 'low'});
       expect(body['stream'], isTrue);
+      expect(body.containsKey('service_tier'), isFalse);
       expect(body['client_turn_id'], isNotEmpty);
       expect(chunks.map((chunk) => chunk.content).join(), 'Done.');
       expect(provider.lastResponseMetadata?['promptTokens'], 20);
@@ -77,6 +78,22 @@ void main() {
     expect(body.containsKey('text'), isFalse);
   });
 
+  test('Fast responses applies to utility requests', () async {
+    final requests = <RequestOptions>[];
+    final provider = ResponsesProvider(
+      ChatModelConfig.openAI,
+      dio: _jsonDio(requests),
+      accessTokenProvider: () => 'test-user-jwt',
+      fastResponsesProvider: () => true,
+    );
+    await provider.initialize();
+
+    final result = await provider.runUtilityPrompt('Name this chat');
+
+    expect(result, 'Fast title');
+    expect((requests.single.data as Map)['service_tier'], 'fast');
+  });
+
   test('Responses tool output is replayed before the final answer', () async {
     final requests = <RequestOptions>[];
     final provider = ResponsesProvider(
@@ -84,6 +101,7 @@ void main() {
       dio: _toolStreamingDio(requests),
       toolRegistry: _TestToolRegistry(),
       accessTokenProvider: () => 'test-user-jwt',
+      fastResponsesProvider: () => true,
     );
     await provider.initialize();
 
@@ -92,6 +110,12 @@ void main() {
         .toList();
 
     expect(requests, hasLength(2));
+    expect(
+      requests.every(
+        (request) => (request.data as Map)['service_tier'] == 'fast',
+      ),
+      isTrue,
+    );
     expect(
       (requests[0].data as Map)['client_turn_id'],
       isNot((requests[1].data as Map)['client_turn_id']),
@@ -144,6 +168,25 @@ Dio _streamingDio(List<RequestOptions> requests) {
                 Headers.contentTypeHeader: ['text/event-stream'],
               },
             ),
+          ),
+        );
+      },
+    ),
+  );
+  return dio;
+}
+
+Dio _jsonDio(List<RequestOptions> requests) {
+  final dio = Dio();
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) {
+        requests.add(options);
+        handler.resolve(
+          Response<dynamic>(
+            requestOptions: options,
+            statusCode: 200,
+            data: {'output_text': 'Fast title'},
           ),
         );
       },

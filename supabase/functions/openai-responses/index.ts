@@ -155,6 +155,10 @@ function validateAndSanitizeBody(raw: unknown) {
     defaultMaxOutputTokens,
     maxOutputTokens,
   );
+  const serviceTier = body.service_tier;
+  if (serviceTier !== undefined && serviceTier !== "fast") {
+    throw new Error("unsupported_service_tier");
+  }
 
   const sanitized: Record<string, unknown> = {
     model,
@@ -165,6 +169,7 @@ function validateAndSanitizeBody(raw: unknown) {
   if (instructions !== undefined) sanitized.instructions = instructions;
   if (body.reasoning !== undefined) sanitized.reasoning = body.reasoning;
   if (body.text !== undefined) sanitized.text = body.text;
+  if (serviceTier === "fast") sanitized.service_tier = "fast";
   if (tools !== undefined) {
     sanitized.tools = tools;
     sanitized.tool_choice = "auto";

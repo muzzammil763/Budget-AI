@@ -10,6 +10,7 @@ class ResponsesProvider extends BaseChatProvider {
     super.dio,
     super.toolRegistry,
     super.accessTokenProvider,
+    super.fastResponsesProvider,
   }) : super(defaultSelectedModel: ActiveModelResolver.defaultModelId);
 
   @override
@@ -72,6 +73,7 @@ class ResponsesProvider extends BaseChatProvider {
         final requestData = <String, dynamic>{
           'model': _selectedModel,
           ..._responseModelOptions,
+          ..._responseServiceTierOptions,
           'instructions': await _buildChatSystemPrompt(),
           'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,

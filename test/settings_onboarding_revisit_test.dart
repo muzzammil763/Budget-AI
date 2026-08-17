@@ -91,6 +91,27 @@ void main() {
     );
   });
 
+  testWidgets('Budget Hub exposes Fast Responses with its pricing tradeoff', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.scrollUntilVisible(
+      find.text('Fast Responses'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('Fast Responses'), findsOneWidget);
+    expect(
+      find.text('Lower latency with higher OpenAI token pricing'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('account deletion requires the exact custom-keyboard phrase', (
     tester,
   ) async {
