@@ -52,6 +52,7 @@ type Reservation = {
   monthly_token_limit: number;
   remaining_requests: number;
   remaining_tokens: number;
+  effective_service_tier: "default" | "fast";
 };
 
 type AdminRpc = (
@@ -184,7 +185,9 @@ function validateAndSanitizeBody(raw: unknown) {
 }
 
 function quotaStatus(code: string) {
-  return code === "duplicate_request" ? 409 : 429;
+  if (code === "duplicate_request") return 409;
+  if (code === "account_disabled") return 403;
+  return 429;
 }
 
 function elapsedMilliseconds(startedAt: number) {
@@ -293,6 +296,9 @@ const authenticatedHandler = withSupabase(
         p_client_turn_id: clientTurnId,
         p_model: model,
         p_estimated_tokens: estimatedTokens,
+        p_requested_service_tier: requestBody.service_tier === "fast"
+          ? "fast"
+          : "default",
       });
     const quotaMilliseconds = elapsedMilliseconds(quotaStartedAt);
 
@@ -315,6 +321,8 @@ const authenticatedHandler = withSupabase(
           ? "Another response is already running. Please wait."
           : code === "duplicate_request"
           ? "This request was already submitted."
+          : code === "account_disabled"
+          ? "Your AI access has been blocked by an administrator."
           : "Your AI usage limit has been reached.",
         limits: reservation
           ? {
@@ -323,6 +331,10 @@ const authenticatedHandler = withSupabase(
           }
           : undefined,
       });
+    }
+
+    if (reservation.effective_service_tier !== "fast") {
+      delete requestBody.service_tier;
     }
 
     let finalized = false;

@@ -15,6 +15,8 @@ import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/settings/bubble_style_screen.dart';
+import 'package:budget_ai/src/settings/admin_screen.dart';
+import 'package:budget_ai/src/settings/admin_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
@@ -50,11 +52,13 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _busyBackground = false;
   bool _isSendingReset = false;
   bool _isDeletingAccount = false;
+  late final Future<AppUserRole> _adminRole;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _adminRole = AdminService.instance.refreshRole();
     _refreshPermissionStatus();
     PackageInfo.fromPlatform().then((info) {
       if (mounted) setState(() => _packageInfo = info);
@@ -228,6 +232,36 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ? 'Sending secure reset link…'
                 : 'Send a secure reset link to your email',
             onTap: _isSendingReset ? () {} : _sendPasswordReset,
+          ),
+          FutureBuilder<AppUserRole>(
+            future: _adminRole,
+            builder: (context, snapshot) {
+              final role = snapshot.data ?? AppUserRole.member;
+              if (role == AppUserRole.member) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 12),
+                  _sectionHeading(
+                    theme,
+                    eyebrow: 'ADMIN',
+                    title: 'User & AI Controls',
+                  ),
+                  const SizedBox(height: 8),
+                  _navTile(
+                    theme,
+                    icon: CupertinoIcons.person_2_fill,
+                    title: 'Admin Controls',
+                    subtitle:
+                        '${role.label} access · users, quotas & device preferences',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminScreen()),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           _sectionHeading(
