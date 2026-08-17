@@ -10,12 +10,14 @@ void main() {
     await settings.setBool('onboarding_completed', true);
     await settings.setString('budget_user_name', 'Previous user');
     await settings.setBool('feature_notifications_enabled', true);
+    await settings.setBool('ai_fast_responses_enabled', true);
 
     await settings.clearExcept({'onboarding_completed'});
 
     expect(await settings.getBool('onboarding_completed'), isTrue);
     expect(await settings.getString('budget_user_name'), isNull);
     expect(await settings.getBool('feature_notifications_enabled'), isNull);
+    expect(await settings.getBool('ai_fast_responses_enabled'), isNull);
   });
 
   test('local finance reset removes active and deleted rows', () async {

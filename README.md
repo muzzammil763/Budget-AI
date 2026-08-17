@@ -91,8 +91,10 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Budget Hub groups the app into a bento-style Quick Actions area for Finances
   and Insights, inline Account controls for the editable name, read-only email,
   and secure password reset, Preferences for currency, offline speech and
-  message style, and App Behavior controls for notifications and the Android
-  background service. A final Danger Zone contains sign-out and permanent
+  message style, and App Behavior controls for Fast Responses, notifications,
+  and the Android background service. Fast Responses is off by default and
+  opts requests into OpenAI Fast mode (`service_tier: "fast"`), which lowers
+  latency but carries higher per-token pricing. A final Danger Zone contains sign-out and permanent
   account deletion. Deletion requires entering `DELETE MY ACCOUNT` with the
   inline keyboard and accepting one final warning; account-owned encrypted
   cloud data is deleted with the account while device-only data remains local. The currency
@@ -111,10 +113,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
-  completion, notification/background choices, and downloaded speech-model
-  selections remain device-local. Granting notifications or Android background
+  completion, Fast Responses, notification/background choices, and downloaded
+  speech-model selections remain device-local. Granting notifications or Android background
   access during onboarding records the matching local choice, so its Budget Hub
-  toggle stays on after account creation or sign-in.
+  toggle stays on after account creation or sign-in. Turning Notifications off
+  suppresses future delivery and clears notifications already shown by the app.
 - Signing out clears the previous user's local finances, chat history,
   preferences, encryption key, widget data, and legacy storage. Downloaded
   offline speech-model files and the completed-onboarding flag are preserved;

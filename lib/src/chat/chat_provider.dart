@@ -6,6 +6,7 @@ import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
@@ -78,6 +79,7 @@ abstract class BaseChatProvider extends ChatProvider {
   Map<String, dynamic>? _lastResponseMetadata;
   final Dio _dio;
   final String? Function() _accessTokenProvider;
+  final bool Function() _fastResponsesProvider;
   CancelToken? _cancelToken;
 
   BaseChatProvider(
@@ -86,10 +88,15 @@ abstract class BaseChatProvider extends ChatProvider {
     Dio? dio,
     ToolRegistry? toolRegistry,
     String? Function()? accessTokenProvider,
+    bool Function()? fastResponsesProvider,
   }) : _selectedModel = defaultSelectedModel,
        _dio = dio ?? _createProviderDio(),
        _accessTokenProvider =
            accessTokenProvider ?? (() => AuthService.instance.accessToken),
+       _fastResponsesProvider =
+           fastResponsesProvider ??
+           (() =>
+               AiResponseSettingsService.instance.fastResponsesEnabled.value),
        _toolRegistry = toolRegistry ?? ToolRegistry();
 
   static Dio _createProviderDio() {
@@ -126,6 +133,9 @@ abstract class BaseChatProvider extends ChatProvider {
     }
     return const {};
   }
+
+  Map<String, dynamic> get _responseServiceTierOptions =>
+      _fastResponsesProvider() ? const {'service_tier': 'fast'} : const {};
 
   @override
   Map<String, dynamic>? get lastResponseMetadata => _lastResponseMetadata;
@@ -173,6 +183,7 @@ abstract class BaseChatProvider extends ChatProvider {
         data: {
           'model': _selectedModel,
           ..._responseModelOptions,
+          ..._responseServiceTierOptions,
           'input': prompt,
           'max_output_tokens': maxTokens,
           'client_turn_id': const Uuid().v4(),

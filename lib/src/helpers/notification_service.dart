@@ -14,6 +14,18 @@ export 'package:flutter_local_notifications/flutter_local_notifications.dart'
 
 enum NotificationPayloadType { responseReady, general }
 
+@visibleForTesting
+bool shouldDeliverNotification({
+  required bool preferenceEnabled,
+  required bool channelEnabled,
+  required bool backgroundOnly,
+  required bool appInBackground,
+}) {
+  return preferenceEnabled &&
+      channelEnabled &&
+      (!backgroundOnly || appInBackground);
+}
+
 class NotificationActions {
   static const String openApp = 'open_app';
   static const String dismiss = 'dismiss';
@@ -201,11 +213,15 @@ class NotificationService {
     // Respect the user's soft on/off choice — when notifications are turned
     // off in settings, nothing is shown even though the OS permission is
     // still granted.
-    if (!PermissionPreferencesService.instance.notificationsEnabled.value) {
+    if (!shouldDeliverNotification(
+      preferenceEnabled:
+          PermissionPreferencesService.instance.notificationsEnabled.value,
+      channelEnabled: responseNotificationsEnabled,
+      backgroundOnly: backgroundOnlyEnabled,
+      appInBackground: appInBackground,
+    )) {
       return null;
     }
-    if (!responseNotificationsEnabled) return null;
-    if (backgroundOnlyEnabled && !appInBackground) return null;
 
     final id = payload.chatId.hashCode.abs();
     final title = payload.hasError
@@ -271,10 +287,15 @@ class NotificationService {
     bool appInBackground = true,
   }) async {
     if (!isInitialized) return;
-    if (!PermissionPreferencesService.instance.notificationsEnabled.value) {
+    if (!shouldDeliverNotification(
+      preferenceEnabled:
+          PermissionPreferencesService.instance.notificationsEnabled.value,
+      channelEnabled: true,
+      backgroundOnly: backgroundOnlyEnabled,
+      appInBackground: appInBackground,
+    )) {
       return;
     }
-    if (backgroundOnlyEnabled && !appInBackground) return;
 
     final androidDetails = AndroidNotificationDetails(
       NotificationChannels.generalAlerts,

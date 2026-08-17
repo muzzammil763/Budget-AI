@@ -8,6 +8,7 @@ import 'package:budget_ai/src/helpers/app_route_observer.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
@@ -32,6 +33,7 @@ Future<void> main() async {
   );
   await LocalSettingsStore.instance.migrateLegacyPreferences();
   await PermissionPreferencesService.instance.load();
+  await AiResponseSettingsService.instance.load();
   await AuthService.instance.initialize();
   await CurrencySettingsService.instance.initialize();
   await LocalSpeechModelManager.instance.initialize();
