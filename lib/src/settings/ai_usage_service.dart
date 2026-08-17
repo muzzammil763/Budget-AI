@@ -8,6 +8,8 @@ class AiUsageInfo {
     required this.requestsLimit,
     required this.tokensUsed,
     required this.tokensLimit,
+    this.fastRequestsUsed = 0,
+    this.fastRequestsLimit = 100,
     required this.renewsOn,
   });
 
@@ -16,6 +18,8 @@ class AiUsageInfo {
   final int requestsLimit;
   final int tokensUsed;
   final int tokensLimit;
+  final int fastRequestsUsed;
+  final int fastRequestsLimit;
 
   /// First day of next month (UTC) — when usage resets, since limits are
   /// enforced per UTC calendar month on the backend.
@@ -64,13 +68,18 @@ class AiUsageService {
       final results = await Future.wait([
         client
             .from('ai_usage_monthly')
-            .select('request_count, input_tokens, output_tokens')
+            .select(
+              'request_count, input_tokens, output_tokens, fast_request_count',
+            )
             .eq('user_id', userId)
             .eq('usage_month', currentMonth)
             .maybeSingle(),
         client
             .from('ai_user_limits')
-            .select('enabled, monthly_request_limit, monthly_token_limit')
+            .select(
+              'enabled, monthly_request_limit, monthly_token_limit, '
+              'monthly_fast_request_limit',
+            )
             .eq('user_id', userId)
             .maybeSingle(),
       ]);
@@ -90,6 +99,10 @@ class AiUsageService {
         tokensLimit:
             (limitsRow?['monthly_token_limit'] as num?)?.toInt() ??
             _defaultTokenLimit,
+        fastRequestsUsed:
+            (usageRow?['fast_request_count'] as num?)?.toInt() ?? 0,
+        fastRequestsLimit:
+            (limitsRow?['monthly_fast_request_limit'] as num?)?.toInt() ?? 100,
         renewsOn: _startOfNextMonthUtc(),
       );
     } finally {

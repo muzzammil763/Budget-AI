@@ -3094,24 +3094,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Future<void> _showAiUsageSheet() async {
     _unfocusComposer();
-    await _refreshAiUsage();
-    if (!mounted) return;
-    final info = AiUsageService.instance.usage.value;
-    if (info == null) {
-      showAppToast(
-        context,
-        message: 'AI usage is unavailable right now',
-        type: ToastificationType.error,
-      );
-      return;
-    }
-
+    unawaited(_refreshAiUsage());
     final theme = Theme.of(context);
-    final color = _aiUsageColor(
-      theme,
-      info.quotaFraction,
-      enabled: info.enabled,
-    );
     await ResponsiveInfoSheet.show(
       context,
       title: 'AI Usage This Month',
@@ -3125,36 +3109,95 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         theme.colorScheme.primary.withValues(alpha: 0.78),
       ],
       contentWidgets: [
-        _buildAiUsageOverview(theme, info, color),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildAiUsageMetric(
-                theme,
-                icon: CupertinoIcons.bolt,
-                label: 'Requests',
-                used: info.requestsUsed,
-                limit: info.requestsLimit,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildAiUsageMetric(
-                theme,
-                icon: CupertinoIcons.textformat_123,
-                label: 'Tokens',
-                used: info.tokensUsed,
-                limit: info.tokensLimit,
-              ),
-            ),
-          ],
+        AnimatedBuilder(
+          animation: Listenable.merge([
+            AiUsageService.instance.usage,
+            AiUsageService.instance.isLoading,
+          ]),
+          builder: (context, _) {
+            final info = AiUsageService.instance.usage.value;
+            if (info == null || AiUsageService.instance.isLoading.value) {
+              return _buildAiUsageShimmer(theme);
+            }
+            final color = _aiUsageColor(
+              theme,
+              info.quotaFraction,
+              enabled: info.enabled,
+            );
+            if (!info.enabled) {
+              return Column(
+                children: [
+                  _buildAiUsageOverview(theme, info, color),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Due to some irrelevant activity, your access to AI has '
+                    'been blocked. Please contact support if you believe this '
+                    'is a mistake.',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
+              );
+            }
+            return Column(
+              children: [
+                _buildAiUsageOverview(theme, info, color),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildAiUsageMetric(
+                        theme,
+                        icon: CupertinoIcons.bolt,
+                        label: 'Requests',
+                        used: info.requestsUsed,
+                        limit: info.requestsLimit,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildAiUsageMetric(
+                        theme,
+                        icon: CupertinoIcons.textformat_123,
+                        label: 'Tokens',
+                        used: info.tokensUsed,
+                        limit: info.tokensLimit,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildAiUsageMetric(
+                  theme,
+                  icon: CupertinoIcons.bolt_fill,
+                  label: 'Fast requests',
+                  used: info.fastRequestsUsed,
+                  limit: info.fastRequestsLimit,
+                ),
+                const SizedBox(height: 12),
+                _buildAiUsageRenewalCard(theme, info.renewsOn),
+              ],
+            );
+          },
         ),
-        const SizedBox(height: 12),
-        _buildAiUsageRenewalCard(theme, info.renewsOn),
       ],
     );
   }
+
+  Widget _buildAiUsageShimmer(ThemeData theme) => Column(
+    children: List.generate(
+      3,
+      (index) => Container(
+        height: index == 0 ? 96 : 64,
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+  );
 
   Widget _buildAiUsageOverview(ThemeData theme, AiUsageInfo info, Color color) {
     final percentage = (info.quotaFraction * 100).round();
