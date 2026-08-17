@@ -73,6 +73,43 @@ class AdminService {
 
   static final instance = AdminService._();
   final role = ValueNotifier<AppUserRole>(AppUserRole.member);
+  final users = ValueNotifier<List<AdminUserInfo>?>(null);
+  final isLoading = ValueNotifier<bool>(false);
+  Future<void>? _preloading;
+  bool _hasLoaded = false;
+  String? _loadedUserId;
+
+  Future<void> preload({bool force = false}) {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (_hasLoaded && _loadedUserId == userId && !force) {
+      return Future.value();
+    }
+    return _preloading ??= _load().whenComplete(() {
+      _hasLoaded = true;
+      _preloading = null;
+    });
+  }
+
+  Future<void> _load() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    _loadedUserId = userId;
+    if (userId == null) {
+      role.value = AppUserRole.member;
+      users.value = null;
+      return;
+    }
+    isLoading.value = true;
+    try {
+      final resolvedRole = await refreshRole();
+      if (resolvedRole == AppUserRole.member) {
+        users.value = null;
+      } else {
+        users.value = await _fetchUsers();
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  }
 
   Future<AppUserRole> refreshRole() async {
     if (Supabase.instance.client.auth.currentUser == null) {
@@ -83,6 +120,17 @@ class AdminService {
   }
 
   Future<List<AdminUserInfo>> listUsers() async {
+    isLoading.value = true;
+    try {
+      final loaded = await _fetchUsers();
+      users.value = loaded;
+      return loaded;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<List<AdminUserInfo>> _fetchUsers() async {
     final data = await Supabase.instance.client.rpc('admin_list_users');
     return (data as List)
         .map((row) => AdminUserInfo.fromJson(Map<String, dynamic>.from(row)))

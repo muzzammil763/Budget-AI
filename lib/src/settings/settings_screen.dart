@@ -19,6 +19,7 @@ import 'package:budget_ai/src/settings/admin_screen.dart';
 import 'package:budget_ai/src/settings/admin_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_usage_sheet.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
@@ -52,13 +53,11 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _busyBackground = false;
   bool _isSendingReset = false;
   bool _isDeletingAccount = false;
-  late final Future<AppUserRole> _adminRole;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _adminRole = AdminService.instance.refreshRole();
     _refreshPermissionStatus();
     PackageInfo.fromPlatform().then((info) {
       if (mounted) setState(() => _packageInfo = info);
@@ -188,6 +187,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
         actions: [
+          const AiUsageAppBarAction(),
           if (_packageInfo != null)
             Text(
               '${_packageInfo!.version} (${_packageInfo!.buildNumber})',
@@ -233,10 +233,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                 : 'Send a secure reset link to your email',
             onTap: _isSendingReset ? () {} : _sendPasswordReset,
           ),
-          FutureBuilder<AppUserRole>(
-            future: _adminRole,
-            builder: (context, snapshot) {
-              final role = snapshot.data ?? AppUserRole.member;
+          ValueListenableBuilder<AppUserRole>(
+            valueListenable: AdminService.instance.role,
+            builder: (context, role, _) {
               if (role == AppUserRole.member) return const SizedBox.shrink();
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

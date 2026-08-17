@@ -31,7 +31,6 @@ Future<void> main() async {
     url: AppConstants.supabaseUrl,
     publishableKey: AppConstants.supabasePublishableKey,
   );
-  await LocalSettingsStore.instance.migrateLegacyPreferences();
   await PermissionPreferencesService.instance.load();
   await AiResponseSettingsService.instance.load();
   await AuthService.instance.initialize();

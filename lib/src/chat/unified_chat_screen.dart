@@ -9,6 +9,7 @@ import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/settings/ai_usage_service.dart';
+import 'package:budget_ai/src/settings/admin_service.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/helpers/app_route_observer.dart';
@@ -139,6 +140,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _voiceCapturePrewarm = _prewarmVoiceCapture();
     _initialize();
     unawaited(_refreshAiUsage());
+    unawaited(AdminService.instance.preload());
 
     // Process any notification actions that arrived while the screen was
     // not mounted, and subscribe to new ones.
@@ -2762,11 +2764,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildTopChromeAction(
-              tooltip: 'AI usage',
-              onPressed: _showAiUsageSheet,
-              icon: _buildAiUsageChromeIndicator(theme),
-            ),
-            _buildTopChromeAction(
               tooltip: 'Finances',
               onPressed: _openFinancesScreen,
               icon: const BudgetMarkIcon(size: 28),
@@ -2783,66 +2780,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       ),
     );
-  }
-
-  Widget _buildAiUsageChromeIndicator(ThemeData theme) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        AiUsageService.instance.usage,
-        AiUsageService.instance.isLoading,
-      ]),
-      builder: (context, _) {
-        final info = AiUsageService.instance.usage.value;
-        if (info == null) {
-          return SizedBox.square(
-            dimension: 28,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              color: theme.colorScheme.primary,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            ),
-          );
-        }
-
-        final fraction = info.quotaFraction;
-        final color = _aiUsageColor(theme, fraction, enabled: info.enabled);
-        return SizedBox.square(
-          dimension: 30,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox.expand(
-                child: CircularProgressIndicator(
-                  value: info.enabled ? fraction : 1,
-                  strokeWidth: 3,
-                  strokeCap: StrokeCap.round,
-                  color: color,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                ),
-              ),
-              Text(
-                info.enabled ? '${(fraction * 100).round()}%' : '!',
-                style: AppTheme.bodySmall.copyWith(
-                  color: color,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Color _aiUsageColor(
-    ThemeData theme,
-    double fraction, {
-    required bool enabled,
-  }) {
-    if (!enabled || fraction >= 1) return theme.colorScheme.error;
-    if (fraction >= 0.85) return Colors.orange;
-    return theme.colorScheme.primary;
   }
 
   Widget _buildTopChromeAction({
@@ -3069,6 +3006,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _openSettingsScreen() async {
+    await Future.wait([AdminService.instance.preload(), _refreshAiUsage()]);
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -3090,291 +3029,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     } catch (error) {
       debugPrint('[AI Usage] Refresh failed: $error');
     }
-  }
-
-  Future<void> _showAiUsageSheet() async {
-    _unfocusComposer();
-    unawaited(_refreshAiUsage());
-    final theme = Theme.of(context);
-    await ResponsiveInfoSheet.show(
-      context,
-      title: 'AI Usage This Month',
-      headerIcon: Icon(
-        CupertinoIcons.speedometer,
-        size: 30,
-        color: AppTheme.readableOn(theme.colorScheme.primary),
-      ),
-      gradientColors: [
-        theme.colorScheme.primary,
-        theme.colorScheme.primary.withValues(alpha: 0.78),
-      ],
-      contentWidgets: [
-        AnimatedBuilder(
-          animation: Listenable.merge([
-            AiUsageService.instance.usage,
-            AiUsageService.instance.isLoading,
-          ]),
-          builder: (context, _) {
-            final info = AiUsageService.instance.usage.value;
-            if (info == null || AiUsageService.instance.isLoading.value) {
-              return _buildAiUsageShimmer(theme);
-            }
-            final color = _aiUsageColor(
-              theme,
-              info.quotaFraction,
-              enabled: info.enabled,
-            );
-            if (!info.enabled) {
-              return Column(
-                children: [
-                  _buildAiUsageOverview(theme, info, color),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Due to some irrelevant activity, your access to AI has '
-                    'been blocked. Please contact support if you believe this '
-                    'is a mistake.',
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: theme.colorScheme.error,
-                    ),
-                  ),
-                ],
-              );
-            }
-            return Column(
-              children: [
-                _buildAiUsageOverview(theme, info, color),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildAiUsageMetric(
-                        theme,
-                        icon: CupertinoIcons.bolt,
-                        label: 'Requests',
-                        used: info.requestsUsed,
-                        limit: info.requestsLimit,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildAiUsageMetric(
-                        theme,
-                        icon: CupertinoIcons.textformat_123,
-                        label: 'Tokens',
-                        used: info.tokensUsed,
-                        limit: info.tokensLimit,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                _buildAiUsageMetric(
-                  theme,
-                  icon: CupertinoIcons.bolt_fill,
-                  label: 'Fast requests',
-                  used: info.fastRequestsUsed,
-                  limit: info.fastRequestsLimit,
-                ),
-                const SizedBox(height: 12),
-                _buildAiUsageRenewalCard(theme, info.renewsOn),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAiUsageShimmer(ThemeData theme) => Column(
-    children: List.generate(
-      3,
-      (index) => Container(
-        height: index == 0 ? 96 : 64,
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    ),
-  );
-
-  Widget _buildAiUsageOverview(ThemeData theme, AiUsageInfo info, Color color) {
-    final percentage = (info.quotaFraction * 100).round();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          SizedBox.square(
-            dimension: 72,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox.expand(
-                  child: CircularProgressIndicator(
-                    value: info.enabled ? info.quotaFraction : 1,
-                    strokeWidth: 7,
-                    strokeCap: StrokeCap.round,
-                    color: color,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  ),
-                ),
-                Text(
-                  info.enabled ? '$percentage%' : '!',
-                  style: AppTheme.headingSmall.copyWith(
-                    color: color,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  info.enabled ? 'Monthly quota used' : 'AI access disabled',
-                  style: AppTheme.bodyLarge.copyWith(
-                    color: theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  info.enabled
-                      ? 'Tracks whichever limit is closest to full.'
-                      : 'AI requests are currently disabled for this account.',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAiUsageMetric(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-    required int used,
-    required int limit,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: theme.colorScheme.primary),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              '${_formatAiUsageCount(used)} / ${_formatAiUsageCount(limit)}',
-              style: AppTheme.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAiUsageRenewalCard(ThemeData theme, DateTime renewsOn) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            CupertinoIcons.calendar,
-            color: theme.colorScheme.primary,
-            size: 22,
-          ),
-          const SizedBox(height: 7),
-          Text(
-            'Renews ${_formatAiUsageRenewalDate(renewsOn)}',
-            textAlign: TextAlign.center,
-            style: AppTheme.bodyMedium.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Monthly limits reset at 00:00 UTC',
-            textAlign: TextAlign.center,
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatAiUsageCount(int value) {
-    final str = value.toString();
-    if (str.length <= 3) return str;
-    final buffer = StringBuffer();
-    for (var index = 0; index < str.length; index++) {
-      if (index > 0 && (str.length - index) % 3 == 0) buffer.write(',');
-      buffer.write(str[index]);
-    }
-    return buffer.toString();
-  }
-
-  String _formatAiUsageRenewalDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   Widget _buildInputArea() {
