@@ -37,6 +37,7 @@ dependencies:
   url_launcher: ^6.3.2
   cryptography: ^2.9.0
   flutter_secure_storage: ^10.3.1
+  plaid_flutter: ^5.2.1
 
 dev_dependencies:
   flutter_test:

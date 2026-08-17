@@ -444,3 +444,18 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/delete-account/deno.json"
 entrypoint = "./functions/delete-account/index.ts"
+
+[functions.plaid-banking]
+enabled = true
+# @supabase/server performs modern publishable-key JWT validation.
+verify_jwt = false
+import_map = "./functions/plaid-banking/deno.json"
+entrypoint = "./functions/plaid-banking/index.ts"
+
+[functions.plaid-webhook]
+enabled = true
+# Plaid calls this endpoint without a Supabase JWT. The function verifies the
+# signed Plaid-Verification JWT and raw-body hash instead.
+verify_jwt = false
+import_map = "./functions/plaid-webhook/deno.json"
+entrypoint = "./functions/plaid-webhook/index.ts"

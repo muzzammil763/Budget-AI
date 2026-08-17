@@ -44,6 +44,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
   late FinanceEntryType _type;
   late DateTime _date;
   late bool _hasTime;
+  late bool _excludedFromBudget;
   bool _isSaving = false;
 
   @override
@@ -64,6 +65,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
     _type = entry?.type ?? FinanceEntryType.expense;
     _date = entry?.date ?? DateTime.now();
     _hasTime = entry?.hasTime ?? true;
+    _excludedFromBudget = entry?.excludedFromBudget ?? false;
   }
 
   @override
@@ -110,6 +112,10 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
           children: [
+            if (widget.entry?.isBankImported ?? false) ...[
+              _buildBankNotice(theme),
+              const SizedBox(height: 12),
+            ],
             _buildAmountCard(theme, accent),
             const SizedBox(height: 12),
             _buildSection(
@@ -223,7 +229,9 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                     icon: CupertinoIcons.calendar,
                     label: 'Date',
                     value: _formatDate(_date),
-                    onTap: _pickDate,
+                    onTap: widget.entry?.isBankImported ?? false
+                        ? null
+                        : _pickDate,
                   ),
                   const SizedBox(height: 8),
                   _buildPickerRow(
@@ -231,27 +239,48 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                     icon: CupertinoIcons.time,
                     label: 'Time',
                     value: _hasTime ? _formatTime(_date) : 'Not specified',
-                    onTap: _hasTime ? _pickTime : null,
+                    onTap: _hasTime && !(widget.entry?.isBankImported ?? false)
+                        ? _pickTime
+                        : null,
                     trailing: Switch.adaptive(
                       value: _hasTime,
-                      onChanged: (value) => setState(() {
-                        _hasTime = value;
-                        if (!value) {
-                          _date = DateTime(_date.year, _date.month, _date.day);
-                        }
-                      }),
+                      onChanged: widget.entry?.isBankImported ?? false
+                          ? null
+                          : (value) => setState(() {
+                              _hasTime = value;
+                              if (!value) {
+                                _date = DateTime(
+                                  _date.year,
+                                  _date.month,
+                                  _date.day,
+                                );
+                              }
+                            }),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
+            if (widget.entry?.isBankImported ?? false) ...[
+              SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                title: const Text('Exclude from budget'),
+                subtitle: const Text(
+                  'Keep this bank record visible without counting it in totals.',
+                ),
+                value: _excludedFromBudget,
+                onChanged: (value) =>
+                    setState(() => _excludedFromBudget = value),
+              ),
+              const SizedBox(height: 12),
+            ],
             AppButton(
               text: widget.entry == null ? 'Save Entry' : 'Save Changes',
               icon: CupertinoIcons.check_mark,
               onPressed: _isSaving ? null : _save,
             ),
-            if (widget.entry != null) ...[
+            if (widget.entry != null && !widget.entry!.isBankImported) ...[
               const SizedBox(height: 12),
               AppButton(
                 text: 'Delete Entry',
@@ -302,6 +331,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           ),
           TextField(
             controller: _amountController,
+            readOnly: widget.entry?.isBankImported ?? false,
             cursorColor: readable,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -348,7 +378,9 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
               borderRadius: BorderRadius.circular(12),
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _type = type),
+                onTap: widget.entry?.isBankImported ?? false
+                    ? null
+                    : () => setState(() => _type = type),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(
@@ -391,6 +423,28 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
       }).toList(),
     );
   }
+
+  Widget _buildBankNotice(ThemeData theme) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: theme.colorScheme.primaryContainer.withValues(alpha: .35),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: theme.colorScheme.primary.withValues(alpha: .25),
+      ),
+    ),
+    child: const Row(
+      children: [
+        Icon(CupertinoIcons.lock_shield),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Imported from your bank. Amount, type, and date follow the bank record; you can change the title, category, or budget inclusion.',
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildSection(
     ThemeData theme, {
@@ -581,12 +635,18 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           )
         : await FinanceService.instance.update(
             existingEntry.copyWith(
-              type: _type,
-              date: _date,
-              hasTime: _hasTime,
+              type: existingEntry.isBankImported ? existingEntry.type : _type,
+              date: existingEntry.isBankImported ? existingEntry.date : _date,
+              hasTime: existingEntry.isBankImported
+                  ? existingEntry.hasTime
+                  : _hasTime,
               description: normalizedDescription,
-              amount: amount,
+              amount: existingEntry.isBankImported
+                  ? existingEntry.amount
+                  : amount,
               category: normalizedCategory,
+              excludedFromBudget: _excludedFromBudget,
+              userModified: existingEntry.isBankImported ? true : null,
             ),
           );
     if (!mounted) return;

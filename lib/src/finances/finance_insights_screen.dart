@@ -1827,7 +1827,13 @@ class _FinanceInsights {
   }) {
     final today = _dateOnly(now);
     final allUsableEntries =
-        entries.where((entry) => !_dateOnly(entry.date).isAfter(today)).toList()
+        entries
+            .where(
+              (entry) =>
+                  !entry.excludedFromBudget &&
+                  !_dateOnly(entry.date).isAfter(today),
+            )
+            .toList()
           ..sort((a, b) => a.date.compareTo(b.date));
     final usableEntries = allUsableEntries
         .where((entry) => entry.type == FinanceEntryType.expense)

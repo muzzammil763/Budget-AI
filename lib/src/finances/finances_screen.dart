@@ -9,13 +9,24 @@ import 'package:budget_ai/src/finances/finance_entry_edit_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/storage/local_finance_store.dart';
-import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
+import 'package:budget_ai/src/sync/plain_finance_sync_service.dart';
 import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:toastification/toastification.dart';
 
 class FinancesScreen extends StatefulWidget {
-  const FinancesScreen({super.key});
+  const FinancesScreen({
+    super.key,
+    this.connectionId,
+    this.accountId,
+    this.bankOnly = false,
+    this.title = 'Finances',
+  });
+
+  final String? connectionId;
+  final String? accountId;
+  final bool bankOnly;
+  final String title;
 
   @override
   State<FinancesScreen> createState() => _FinancesScreenState();
@@ -38,7 +49,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     SiriFinanceRealtimeSync.revision.addListener(_handleSiriFinanceChanged);
     AndroidFinanceAppActions.revision.addListener(_handleSiriFinanceChanged);
     LocalFinanceStore.instance.changes.addListener(_handleSiriFinanceChanged);
-    EncryptedFinanceSyncService.instance.status.addListener(
+    PlainFinanceSyncService.instance.status.addListener(
       _handleSyncStatusChanged,
     );
     final now = DateTime.now();
@@ -54,7 +65,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     LocalFinanceStore.instance.changes.removeListener(
       _handleSiriFinanceChanged,
     );
-    EncryptedFinanceSyncService.instance.status.removeListener(
+    PlainFinanceSyncService.instance.status.removeListener(
       _handleSyncStatusChanged,
     );
     _searchController.dispose();
@@ -74,16 +85,18 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   bool get _isInitialSyncPending =>
       _allEntries.isEmpty &&
-      EncryptedFinanceSyncService.instance.status.value == 'Syncing…';
+      PlainFinanceSyncService.instance.status.value == 'Syncing…';
 
   Future<void> _load({bool showLoading = true}) async {
     if (showLoading) setState(() => _isLoading = true);
     FinanceService.instance.invalidateCache();
     await FinanceService.instance.applySavingsRollover();
-    final allEntries = await FinanceService.instance.getAll();
-    final month = await FinanceService.instance.getByMonth(
-      _selectedMonth.year,
-      _selectedMonth.month,
+    final allEntries = _filter(await FinanceService.instance.getAll());
+    final month = _filter(
+      await FinanceService.instance.getByMonth(
+        _selectedMonth.year,
+        _selectedMonth.month,
+      ),
     );
     if (mounted) {
       setState(() {
@@ -93,6 +106,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
       });
     }
   }
+
+  List<FinanceEntry> _filter(List<FinanceEntry> entries) => entries
+      .where(
+        (entry) =>
+            (!widget.bankOnly || entry.isBankImported) &&
+            (widget.connectionId == null ||
+                entry.connectionId == widget.connectionId) &&
+            (widget.accountId == null || entry.accountId == widget.accountId),
+      )
+      .toList(growable: false);
 
   Future<void> _selectMonth(DateTime month) async {
     if (month.year == _selectedMonth.year &&
@@ -110,9 +133,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
       _isOverall = false;
       _isLoading = true;
     });
-    final entries = await FinanceService.instance.getByMonth(
-      month.year,
-      month.month,
+    final entries = _filter(
+      await FinanceService.instance.getByMonth(month.year, month.month),
     );
     if (mounted) {
       setState(() {
@@ -226,7 +248,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
-        title: const Text('Finances'),
+        title: Text(widget.title),
         actions: [
           IconButton(
             tooltip: 'Finance insights',
@@ -939,6 +961,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
                                 color: theme.colorScheme.onSurfaceVariant,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                          if (entry.isBankImported) ...[
+                            Text(
+                              ' · Bank${entry.bankState == BankTransactionState.pending ? ' · Pending' : ''}${entry.excludedFromBudget ? ' · Excluded' : ''}',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],

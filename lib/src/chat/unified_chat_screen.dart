@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
+import 'package:budget_ai/src/banking/bank_connection_service.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -139,6 +140,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _voiceCapturePrewarm = _prewarmVoiceCapture();
     _initialize();
     unawaited(_refreshAiUsage());
+    unawaited(BankConnectionService.instance.syncPendingConnections());
 
     // Process any notification actions that arrived while the screen was
     // not mounted, and subscribe to new ones.
