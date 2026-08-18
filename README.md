@@ -93,6 +93,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   single call shows its named expandable row; consecutive calls use an
   expandable grouped summary. Expanding reveals the arguments and result while
   preserving the response text in chronological order.
+- OpenAI request context stays bounded: the active user turn preserves its
+  complete reasoning/tool-call chain, while completed turns resend only the 16
+  most recent user/assistant dialogue items. Finance data is fetched on demand
+  through tools instead of attaching an always-on finance snapshot to every
+  request and tool round.
 - Budget Hub groups the app into a bento-style Quick Actions area for Finances
   and Insights, inline Account controls for the editable name, read-only email,
   and secure password reset, Preferences for currency, offline speech and
