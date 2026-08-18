@@ -53,6 +53,9 @@ void main() {
       expect(body['stream'], isTrue);
       expect(body.containsKey('service_tier'), isFalse);
       expect(body['client_turn_id'], isNotEmpty);
+      final instructions = body['instructions'] as String;
+      expect(instructions.length, lessThan(3000));
+      expect(instructions, isNot(contains('Current finance snapshot')));
       expect(chunks.map((chunk) => chunk.content).join(), 'Done.');
       expect(provider.lastResponseMetadata?['promptTokens'], 20);
       expect(provider.lastResponseMetadata?['completionTokens'], 4);
@@ -132,6 +135,63 @@ void main() {
     expect(chunks.map((chunk) => chunk.content).join(), 'Saved.');
     expect(chunks.any((chunk) => chunk.isToolCallComplete), isTrue);
   });
+
+  test(
+    'completed turns drop internal payloads and keep recent dialogue',
+    () async {
+      final requests = <RequestOptions>[];
+      final provider = ResponsesProvider(
+        ChatModelConfig.openAI,
+        dio: _streamingDio(requests),
+        accessTokenProvider: () => 'test-user-jwt',
+      );
+      await provider.initialize();
+
+      final state = <Map<String, dynamic>>[];
+      for (var index = 0; index < 12; index++) {
+        state.add({'role': 'user', 'content': 'Old user $index'});
+        state.add({
+          'type': 'reasoning',
+          'id': 'reasoning_$index',
+          'summary': const [],
+        });
+        state.add({
+          'type': 'function_call',
+          'call_id': 'call_$index',
+          'name': 'finance_list',
+          'arguments': '{}',
+        });
+        state.add({
+          'type': 'function_call_output',
+          'call_id': 'call_$index',
+          'output': '{"large":"internal payload $index"}',
+        });
+        state.add({'role': 'assistant', 'content': 'Old answer $index'});
+      }
+      provider.loadConversationState(state);
+
+      await provider
+          .sendMessageStreamWithThinking(
+            'Current question',
+            enableToolCalls: false,
+          )
+          .drain<void>();
+
+      final input = (requests.single.data as Map)['input'] as List;
+      expect(input, hasLength(17));
+      expect((input.first as Map)['content'], 'Old user 4');
+      expect((input.last as Map)['content'], 'Current question');
+      expect(
+        input.whereType<Map>().any(
+          (item) =>
+              item['type'] == 'reasoning' ||
+              item['type'] == 'function_call' ||
+              item['type'] == 'function_call_output',
+        ),
+        isFalse,
+      );
+    },
+  );
 }
 
 Dio _streamingDio(List<RequestOptions> requests) {

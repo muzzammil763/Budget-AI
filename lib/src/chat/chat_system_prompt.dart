@@ -42,20 +42,20 @@ String _buildDateTimeContextPrompt() {
   final om = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
   final hour = now.hour.toString().padLeft(2, '0');
   final min = now.minute.toString().padLeft(2, '0');
-  return 'Current date: ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}\n'
-      'Current date and time: $weekday, ${now.day} $month ${now.year} at $hour:$min (${now.timeZoneName}, UTC$sign$oh:$om).';
+  return 'Now: $weekday, ${now.day} $month ${now.year}, $hour:$min '
+      '(${now.timeZoneName}, UTC$sign$oh:$om).';
 }
 
 String _buildCurrencyContextPrompt() {
   final currency = CurrencySettingsService.instance.current;
   final sample = CurrencySettingsService.instance.formatAmount(1200);
-  return 'Currency setting: use "$currency" for monetary amounts. Example display: $sample.';
+  return 'Currency: "$currency" (example: $sample).';
 }
 
 String _buildUserNameContextPrompt() {
   final userName = UserNameSettingsService.instance.current;
   if (userName.isEmpty) return '';
-  return 'The user prefers to be called "$userName". Address them by this name naturally when appropriate, but do not repeat it in every response.';
+  return 'User name: "$userName"; use naturally, not in every response.';
 }
 
 String _buildChatBaseSystemPrompt() {
@@ -70,41 +70,11 @@ String _buildChatBaseSystemPrompt() {
 }
 
 Future<String> _buildChatSystemPrompt() async {
-  final basePrompt = _buildChatBaseSystemPrompt();
-  final contextSections = await _buildSystemContextSections();
-
-  return [basePrompt, ...contextSections].join('\n\n');
+  return _buildChatBaseSystemPrompt();
 }
 
 Future<String> buildChatSystemPromptSnapshotForDiagnostics() {
   return _buildChatSystemPrompt();
-}
-
-Future<List<String>> _buildSystemContextSections() async {
-  final sections = <String>[];
-  try {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final monthStart = DateTime(now.year, now.month);
-    final todayEntries = await FinanceService.instance.getByDateRange(
-      today,
-      now,
-    );
-    final monthEntries = await FinanceService.instance.getByDateRange(
-      monthStart,
-      now,
-    );
-    final financeContext = FinanceService.instance.buildContextText(
-      todayEntries,
-      monthEntries,
-    );
-    if (financeContext.trim().isNotEmpty) {
-      sections.add('Current finance snapshot:\n$financeContext');
-    }
-  } catch (e) {
-    debugPrint('[ChatProvider] Failed to build finance context: $e');
-  }
-  return sections;
 }
 
 bool _isToolFailure(dynamic result) {
@@ -340,5 +310,40 @@ List<Map<String, dynamic>> _sanitizeConversationStateForApi(
     }
     index++;
   }
-  return sanitized;
+  return _compactCompletedConversationTurns(sanitized);
+}
+
+/// Keeps the current user turn intact because Responses tool calls, reasoning,
+/// and outputs must be replayed together. Completed turns need only their
+/// visible dialogue; their internal tool payloads are already represented by
+/// the assistant's final answer.
+List<Map<String, dynamic>> _compactCompletedConversationTurns(
+  List<Map<String, dynamic>> items,
+) {
+  const maxPreviousDialogueItems = 16;
+  var currentTurnStart = -1;
+  for (var index = items.length - 1; index >= 0; index--) {
+    if (items[index]['role']?.toString() == 'user') {
+      currentTurnStart = index;
+      break;
+    }
+  }
+  if (currentTurnStart <= 0) return items;
+
+  final previousDialogue = items.take(currentTurnStart).where((item) {
+    final role = item['role']?.toString();
+    final type = item['type']?.toString();
+    return (role == 'user' || role == 'assistant') &&
+        (type == null || type == 'message');
+  }).toList();
+  final windowStart = previousDialogue.length > maxPreviousDialogueItems
+      ? previousDialogue.length - maxPreviousDialogueItems
+      : 0;
+  final recentDialogue = previousDialogue.sublist(windowStart);
+  while (recentDialogue.isNotEmpty &&
+      recentDialogue.first['role']?.toString() != 'user') {
+    recentDialogue.removeAt(0);
+  }
+
+  return [...recentDialogue, ...items.sublist(currentTurnStart)];
 }
