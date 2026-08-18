@@ -180,100 +180,10 @@ class _ChatShimmerTextState extends State<ChatShimmerText>
   }
 }
 
-class ChatWorkingWord extends StatefulWidget {
+class ChatWorkingWord extends StatelessWidget {
   const ChatWorkingWord({super.key, this.fontSize = 22});
 
   final double fontSize;
-
-  @override
-  State<ChatWorkingWord> createState() => _ChatWorkingWordState();
-}
-
-class _ChatWorkingWordState extends State<ChatWorkingWord> {
-  static const _words = [
-    'Clauding',
-    'Bruzzling',
-    'Snuzzing',
-    'Zuzzling',
-    'Brewzing',
-    'Thinkling',
-    'Floopzing',
-    'Glimbling',
-    'Juzzling',
-    'Klinkling',
-    'Luzzling',
-    'Mibbling',
-    'Pluzzling',
-    'Ruzzling',
-    'Truzzling',
-    'Vizzling',
-    'Wuzzling',
-    'Yuzzling',
-    'Zibbling',
-    'Brumbling',
-    'Chuzzling',
-    'Dazzmbling',
-    'Frumbling',
-    'Kluzzing',
-    'Ploofing',
-    'Squzzing',
-    'Thrumbling',
-    'Bloopling',
-    'Crimbling',
-    'Drumbling',
-    'Fluzzing',
-    'Grozzling',
-    'Huzzling',
-    'Prumbling',
-    'Swoozling',
-    'Bluzzing',
-    'Crumblingo',
-    'Drizzbling',
-    'Frozzling',
-    'Quzzling',
-    'Snimbling',
-    'Vroombling',
-  ];
-
-  final math.Random _random = math.Random();
-  late final Timer _timer;
-  late List<int> _shuffledWordIndexes;
-  int _shufflePosition = 0;
-  late int _wordIndex;
-  int _dotCount = 1;
-  int _ticks = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _shuffledWordIndexes = List.generate(_words.length, (index) => index)
-      ..shuffle(_random);
-    _wordIndex = _shuffledWordIndexes.first;
-    _timer = Timer.periodic(const Duration(milliseconds: 480), (_) {
-      if (!mounted) return;
-      setState(() {
-        _dotCount = (_dotCount % 3) + 1;
-        _ticks++;
-        if (_ticks % 4 == 0) {
-          _shufflePosition++;
-          if (_shufflePosition >= _shuffledWordIndexes.length) {
-            final previousIndex = _wordIndex;
-            do {
-              _shuffledWordIndexes.shuffle(_random);
-            } while (_shuffledWordIndexes.first == previousIndex);
-            _shufflePosition = 0;
-          }
-          _wordIndex = _shuffledWordIndexes[_shufflePosition];
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -282,7 +192,7 @@ class _ChatWorkingWordState extends State<ChatWorkingWord> {
     ).colorScheme.onSurfaceVariant.withValues(alpha: 0.72);
     final style = AppTheme.bodyMedium.copyWith(
       color: color,
-      fontSize: widget.fontSize,
+      fontSize: fontSize,
       fontWeight: FontWeight.w400,
       height: 1,
       fontFamily: AppTheme.defaultFontFamily,
@@ -291,47 +201,11 @@ class _ChatWorkingWordState extends State<ChatWorkingWord> {
       liveRegion: true,
       label: 'Budget AI is working',
       child: ExcludeSemantics(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSize(
-              duration: const Duration(milliseconds: 520),
-              curve: Curves.easeInOutCubic,
-              alignment: AlignmentDirectional.centerStart,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 520),
-                switchInCurve: Curves.easeInOutCubic,
-                switchOutCurve: Curves.easeInOutCubic,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.985, end: 1).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
-                      ),
-                    ),
-                    alignment: Alignment.centerLeft,
-                    child: child,
-                  ),
-                ),
-                child: Text(
-                  _words[_wordIndex],
-                  key: ValueKey(_wordIndex),
-                  maxLines: 1,
-                  style: style,
-                ),
-              ),
-            ),
-            SizedBox(
-              width: widget.fontSize * 0.9,
-              child: Text(
-                List.filled(_dotCount, '.').join(),
-                maxLines: 1,
-                style: style,
-              ),
-            ),
-          ],
+        child: Text(
+          'Budget AI Working ...',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style,
         ),
       ),
     );

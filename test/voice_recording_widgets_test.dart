@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('working words match normal composer hint typography', (
+  testWidgets('working status stays static and matches composer typography', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -16,12 +16,16 @@ void main() {
         matching: find.byType(Text),
       ),
     );
-    expect(texts, isNotEmpty);
+    expect(texts, hasLength(1));
+    expect(texts.single.data, 'Budget AI Working ...');
     for (final text in texts) {
       expect(text.style?.fontSize, 16);
       expect(text.style?.fontWeight, FontWeight.w400);
       expect(text.style?.fontFamily, 'Google Sans');
     }
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Budget AI Working ...'), findsOneWidget);
   });
 
   testWidgets('voice recording UI animates at compact composer widths', (
