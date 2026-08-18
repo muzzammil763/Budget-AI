@@ -181,6 +181,7 @@ abstract class BaseChatProvider extends ChatProvider {
         providerName: _providerName,
         data: {
           'model': _selectedModel,
+          'top_p': 1.0,
           ..._responseModelOptions,
           ..._responseServiceTierOptions,
           'input': prompt,

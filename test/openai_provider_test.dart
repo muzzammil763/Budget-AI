@@ -48,6 +48,7 @@ void main() {
       expect(requests.single.headers.containsKey('x-region'), isFalse);
       final body = Map<String, dynamic>.from(requests.single.data as Map);
       expect(body['model'], ActiveModelResolver.defaultModelId);
+      expect(body['top_p'], 1.0);
       expect(body['reasoning'], {'effort': 'low'});
       expect(body['text'], {'verbosity': 'low'});
       expect(body['stream'], isTrue);
@@ -77,6 +78,7 @@ void main() {
         .drain<void>();
 
     final body = Map<String, dynamic>.from(requests.single.data as Map);
+    expect(body['top_p'], 1.0);
     expect(body.containsKey('reasoning'), isFalse);
     expect(body.containsKey('text'), isFalse);
   });

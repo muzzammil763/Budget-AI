@@ -72,6 +72,7 @@ class ResponsesProvider extends BaseChatProvider {
 
         final requestData = <String, dynamic>{
           'model': _selectedModel,
+          'top_p': 1.0,
           ..._responseModelOptions,
           ..._responseServiceTierOptions,
           'instructions': await _buildChatSystemPrompt(),
