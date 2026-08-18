@@ -99,7 +99,7 @@ speech is on-device.
 
 ## Feature surface
 
-Chat pre-warms the temporary recording path and already-granted microphone status without activating capture. Hold-to-talk begins on pointer-down instead of waiting for Flutter's long-press timeout; startup feedback stays within the mic button, the composer changes only after capture begins, and releasing while startup is still in flight cancels safely. During active responses, only the bottom composer shows a smoothly crossfading shuffled pool of invented working words using the same 16-point Google Sans typography as the normal “Ask Budget AI” hint; the conversation stays empty until content arrives. The composer activity mark contains only animated bars, with no surrounding circle.
+Chat pre-warms the temporary recording path and already-granted microphone status without activating capture. Hold-to-talk begins on pointer-down instead of waiting for Flutter's long-press timeout; startup feedback stays within the mic button, the composer changes only after capture begins, and releasing while startup is still in flight cancels safely. During active responses, only the bottom composer shows the static `Budget AI Working ...` status using the same 16-point Google Sans typography as the normal “Ask Budget AI” hint; the conversation stays empty until content arrives. The composer activity mark contains only animated bars, with no surrounding circle.
 
 Chat top chrome provides New Chat, Finances, and Budget Hub actions. New Chat uses the existing fresh-draft flow and active-response guard. Budget Hub navigation opens immediately from cached state while admin and usage refreshes continue in the background.
 

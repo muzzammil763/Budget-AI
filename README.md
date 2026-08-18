@@ -14,7 +14,7 @@ end-to-end encrypted synchronization, and offline speech.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
-- While Budget AI is preparing a response, the bottom composer shows smoothly crossfading, shuffled invented words in Boldonse; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
+- While Budget AI is preparing a response, the bottom composer shows the static `Budget AI Working ...` status in the normal composer-hint typography; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
 - Budget Hub > Offline Speech Models offers a focused on-device catalog:
   Whisper Small English. Its model card explains accuracy/speed trade-offs,
   storage and engine details. Downloads show rounded
