@@ -61,13 +61,14 @@ class GoogleCloudSpeechService {
     required Locale locale,
   }) async {
     final bytes = await File(audioPath).readAsBytes();
+    final metadata = googleWavMetadata(bytes);
     final candidates = googleSpeechLanguageCandidates(locale);
     final data = await _invoke({
       'action': 'transcribe',
       'audioContent': base64Encode(bytes),
       'audioEncoding': 'LINEAR16',
-      'sampleRateHertz': 16000,
-      'audioChannelCount': 1,
+      'sampleRateHertz': metadata?.sampleRateHertz ?? 16000,
+      'audioChannelCount': metadata?.audioChannelCount ?? 1,
       'languageCode': candidates.first,
       'alternativeLanguageCodes': candidates.skip(1).toList(),
     });
@@ -159,6 +160,52 @@ class GoogleCloudSpeechService {
     }
     return Map<String, dynamic>.from(data);
   }
+}
+
+class GoogleWavMetadata {
+  const GoogleWavMetadata({
+    required this.sampleRateHertz,
+    required this.audioChannelCount,
+  });
+
+  final int sampleRateHertz;
+  final int audioChannelCount;
+}
+
+GoogleWavMetadata? googleWavMetadata(Uint8List bytes) {
+  if (bytes.length < 12 ||
+      ascii.decode(bytes.sublist(0, 4), allowInvalid: true) != 'RIFF' ||
+      ascii.decode(bytes.sublist(8, 12), allowInvalid: true) != 'WAVE') {
+    return null;
+  }
+
+  final data = ByteData.sublistView(bytes);
+  var offset = 12;
+  while (offset + 8 <= bytes.length) {
+    final chunkId = ascii.decode(
+      bytes.sublist(offset, offset + 4),
+      allowInvalid: true,
+    );
+    final chunkSize = data.getUint32(offset + 4, Endian.little);
+    final contentOffset = offset + 8;
+    if (chunkId == 'fmt ' &&
+        chunkSize >= 16 &&
+        contentOffset + 16 <= bytes.length) {
+      final channels = data.getUint16(contentOffset + 2, Endian.little);
+      final sampleRate = data.getUint32(contentOffset + 4, Endian.little);
+      if (channels > 0 && sampleRate >= 8000 && sampleRate <= 192000) {
+        return GoogleWavMetadata(
+          sampleRateHertz: sampleRate,
+          audioChannelCount: channels,
+        );
+      }
+      return null;
+    }
+    final paddedSize = chunkSize + (chunkSize.isOdd ? 1 : 0);
+    if (contentOffset + paddedSize <= offset) return null;
+    offset = contentOffset + paddedSize;
+  }
+  return null;
 }
 
 List<String> googleSpeechLanguageCandidates(Locale locale) {

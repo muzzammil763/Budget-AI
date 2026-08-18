@@ -10,6 +10,9 @@ const corsHeaders = {
 
 const googleApiKey = Deno.env.get("GOOGLE_CLOUD_API_KEY")?.trim() ?? "";
 const languageCodePattern = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8}){0,2}$/;
+const geminiTtsModel = "gemini-3.1-flash-tts-preview";
+const geminiTtsVoice = "Zubenelgenubi";
+const geminiTtsStyle = "Read aloud in a warm, welcoming tone.";
 
 function jsonResponse(status: number, body: Record<string, unknown>) {
   return Response.json(body, { status, headers: corsHeaders });
@@ -56,6 +59,16 @@ async function transcribe(body: Record<string, unknown>) {
       .filter((value) => value && value !== languageCode)
       .slice(0, 3)
     : [];
+  const requestedSampleRate = Number(body.sampleRateHertz);
+  const sampleRateHertz = Number.isInteger(requestedSampleRate) &&
+      requestedSampleRate >= 8000 && requestedSampleRate <= 192000
+    ? requestedSampleRate
+    : 16000;
+  const requestedChannelCount = Number(body.audioChannelCount);
+  const audioChannelCount = Number.isInteger(requestedChannelCount) &&
+      requestedChannelCount >= 1 && requestedChannelCount <= 8
+    ? requestedChannelCount
+    : 1;
   const data = await googleRequest(
     "https://speech.googleapis.com/v1/speech:recognize",
     {
@@ -63,10 +76,12 @@ async function transcribe(body: Record<string, unknown>) {
         encoding: body.audioEncoding === "LINEAR16"
           ? "LINEAR16"
           : "ENCODING_UNSPECIFIED",
-        sampleRateHertz: body.sampleRateHertz === 16000 ? 16000 : undefined,
-        audioChannelCount: body.audioChannelCount === 1 ? 1 : undefined,
+        sampleRateHertz,
+        audioChannelCount,
+        enableSeparateRecognitionPerChannel: audioChannelCount > 1,
         languageCode,
         alternativeLanguageCodes: alternatives,
+        model: "command_and_search",
         enableAutomaticPunctuation: true,
       },
       audio: { content: audioContent },
@@ -101,26 +116,25 @@ async function synthesize(body: Record<string, unknown>) {
   const requestedLanguage = cleanLanguageCode(body.languageCode);
   let usedLanguage = requestedLanguage;
   let data: Record<string, unknown>;
-  try {
-    data = await googleRequest(
+  const synthesizeForLanguage = (languageCode: string) =>
+    googleRequest(
       "https://texttospeech.googleapis.com/v1/text:synthesize",
       {
-        input: { text },
-        voice: { languageCode: requestedLanguage },
+        input: { text, prompt: geminiTtsStyle },
+        voice: {
+          languageCode,
+          name: geminiTtsVoice,
+          modelName: geminiTtsModel,
+        },
         audioConfig: { audioEncoding: "MP3" },
       },
     );
+  try {
+    data = await synthesizeForLanguage(requestedLanguage);
   } catch (error) {
     if (requestedLanguage === "en-US") throw error;
     usedLanguage = "en-US";
-    data = await googleRequest(
-      "https://texttospeech.googleapis.com/v1/text:synthesize",
-      {
-        input: { text },
-        voice: { languageCode: usedLanguage },
-        audioConfig: { audioEncoding: "MP3" },
-      },
-    );
+    data = await synthesizeForLanguage(usedLanguage);
   }
   if (typeof data.audioContent !== "string" || !data.audioContent) {
     throw new Error("Google Cloud returned no speech audio.");
@@ -128,6 +142,8 @@ async function synthesize(body: Record<string, unknown>) {
   return jsonResponse(200, {
     audioContent: data.audioContent,
     languageCode: usedLanguage,
+    model: geminiTtsModel,
+    voice: geminiTtsVoice,
   });
 }
 

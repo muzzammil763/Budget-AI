@@ -1603,7 +1603,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       final recordedFor = DateTime.now().difference(
         _voiceRecordingStartedAt ?? DateTime.now(),
       );
-      if (recordedFor < const Duration(milliseconds: 450)) {
+      if (recordedFor < const Duration(milliseconds: 750)) {
         await _audioRecorder.cancel();
         if (!mounted) return;
         setState(() {
