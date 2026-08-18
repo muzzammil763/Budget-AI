@@ -118,11 +118,11 @@ abstract class BaseChatProvider extends ChatProvider {
       'x-region': AppConstants.supabaseFunctionRegion,
   };
 
-  Map<String, dynamic> get _responseModelOptions {
+  Map<String, dynamic> _responseModelOptions({String reasoningEffort = 'low'}) {
     if (_selectedModel.startsWith('gpt-5')) {
-      return const {
-        'reasoning': {'effort': 'low'},
-        'text': {'verbosity': 'low'},
+      return {
+        'reasoning': {'effort': reasoningEffort},
+        'text': const {'verbosity': 'low'},
       };
     }
     if (_selectedModel == 'o3') {
@@ -182,7 +182,7 @@ abstract class BaseChatProvider extends ChatProvider {
         data: {
           'model': _selectedModel,
           'top_p': 1.0,
-          ..._responseModelOptions,
+          ..._responseModelOptions(),
           ..._responseServiceTierOptions,
           'input': prompt,
           'max_output_tokens': maxTokens,

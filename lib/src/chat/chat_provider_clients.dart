@@ -39,9 +39,11 @@ class ResponsesProvider extends BaseChatProvider {
     _chatHistory.add({'role': 'user', 'content': message});
     final tools = enableToolCalls ? _toolRegistry.getAvailableTools() : [];
     final hasTools = tools.isNotEmpty;
+    final reasoningEffort = _reasoningEffortFor(message);
 
     debugPrint('[$_providerName] Sending authenticated request to $_baseUrl');
     debugPrint('[$_providerName] Model: $_selectedModel');
+    debugPrint('[$_providerName] Reasoning effort: $reasoningEffort');
     debugPrint('[$_providerName] Tool calls enabled: $enableToolCalls');
 
     _cancelToken = CancelToken();
@@ -73,7 +75,7 @@ class ResponsesProvider extends BaseChatProvider {
         final requestData = <String, dynamic>{
           'model': _selectedModel,
           'top_p': 1.0,
-          ..._responseModelOptions,
+          ..._responseModelOptions(reasoningEffort: reasoningEffort),
           ..._responseServiceTierOptions,
           'instructions': await _buildChatSystemPrompt(),
           'input': _sanitizeConversationStateForApi(_chatHistory),
@@ -321,6 +323,65 @@ class ResponsesProvider extends BaseChatProvider {
     } finally {
       _cancelToken = null;
     }
+  }
+
+  String _reasoningEffortFor(String message) {
+    if (!_selectedModel.startsWith('gpt-5')) return 'low';
+
+    final normalized = message
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    const simpleConversation = {
+      'hi',
+      'hello',
+      'hey',
+      'salam',
+      'assalamualaikum',
+      'assalam o alaikum',
+      'good morning',
+      'good afternoon',
+      'good evening',
+      'thanks',
+      'thank you',
+      'thankyou',
+      'shukriya',
+      'ok',
+      'okay',
+      'bye',
+      'goodbye',
+    };
+    if (simpleConversation.contains(normalized)) return 'none';
+
+    const analyticalSignals = [
+      'analyze',
+      'analyse',
+      'analysis',
+      'compare',
+      'comparison',
+      'trend',
+      'pattern',
+      'forecast',
+      'projection',
+      'breakdown',
+      'average',
+      'why did',
+      'why is',
+      'why has',
+      'kyun',
+      'kiun',
+      'kion',
+      'muqabla',
+      'tajzia',
+      'تجزیہ',
+      'موازنہ',
+    ];
+    if (analyticalSignals.any(normalized.contains)) return 'medium';
+
+    return 'low';
   }
 
   String _responseToolKey(Map<String, dynamic> event, Map? item) {

@@ -83,6 +83,33 @@ void main() {
     expect(body.containsKey('text'), isFalse);
   });
 
+  test('GPT-5 reasoning effort adapts conservatively to the prompt', () async {
+    Future<String> effortFor(String prompt) async {
+      final requests = <RequestOptions>[];
+      final provider = ResponsesProvider(
+        ChatModelConfig.openAI,
+        dio: _streamingDio(requests),
+        accessTokenProvider: () => 'test-user-jwt',
+      );
+      await provider.initialize();
+      provider.updateModel(ActiveModelResolver.defaultModelId);
+
+      await provider
+          .sendMessageStreamWithThinking(prompt, enableToolCalls: false)
+          .drain<void>();
+
+      final body = Map<String, dynamic>.from(requests.single.data as Map);
+      return (body['reasoning'] as Map)['effort'] as String;
+    }
+
+    expect(await effortFor('Hello!'), 'none');
+    expect(await effortFor('Add Rs 500 for groceries'), 'low');
+    expect(
+      await effortFor('Compare my spending trends and explain why'),
+      'medium',
+    );
+  });
+
   test('Fast responses applies to utility requests', () async {
     final requests = <RequestOptions>[];
     final provider = ResponsesProvider(
