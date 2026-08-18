@@ -7,7 +7,6 @@ import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
-import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:budget_ai/src/sync/account_encryption_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,6 +35,5 @@ class LocalPrivacyResetService {
     BubbleStyleSettingsService.instance.resetLocalState();
     PermissionPreferencesService.instance.resetLocalState();
     AiResponseSettingsService.instance.resetLocalState();
-    LocalSpeechModelManager.instance.resetSelectionsWithoutRemovingDownloads();
   }
 }

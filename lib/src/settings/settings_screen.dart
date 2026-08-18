@@ -22,7 +22,6 @@ import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_usage_sheet.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
-import 'package:budget_ai/src/settings/local_speech_models_screen.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -278,18 +277,6 @@ class _SettingsScreenState extends State<SettingsScreen>
               subtitle:
                   'Amounts display as ${CurrencySettingsService.instance.formatAmount(1200)} using $currency',
               onTap: () => CurrencyPickerScreen.show(context),
-            ),
-          ),
-          _navTile(
-            theme,
-            icon: CupertinoIcons.waveform,
-            title: 'Offline Speech Model',
-            subtitle: 'Whisper Small English',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const LocalSpeechModelsScreen(),
-              ),
             ),
           ),
           ValueListenableBuilder<UserBubbleStyle>(

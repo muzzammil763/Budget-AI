@@ -2,7 +2,7 @@
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
 Supabase authentication, offline-first SQLite finance tracking, mandatory
-end-to-end encrypted synchronization, and offline speech.
+end-to-end encrypted synchronization, and Google Cloud speech.
 
 ## AI and voice flow
 
@@ -12,17 +12,17 @@ end-to-end encrypted synchronization, and offline speech.
 - The chat model is not user-selectable. The app always uses `gpt-5.6-luna`
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use low reasoning effort and low text verbosity by default, while preserving important amounts, dates, caveats, and next actions.
-- Microphone recordings are transcribed fully on-device with Sherpa-ONNX and a downloaded quantized Whisper model.
+- Microphone recordings are sent through the authenticated `google-cloud-speech` Edge Function to Google Cloud Speech-to-Text. The Google credential stays in Supabase secrets and is never bundled into Flutter.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
 - While Budget AI is preparing a response, the bottom composer shows the static `Budget AI Working ...` status in the normal composer-hint typography; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
-- Budget Hub > Offline Speech Models offers a focused on-device catalog:
-  Whisper Small English. Its model card explains accuracy/speed trade-offs,
-  storage and engine details. Downloads show rounded
-  progress, transferred and total size, live speed, and estimated time
-  remaining. No speech model is bundled, so voice chat becomes available after
-  one speech-to-text model is downloaded.
-- The model downloads directly with no selection UI and removes with a left swipe. Voice is
-  input-only; assistant replies are never synthesized or played aloud.
+- Speech recognition uses the device locale plus English and Urdu candidates,
+  and keeps Google’s detected language for the matching response voice. A
+  response to a microphone-originated message auto-plays in the foreground only
+  after streaming, tools, and the typewriter reveal are complete. Typed-chat responses stay
+  silent; tap a fully completed assistant response to play or stop Google Cloud
+  Text-to-Speech. Taps do nothing while any response is still working.
+- The first launch after this migration removes any previously downloaded
+  Whisper files and their retired selection key.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
 
 ### Changing the active AI model
@@ -100,8 +100,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   request and tool round.
 - Budget Hub groups the app into a bento-style Quick Actions area for Finances
   and Insights, inline Account controls for the editable name, read-only email,
-  and secure password reset, Preferences for currency, offline speech and
-  message style, and App Behavior controls for Fast Responses, notifications,
+  and secure password reset, Preferences for currency and message style, and
+  App Behavior controls for Fast Responses, notifications,
   and the Android background service. Authorized admins also get user AI
   access and monthly quota controls plus a dedicated, confirmed local-preference screen;
   superadmins additionally manage roles. Fast Responses is off by default and
@@ -127,15 +127,14 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding
-  completion, Fast Responses, notification/background choices, and downloaded
-  speech-model selections remain device-local. Granting notifications or Android background
+  completion and Fast Responses and notification/background choices remain
+  device-local. Granting notifications or Android background
   access during onboarding records the matching local choice, so its Budget Hub
   toggle stays on after account creation or sign-in. Turning Notifications off
   suppresses future delivery and clears notifications already shown by the app.
 - Signing out clears the previous user's local finances, chat history,
-  preferences, encryption key, widget data, and legacy storage. Downloaded
-  offline speech-model files and the completed-onboarding flag are preserved;
-  model selections reset to defaults.
+  preferences, encryption key, widget data, and legacy storage while preserving
+  the completed-onboarding flag.
 - Budget Hub exposes Replay onboarding. It opens the same five-page onboarding
   experience with a route-level Back control; Back or completing the final page
   returns to Budget Hub instead of restarting the authentication flow.
@@ -171,7 +170,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   and the account password are lost.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
-- Chat history and downloaded speech-model files are never uploaded.
+- Chat history is never uploaded. Recorded microphone audio is sent only to the
+  authenticated Supabase speech proxy and Google Cloud for transcription; TTS
+  text is sent through the same path for synthesis.
 
 ## iOS widget and Siri entry
 
@@ -213,9 +214,17 @@ In Supabase Dashboard > Authentication:
   a custom SMTP provider, then install the confirmation and recovery templates.
 
 The local `supabase/config.toml` contains matching settings for local Supabase.
-Never put `OPENAI_API_KEY` in a Flutter asset, Dart define, tracked file, or
-mobile build. Delete the local `.env` after the remote secret is verified if it
-has no other development purpose.
+Never put `OPENAI_API_KEY` or `GOOGLE_CLOUD_API_KEY` in a Flutter asset, Dart
+define, tracked file, or mobile build. Store the Google key and deploy the
+authenticated speech proxy with:
+
+```sh
+supabase secrets set GOOGLE_CLOUD_API_KEY=<restricted-google-cloud-api-key>
+supabase functions deploy google-cloud-speech
+```
+
+Restrict the Google key to Cloud Speech-to-Text and Cloud Text-to-Speech. Delete
+the local `.env` after remote secrets are verified if it has no other purpose.
 
 The AI proxy streams OpenAI events immediately and exposes development timing
 headers for quota reservation, OpenAI response headers, and the executing Edge

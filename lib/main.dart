@@ -12,7 +12,7 @@ import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
-import 'package:budget_ai/src/speech/local_speech_model_manager.dart';
+import 'package:budget_ai/src/speech/google_cloud_speech_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
 import 'package:budget_ai/src/sync/account_settings_sync_service.dart';
@@ -31,11 +31,11 @@ Future<void> main() async {
     url: AppConstants.supabaseUrl,
     publishableKey: AppConstants.supabasePublishableKey,
   );
+  await GoogleCloudSpeechService.removeLegacyOfflineSpeechArtifacts();
   await PermissionPreferencesService.instance.load();
   await AiResponseSettingsService.instance.load();
   await AuthService.instance.initialize();
   await CurrencySettingsService.instance.initialize();
-  await LocalSpeechModelManager.instance.initialize();
   await UserNameSettingsService.instance.initialize();
   await BubbleStyleSettingsService.instance.initialize();
   await BudgetHomeWidgetSync.initialize();
