@@ -78,8 +78,10 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
-- Chat’s top-right chrome contains equal-size Finances and Budget Hub actions.
-  Chat preloads monthly usage and authorized admin data in the background. A
+- Chat’s top-right chrome contains equal-size New Chat, Finances, and Budget Hub
+  actions. New Chat instantly opens a fresh draft unless a response is active.
+  Chat preloads monthly usage and authorized admin data in the background
+  without delaying Budget Hub navigation. A
   circular AI-usage action lives in the Budget Hub AppBar, tracks whichever
   request/token quota is closest to full, and opens immediately with
   loading placeholders, exact request/token/Fast counters, and a centered UTC
