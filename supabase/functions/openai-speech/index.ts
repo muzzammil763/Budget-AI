@@ -11,7 +11,7 @@ const openAiApiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
 const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY")?.trim() ?? "";
 const transcriptionModel = "gpt-4o-mini-transcribe";
 const elevenLabsModel = "eleven_multilingual_v2";
-const elevenLabsVoiceId = "bfGb7JTLUnZebZRiFYyq";
+const elevenLabsVoiceId = "JBFqnCBsd6RMkjVDRZzb";
 const maxEncodedAudioLength = 12_000_000;
 
 function jsonResponse(status: number, body: Record<string, unknown>) {
@@ -56,6 +56,10 @@ async function transcribe(body: Record<string, unknown>) {
   const form = new FormData();
   form.append("model", transcriptionModel);
   form.append("response_format", "json");
+  form.append(
+    "prompt",
+    "A short personal-finance command, possibly in English, Urdu, or Roman Urdu.",
+  );
   const audioBuffer = new ArrayBuffer(audio.byteLength);
   new Uint8Array(audioBuffer).set(audio);
   form.append("file", new File([audioBuffer], fileName, { type: "audio/wav" }));

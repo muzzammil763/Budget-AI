@@ -101,7 +101,7 @@ class OpenAiSpeechService {
   }) async {
     final temporaryDirectory = await getTemporaryDirectory();
     final cacheKey = sha256
-        .convert(utf8.encode('elevenlabs-v1\n$languageCode\n$text'))
+        .convert(utf8.encode('elevenlabs-v2\n$languageCode\n$text'))
         .toString();
     final audioFile = File(
       p.join(temporaryDirectory.path, 'budget_ai_tts_$cacheKey.mp3'),

@@ -1547,7 +1547,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       await _audioRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
-          sampleRate: 16000,
+          sampleRate: 44100,
           numChannels: 1,
         ),
         path: path,
@@ -1636,7 +1636,15 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (!mounted) return;
       final transcript = transcription.text;
       if (transcript.isEmpty) {
-        throw StateError('No speech was detected in the recording.');
+        setState(() => _isTranscribing = false);
+        _updateCanSend();
+        showAppToast(
+          context,
+          message:
+              'No speech was detected. Hold the mic, speak clearly, and try again.',
+          type: ToastificationType.info,
+        );
+        return;
       }
       _messageController.text = transcript;
       _messageController.selection = TextSelection.collapsed(
