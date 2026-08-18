@@ -2884,7 +2884,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               bottom: 112,
             ),
             controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             // Keep a modest cache around the viewport. Chat rows can contain
             // expensive markdown and tool sections, so prebuilding several
             // screens of them causes noticeable frame-time spikes.
