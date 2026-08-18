@@ -17,6 +17,7 @@ import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/helpers/notification_payload.dart';
+import 'package:budget_ai/src/helpers/notification_text_formatter.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/vibration_manager.dart';
@@ -29,7 +30,7 @@ import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
-import 'package:budget_ai/src/speech/local_speech_service.dart';
+import 'package:budget_ai/src/speech/google_cloud_speech_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -86,7 +87,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   late ChatProvider _provider;
   late ChatModelConfig _activeConfig;
   final AudioRecorder _audioRecorder = AudioRecorder();
-  final LocalSpeechService _localSpeechService = LocalSpeechService();
+  final GoogleCloudSpeechService _speechService = GoogleCloudSpeechService();
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _voiceHoldActive = false;
@@ -97,6 +98,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Future<void>? _voiceCapturePrewarm;
   bool _isFinishingVoiceRecording = false;
   DateTime? _voiceRecordingStartedAt;
+  int? _playingSpeechMessageIndex;
+  int? _pendingAutoSpeechMessageIndex;
+  String? _pendingAutoSpeechLanguageCode;
+  final Map<int, String> _speechLanguageByMessageIndex = {};
   int? _streamingMessageIndex;
   bool _isStreaming = false;
   bool _skipStreamingReveal = false;
@@ -274,9 +279,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isStreaming = false;
       _isReconnectingStream = false;
       _isWaitingForNetwork = false;
+      _playingSpeechMessageIndex = null;
+      _pendingAutoSpeechMessageIndex = null;
+      _pendingAutoSpeechLanguageCode = null;
+      _speechLanguageByMessageIndex.clear();
       _resetComposer();
     });
 
+    unawaited(_speechService.stop());
     _provider.clearHistory();
   }
 
@@ -539,6 +549,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _notificationActionSubscription?.cancel();
     unawaited(_audioRecorder.cancel());
     _audioRecorder.dispose();
+    unawaited(_speechService.dispose());
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -692,10 +703,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     bool removeProviderMessageFromHistory = false,
     int? replaceAssistantMessageIndex,
     int automaticToolContinuationDepth = 0,
+    bool autoSpeakResponse = false,
+    String? speechLanguageCode,
   }) async {
     final hasText = _messageController.text.trim().isNotEmpty;
 
     if (!hasText && providerMessageOverride == null) return;
+
+    if (_speechService.isPlaying.value) {
+      unawaited(_speechService.stop());
+      _playingSpeechMessageIndex = null;
+    }
 
     _unfocusComposer();
 
@@ -1448,11 +1466,20 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         removeProviderMessageFromHistory: true,
         replaceAssistantMessageIndex: aiMessageIndex,
         automaticToolContinuationDepth: automaticToolContinuationDepth + 1,
+        autoSpeakResponse: autoSpeakResponse,
+        speechLanguageCode: speechLanguageCode,
       );
       return;
     }
 
     await _handlePostTurnSessionState();
+    if (autoSpeakResponse && aiMessageIndex != null) {
+      final languageCode = speechLanguageCode ?? _deviceSpeechLanguageCode;
+      _speechLanguageByMessageIndex[aiMessageIndex] = languageCode;
+      _pendingAutoSpeechMessageIndex = aiMessageIndex;
+      _pendingAutoSpeechLanguageCode = languageCode;
+      _tryStartPendingAutoSpeech();
+    }
     unawaited(_refreshAiUsage());
     _unfocusComposer();
     _scrollToBottom();
@@ -1487,11 +1514,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     HapticFeedback.mediumImpact();
 
     try {
-      if (!_localSpeechService.isReadyForVoiceTurn) {
+      if (!_speechService.isReadyForVoiceTurn) {
         if (mounted) {
           showAppToast(
             context,
-            message: 'Download offline speech models in Budget Hub first.',
+            message: 'Sign in and connect to the internet for voice messages.',
             type: ToastificationType.warning,
           );
         }
@@ -1535,7 +1562,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       });
       _updateCanSend();
     } catch (error) {
-      _showLocalSpeechError('Could not start recording', error);
+      _showCloudSpeechError('Could not start recording', error);
     } finally {
       if (mounted) {
         setState(() => _voiceStartInFlight = false);
@@ -1601,9 +1628,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _updateCanSend();
       if (path == null) throw StateError('No audio recording was created.');
 
-      final transcript = await _localSpeechService.transcribe(path);
+      final transcription = await _speechService.transcribe(
+        path,
+        locale: WidgetsBinding.instance.platformDispatcher.locale,
+      );
       unawaited(File(path).delete().then<void>((_) {}).catchError((_) {}));
       if (!mounted) return;
+      final transcript = transcription.text;
       if (transcript.isEmpty) {
         throw StateError('No speech was detected in the recording.');
       }
@@ -1613,7 +1644,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
       setState(() => _isTranscribing = false);
       _updateCanSend();
-      await _sendMessage();
+      await _sendMessage(
+        autoSpeakResponse: true,
+        speechLanguageCode: transcription.languageCode,
+      );
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -1623,20 +1657,115 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
       _updateCanSend();
-      _showLocalSpeechError('Could not transcribe recording', error);
+      _showCloudSpeechError('Could not transcribe recording', error);
     } finally {
       _isFinishingVoiceRecording = false;
       _voiceHoldActive = false;
     }
   }
 
-  void _showLocalSpeechError(String prefix, Object error) {
+  void _showCloudSpeechError(String prefix, Object error) {
     if (!mounted) return;
     showAppToast(
       context,
       message: '$prefix. ${error.toString().replaceFirst('Exception: ', '')}',
       type: ToastificationType.error,
     );
+  }
+
+  String get _deviceSpeechLanguageCode => googleSpeechLanguageCandidates(
+    WidgetsBinding.instance.platformDispatcher.locale,
+  ).first;
+
+  void _tryStartPendingAutoSpeech() {
+    final messageIndex = _pendingAutoSpeechMessageIndex;
+    if (_isAppInBackground || _isAppInactive || !_isOnChatScreen) {
+      _pendingAutoSpeechMessageIndex = null;
+      _pendingAutoSpeechLanguageCode = null;
+      return;
+    }
+    if (!mounted ||
+        messageIndex == null ||
+        _isResponseInProgress ||
+        _streamingMessageIndex == messageIndex ||
+        messageIndex < 0 ||
+        messageIndex >= _messages.length) {
+      return;
+    }
+    final message = _messages[messageIndex];
+    if (message.isUser || message.text.trim().isEmpty) return;
+    final languageCode =
+        _pendingAutoSpeechLanguageCode ?? _deviceSpeechLanguageCode;
+    _pendingAutoSpeechMessageIndex = null;
+    _pendingAutoSpeechLanguageCode = null;
+    unawaited(
+      _playAssistantSpeech(
+        message,
+        messageIndex: messageIndex,
+        languageCode: languageCode,
+      ),
+    );
+  }
+
+  bool _canPlayAssistantSpeech(ChatMessage message, int messageIndex) {
+    final isFinalInTurn =
+        messageIndex == _messages.length - 1 ||
+        _messages[messageIndex + 1].isUser;
+    return assistantSpeechTapEnabled(
+      isUser: message.isUser,
+      hasText: message.text.trim().isNotEmpty,
+      responseInProgress: _isResponseInProgress,
+      isStreamingMessage: _streamingMessageIndex == messageIndex,
+      isFinalInTurn: isFinalInTurn,
+    );
+  }
+
+  Future<void> _toggleAssistantSpeech(
+    ChatMessage message,
+    int messageIndex,
+  ) async {
+    if (!_canPlayAssistantSpeech(message, messageIndex)) return;
+    if (_playingSpeechMessageIndex == messageIndex &&
+        _speechService.isPlaying.value) {
+      await _speechService.stop();
+      if (mounted) setState(() => _playingSpeechMessageIndex = null);
+      return;
+    }
+    await _playAssistantSpeech(
+      message,
+      messageIndex: messageIndex,
+      languageCode:
+          _speechLanguageByMessageIndex[messageIndex] ??
+          _deviceSpeechLanguageCode,
+    );
+  }
+
+  Future<void> _playAssistantSpeech(
+    ChatMessage message, {
+    required int messageIndex,
+    required String languageCode,
+  }) async {
+    final plainText = notificationPlainText(message.text);
+    if (plainText.isEmpty) return;
+    await _speechService.stop();
+    if (!mounted) return;
+    setState(() => _playingSpeechMessageIndex = messageIndex);
+    try {
+      await _speechService.speak(plainText, languageCode: languageCode);
+    } catch (error) {
+      if (mounted) {
+        showAppToast(
+          context,
+          message:
+              'Could not play response. ${error.toString().replaceFirst('Exception: ', '')}',
+          type: ToastificationType.error,
+        );
+      }
+    } finally {
+      if (mounted && _playingSpeechMessageIndex == messageIndex) {
+        setState(() => _playingSpeechMessageIndex = null);
+      }
+    }
   }
 
   Future<void> _confirmAndCancelRequest() async {
@@ -2591,6 +2720,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (_isRecording || _voiceStartInFlight) {
       unawaited(_cancelVoiceHold());
     }
+    unawaited(_speechService.stop());
   }
 
   @override
@@ -3465,7 +3595,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       );
 
-      return messageContent;
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _canPlayAssistantSpeech(message, resolvedMessageIndex)
+            ? () => _toggleAssistantSpeech(message, resolvedMessageIndex)
+            : null,
+        child: messageContent,
+      );
     }
   }
 
@@ -3783,6 +3919,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       return;
     }
     setState(() => _streamingMessageIndex = null);
+    _tryStartPendingAutoSpeech();
   }
 
   Future<void> _handleMarkdownLinkTap(String url, String title) async {
