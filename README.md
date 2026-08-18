@@ -2,7 +2,7 @@
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
 Supabase authentication, offline-first SQLite finance tracking, mandatory
-end-to-end encrypted synchronization, and Google Cloud speech.
+end-to-end encrypted synchronization, OpenAI transcription, and device speech.
 
 ## AI and voice flow
 
@@ -12,15 +12,14 @@ end-to-end encrypted synchronization, and Google Cloud speech.
 - The chat model is not user-selectable. The app always uses `gpt-5.6-luna`
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use conservative adaptive reasoning (`none` for exact conversational greetings, `medium` for clearly analytical prompts, and `low` for everything else), low text verbosity, and explicit `top_p: 1.0` sampling, while preserving important amounts, dates, caveats, and next actions.
-- Microphone recordings use PCM16 WAV; the app reads the finalized WAV header so Google receives the actual sample rate and channel count selected by the device. The authenticated `google-cloud-speech` Edge Function uses Google's short-command recognition model. Replies use the preview `gemini-3.1-flash-tts-preview` model with the `Zubenelgenubi` voice and a warm, welcoming style prompt; MP3 output is played from short-lived `.mp3` files for reliable Apple-platform decoding. The Google credential stays in Supabase secrets and is never bundled into Flutter.
+- Microphone recordings use PCM16 WAV and pass through the authenticated `openai-speech` Edge Function to `gpt-4o-mini-transcribe`; the existing OpenAI credential remains only in Supabase secrets. Reply audio uses `flutter_tts` and the device's installed system voices, so it has no per-play cloud TTS charge. Urdu-script replies prefer `ur-PK`, Roman Urdu prefers an installed English voice, and unavailable locales fall back to another installed voice.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
 - While Budget AI is preparing a response, the bottom composer shows the static `Budget AI Working ...` status in the normal composer-hint typography; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
-- Speech recognition uses the device locale plus English and Urdu candidates,
-  and keeps Google’s detected language for the matching response voice. A
+- Speech recognition uses the device locale as a playback hint. A
   response to a microphone-originated message auto-plays in the foreground only
   after streaming, tools, and the typewriter reveal are complete. Typed-chat responses stay
-  silent; tap a fully completed assistant response to play or stop Google Cloud
-  Text-to-Speech. Taps do nothing while any response is still working.
+  silent; tap a fully completed assistant response to play or stop the device
+  text-to-speech voice. Taps do nothing while any response is still working.
 - The first launch after this migration removes any previously downloaded
   Whisper files and their retired selection key.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
@@ -171,8 +170,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
 - Chat history is never uploaded. Recorded microphone audio is sent only to the
-  authenticated Supabase speech proxy and Google Cloud for transcription; TTS
-  text is sent through the same path for synthesis.
+  authenticated Supabase speech proxy and OpenAI for transcription. Reply text
+  stays on the device for system text-to-speech playback.
 
 ## iOS widget and Siri entry
 
@@ -214,13 +213,12 @@ In Supabase Dashboard > Authentication:
   a custom SMTP provider, then install the confirmation and recovery templates.
 
 The local `supabase/config.toml` contains matching settings for local Supabase.
-Never put `OPENAI_API_KEY` or `GOOGLE_CLOUD_API_KEY` in a Flutter asset, Dart
-define, tracked file, or mobile build. Store the Google key and deploy the
-authenticated speech proxy with:
+Never put `OPENAI_API_KEY` in a Flutter asset, Dart define, tracked file, or
+mobile build. The same Supabase secret used by chat powers transcription; deploy
+the authenticated speech proxy with:
 
 ```sh
-supabase secrets set GOOGLE_CLOUD_API_KEY=<restricted-google-cloud-api-key>
-supabase functions deploy google-cloud-speech
+supabase functions deploy openai-speech
 ```
 
 Restrict the Google key to Cloud Speech-to-Text and Cloud Text-to-Speech. Delete

@@ -30,7 +30,7 @@ import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
-import 'package:budget_ai/src/speech/google_cloud_speech_service.dart';
+import 'package:budget_ai/src/speech/openai_speech_service.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -87,7 +87,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   late ChatProvider _provider;
   late ChatModelConfig _activeConfig;
   final AudioRecorder _audioRecorder = AudioRecorder();
-  final GoogleCloudSpeechService _speechService = GoogleCloudSpeechService();
+  final OpenAiSpeechService _speechService = OpenAiSpeechService();
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _voiceHoldActive = false;
@@ -1562,7 +1562,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       });
       _updateCanSend();
     } catch (error) {
-      _showCloudSpeechError('Could not start recording', error);
+      _showSpeechError('Could not start recording', error);
     } finally {
       if (mounted) {
         setState(() => _voiceStartInFlight = false);
@@ -1657,14 +1657,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
       _updateCanSend();
-      _showCloudSpeechError('Could not transcribe recording', error);
+      _showSpeechError('Could not transcribe recording', error);
     } finally {
       _isFinishingVoiceRecording = false;
       _voiceHoldActive = false;
     }
   }
 
-  void _showCloudSpeechError(String prefix, Object error) {
+  void _showSpeechError(String prefix, Object error) {
     if (!mounted) return;
     showAppToast(
       context,
@@ -1673,9 +1673,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
-  String get _deviceSpeechLanguageCode => googleSpeechLanguageCandidates(
+  String get _deviceSpeechLanguageCode => speechLanguageCodeForLocale(
     WidgetsBinding.instance.platformDispatcher.locale,
-  ).first;
+  );
 
   void _tryStartPendingAutoSpeech() {
     final messageIndex = _pendingAutoSpeechMessageIndex;
