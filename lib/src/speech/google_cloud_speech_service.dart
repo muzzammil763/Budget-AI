@@ -65,6 +65,9 @@ class GoogleCloudSpeechService {
     final data = await _invoke({
       'action': 'transcribe',
       'audioContent': base64Encode(bytes),
+      'audioEncoding': 'LINEAR16',
+      'sampleRateHertz': 16000,
+      'audioChannelCount': 1,
       'languageCode': candidates.first,
       'alternativeLanguageCodes': candidates.skip(1).toList(),
     });
@@ -107,10 +110,28 @@ class GoogleCloudSpeechService {
   }
 
   Future<void> _playAudioChunk(Uint8List audio, int generation) async {
-    final completed = _player.onPlayerComplete.first;
-    await _player.play(BytesSource(audio));
-    await completed;
-    if (generation != _playbackGeneration) return;
+    final temporaryDirectory = await getTemporaryDirectory();
+    final audioFile = File(
+      p.join(
+        temporaryDirectory.path,
+        'budget_ai_speech_${generation}_${DateTime.now().microsecondsSinceEpoch}.mp3',
+      ),
+    );
+    try {
+      await audioFile.writeAsBytes(audio, flush: true);
+      final completed = _player.onPlayerComplete.first;
+      await _player.play(
+        DeviceFileSource(audioFile.path, mimeType: 'audio/mpeg'),
+      );
+      await completed;
+      if (generation != _playbackGeneration) return;
+    } finally {
+      try {
+        if (await audioFile.exists()) await audioFile.delete();
+      } catch (_) {
+        // Temp storage will reclaim the file if the OS briefly retains it.
+      }
+    }
   }
 
   Future<void> stop() async {

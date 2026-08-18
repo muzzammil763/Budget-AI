@@ -60,6 +60,11 @@ async function transcribe(body: Record<string, unknown>) {
     "https://speech.googleapis.com/v1/speech:recognize",
     {
       config: {
+        encoding: body.audioEncoding === "LINEAR16"
+          ? "LINEAR16"
+          : "ENCODING_UNSPECIFIED",
+        sampleRateHertz: body.sampleRateHertz === 16000 ? 16000 : undefined,
+        audioChannelCount: body.audioChannelCount === 1 ? 1 : undefined,
         languageCode,
         alternativeLanguageCodes: alternatives,
         enableAutomaticPunctuation: true,

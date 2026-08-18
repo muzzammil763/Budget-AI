@@ -35,6 +35,9 @@ void main() {
         expect(request?['languageCode'], 'ur-PK');
         expect(request?['alternativeLanguageCodes'], contains('en-US'));
         expect(request?['audioContent'], 'AQIDBA==');
+        expect(request?['audioEncoding'], 'LINEAR16');
+        expect(request?['sampleRateHertz'], 16000);
+        expect(request?['audioChannelCount'], 1);
       } finally {
         await directory.delete(recursive: true);
       }
