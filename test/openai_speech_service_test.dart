@@ -11,7 +11,6 @@ void main() {
   test('transcription sends WAV audio to the OpenAI proxy', () async {
     Map<String, dynamic>? request;
     final service = OpenAiSpeechService(
-      configureTextToSpeech: false,
       invoke: (body) async {
         request = body;
         return {'transcript': 'mera kharcha', 'languageCode': 'ur-PK'};
@@ -30,6 +29,7 @@ void main() {
 
       expect(result.text, 'mera kharcha');
       expect(result.languageCode, 'ur-PK');
+      expect(request?['action'], 'transcribe');
       expect(request?['audioContent'], base64Encode([1, 2, 3, 4]));
       expect(request?['fileName'], 'voice.wav');
       expect(request?['languageCode'], 'ur-PK');
@@ -38,35 +38,12 @@ void main() {
     }
   });
 
-  test('device TTS selects Urdu script and English for Roman Urdu', () {
-    const languages = {'ur-PK', 'en-US'};
-    expect(
-      selectDeviceTtsLanguage(
-        text: 'آج کا خرچہ',
-        requestedLanguageCode: 'ur-PK',
-        availableLanguages: languages,
-      ),
-      'ur-PK',
+  test('ElevenLabs speech chunks stay within the proxy limit', () {
+    final chunks = splitTextForSpeech(
+      List.filled(1000, 'Roman Urdu response').join(' '),
     );
-    expect(
-      selectDeviceTtsLanguage(
-        text: 'Aaj ka kharcha',
-        requestedLanguageCode: 'ur-PK',
-        availableLanguages: languages,
-      ),
-      'en-US',
-    );
-  });
-
-  test('device TTS falls back to an installed matching locale', () {
-    expect(
-      selectDeviceTtsLanguage(
-        text: 'Hello',
-        requestedLanguageCode: 'en-GB',
-        availableLanguages: const {'en-AU', 'ur-PK'},
-      ),
-      'en-AU',
-    );
+    expect(chunks.length, greaterThan(1));
+    expect(chunks.every((chunk) => chunk.length <= 1200), isTrue);
   });
 
   test('assistant tap is disabled until the final response is complete', () {

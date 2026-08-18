@@ -2,7 +2,7 @@
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
 Supabase authentication, offline-first SQLite finance tracking, mandatory
-end-to-end encrypted synchronization, OpenAI transcription, and device speech.
+end-to-end encrypted synchronization, OpenAI transcription, and ElevenLabs speech.
 
 ## AI and voice flow
 
@@ -12,14 +12,14 @@ end-to-end encrypted synchronization, OpenAI transcription, and device speech.
 - The chat model is not user-selectable. The app always uses `gpt-5.6-luna`
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use conservative adaptive reasoning (`none` for exact conversational greetings, `medium` for clearly analytical prompts, and `low` for everything else), low text verbosity, and explicit `top_p: 1.0` sampling, while preserving important amounts, dates, caveats, and next actions.
-- Microphone recordings use PCM16 WAV and pass through the authenticated `openai-speech` Edge Function to `gpt-4o-mini-transcribe`; the existing OpenAI credential remains only in Supabase secrets. Reply audio uses `flutter_tts` and the device's installed system voices, so it has no per-play cloud TTS charge. Urdu-script replies prefer `ur-PK`, Roman Urdu prefers an installed English voice, and unavailable locales fall back to another installed voice.
+- Microphone recordings use PCM16 WAV and pass through the authenticated `openai-speech` Edge Function to `gpt-4o-mini-transcribe`; the existing OpenAI credential remains only in Supabase secrets. Reply audio uses ElevenLabs `eleven_multilingual_v2` with voice `bfGb7JTLUnZebZRiFYyq`; `ELEVENLABS_API_KEY` also stays server-only. Generated MP3 chunks are cached in temporary app storage, so replaying the same response normally does not consume more ElevenLabs characters unless the OS reclaims that cache.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
 - While Budget AI is preparing a response, the bottom composer shows the static `Budget AI Working ...` status in the normal composer-hint typography; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
-- Speech recognition uses the device locale as a playback hint. A
+- Speech recognition preserves the device locale alongside the voice turn. A
   response to a microphone-originated message auto-plays in the foreground only
   after streaming, tools, and the typewriter reveal are complete. Typed-chat responses stay
-  silent; tap a fully completed assistant response to play or stop the device
-  text-to-speech voice. Taps do nothing while any response is still working.
+  silent; tap a fully completed assistant response to play or stop ElevenLabs
+  speech. Taps do nothing while any response is still working.
 - The first launch after this migration removes any previously downloaded
   Whisper files and their retired selection key.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
@@ -171,7 +171,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   UI reads and writes remain local-first.
 - Chat history is never uploaded. Recorded microphone audio is sent only to the
   authenticated Supabase speech proxy and OpenAI for transcription. Reply text
-  stays on the device for system text-to-speech playback.
+  is sent to the same authenticated proxy and ElevenLabs only when speech is
+  requested; generated audio is cached temporarily on the device.
 
 ## iOS widget and Siri entry
 
@@ -213,9 +214,9 @@ In Supabase Dashboard > Authentication:
   a custom SMTP provider, then install the confirmation and recovery templates.
 
 The local `supabase/config.toml` contains matching settings for local Supabase.
-Never put `OPENAI_API_KEY` in a Flutter asset, Dart define, tracked file, or
-mobile build. The same Supabase secret used by chat powers transcription; deploy
-the authenticated speech proxy with:
+Never put `OPENAI_API_KEY` or `ELEVENLABS_API_KEY` in a Flutter asset, Dart
+define, tracked file, or mobile build. Supabase secrets power transcription and
+synthesis; deploy the authenticated speech proxy with:
 
 ```sh
 supabase functions deploy openai-speech
