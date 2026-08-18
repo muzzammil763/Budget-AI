@@ -2764,6 +2764,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildTopChromeAction(
+              tooltip: 'New Chat',
+              onPressed: _resetToFreshDraft,
+              icon: Icon(
+                CupertinoIcons.square_pencil,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            _buildTopChromeAction(
               tooltip: 'Finances',
               onPressed: _openFinancesScreen,
               icon: const BudgetMarkIcon(size: 28),
@@ -3006,8 +3014,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _openSettingsScreen() async {
-    await Future.wait([AdminService.instance.preload(), _refreshAiUsage()]);
-    if (!mounted) return;
+    unawaited(AdminService.instance.preload());
+    unawaited(_refreshAiUsage());
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -3214,7 +3222,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           child: RepaintBoundary(child: ChatBudgetLoadingIndicator(size: 44)),
         ),
         const SizedBox(width: 8),
-        const Expanded(child: ChatWorkingWord(fontSize: 18)),
+        const Expanded(child: ChatWorkingWord(fontSize: 16)),
       ],
     );
   }

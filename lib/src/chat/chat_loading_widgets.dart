@@ -277,13 +277,15 @@ class _ChatWorkingWordState extends State<ChatWorkingWord> {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurface;
-    final style = AppTheme.headingLarge.copyWith(
+    final color = Theme.of(
+      context,
+    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.72);
+    final style = AppTheme.bodyMedium.copyWith(
       color: color,
       fontSize: widget.fontSize,
-      fontWeight: FontWeight.w800,
-      height: 1.4,
-      fontFamily: 'Boldonse',
+      fontWeight: FontWeight.w400,
+      height: 1,
+      fontFamily: AppTheme.defaultFontFamily,
     );
     return Semantics(
       liveRegion: true,
