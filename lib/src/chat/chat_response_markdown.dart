@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:budget_ai/src/chat/currency_speech_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -557,9 +558,11 @@ String _formatCompactCount(int value) {
 }
 
 String normalizeChatResponseMarkdown(String text) {
-  return _normalizeMarkdownSpacing(
-    _autoLinkBareUrls(
-      _normalizeMarkdownLinks(_stripInlineDataImageMarkdown(text)),
+  return expandCurrencyAmountsForSpeech(
+    _normalizeMarkdownSpacing(
+      _autoLinkBareUrls(
+        _normalizeMarkdownLinks(_stripInlineDataImageMarkdown(text)),
+      ),
     ),
   );
 }

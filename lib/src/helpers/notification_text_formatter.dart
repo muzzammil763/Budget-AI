@@ -52,6 +52,57 @@ String notificationPlainText(String markdown) {
       .trim();
 }
 
+/// Produces spoken prose while omitting visual Markdown table contents.
+///
+/// The assistant prompt normally introduces tables in the response language.
+/// This fallback cue covers responses that contain a table without doing so.
+String speechPlainText(String markdown, {String? languageCode}) {
+  final lines = markdown
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
+      .split('\n');
+  final output = <String>[];
+  var removedTable = false;
+  for (var index = 0; index < lines.length; index++) {
+    final line = lines[index];
+    final nextIsSeparator =
+        index + 1 < lines.length && _isTableSeparator(lines[index + 1]);
+    if (_looksLikeTableRow(line) && (nextIsSeparator || removedTable)) {
+      removedTable = true;
+      continue;
+    }
+    if (_isTableSeparator(line)) {
+      removedTable = true;
+      continue;
+    }
+    if (removedTable && line.trim().isEmpty) {
+      removedTable = false;
+      continue;
+    }
+    output.add(line);
+  }
+
+  var plain = notificationPlainText(output.join('\n'));
+  if (!markdown.split('\n').any(_isTableSeparator)) return plain;
+  final lower = plain.toLowerCase();
+  final alreadyIntroduced =
+      lower.contains('table below') ||
+      lower.contains('neeche') ||
+      plain.contains('جدول') ||
+      plain.contains('نیچے');
+  if (alreadyIntroduced) return plain;
+
+  final isUrduScript = RegExp(r'[\u0600-\u06FF]').hasMatch(markdown);
+  final isUrdu = languageCode?.toLowerCase().startsWith('ur') ?? false;
+  final cue = isUrduScript
+      ? 'تفصیل نیچے جدول میں دکھائی گئی ہے۔'
+      : isUrdu
+      ? 'Tafseel neeche table mein dikhai gayi hai, aap dekh sakte hain.'
+      : 'You can see the details in the table below.';
+  plain = plain.isEmpty ? cue : '$plain\n$cue';
+  return plain;
+}
+
 bool _looksLikeTableRow(String line) {
   final trimmed = line.trim();
   return trimmed.contains('|') &&

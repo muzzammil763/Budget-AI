@@ -42,10 +42,18 @@ Future<dynamic> addFinanceEntryFromToolArgs(
           : entry.displaySignedAmount,
       'category': entry.category,
       'date': entry.displayDate,
+      'time': _displayClockTime(entry.date),
     };
   } catch (e) {
     return {'error': e.toString()};
   }
+}
+
+String _displayClockTime(DateTime date) {
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = date.minute.toString().padLeft(2, '0');
+  final period = date.hour < 12 ? 'AM' : 'PM';
+  return '$hour:$minute $period';
 }
 
 String normalizeNewFinanceLabel(String value) {

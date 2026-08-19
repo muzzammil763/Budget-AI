@@ -149,6 +149,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   after the app returns.
 - Chat Markdown tables left-align every header and value column for a
   consistent reading edge, including numeric comparison columns.
+- Assistant prose spells currency amounts out in the response language for
+  natural playback, including English, Urdu script, and Roman Urdu. Speech
+  omits visual table cells and reads only a short same-language table cue.
+  Successful finance adds show a separate English visual card containing the
+  saved title, amount, category, date, and time; the card is excluded from TTS.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.

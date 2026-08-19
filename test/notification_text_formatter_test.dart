@@ -2,6 +2,14 @@ import 'package:budget_ai/src/helpers/notification_text_formatter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('speech text omits visual table cells and adds a cue', () {
+    const markdown = '| Title | Amount |\n| --- | --- |\n| Fuel | Rs 250 |';
+    expect(
+      speechPlainText(markdown),
+      'You can see the details in the table below.',
+    );
+  });
+
   group('notificationPlainText', () {
     test('removes Markdown formatting while preserving content', () {
       const markdown = '''

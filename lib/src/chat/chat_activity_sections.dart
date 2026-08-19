@@ -630,6 +630,7 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     final isRunning = widget.isInProgress;
     final shouldRenderResult = _shouldRenderInlineResult();
     final shouldRenderArguments = _shouldRenderArguments();
+    final addedEntry = _addedEntryResult();
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -701,6 +702,17 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
               ),
             ),
           ),
+          if (addedEntry != null)
+            Padding(
+              padding: EdgeInsets.only(
+                top: 4 * widget.displayScale,
+                bottom: 8 * widget.displayScale,
+              ),
+              child: _AddedFinanceEntryCard(
+                entry: addedEntry,
+                displayScale: widget.displayScale,
+              ),
+            ),
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
@@ -731,6 +743,17 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
         ],
       ),
     );
+  }
+
+  Map<String, dynamic>? _addedEntryResult() {
+    final name = widget.toolCall.name.trim().toLowerCase();
+    if (widget.toolCall.status != ToolCallStatus.completed ||
+        (name != 'finance_add' && name != 'finance_income_add')) {
+      return null;
+    }
+    final decoded = _tryDecodeJson(widget.toolCall.result);
+    if (decoded is! Map || decoded['ok'] != true) return null;
+    return Map<String, dynamic>.from(decoded);
   }
 
   Widget _buildToolDetailSection(
@@ -1004,6 +1027,110 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
 
   String _compactFallbackToolText(String text) {
     return text;
+  }
+}
+
+class _AddedFinanceEntryCard extends StatelessWidget {
+  const _AddedFinanceEntryCard({
+    required this.entry,
+    required this.displayScale,
+  });
+
+  final Map<String, dynamic> entry;
+  final double displayScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isIncome = entry['type'] == 'income';
+    final title = (entry['description'] ?? 'Entry').toString();
+    final date = (entry['date'] ?? '').toString().split(' - ').first;
+    final details = <(String, String)>[
+      ('Amount', (entry['display_amount'] ?? entry['amount'] ?? '').toString()),
+      ('Category', (entry['category'] ?? '').toString()),
+      ('Date', date),
+      ('Time', (entry['time'] ?? '').toString()),
+    ].where((item) => item.$2.trim().isNotEmpty).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12 * displayScale),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12 * displayScale),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isIncome
+                    ? CupertinoIcons.arrow_down_circle
+                    : CupertinoIcons.check_mark_circled,
+                color: isIncome ? Colors.green : theme.colorScheme.primary,
+                size: 18 * displayScale,
+              ),
+              SizedBox(width: 7 * displayScale),
+              Text(
+                isIncome ? 'Income added' : 'Expense added',
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12 * displayScale,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 7 * displayScale),
+          Text(
+            title,
+            style: AppTheme.bodyMedium.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+              fontSize: 16 * displayScale,
+            ),
+          ),
+          SizedBox(height: 10 * displayScale),
+          Wrap(
+            spacing: 18 * displayScale,
+            runSpacing: 9 * displayScale,
+            children: [
+              for (final detail in details)
+                SizedBox(
+                  width: 125 * displayScale,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        detail.$1,
+                        style: AppTheme.bodySmall.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 11 * displayScale,
+                        ),
+                      ),
+                      SizedBox(height: 2 * displayScale),
+                      Text(
+                        detail.$2,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.bodySmall.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13 * displayScale,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

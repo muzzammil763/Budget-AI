@@ -29,6 +29,7 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
+import 'package:budget_ai/src/chat/currency_speech_formatter.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/speech/openai_speech_service.dart';
 
@@ -1753,7 +1754,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     required int messageIndex,
     required String languageCode,
   }) async {
-    final plainText = notificationPlainText(message.text);
+    final plainText = expandCurrencyAmountsForSpeech(
+      speechPlainText(message.text, languageCode: languageCode),
+      languageCode: languageCode,
+    );
     if (plainText.isEmpty) return;
     await _speechService.stop();
     if (!mounted) return;

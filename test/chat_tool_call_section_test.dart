@@ -39,4 +39,39 @@ void main() {
     expect(find.textContaining('August'), findsWidgets);
     expect(find.textContaining('15290'), findsWidgets);
   });
+
+  testWidgets('successful finance add shows a separate visual entry card', (
+    tester,
+  ) async {
+    final toolCall = ToolCall(
+      id: 'add-1',
+      name: 'finance_add',
+      arguments: const {'description': 'Fuel', 'amount': 250},
+      result:
+          '{"ok":true,"description":"Fuel","amount":250,'
+          '"display_amount":"Rs 250","category":"Transportation",'
+          '"date":"19 August, 2026 - 04:30 PM","time":"4:30 PM"}',
+      isComplete: true,
+      status: ToolCallStatus.completed,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChatToolCallSection(
+            toolCall: toolCall,
+            themeColor: Colors.blue,
+            isInProgress: false,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Expense added'), findsOneWidget);
+    expect(find.text('Fuel'), findsOneWidget);
+    expect(find.text('Rs 250'), findsOneWidget);
+    expect(find.text('Transportation'), findsOneWidget);
+    expect(find.text('19 August, 2026'), findsOneWidget);
+    expect(find.text('4:30 PM'), findsOneWidget);
+  });
 }
