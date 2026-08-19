@@ -41,7 +41,7 @@ void main() {
     expect(find.textContaining('15290'), findsWidgets);
   });
 
-  testWidgets('successful finance add shows a separate visual entry card', (
+  testWidgets('successful finance add builds the response-end Markdown table', (
     tester,
   ) async {
     final toolCall = ToolCall(
@@ -56,19 +56,22 @@ void main() {
       status: ToolCallStatus.completed,
     );
 
+    final markdown = financeResultMarkdown([toolCall]);
+    expect(markdown, isNotNull);
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ChatToolCallSection(
-            toolCall: toolCall,
-            themeColor: Colors.blue,
-            isInProgress: false,
+          body: ChatResponseMarkdown(
+            text: markdown!,
+            isStreaming: false,
+            onLinkTap: (_, _) async {},
           ),
         ),
       ),
     );
 
-    expect(find.text('Expense added'), findsOneWidget);
+    expect(find.text('Expense added'), findsNothing);
     expect(find.text('Fuel'), findsOneWidget);
     expect(find.text('Rs 250'), findsOneWidget);
     expect(find.text('Transportation'), findsOneWidget);
@@ -93,7 +96,7 @@ void main() {
         status: ToolCallStatus.completed,
       );
 
-      final markdown = financeListResultMarkdown([toolCall]);
+      final markdown = financeResultMarkdown([toolCall]);
       expect(markdown, isNotNull);
 
       await tester.pumpWidget(
@@ -109,7 +112,7 @@ void main() {
       );
 
       expect(find.text('Milk Bottle'), findsOneWidget);
-      expect(find.text('-Rs 150'), findsOneWidget);
+      expect(find.text('Rs 150'), findsNWidgets(2));
       expect(find.text('Groceries'), findsOneWidget);
       expect(find.text('19 August, 2026'), findsOneWidget);
       expect(find.text('08:15 AM'), findsOneWidget);

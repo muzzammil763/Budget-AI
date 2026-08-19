@@ -12,13 +12,16 @@ import 'package:budget_ai/src/helpers/themed_code_block.dart';
 
 typedef MarkdownLinkTap = Future<void> Function(String url, String title);
 
-/// Converts completed finance-list tool results into the chat's regular
-/// Markdown table format so the visual can be placed after the spoken answer.
-String? financeListResultMarkdown(Iterable<ToolCall> toolCalls) {
+/// Converts completed finance add/list results into the chat's regular
+/// Markdown table format so visuals can be placed after the spoken answer.
+String? financeResultMarkdown(Iterable<ToolCall> toolCalls) {
   final tables = <String>[];
   for (final toolCall in toolCalls) {
-    if (toolCall.status != ToolCallStatus.completed ||
-        toolCall.name.trim().toLowerCase() != 'finance_list') {
+    if (toolCall.status != ToolCallStatus.completed) continue;
+    final name = toolCall.name.trim().toLowerCase();
+    if (name != 'finance_list' &&
+        name != 'finance_add' &&
+        name != 'finance_income_add') {
       continue;
     }
     final raw = toolCall.result?.trim() ?? '';
@@ -29,21 +32,33 @@ String? financeListResultMarkdown(Iterable<ToolCall> toolCalls) {
     } catch (_) {
       continue;
     }
-    if (decoded is! Map ||
-        decoded['ok'] != true ||
-        decoded['entries'] is! List) {
-      continue;
-    }
-    final entries = (decoded['entries'] as List).whereType<Map>().toList();
+    if (decoded is! Map || decoded['ok'] != true) continue;
+    final isList = name == 'finance_list';
+    final entries = isList
+        ? (decoded['entries'] is List
+              ? (decoded['entries'] as List).whereType<Map>().toList()
+              : <Map>[])
+        : <Map>[
+            {
+              'type':
+                  decoded['type'] ??
+                  (name == 'finance_income_add' ? 'income' : 'expense'),
+              'date': decoded['date'],
+              'time': decoded['time'],
+              'description': decoded['description'],
+              'amount': decoded['display_amount'] ?? decoded['amount'],
+              'category': decoded['category'],
+            },
+          ];
     if (entries.isEmpty) continue;
     final count =
         decoded['matched_count'] ?? decoded['count'] ?? entries.length;
-    final total = _markdownTableCell(decoded['total']);
     final rows = <String>[
       '| Date | Time | Entry | Amount | Category | Type |',
       '| --- | --- | --- | --- | --- | --- |',
       for (final entry in entries) _financeEntryMarkdownRow(entry),
-      '| Total | — | $count entries | ${total.isEmpty ? '—' : total} | — | — |',
+      if (isList)
+        '| Total | — | $count entries | ${_markdownTableCell(decoded['total']).isEmpty ? '—' : _markdownTableCell(decoded['total'])} | — | — |',
     ];
     tables.add(rows.join('\n'));
   }
@@ -52,16 +67,25 @@ String? financeListResultMarkdown(Iterable<ToolCall> toolCalls) {
 
 String _financeEntryMarkdownRow(Map entry) {
   final dateParts = (entry['date'] ?? '').toString().split(' - ');
+  final explicitTime = (entry['time'] ?? '').toString().trim();
   final type = (entry['type'] ?? 'expense').toString();
   final displayType = type.isEmpty
       ? type
       : '${type[0].toUpperCase()}${type.substring(1).toLowerCase()}';
   return '| ${_markdownTableCell(dateParts.first)} '
-      '| ${_markdownTableCell(dateParts.length > 1 ? dateParts.sublist(1).join(' - ') : '—')} '
+      '| ${_markdownTableCell(explicitTime.isNotEmpty
+          ? explicitTime
+          : dateParts.length > 1
+          ? dateParts.sublist(1).join(' - ')
+          : '—')} '
       '| ${_markdownTableCell(entry['description'])} '
-      '| ${_markdownTableCell(entry['amount'])} '
+      '| ${_markdownTableCell(_unsignedDisplayAmount(entry['amount']))} '
       '| ${_markdownTableCell(entry['category'])} '
       '| ${_markdownTableCell(displayType)} |';
+}
+
+String _unsignedDisplayAmount(Object? value) {
+  return (value ?? '').toString().trim().replaceFirst(RegExp(r'^[+-]\s*'), '');
 }
 
 String _markdownTableCell(Object? value) {
@@ -691,7 +715,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     final isRunning = widget.isInProgress;
     final shouldRenderResult = _shouldRenderInlineResult();
     final shouldRenderArguments = _shouldRenderArguments();
-    final addedEntry = _addedEntryResult();
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -763,17 +786,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
               ),
             ),
           ),
-          if (addedEntry != null)
-            Padding(
-              padding: EdgeInsets.only(
-                top: 4 * widget.displayScale,
-                bottom: 8 * widget.displayScale,
-              ),
-              child: _AddedFinanceEntryCard(
-                entry: addedEntry,
-                displayScale: widget.displayScale,
-              ),
-            ),
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
@@ -804,17 +816,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
         ],
       ),
     );
-  }
-
-  Map<String, dynamic>? _addedEntryResult() {
-    final name = widget.toolCall.name.trim().toLowerCase();
-    if (widget.toolCall.status != ToolCallStatus.completed ||
-        (name != 'finance_add' && name != 'finance_income_add')) {
-      return null;
-    }
-    final decoded = _tryDecodeJson(widget.toolCall.result);
-    if (decoded is! Map || decoded['ok'] != true) return null;
-    return Map<String, dynamic>.from(decoded);
   }
 
   Widget _buildToolDetailSection(
@@ -1088,110 +1089,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
 
   String _compactFallbackToolText(String text) {
     return text;
-  }
-}
-
-class _AddedFinanceEntryCard extends StatelessWidget {
-  const _AddedFinanceEntryCard({
-    required this.entry,
-    required this.displayScale,
-  });
-
-  final Map<String, dynamic> entry;
-  final double displayScale;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isIncome = entry['type'] == 'income';
-    final title = (entry['description'] ?? 'Entry').toString();
-    final date = (entry['date'] ?? '').toString().split(' - ').first;
-    final details = <(String, String)>[
-      ('Amount', (entry['display_amount'] ?? entry['amount'] ?? '').toString()),
-      ('Category', (entry['category'] ?? '').toString()),
-      ('Date', date),
-      ('Time', (entry['time'] ?? '').toString()),
-    ].where((item) => item.$2.trim().isNotEmpty).toList();
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(12 * displayScale),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12 * displayScale),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isIncome
-                    ? CupertinoIcons.arrow_down_circle
-                    : CupertinoIcons.check_mark_circled,
-                color: isIncome ? Colors.green : theme.colorScheme.primary,
-                size: 18 * displayScale,
-              ),
-              SizedBox(width: 7 * displayScale),
-              Text(
-                isIncome ? 'Income added' : 'Expense added',
-                style: AppTheme.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12 * displayScale,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 7 * displayScale),
-          Text(
-            title,
-            style: AppTheme.bodyMedium.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
-              fontSize: 16 * displayScale,
-            ),
-          ),
-          SizedBox(height: 10 * displayScale),
-          Wrap(
-            spacing: 18 * displayScale,
-            runSpacing: 9 * displayScale,
-            children: [
-              for (final detail in details)
-                SizedBox(
-                  width: 125 * displayScale,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        detail.$1,
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11 * displayScale,
-                        ),
-                      ),
-                      SizedBox(height: 2 * displayScale),
-                      Text(
-                        detail.$2,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTheme.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13 * displayScale,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 

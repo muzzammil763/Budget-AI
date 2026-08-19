@@ -127,7 +127,7 @@ class MarkdownTableView extends StatelessWidget {
         alignment: AlignmentDirectional.centerStart,
         child: DefaultTextStyle(
           style: cellTextStyle,
-          child: _containsMarkdownSyntax(trimmedData)
+          child: !isHeader && _containsMarkdownSyntax(trimmedData)
               ? GptMarkdown(
                   trimmedData,
                   style: cellTextStyle,
@@ -140,7 +140,13 @@ class MarkdownTableView extends StatelessWidget {
                   orderedListBuilder: config.orderedListBuilder,
                   unOrderedListBuilder: config.unOrderedListBuilder,
                 )
-              : Text(trimmedData, textAlign: textAlign),
+              : Text(
+                  trimmedData,
+                  textAlign: textAlign,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                ),
         ),
       ),
     );
@@ -183,8 +189,8 @@ class MarkdownTableView extends StatelessWidget {
       final text = row.fields[columnIndex].data.trim();
       final usesHeaderStyle =
           row.isHeader || (rowIndex == rows.length - 1 && _isSummaryRow(row));
-      final fontSize = usesHeaderStyle ? 11.0 : (textStyle.fontSize ?? 16.0);
-      final fontWeight = usesHeaderStyle ? FontWeight.w500 : FontWeight.w400;
+      final fontSize = usesHeaderStyle ? 16.0 : (textStyle.fontSize ?? 16.0);
+      final fontWeight = usesHeaderStyle ? FontWeight.bold : FontWeight.w400;
       final painter = TextPainter(
         text: TextSpan(
           text: text,

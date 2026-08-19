@@ -663,7 +663,7 @@ Response rules:
 
 const String _financeGuidance = '''
 Finance rules:
-- For finance actions, call tools before writing anything; then give one short, natural confirmation. After a successful add, do not repeat a field-by-field list because the app renders the saved entry separately. Never call a list tool after a successful add.
+- For finance actions, call tools before writing anything; then give one short, natural confirmation. After a successful add, do not repeat a field-by-field list because the app renders the saved entry in a visual table after the confirmation. Never call a list tool after a successful add.
 - Expense/default cash out: finance_add. Clear income (salary, received money, freelance, refund, bonus, gift): finance_income_add. "200 fuel" is an expense.
 - Loans use category "Loan": lent/paid repayment = expense; borrowed/received repayment = income.
 - Infer category and today's date; omit time unless stated. Categories are concise, specific, title-cased, and never Other/Others. Entry titles are title-cased and replace "and" with "&".

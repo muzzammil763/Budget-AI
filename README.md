@@ -152,12 +152,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Assistant prose spells currency amounts out in the response language for
   natural playback, including English, Urdu script, and Roman Urdu. Speech
   omits visual table cells and reads only a short same-language table cue.
-  Successful finance adds show a separate English visual card containing the
-  saved title, amount, category, date, and time; the card is excluded from TTS.
-  Finance-list questions append the returned entries after the completed
-  answer in the chat's responsive Markdown table view, with date, time, entry,
-  amount, category, and type. The spoken answer gives the natural-language
-  result and points to that UI-only table.
+  Successful finance adds and finance-list questions append their entries
+  after the completed answer in the chat's responsive Markdown table view,
+  with date, time, entry, amount, category, and type. The spoken answer gives
+  the natural-language result and points to that UI-only table. Table headers
+  and values stay on one line; oversized values truncate with an ellipsis.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.

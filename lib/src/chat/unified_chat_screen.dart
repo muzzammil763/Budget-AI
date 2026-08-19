@@ -3875,7 +3875,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     if (!isCurrentlyStreaming) {
-      final financeTable = financeListResultMarkdown(
+      final financeTable = financeResultMarkdown(
         blocks
             .where((block) => block.type == ChatMessageBlockType.toolCall)
             .map((block) => block.toolCall)
