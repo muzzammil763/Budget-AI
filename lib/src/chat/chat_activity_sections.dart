@@ -12,6 +12,67 @@ import 'package:budget_ai/src/helpers/themed_code_block.dart';
 
 typedef MarkdownLinkTap = Future<void> Function(String url, String title);
 
+/// Converts completed finance-list tool results into the chat's regular
+/// Markdown table format so the visual can be placed after the spoken answer.
+String? financeListResultMarkdown(Iterable<ToolCall> toolCalls) {
+  final tables = <String>[];
+  for (final toolCall in toolCalls) {
+    if (toolCall.status != ToolCallStatus.completed ||
+        toolCall.name.trim().toLowerCase() != 'finance_list') {
+      continue;
+    }
+    final raw = toolCall.result?.trim() ?? '';
+    if (raw.isEmpty) continue;
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } catch (_) {
+      continue;
+    }
+    if (decoded is! Map ||
+        decoded['ok'] != true ||
+        decoded['entries'] is! List) {
+      continue;
+    }
+    final entries = (decoded['entries'] as List).whereType<Map>().toList();
+    if (entries.isEmpty) continue;
+    final count =
+        decoded['matched_count'] ?? decoded['count'] ?? entries.length;
+    final total = _markdownTableCell(decoded['total']);
+    final rows = <String>[
+      '| Date | Time | Entry | Amount | Category | Type |',
+      '| --- | --- | --- | --- | --- | --- |',
+      for (final entry in entries) _financeEntryMarkdownRow(entry),
+      '| Total | — | $count entries | ${total.isEmpty ? '—' : total} | — | — |',
+    ];
+    tables.add(rows.join('\n'));
+  }
+  return tables.isEmpty ? null : tables.join('\n\n');
+}
+
+String _financeEntryMarkdownRow(Map entry) {
+  final dateParts = (entry['date'] ?? '').toString().split(' - ');
+  final type = (entry['type'] ?? 'expense').toString();
+  final displayType = type.isEmpty
+      ? type
+      : '${type[0].toUpperCase()}${type.substring(1).toLowerCase()}';
+  return '| ${_markdownTableCell(dateParts.first)} '
+      '| ${_markdownTableCell(dateParts.length > 1 ? dateParts.sublist(1).join(' - ') : '—')} '
+      '| ${_markdownTableCell(entry['description'])} '
+      '| ${_markdownTableCell(entry['amount'])} '
+      '| ${_markdownTableCell(entry['category'])} '
+      '| ${_markdownTableCell(displayType)} |';
+}
+
+String _markdownTableCell(Object? value) {
+  return (value ?? '')
+      .toString()
+      .replaceAll('\\', r'\\')
+      .replaceAll('|', r'\|')
+      .replaceAll(RegExp(r'[\r\n]+'), ' ')
+      .trim();
+}
+
 class ChatActivitySection extends StatefulWidget {
   final String durationLabel;
   final bool initiallyExpanded;
@@ -631,7 +692,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     final shouldRenderResult = _shouldRenderInlineResult();
     final shouldRenderArguments = _shouldRenderArguments();
     final addedEntry = _addedEntryResult();
-    final listedEntries = _financeListResult();
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -714,17 +774,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
                 displayScale: widget.displayScale,
               ),
             ),
-          if (listedEntries != null)
-            Padding(
-              padding: EdgeInsets.only(
-                top: 4 * widget.displayScale,
-                bottom: 8 * widget.displayScale,
-              ),
-              child: _FinanceEntriesTableCard(
-                result: listedEntries,
-                displayScale: widget.displayScale,
-              ),
-            ),
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
@@ -765,20 +814,6 @@ class _SingleToolCallSectionState extends State<_SingleToolCallSection> {
     }
     final decoded = _tryDecodeJson(widget.toolCall.result);
     if (decoded is! Map || decoded['ok'] != true) return null;
-    return Map<String, dynamic>.from(decoded);
-  }
-
-  Map<String, dynamic>? _financeListResult() {
-    if (widget.toolCall.status != ToolCallStatus.completed ||
-        widget.toolCall.name.trim().toLowerCase() != 'finance_list') {
-      return null;
-    }
-    final decoded = _tryDecodeJson(widget.toolCall.result);
-    if (decoded is! Map ||
-        decoded['ok'] != true ||
-        decoded['entries'] is! List) {
-      return null;
-    }
     return Map<String, dynamic>.from(decoded);
   }
 
@@ -1157,144 +1192,6 @@ class _AddedFinanceEntryCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _FinanceEntriesTableCard extends StatelessWidget {
-  const _FinanceEntriesTableCard({
-    required this.result,
-    required this.displayScale,
-  });
-
-  final Map<String, dynamic> result;
-  final double displayScale;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final entries = (result['entries'] as List)
-        .whereType<Map>()
-        .map((entry) => Map<String, dynamic>.from(entry))
-        .toList();
-    final count = result['matched_count'] ?? result['count'] ?? entries.length;
-    final total = (result['total'] ?? '').toString();
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12 * displayScale),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(12 * displayScale),
-            child: Row(
-              children: [
-                Icon(
-                  CupertinoIcons.list_bullet,
-                  size: 18 * displayScale,
-                  color: theme.colorScheme.primary,
-                ),
-                SizedBox(width: 7 * displayScale),
-                Expanded(
-                  child: Text(
-                    'Finance entries',
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15 * displayScale,
-                    ),
-                  ),
-                ),
-                Text(
-                  '$count entries${total.isEmpty ? '' : ' • $total'}',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 11 * displayScale,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (entries.isEmpty)
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                12 * displayScale,
-                0,
-                12 * displayScale,
-                12 * displayScale,
-              ),
-              child: Text(
-                'No matching entries',
-                style: AppTheme.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            )
-          else
-            ClipRRect(
-              borderRadius: BorderRadius.vertical(
-                bottom: Radius.circular(12 * displayScale),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowHeight: 38 * displayScale,
-                  dataRowMinHeight: 44 * displayScale,
-                  dataRowMaxHeight: 56 * displayScale,
-                  horizontalMargin: 12 * displayScale,
-                  columnSpacing: 20 * displayScale,
-                  headingTextStyle: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12 * displayScale,
-                  ),
-                  dataTextStyle: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 12 * displayScale,
-                  ),
-                  columns: const [
-                    DataColumn(label: Text('Date')),
-                    DataColumn(label: Text('Time')),
-                    DataColumn(label: Text('Entry')),
-                    DataColumn(label: Text('Amount')),
-                    DataColumn(label: Text('Category')),
-                    DataColumn(label: Text('Type')),
-                  ],
-                  rows: [for (final entry in entries) _entryRow(entry)],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  DataRow _entryRow(Map<String, dynamic> entry) {
-    final dateParts = (entry['date'] ?? '').toString().split(' - ');
-    return DataRow(
-      cells: [
-        DataCell(Text(dateParts.first)),
-        DataCell(
-          Text(dateParts.length > 1 ? dateParts.sublist(1).join(' - ') : '—'),
-        ),
-        DataCell(Text((entry['description'] ?? '').toString())),
-        DataCell(Text((entry['amount'] ?? '').toString())),
-        DataCell(Text((entry['category'] ?? '').toString())),
-        DataCell(Text(_titleCase((entry['type'] ?? 'expense').toString()))),
-      ],
-    );
-  }
-
-  String _titleCase(String value) {
-    if (value.isEmpty) return value;
-    return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
   }
 }
 

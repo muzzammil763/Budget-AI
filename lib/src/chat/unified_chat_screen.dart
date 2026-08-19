@@ -3874,6 +3874,25 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       index++;
     }
 
+    if (!isCurrentlyStreaming) {
+      final financeTable = financeListResultMarkdown(
+        blocks
+            .where((block) => block.type == ChatMessageBlockType.toolCall)
+            .map((block) => block.toolCall)
+            .whereType<ToolCall>(),
+      );
+      if (financeTable != null) {
+        addChild(
+          _buildResponseMarkdown(
+            financeTable,
+            isStreaming: false,
+            messageIndex: messageIndex,
+          ),
+          isResponse: false,
+        );
+      }
+    }
+
     if (children.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

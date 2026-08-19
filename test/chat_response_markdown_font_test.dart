@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('currency amounts stay compact inside visual Markdown tables', () {
+    const markdown = '| Entry | Amount |\n| --- | --- |\n| Milk | Rs 250 |';
+    expect(normalizeChatResponseMarkdown(markdown), markdown);
+  });
+
   testWidgets('AI response markdown inherits the app font family', (
     tester,
   ) async {

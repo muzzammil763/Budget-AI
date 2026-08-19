@@ -558,13 +558,19 @@ String _formatCompactCount(int value) {
 }
 
 String normalizeChatResponseMarkdown(String text) {
-  return expandCurrencyAmountsForSpeech(
-    _normalizeMarkdownSpacing(
-      _autoLinkBareUrls(
-        _normalizeMarkdownLinks(_stripInlineDataImageMarkdown(text)),
-      ),
+  final normalized = _normalizeMarkdownSpacing(
+    _autoLinkBareUrls(
+      _normalizeMarkdownLinks(_stripInlineDataImageMarkdown(text)),
     ),
   );
+  return normalized
+      .split('\n')
+      .map(
+        (line) => line.trim().startsWith('|') && line.trim().endsWith('|')
+            ? line
+            : expandCurrencyAmountsForSpeech(line),
+      )
+      .join('\n');
 }
 
 /// Keeps incomplete Markdown delimiters from briefly appearing as literal
