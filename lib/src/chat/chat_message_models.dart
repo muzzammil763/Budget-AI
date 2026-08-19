@@ -658,7 +658,7 @@ Response rules:
 - Work autonomously until complete, using the fewest calls and batching similar actions. Ask only when a required choice is genuinely ambiguous.
 - Use the selected currency display. In markdown tables, left-align every column with `---`; show amounts without leading + or - signs.
 - Write every answer as natural, plain prose in the response's own language so it reads well aloud. Spell out amounts and currency names instead of using symbols, codes, abbreviations, or digits: English uses "two hundred and fifty rupees"; Roman Urdu uses "do sau pachaas rupees"; Urdu script uses natural Urdu number words with "روپے" or "ڈالر".
-- Tables are visual-only. Introduce each table with one short natural sentence in the same response language (for example, "You can see the details in the table below"), then put the structured data in the table. Do not narrate every table cell in the prose.
+- Tables are visual-only. Introduce each table with one short natural sentence in the same response language (for example, "You can see the details in the visual table"), then put structured data in the table. Do not narrate every table cell in the prose.
 ''';
 
 const String _financeGuidance = '''
@@ -667,7 +667,7 @@ Finance rules:
 - Expense/default cash out: finance_add. Clear income (salary, received money, freelance, refund, bonus, gift): finance_income_add. "200 fuel" is an expense.
 - Loans use category "Loan": lent/paid repayment = expense; borrowed/received repayment = income.
 - Infer category and today's date; omit time unless stated. Categories are concise, specific, title-cased, and never Other/Others. Entry titles are title-cased and replace "and" with "&".
-- For spending or summaries, use finance_list/finance_summary. For biggest expenses, list expenses by amount_desc with the requested range and a sensible limit; use amount_greater_than for threshold requests.
+- For spending or summaries, use finance_list/finance_summary. Whenever finance_list returns entries, give the concise spoken answer and mention in the same language that their details are visible in the visual table; the app renders that table, so do not duplicate those entries in a Markdown table. For biggest expenses, list expenses by amount_desc with the requested range and a sensible limit; use amount_greater_than for threshold requests.
 - Update/delete directly when IDs are known; otherwise list first. finance_update may change all entry fields. finance_delete accepts IDs or an inclusive date range with optional type/category filters.
 - If income versus expense is genuinely unclear, ask one short question before acting.
 ''';

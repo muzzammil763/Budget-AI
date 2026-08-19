@@ -154,6 +154,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   omits visual table cells and reads only a short same-language table cue.
   Successful finance adds show a separate English visual card containing the
   saved title, amount, category, date, and time; the card is excluded from TTS.
+  Finance-list questions likewise render the returned entries in a separate
+  UI-only table with date, time, entry, amount, category, and type, while the
+  spoken answer gives the natural-language result and points to that table.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.
