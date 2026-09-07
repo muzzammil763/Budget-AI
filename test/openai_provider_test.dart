@@ -55,11 +55,126 @@ void main() {
       expect(body.containsKey('service_tier'), isFalse);
       expect(body['client_turn_id'], isNotEmpty);
       final instructions = body['instructions'] as String;
-      expect(instructions.length, lessThan(3000));
+      expect(instructions.length, lessThan(4000));
       expect(instructions, isNot(contains('Current finance snapshot')));
       expect(chunks.map((chunk) => chunk.content).join(), 'Done.');
       expect(provider.lastResponseMetadata?['promptTokens'], 20);
       expect(provider.lastResponseMetadata?['completionTokens'], 4);
+    },
+  );
+
+  test(
+    'image-only input stays structured through history reload and tool rounds',
+    () async {
+      final requests = <RequestOptions>[];
+      final provider = ResponsesProvider(
+        ChatModelConfig.openAI,
+        dio: _streamingDio(requests),
+        accessTokenProvider: () => 'test-user-jwt',
+      );
+      await provider.initialize();
+      const image = 'data:image/png;base64,aA==';
+      await provider
+          .sendMessageStreamWithThinking(
+            '',
+            images: [image],
+            enableToolCalls: false,
+          )
+          .drain<void>();
+      final input = (requests.single.data as Map)['input'] as List;
+      expect((input.single as Map)['content'], [
+        {'type': 'input_image', 'image_url': image, 'detail': 'auto'},
+      ]);
+      provider.loadChatHistory([
+        ChatMessage(
+          text: 'Receipt',
+          isUser: true,
+          timestamp: DateTime(2026),
+          images: [image],
+        ),
+      ]);
+      await provider
+          .sendMessageStreamWithThinking('Explain', enableToolCalls: false)
+          .drain<void>();
+      expect(
+        ((requests.last.data as Map)['input'] as List).first['content'],
+        isA<List>(),
+      );
+      await expectLater(
+        provider
+            .sendMessageStreamWithThinking(
+              '',
+              images: [image, image, image, image],
+            )
+            .drain<void>(),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  test(
+    'generated image events are delivered separately from response prose',
+    () async {
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            final events = [
+              {'type': 'response.image_generation_call.in_progress'},
+              {
+                'type': 'response.output_item.done',
+                'item': {
+                  'type': 'image_generation_call',
+                  'id': 'img_1',
+                  'result': 'aA==',
+                },
+              },
+              {
+                'type': 'response.completed',
+                'response': {
+                  'id': 'resp_image',
+                  'output': [
+                    {
+                      'type': 'image_generation_call',
+                      'id': 'img_1',
+                      'result': 'aA==',
+                    },
+                  ],
+                },
+              },
+            ];
+            handler.resolve(
+              Response<ResponseBody>(
+                requestOptions: options,
+                statusCode: 200,
+                data: ResponseBody.fromString(
+                  events.map((e) => 'data: ${jsonEncode(e)}\n\n').join(),
+                  200,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      final provider = ResponsesProvider(
+        ChatModelConfig.openAI,
+        dio: dio,
+        accessTokenProvider: () => 'test-user-jwt',
+      );
+      await provider.initialize();
+      final chunks = await provider
+          .sendMessageStreamWithThinking('Make a budget image')
+          .toList();
+      expect(chunks.any((c) => c.isGeneratingImage), isTrue);
+      expect(
+        chunks.where((c) => c.imageDataUrl != null).single.imageDataUrl,
+        'data:image/png;base64,aA==',
+      );
+      expect(chunks.map((c) => c.content).join(), isEmpty);
+      expect(
+        provider.exportConversationState().last['type'],
+        'image_generation_call',
+      );
     },
   );
 
@@ -138,7 +253,11 @@ void main() {
     await provider.initialize();
 
     final chunks = await provider
-        .sendMessageStreamWithThinking('Save this', enableToolCalls: true)
+        .sendMessageStreamWithThinking(
+          'Save this',
+          enableToolCalls: true,
+          images: ['data:image/png;base64,aA=='],
+        )
         .toList();
 
     expect(requests, hasLength(2));
@@ -153,6 +272,16 @@ void main() {
       isNot((requests[1].data as Map)['client_turn_id']),
     );
     final secondInput = (requests[1].data as Map)['input'] as List;
+    expect(
+      (secondInput.first as Map)['content'],
+      contains(
+        equals({
+          'type': 'input_image',
+          'image_url': 'data:image/png;base64,aA==',
+          'detail': 'auto',
+        }),
+      ),
+    );
     expect(
       secondInput.whereType<Map>().any(
         (item) =>

@@ -2,7 +2,7 @@
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
 Supabase authentication, offline-first SQLite finance tracking, mandatory
-end-to-end encrypted synchronization, OpenAI transcription, and ElevenLabs speech.
+end-to-end encrypted synchronization, OpenAI voice input, and image chat.
 
 ## AI and voice flow
 
@@ -12,14 +12,13 @@ end-to-end encrypted synchronization, OpenAI transcription, and ElevenLabs speec
 - The chat model is not user-selectable. The app always uses `gpt-5.6-luna`
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use conservative adaptive reasoning (`none` for exact conversational greetings, `medium` for clearly analytical prompts, and `low` for everything else), low text verbosity, and explicit `top_p: 1.0` sampling, while preserving important amounts, dates, caveats, and next actions.
-- Microphone recordings use 44.1 kHz mono PCM16 WAV and pass through the authenticated `openai-speech` Edge Function to `gpt-4o-mini-transcribe`, with a short English/Urdu/Roman-Urdu finance-command hint; the existing OpenAI credential remains only in Supabase secrets. Reply audio uses ElevenLabs `eleven_multilingual_v2` with free-compatible premade voice `JBFqnCBsd6RMkjVDRZzb`; `ELEVENLABS_API_KEY` also stays server-only. Generated MP3 chunks are cached in temporary app storage, so replaying the same response normally does not consume more ElevenLabs characters unless the OS reclaims that cache.
+- Microphone recordings use PCM16 WAV and pass through the authenticated `openai-speech` Edge Function to OpenAI `gpt-transcribe`. Chat has voice input only: replies never play audio, automatically or on tap. No ElevenLabs or device TTS dependency is used by chat.
+- The composer starts with a **+** button opening an animated **Photo / Camera** menu. Attach up to three images, remove previews, or tap to inspect them. Camera opens capture directly; Photo opens the system gallery. Images can be sent with text or on their own and remain visible in local chat history.
+- Text grows to two lines; wrapped text and attachments put actions below the text. Expand opens a larger editor; collapse preserves the draft.
+- The active chat model analyzes receipts and income/expense images and uses the existing finance tools when asked to log entries. Ambiguous or unreadable details require clarification, and receipt totals must not be added again alongside their line items.
+- Requested budget/chart images use the active model's OpenAI image-generation tool (`gpt-image-2`, medium quality, 1024×1024). The assistant retrieves real finance data first. Generated images appear in chat with a zoom viewer. Image generation has separate OpenAI tool charges and requires access on the server's OpenAI project.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
 - While Budget AI is preparing a response, the bottom composer shows the static `Budget AI Working ...` status in the normal composer-hint typography; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
-- Speech recognition preserves the device locale alongside the voice turn. A
-  response to a microphone-originated message auto-plays in the foreground only
-  after streaming, tools, and the typewriter reveal are complete. Typed-chat responses stay
-  silent; tap a fully completed assistant response to play or stop ElevenLabs
-  speech. Taps do nothing while any response is still working.
 - The first launch after this migration removes any previously downloaded
   Whisper files and their retired selection key.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
@@ -86,8 +85,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   loading placeholders, exact request/token/Fast counters, and a centered UTC
   renewal date. Administratively blocked accounts show a red indicator and an
   explanatory sheet. The Budget mark
-  opens Finances directly, leaving the composer prefix-free during normal text
-  entry.
+  opens Finances directly; the composer + action opens image attachments.
 - Finance tool calls appear inline in assistant turns with live status. A
   single call shows its named expandable row; consecutive calls use an
   expandable grouped summary. Expanding reveals the arguments and result while
@@ -149,14 +147,6 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   after the app returns.
 - Chat Markdown tables left-align every header and value column for a
   consistent reading edge, including numeric comparison columns.
-- Assistant prose spells currency amounts out in the response language for
-  natural playback, including English, Urdu script, and Roman Urdu. Speech
-  omits visual table cells and reads only a short same-language table cue.
-  Successful finance adds and finance-list questions append their entries
-  after the completed answer in the chat's responsive Markdown table view,
-  with date, time, entry, amount, category, and type. The spoken answer gives
-  the natural-language result and points to that UI-only table. Table headers
-  and values stay on one line; oversized values truncate with an ellipsis.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
   automatically queued for encrypted upload when sync is enabled.
@@ -177,10 +167,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   and the account password are lost.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
-- Chat history is never uploaded. Recorded microphone audio is sent only to the
-  authenticated Supabase speech proxy and OpenAI for transcription. Reply text
-  is sent to the same authenticated proxy and ElevenLabs only when speech is
-  requested; generated audio is cached temporarily on the device.
+- Chat history and images are stored locally in SQLite and excluded from account sync. Relevant conversation context and attached images pass through the authenticated Responses proxy to OpenAI to answer requests; audio passes through the speech proxy for transcription. Image inputs are normalized to PNG, limited to 1600 pixels on the longest edge and 4 MB each. Only the latest three image inputs remain in provider context; older images stay visible locally and can be attached again for analysis. Account exit clears local chat data.
+- iOS camera/gallery access uses `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`. Android uses the system picker/camera and recovers picker results if the activity is recreated. Test camera capture and gallery permissions on a physical device.
 
 ## iOS widget and Siri entry
 
@@ -222,12 +210,13 @@ In Supabase Dashboard > Authentication:
   a custom SMTP provider, then install the confirmation and recovery templates.
 
 The local `supabase/config.toml` contains matching settings for local Supabase.
-Never put `OPENAI_API_KEY` or `ELEVENLABS_API_KEY` in a Flutter asset, Dart
-define, tracked file, or mobile build. Supabase secrets power transcription and
-synthesis; deploy the authenticated speech proxy with:
+Never put `OPENAI_API_KEY` in a Flutter asset, Dart define, tracked file, or
+mobile build. The same Supabase secret used by chat powers transcription; deploy
+the authenticated speech proxy with:
 
 ```sh
 supabase functions deploy openai-speech
+supabase functions deploy openai-responses
 ```
 
 Restrict the Google key to Cloud Speech-to-Text and Cloud Text-to-Speech. Delete

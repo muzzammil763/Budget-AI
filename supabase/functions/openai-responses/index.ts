@@ -1,34 +1,14 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
+import {
+  maxRequestBytes,
+  validateAndSanitizeBody,
+} from "./request_validation.ts";
+
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const openAIResponsesUrl = "https://api.openai.com/v1/responses";
-const maxRequestBytes = 512 * 1024;
-const maxInstructionsLength = 30000;
-const maxInputLength = 400000;
-const defaultMaxOutputTokens = 4096;
-const maxOutputTokens = 8192;
-
-const allowedModels = new Set([
-  "gpt-5.6-luna",
-  "gpt-5.6-terra",
-  "gpt-5.6-sol",
-  "gpt-5.5",
-  "gpt-5.4",
-  "gpt-5.4-mini",
-  "gpt-5.4-nano",
-  "gpt-4.1",
-  "o3",
-]);
-
-const allowedTools = new Set([
-  "finance_add",
-  "finance_income_add",
-  "finance_list",
-  "finance_summary",
-  "finance_update",
-  "finance_delete",
-]);
-
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
@@ -78,11 +58,6 @@ function jsonResponse(
   });
 }
 
-function safeInteger(value: unknown, fallback: number, maximum: number) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(1, Math.min(Math.trunc(value), maximum));
-}
-
 function nonnegativeInteger(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(Math.trunc(value), Number.MAX_SAFE_INTEGER));
@@ -109,78 +84,6 @@ function extractUsage(payload: unknown): Usage {
     inputTokens: nonnegativeInteger(usage.input_tokens),
     outputTokens: nonnegativeInteger(usage.output_tokens),
     cachedInputTokens: nonnegativeInteger(details.cached_tokens),
-  };
-}
-
-function validateAndSanitizeBody(raw: unknown) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("invalid_body");
-  }
-
-  const body = raw as Record<string, unknown>;
-  const model = typeof body.model === "string" ? body.model.trim() : "";
-  if (!allowedModels.has(model)) throw new Error("unsupported_model");
-
-  const instructions = body.instructions;
-  if (
-    instructions !== undefined &&
-    (typeof instructions !== "string" ||
-      instructions.length > maxInstructionsLength)
-  ) {
-    throw new Error("invalid_instructions");
-  }
-
-  const inputJson = JSON.stringify(body.input ?? "");
-  if (inputJson.length > maxInputLength) throw new Error("input_too_large");
-
-  const tools = body.tools;
-  if (tools !== undefined) {
-    if (!Array.isArray(tools) || tools.length > allowedTools.size) {
-      throw new Error("invalid_tools");
-    }
-    for (const tool of tools) {
-      if (!tool || typeof tool !== "object") throw new Error("invalid_tools");
-      const name = (tool as Record<string, unknown>).name;
-      const type = (tool as Record<string, unknown>).type;
-      if (
-        type !== "function" || typeof name !== "string" ||
-        !allowedTools.has(name)
-      ) {
-        throw new Error("unsupported_tool");
-      }
-    }
-  }
-
-  const requestedOutputTokens = safeInteger(
-    body.max_output_tokens,
-    defaultMaxOutputTokens,
-    maxOutputTokens,
-  );
-  const serviceTier = body.service_tier;
-  if (serviceTier !== undefined && serviceTier !== "fast") {
-    throw new Error("unsupported_service_tier");
-  }
-
-  const sanitized: Record<string, unknown> = {
-    model,
-    input: body.input,
-    stream: body.stream === true,
-    max_output_tokens: requestedOutputTokens,
-  };
-  if (instructions !== undefined) sanitized.instructions = instructions;
-  if (body.reasoning !== undefined) sanitized.reasoning = body.reasoning;
-  if (body.text !== undefined) sanitized.text = body.text;
-  if (serviceTier === "fast") sanitized.service_tier = "fast";
-  if (tools !== undefined) {
-    sanitized.tools = tools;
-    sanitized.tool_choice = "auto";
-    sanitized.parallel_tool_calls = false;
-  }
-
-  return {
-    sanitized,
-    model,
-    estimatedTokens: Math.ceil(inputJson.length / 4) + requestedOutputTokens,
   };
 }
 
