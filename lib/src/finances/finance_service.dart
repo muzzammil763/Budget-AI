@@ -727,6 +727,8 @@ class FinanceService {
   /// Positive results become Savings income; negative results become a
   /// Balance Rollover expense. A deterministic ID makes every month transition
   /// independently idempotent while allowing later months to roll forward.
+  /// Existing transfers are reconciled because edits or late syncs in an
+  /// earlier month can change every later carried balance.
   Future<int> applySavingsRollover({DateTime? now}) async {
     final current = now ?? DateTime.now();
     final all = await getAll();
@@ -735,40 +737,51 @@ class FinanceService {
     final firstEntryDate = all.last.date; // entries are sorted newest first
     var month = DateTime(firstEntryDate.year, firstEntryDate.month + 1);
     final currentMonth = DateTime(current.year, current.month);
-    var added = 0;
+    var changed = 0;
 
     while (!month.isAfter(currentMonth)) {
       final rolloverMoment = DateTime(month.year, month.month, 1);
       if (current.isBefore(rolloverMoment)) break;
 
       final prev = DateTime(month.year, month.month - 1);
-      final alreadyRolled = hasRolloverForMonth(_cache!, prev);
-      if (!alreadyRolled) {
-        final prevEntries = _cache!
-            .where(
-              (e) => e.date.year == prev.year && e.date.month == prev.month,
-            )
-            .toList();
-        final closingBalance =
-            totalAmount(prevEntries, type: FinanceEntryType.income) -
-            totalAmount(prevEntries, type: FinanceEntryType.expense);
-        final rollover = buildRolloverEntry(
-          sourceMonth: prev,
-          closingBalance: closingBalance,
-        );
-        if (prevEntries.isNotEmpty && rollover != null) {
-          _cache!.add(rollover);
-          added++;
-        }
+      final prevEntries = _cache!
+          .where((e) => e.date.year == prev.year && e.date.month == prev.month)
+          .toList();
+      final closingBalance =
+          totalAmount(prevEntries, type: FinanceEntryType.income) -
+          totalAmount(prevEntries, type: FinanceEntryType.expense);
+      final expected = prevEntries.isEmpty
+          ? null
+          : buildRolloverEntry(
+              sourceMonth: prev,
+              closingBalance: closingBalance,
+            );
+      final existing = rolloverEntryForMonth(_cache!, prev);
+      if (expected == null && existing != null) {
+        _cache!.remove(existing);
+        changed++;
+      } else if (expected != null && existing == null) {
+        _cache!.add(expected);
+        changed++;
+      } else if (expected != null &&
+          existing != null &&
+          (existing.type != expected.type ||
+              (existing.amount - expected.amount).abs() >= 0.005 ||
+              existing.date != expected.date ||
+              existing.description != expected.description ||
+              existing.category != expected.category)) {
+        final index = _cache!.indexOf(existing);
+        _cache![index] = expected;
+        changed++;
       }
       month = DateTime(month.year, month.month + 1);
     }
 
-    if (added > 0) {
+    if (changed > 0) {
       _cache!.sort((a, b) => b.date.compareTo(a.date));
       await _persist();
     }
-    return added;
+    return changed;
   }
 
   /// Internal month transfers affect a month's available balance, not earnings.

@@ -168,5 +168,104 @@ void main() {
           .setMockMethodCallHandler(channel, null);
       await directory.delete(recursive: true);
     });
+
+    test(
+      'startup repairs stale rollover chains from oldest to newest',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'budget_ai_rollover_repair_test_',
+        );
+        const channel = MethodChannel('plugins.flutter.io/path_provider');
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async => directory.path);
+        FinanceEntry entry(
+          String id,
+          FinanceEntryType type,
+          double amount,
+          DateTime date,
+        ) => FinanceEntry(
+          id: id,
+          type: type,
+          date: date,
+          hasTime: false,
+          description: id,
+          amount: amount,
+          category: type == FinanceEntryType.income ? 'Salary' : 'Food',
+          createdAt: date,
+        );
+        final staleFebruary = FinanceService.buildRolloverEntry(
+          sourceMonth: DateTime(2026, 1),
+          closingBalance: 1000,
+        )!;
+        final staleMarch = FinanceService.buildRolloverEntry(
+          sourceMonth: DateTime(2026, 2),
+          closingBalance: 16000,
+        )!;
+        final entries = [
+          entry(
+            'jan-income',
+            FinanceEntryType.income,
+            20000,
+            DateTime(2026, 1, 2),
+          ),
+          entry(
+            'jan-expense',
+            FinanceEntryType.expense,
+            17000,
+            DateTime(2026, 1, 3),
+          ),
+          staleFebruary,
+          entry(
+            'feb-income',
+            FinanceEntryType.income,
+            20000,
+            DateTime(2026, 2, 2),
+          ),
+          entry(
+            'feb-expense',
+            FinanceEntryType.expense,
+            5000,
+            DateTime(2026, 2, 3),
+          ),
+          staleMarch,
+        ];
+        await File('${directory.path}/finances.json').writeAsString(
+          jsonEncode(entries.map((entry) => entry.toJson()).toList()),
+        );
+
+        FinanceService.instance.invalidateCache();
+        final changed = await FinanceService.instance.applySavingsRollover(
+          now: DateTime(2026, 3, 2),
+        );
+        final repaired = await FinanceService.instance.getAll();
+
+        expect(changed, 2);
+        expect(
+          FinanceService.rolloverEntryForMonth(
+            repaired,
+            DateTime(2026, 1),
+          )?.amount,
+          3000,
+        );
+        expect(
+          FinanceService.rolloverEntryForMonth(
+            repaired,
+            DateTime(2026, 2),
+          )?.amount,
+          18000,
+        );
+        expect(
+          await FinanceService.instance.applySavingsRollover(
+            now: DateTime(2026, 3, 2),
+          ),
+          0,
+        );
+
+        FinanceService.instance.invalidateCache();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+        await directory.delete(recursive: true);
+      },
+    );
   });
 }
