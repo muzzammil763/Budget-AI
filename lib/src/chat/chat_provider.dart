@@ -317,3 +317,54 @@ Future<bool> moveNextChatChunk(
     throw TimeoutException('The response stopped sending data.');
   },
 );
+
+/// Only transport facts: never include image data, prompts, or credentials.
+Map<String, dynamic> imageRequestDiagnostics(Map<String, dynamic> request) {
+  final images = <Map<String, dynamic>>[];
+  void visit(Object? value) {
+    if (value is Map) {
+      if (value['type'] == 'input_image') {
+        final url = value['image_url'];
+        if (url is String) {
+          final comma = url.indexOf(',');
+          images.add({
+            'mime_type': url.startsWith('data:image/jpeg;')
+                ? 'image/jpeg'
+                : url.startsWith('data:image/png;')
+                ? 'image/png'
+                : 'other',
+            'encoded_characters': comma < 0 ? 0 : url.length - comma - 1,
+          });
+        }
+      } else {
+        for (final child in value.values) {
+          visit(child);
+        }
+      }
+    } else if (value is List) {
+      for (final child in value) {
+        visit(child);
+      }
+    }
+  }
+
+  visit(request['input']);
+  return {
+    'request_bytes': utf8.encode(jsonEncode(request)).length,
+    'image_count': images.length,
+    'images': images,
+  };
+}
+
+Future<void> finishChatStream(
+  StreamIterator<ChatStreamChunk> iterator, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  // Some adapters do not finish an aborted read immediately. Do not hide the
+  // actual timeout behind an unbounded async-generator cancellation wait.
+  try {
+    await iterator.cancel().timeout(timeout, onTimeout: () {});
+  } catch (_) {
+    // Cleanup errors must not replace the original timeout/provider failure.
+  }
+}

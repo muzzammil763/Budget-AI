@@ -13,6 +13,55 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  test('cleanup failure cannot replace the original timeout', () async {
+    final controller = StreamController<ChatStreamChunk>(
+      onCancel: () => throw CancelledException(),
+    );
+    final iterator = StreamIterator<ChatStreamChunk>(controller.stream);
+    final next = iterator.moveNext();
+    await finishChatStream(iterator);
+    await next;
+    await controller.close();
+  });
+
+  test('request diagnostics omit private text and image bytes', () {
+    final request = <String, dynamic>{
+      'input': [
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'input_text', 'text': 'private purchase'},
+            {
+              'type': 'input_image',
+              'image_url': 'data:image/jpeg;base64,c2VjcmV0',
+            },
+          ],
+        },
+      ],
+    };
+    final details = imageRequestDiagnostics(request);
+    expect(details['image_count'], 1);
+    expect(details['request_bytes'], utf8.encode(jsonEncode(request)).length);
+    expect(jsonEncode(details), isNot(contains('private purchase')));
+    expect(jsonEncode(details), isNot(contains('c2VjcmV0')));
+    expect((details['images'] as List).single['mime_type'], 'image/jpeg');
+  });
+  test('cleanup returns even when transport ignores cancellation', () async {
+    final pending = Completer<void>();
+    Stream<ChatStreamChunk> stalled() async* {
+      await pending.future;
+    }
+
+    final iterator = StreamIterator<ChatStreamChunk>(stalled());
+    final next = iterator.moveNext();
+    await finishChatStream(
+      iterator,
+      timeout: const Duration(milliseconds: 10),
+    ).timeout(const Duration(seconds: 1));
+    pending.complete();
+    await next;
+  });
+
   test('stalled transport is aborted before iterator cleanup', () async {
     final pending = Completer<void>();
     Stream<ChatStreamChunk> stalled() async* {

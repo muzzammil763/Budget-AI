@@ -391,6 +391,7 @@ Future<Response<ResponseBody>> _postStreamWithApiKeyFallback({
   required CancelToken? cancelToken,
   required void Function(String apiKey) onKeySelected,
   Map<String, String> additionalHeaders = const {},
+  ProgressCallback? onSendProgress,
 }) async {
   if (apiKeys.isEmpty) {
     throw _providerException(
@@ -425,6 +426,7 @@ Future<Response<ResponseBody>> _postStreamWithApiKeyFallback({
             responseType: ResponseType.stream,
           ),
           data: data,
+          onSendProgress: onSendProgress,
           cancelToken: cancelToken,
         );
 

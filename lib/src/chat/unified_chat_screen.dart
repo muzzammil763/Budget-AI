@@ -816,6 +816,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     int? aiTimelineIndex;
     String fullResponse = '';
     List<ChatMessageBlock> messageBlocks = [];
+    _stopRequestedByUser = false;
     DateTime startTime = DateTime.now();
     int? responseTimeMs;
     int tokenCount = 0;
@@ -1157,7 +1158,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               }
             }
           } finally {
-            await iterator.cancel();
+            await finishChatStream(iterator);
           }
 
           if (_isReconnectingStream) {
@@ -1173,6 +1174,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           }
 
           _provider.cancelRequest();
+          if (error is TimeoutException) rethrow;
           if (!_isRetryableNetworkError(error) ||
               reconnectAttempt >= _maxReconnectAttempts) {
             if (_isReconnectingStream) {
@@ -1329,7 +1331,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
       _appendResponseBlock(
         blocks,
-        '\n\nThe model stopped responding before it finished the reply.',
+        '\n\nThe request timed out. No further response arrived. '
+        'The details below show the last confirmed stage; no response does not prove OpenAI received the image.'
+        '\n\n${_requestDiagnosticsText(responseMetadata, startTime)}',
       );
       _markAllOpenTextBlocksComplete(blocks);
 
@@ -1383,9 +1387,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _markOpenToolBlocksCancelled(blocks);
       _appendResponseBlock(
         blocks,
-        wasPlaceholder || lastMessage.text.isEmpty
-            ? 'Request Cancelled'
-            : '\n\nRequest Cancelled',
+        '${wasPlaceholder || lastMessage.text.isEmpty ? '' : '\n\n'}'
+        '${_stopRequestedByUser ? 'Request Cancelled' : 'The request was interrupted internally before completion.'}'
+        '\n\n${_requestDiagnosticsText(responseMetadata, startTime)}',
       );
       _markAllOpenTextBlocksComplete(blocks);
       finalAssistantMessage = _buildAssistantMessageFromBlocks(
@@ -1395,7 +1399,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         tokensUsed: lastMessage.tokensUsed,
         tokensPerSec: lastMessage.tokensPerSec,
         responseTime: lastMessage.responseTime,
-        responseMetadata: lastMessage.responseMetadata,
+        responseMetadata: responseMetadata,
       );
 
       _stopStreamingThrottleTimer();
@@ -1418,7 +1422,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         );
       }
     } catch (e) {
-      final errorMessage = _buildAssistantErrorMessage(e);
+      final errorMessage =
+          '${_buildAssistantErrorMessage(e)}\n\n${_requestDiagnosticsText(responseMetadata, startTime)}';
 
       final blocks = _cloneBlocks(
         aiMessageIndex != null && aiMessageIndex < _messages.length
@@ -1824,7 +1829,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
+  bool _stopRequestedByUser = false;
+
   void _cancelRequest() {
+    _stopRequestedByUser = true;
     _provider.cancelRequest();
   }
 
@@ -2421,6 +2429,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   /// Wraps the JSON portion after "Provider response:" in markdown ```json
   /// fences so the chat markdown renderer uses [ThemedCodeBlock].
+  String _requestDiagnosticsText(
+    Map<String, dynamic> metadata,
+    DateTime started,
+  ) {
+    final diagnostics = metadata['requestDiagnostics'];
+    final data = <String, dynamic>{
+      if (diagnostics is Map) ...Map<String, dynamic>.from(diagnostics),
+      if (diagnostics is! Map) 'stage': 'before_request_dispatch',
+      'total_elapsed_ms': DateTime.now().difference(started).inMilliseconds,
+    };
+    return 'Request diagnostics:\n```json\n${const JsonEncoder.withIndent('  ').convert(data)}\n```';
+  }
+
   String _formatProviderDiagnostics(String diagnostics) {
     const prefix = 'Provider response: ';
     final idx = diagnostics.indexOf(prefix);

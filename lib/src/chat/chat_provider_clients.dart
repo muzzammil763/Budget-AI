@@ -115,6 +115,12 @@ class ResponsesProvider extends BaseChatProvider {
           requestData['parallel_tool_calls'] = false;
         }
 
+        final requestDiagnostics = imageRequestDiagnostics(requestData)
+          ..['stage'] = 'sending_to_proxy';
+        yield ChatStreamChunk(
+          content: '',
+          responseMetadata: {'requestDiagnostics': requestDiagnostics},
+        );
         final requestStopwatch = Stopwatch()..start();
         final response = await _postStreamWithApiKeyFallback(
           dio: _dio,
@@ -123,8 +129,32 @@ class ResponsesProvider extends BaseChatProvider {
           providerName: _providerName,
           data: requestData,
           cancelToken: _cancelToken,
+          onSendProgress: (sent, total) {
+            requestDiagnostics['uploaded_bytes'] = sent;
+            requestDiagnostics['upload_total_bytes'] = total;
+            if (total > 0 && sent >= total) {
+              requestDiagnostics['stage'] =
+                  'request_body_sent_waiting_for_proxy';
+            }
+          },
           additionalHeaders: _additionalRequestHeaders,
           onKeySelected: (apiKey) => _apiKey = apiKey,
+        );
+        yield ChatStreamChunk(
+          content: '',
+          responseMetadata: {
+            'requestDiagnostics': {
+              ...requestDiagnostics,
+              'stage': 'proxy_headers_received',
+              'http_status': response.statusCode,
+              'headers_after_ms': requestStopwatch.elapsedMilliseconds,
+              'request_id': response.headers.value('x-request-id'),
+              'edge_region': response.headers.value('x-budget-ai-edge-region'),
+              'openai_headers_ms': response.headers.value(
+                'x-budget-ai-openai-headers-ms',
+              ),
+            },
+          },
         );
         if (kDebugMode) {
           debugPrint(
@@ -158,6 +188,22 @@ class ResponsesProvider extends BaseChatProvider {
           final event = Map<String, dynamic>.from(decoded);
           final eventType = event['type']?.toString() ?? '';
 
+          if (eventType == 'response.created' ||
+              eventType == 'response.in_progress' ||
+              eventType == 'response.failed' ||
+              eventType == 'response.completed') {
+            yield ChatStreamChunk(
+              content: '',
+              responseMetadata: {
+                'requestDiagnostics': {
+                  ...requestDiagnostics,
+                  'stage': 'receiving_response_events',
+                  'last_event': eventType,
+                  'elapsed_ms': requestStopwatch.elapsedMilliseconds,
+                },
+              },
+            );
+          }
           switch (eventType) {
             case 'response.image_generation_call.in_progress':
             case 'response.image_generation_call.generating':
