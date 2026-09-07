@@ -202,12 +202,16 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final isSearching = _isSearching;
     final isBusy = _isLoading || _isInitialSyncPending;
     final shouldShowSearchField = !isBusy;
-    final totalExpense = FinanceService.instance.totalAmount(
+    final reportingEntries = FinanceService.reportingEntries(
       scopedEntries,
+      includeRollovers: !_isOverall,
+    );
+    final totalExpense = FinanceService.instance.totalAmount(
+      reportingEntries,
       type: FinanceEntryType.expense,
     );
     final totalIncome = FinanceService.instance.totalAmount(
-      scopedEntries,
+      reportingEntries,
       type: FinanceEntryType.income,
     );
     final currentBalance =
@@ -311,7 +315,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final currentMonth = DateTime(now.year, now.month);
     final selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
     final isPreviousMonth = !isOverall && selectedMonth.isBefore(currentMonth);
-    final isSaved = balance >= 0;
+    final isSaved = balance > 0;
+    final showBalance = !isPreviousMonth || balance.abs() >= 0.005;
     final wasTransferred =
         isPreviousMonth &&
         balance != 0 &&
@@ -324,8 +329,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final balanceText = !isPreviousMonth
         ? FinanceEntry.money(balance)
         : isSaved
-        ? '${FinanceEntry.money(balance, forceSign: balance > 0)} Saved'
-        : '${FinanceEntry.money(balance)} Overspent';
+        ? '${FinanceEntry.money(balance)} Saved'
+        : '${FinanceEntry.money(balance.abs())} Overused';
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -366,32 +371,19 @@ class _FinancesScreenState extends State<FinancesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              isPreviousMonth
-                  ? isSaved
-                        ? 'SAVED'
-                        : 'OVERSPENT'
-                  : 'CURRENT BALANCE',
-              style: AppTheme.bodySmall.copyWith(
-                color: onCard.withValues(alpha: 0.68),
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+            if (showBalance)
+              Text(
+                balanceText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.headingLarge.copyWith(
+                  color: balanceColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: "Boldonse",
+                  letterSpacing: 1.2,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              balanceText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.headingLarge.copyWith(
-                color: balanceColor,
-                fontSize: isSaved ? 20 : 28,
-                fontWeight: FontWeight.w600,
-                fontFamily: "Boldonse",
-                letterSpacing: 1.2,
-              ),
-            ),
             if (wasTransferred) ...[
               SizedBox(height: 4),
               Row(
@@ -402,18 +394,20 @@ class _FinancesScreenState extends State<FinancesScreen> {
                     size: 16,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    'Transferred To Next Month',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: onCard.withValues(alpha: 0.76),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      'Was Transferred To The Next Month As An ${isSaved ? 'Income' : 'Expense'}',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: onCard.withValues(alpha: 0.76),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
               ),
             ],
-            const SizedBox(height: 12),
+            if (showBalance) const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(

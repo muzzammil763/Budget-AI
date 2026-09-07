@@ -249,3 +249,13 @@ start as fresh machines.
 See `SUPABASE_BACKEND_PLAN.md` for architecture, quota controls, rollout, and
 security verification. See `OFFLINE_FIRST_SYNC_PLAN.md` for local persistence,
 conflict handling, and encryption boundaries.
+
+### Monthly finance insights
+
+The Finances balance card displays the current amount directly. Past-month amounts use the same text size and end in **Saved** or **Overused**. A zero past-month balance leaves only Income and Expenses. Confirmed transfers indicate whether the next month received an income or expense entry.
+
+Overall totals and multi-month AI finance summaries exclude internal savings and deficit rollovers. Single-month totals retain the carried balance. For example, earning 30,000 and carrying it into the next month remains 30,000 in overall income.
+
+Finance Insights includes top categories and full category breakdowns for both income and expenses. Past-month Net becomes Saved or Overused, with no zero-result metric. Each nonempty month has a **Monthly Summary** card at the bottom. Generate requests a short OpenAI summary using freshly loaded monthly totals, category breakdowns, and daily spending; Regenerate replaces the saved result only after a successful request. Opening the card reads the saved summary without an AI call.
+
+Summaries are stored per account/month in local Shared Preferences and cleared at account exit. They are excluded from Supabase synchronization. Generation uses the existing authenticated Responses proxy, active model, and AI quota; the OpenAI key remains server-only. No new backend deployment is required for this feature.

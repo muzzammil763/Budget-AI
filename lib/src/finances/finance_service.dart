@@ -761,6 +761,18 @@ class FinanceService {
     return added;
   }
 
+  /// Internal month transfers affect a month's available balance, not earnings.
+  static bool isRolloverEntry(FinanceEntry entry) => hasRolloverForMonth([
+    entry,
+  ], DateTime(entry.date.year, entry.date.month - 1));
+
+  static List<FinanceEntry> reportingEntries(
+    Iterable<FinanceEntry> entries, {
+    required bool includeRollovers,
+  }) => entries
+      .where((entry) => includeRollovers || !isRolloverEntry(entry))
+      .toList();
+
   // ── Analytics ─────────────────────────────────────────────────
 
   double totalAmount(List<FinanceEntry> entries, {FinanceEntryType? type}) =>

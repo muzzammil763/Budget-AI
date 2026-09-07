@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/pill_nav_bar.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
+import 'package:budget_ai/src/finances/monthly_summary_card.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -36,7 +37,10 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     final scope = _scopeMonth;
     if (scope == null) return false;
     final now = DateTime.now();
-    return !(scope.year == now.year && scope.month == now.month);
+    return DateTime(
+      scope.year,
+      scope.month,
+    ).isBefore(DateTime(now.year, now.month));
   }
 
   @override
@@ -135,11 +139,26 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                               _buildCategoryBreakdown(
                                 theme,
                                 insights,
-                                title: 'Top Categories',
+                                title: 'Top Expense Categories',
                                 limit: 3,
                               ),
                               const SizedBox(height: 12),
                               _CategoryBreakdownCard(insights: insights),
+                            ],
+                            if (insights.incomeCategories.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              _buildCategoryBreakdown(
+                                theme,
+                                insights,
+                                title: 'Top Income Categories',
+                                limit: 3,
+                                income: true,
+                              ),
+                              const SizedBox(height: 12),
+                              _CategoryBreakdownCard(
+                                insights: insights,
+                                income: true,
+                              ),
                             ],
                             const SizedBox(height: 12),
                             _DailyTrendsCard(insights: insights),
@@ -167,13 +186,17 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     }
 
     final scopedEntries = scope == null
-        ? widget.entries
+        ? FinanceService.reportingEntries(
+            widget.entries,
+            includeRollovers: false,
+          )
         : widget.entries
               .where(
                 (e) => e.date.year == scope.year && e.date.month == scope.month,
               )
               .toList();
-    final isPastMonthScope = scope != null && !_sameMonth(scope, now);
+    final isPastMonthScope =
+        scope != null && scope.isBefore(DateTime(now.year, now.month));
     // For a past month, anchor "today" to that month's last day so all
     // time-relative metrics describe the month itself.
     final effectiveNow = isPastMonthScope
@@ -411,13 +434,26 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
   }
 
   Widget _buildIncomeExpenseCard(ThemeData theme, _FinanceInsights insights) {
-    final monthNet = insights.currentMonthIncome - insights.currentMonthTotal;
+    final now = DateTime.now();
+    final monthEntries = widget.entries
+        .where(
+          (e) =>
+              e.date.year == now.year &&
+              e.date.month == now.month &&
+              !e.date.isAfter(now),
+        )
+        .toList();
+    final monthIncome = FinanceService.instance.totalAmount(
+      monthEntries,
+      type: FinanceEntryType.income,
+    );
+    final monthExpense = FinanceService.instance.totalAmount(
+      monthEntries,
+      type: FinanceEntryType.expense,
+    );
+    final monthNet = monthIncome - monthExpense;
     final scopedNet = insights.totalIncome - insights.total;
-    // Savings rollovers are transfers of an earlier month's leftover, not new
-    // income. Keep them in monthly income so the destination month's available
-    // balance is correct, but exclude them from all-time income/net to avoid
-    // counting the same money a second time.
-    final overallIncome = insights.totalIncome - insights.savingsRolloverIncome;
+    final overallIncome = insights.totalIncome;
     final overallNet = overallIncome - insights.total;
     final scope = _scopeMonth;
 
@@ -436,6 +472,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
               income: insights.totalIncome,
               expense: insights.total,
               net: scopedNet,
+              isPastMonth: _isPastMonthScope,
             )
           else
             Row(
@@ -444,8 +481,8 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                   child: _buildIncomeExpenseColumn(
                     theme,
                     label: 'THIS MONTH',
-                    income: insights.currentMonthIncome,
-                    expense: insights.currentMonthTotal,
+                    income: monthIncome,
+                    expense: monthExpense,
                     net: monthNet,
                   ),
                 ),
@@ -477,6 +514,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     required double income,
     required double expense,
     required double net,
+    bool isPastMonth = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,13 +541,15 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
           '-${_money(expense)}',
           Colors.red,
         ),
-        const SizedBox(height: 6),
-        _buildIncomeExpenseRow(
-          theme,
-          'Net',
-          _signedMoney(net),
-          net >= 0 ? Colors.green : Colors.red,
-        ),
+        if (!isPastMonth || net.abs() >= 0.005) ...[
+          const SizedBox(height: 6),
+          _buildIncomeExpenseRow(
+            theme,
+            isPastMonth ? (net > 0 ? 'Saved' : 'Overused') : 'Net',
+            isPastMonth ? _money(net.abs()) : _signedMoney(net),
+            net >= 0 ? Colors.green : Colors.red,
+          ),
+        ],
       ],
     );
   }
@@ -1160,9 +1200,26 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
         _buildCategoryBreakdown(
           theme,
           insights,
-          title: '${_shortMonthLabel(month)} Categories',
+          title: 'Top Expense Categories',
+          limit: 3,
         ),
+        const SizedBox(height: 12),
+        _CategoryBreakdownCard(insights: insights),
       ],
+      if (insights.incomeCategories.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _buildCategoryBreakdown(
+          theme,
+          insights,
+          title: 'Top Income Categories',
+          limit: 3,
+          income: true,
+        ),
+        const SizedBox(height: 12),
+        _CategoryBreakdownCard(insights: insights, income: true),
+      ],
+      const SizedBox(height: 12),
+      MonthlySummaryCard(key: ValueKey(month), month: month),
     ];
   }
 
@@ -1332,13 +1389,19 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
           value: insights.largestEntry!.displayAmount,
           caption: insights.largestEntry!.description,
         ),
-      _buildHighlightCard(
-        theme,
-        icon: Icons.savings_outlined,
-        label: 'Net balance',
-        value: _signedMoney(insights.totalIncome - insights.total),
-        caption: _monthLabel(month),
-      ),
+      if (!_isPastMonthScope ||
+          (insights.totalIncome - insights.total).abs() >= 0.005)
+        _buildHighlightCard(
+          theme,
+          icon: Icons.savings_outlined,
+          label: _isPastMonthScope
+              ? (insights.totalIncome > insights.total ? 'Saved' : 'Overused')
+              : 'Net balance',
+          value: _isPastMonthScope
+              ? _money((insights.totalIncome - insights.total).abs())
+              : _signedMoney(insights.totalIncome - insights.total),
+          caption: _monthLabel(month),
+        ),
     ];
 
     return Container(
@@ -1428,11 +1491,11 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     _FinanceInsights insights, {
     required String title,
     int? limit,
+    bool income = false,
   }) {
-    final maxTotal = insights.topCategories.first.value;
-    final categories = limit == null
-        ? insights.topCategories
-        : insights.topCategories.take(limit).toList();
+    final source = income ? insights.incomeCategories : insights.topCategories;
+    final maxTotal = source.first.value;
+    final categories = limit == null ? source : source.take(limit).toList();
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: _cardDecoration(theme),
@@ -1445,7 +1508,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
             (entry) => _buildCategoryRow(
               theme,
               entry,
-              total: insights.total,
+              total: income ? insights.totalIncome : insights.total,
               maxTotal: maxTotal,
             ),
           ),
@@ -1777,12 +1840,12 @@ class _FinanceInsights {
   final _DatedTotal? mostSpentMonthOverall;
   final FinanceEntry? largestEntry;
   final List<MapEntry<String, double>> topCategories;
+  final List<MapEntry<String, double>> incomeCategories;
   final List<_DatedTotal> lastSevenDays;
   final List<_DatedTotal> lastThirtyDays;
   final List<_DatedTotal> yearlyActivity;
   final double yearlyMaxDailyTotal;
   final double totalIncome;
-  final double savingsRolloverIncome;
   final double currentMonthIncome;
   final double selectedMonthIncome;
 
@@ -1810,12 +1873,12 @@ class _FinanceInsights {
     required this.mostSpentMonthOverall,
     required this.largestEntry,
     required this.topCategories,
+    required this.incomeCategories,
     required this.lastSevenDays,
     required this.lastThirtyDays,
     required this.yearlyActivity,
     required this.yearlyMaxDailyTotal,
     required this.totalIncome,
-    required this.savingsRolloverIncome,
     required this.currentMonthIncome,
     required this.selectedMonthIncome,
   });
@@ -1861,12 +1924,12 @@ class _FinanceInsights {
         mostSpentMonthOverall: null,
         largestEntry: null,
         topCategories: [],
+        incomeCategories: [],
         lastSevenDays: [],
         lastThirtyDays: [],
         yearlyActivity: [],
         yearlyMaxDailyTotal: 0,
         totalIncome: 0,
-        savingsRolloverIncome: 0,
         currentMonthIncome: 0,
         selectedMonthIncome: 0,
       );
@@ -1923,16 +1986,12 @@ class _FinanceInsights {
     }
 
     var totalIncome = 0.0;
-    var savingsRolloverIncome = 0.0;
     var currentMonthIncome = 0.0;
     var selectedMonthIncome = 0.0;
     for (final entry in incomeEntries) {
       final day = _dateOnly(entry.date);
       final month = DateTime(day.year, day.month);
       totalIncome += entry.amount;
-      if (_isSavingsRollover(entry)) {
-        savingsRolloverIncome += entry.amount;
-      }
       if (month == currentMonthStart) currentMonthIncome += entry.amount;
       if (month == selectedMonthStart) selectedMonthIncome += entry.amount;
     }
@@ -2017,21 +2076,18 @@ class _FinanceInsights {
       mostSpentMonthOverall: _maxDatedTotal(totalsByMonth),
       largestEntry: largestEntry,
       topCategories: topCategories,
+      incomeCategories: FinanceService.instance
+          .categorySummary(incomeEntries, type: FinanceEntryType.income)
+          .entries
+          .toList(),
       lastSevenDays: lastSevenDays,
       lastThirtyDays: lastThirtyDays,
       yearlyActivity: yearlyActivity,
       yearlyMaxDailyTotal: yearlyMaxDailyTotal,
       totalIncome: totalIncome,
-      savingsRolloverIncome: savingsRolloverIncome,
       currentMonthIncome: currentMonthIncome,
       selectedMonthIncome: selectedMonthIncome,
     );
-  }
-
-  static bool _isSavingsRollover(FinanceEntry entry) {
-    return entry.type == FinanceEntryType.income &&
-        entry.category == FinanceService.savingsCategory &&
-        entry.description.toLowerCase().startsWith('savings from');
   }
 
   static DateTime _dateOnly(DateTime date) =>
@@ -2066,7 +2122,9 @@ class _Metric {
 }
 
 class _CategoryBreakdownCard extends StatefulWidget {
-  const _CategoryBreakdownCard({required this.insights});
+  const _CategoryBreakdownCard({required this.insights, this.income = false});
+
+  final bool income;
 
   final _FinanceInsights insights;
 
@@ -2082,7 +2140,9 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final categories = widget.insights.topCategories;
+    final categories = widget.income
+        ? widget.insights.incomeCategories
+        : widget.insights.topCategories;
     final maxTotal = categories.first.value;
     final visible = _expanded
         ? categories
@@ -2097,14 +2157,18 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard> {
         children: [
           _FinanceInsightsScreenState._sectionTitle(
             theme,
-            'Category Breakdown',
+            widget.income
+                ? 'Income Category Breakdown'
+                : 'Expense Category Breakdown',
           ),
           const SizedBox(height: 12),
           ...visible.map(
             (entry) => _FinanceInsightsScreenState._buildCategoryRow(
               theme,
               entry,
-              total: widget.insights.total,
+              total: widget.income
+                  ? widget.insights.totalIncome
+                  : widget.insights.total,
               maxTotal: maxTotal,
             ),
           ),
