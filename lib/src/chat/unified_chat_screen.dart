@@ -17,7 +17,6 @@ import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/helpers/notification_payload.dart';
-import 'package:budget_ai/src/helpers/notification_text_formatter.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/vibration_manager.dart';
@@ -29,9 +28,10 @@ import 'package:budget_ai/src/helpers/ios_background_task_service.dart';
 import 'package:budget_ai/src/chat/chat_history_screen.dart';
 import 'package:budget_ai/src/chat/chat_empty_state.dart';
 import 'package:budget_ai/src/chat/chat_response_markdown.dart';
-import 'package:budget_ai/src/chat/currency_speech_formatter.dart';
 import 'package:budget_ai/src/chat/chat_activity_sections.dart';
 import 'package:budget_ai/src/speech/openai_speech_service.dart';
+import 'package:budget_ai/src/chat/chat_image_widgets.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
@@ -89,6 +89,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   late ChatModelConfig _activeConfig;
   final AudioRecorder _audioRecorder = AudioRecorder();
   final OpenAiSpeechService _speechService = OpenAiSpeechService();
+  final List<String> _draftImages = [];
+  final GlobalKey _composerFieldKey = GlobalKey();
+  bool _isPickingImages = false;
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _voiceHoldActive = false;
@@ -99,10 +102,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Future<void>? _voiceCapturePrewarm;
   bool _isFinishingVoiceRecording = false;
   DateTime? _voiceRecordingStartedAt;
-  int? _playingSpeechMessageIndex;
-  int? _pendingAutoSpeechMessageIndex;
-  String? _pendingAutoSpeechLanguageCode;
-  final Map<int, String> _speechLanguageByMessageIndex = {};
   int? _streamingMessageIndex;
   bool _isStreaming = false;
   bool _skipStreamingReveal = false;
@@ -145,6 +144,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     NetworkReachabilityService.instance.start();
     _voiceCapturePrewarm = _prewarmVoiceCapture();
     _initialize();
+    unawaited(_recoverPickedImages());
     unawaited(_refreshAiUsage());
     unawaited(AdminService.instance.preload());
 
@@ -262,7 +262,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   void _resetComposer() {
+    _draftImages.clear();
     _messageController.clear();
+    _updateCanSend();
   }
 
   Future<void> _resetToFreshDraft() async {
@@ -280,14 +282,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _isStreaming = false;
       _isReconnectingStream = false;
       _isWaitingForNetwork = false;
-      _playingSpeechMessageIndex = null;
-      _pendingAutoSpeechMessageIndex = null;
-      _pendingAutoSpeechLanguageCode = null;
-      _speechLanguageByMessageIndex.clear();
       _resetComposer();
     });
 
-    unawaited(_speechService.stop());
     _provider.clearHistory();
   }
 
@@ -494,7 +491,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     await _syncProviderStateToSession();
   }
 
-  void _handleComposerTextChanged() {}
+  void _handleComposerTextChanged() {
+    if (!mounted) return;
+    // LayoutBuilder measures wrapping too; this catches explicit newlines.
+    setState(() {});
+  }
 
   void _updateCanSend() {
     final next = _canSubmitCurrentMessage;
@@ -550,7 +551,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _notificationActionSubscription?.cancel();
     unawaited(_audioRecorder.cancel());
     _audioRecorder.dispose();
-    unawaited(_speechService.dispose());
     _provider.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -704,17 +704,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     bool removeProviderMessageFromHistory = false,
     int? replaceAssistantMessageIndex,
     int automaticToolContinuationDepth = 0,
-    bool autoSpeakResponse = false,
-    String? speechLanguageCode,
   }) async {
     final hasText = _messageController.text.trim().isNotEmpty;
 
-    if (!hasText && providerMessageOverride == null) return;
-
-    if (_speechService.isPlaying.value) {
-      unawaited(_speechService.stop());
-      _playingSpeechMessageIndex = null;
+    if ((!hasText && _draftImages.isEmpty && providerMessageOverride == null) ||
+        (appendUserMessage && _isResponseInProgress) ||
+        _isPickingImages) {
+      return;
     }
+    final attachedImages = appendUserMessage
+        ? List<String>.of(_draftImages)
+        : <String>[];
 
     _unfocusComposer();
 
@@ -728,6 +728,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         : providerMessageText;
     final provisionalUserMessage = ChatMessage(
       text: visibleUserMessageText,
+      images: attachedImages,
       isUser: true,
       timestamp: DateTime.now(),
     );
@@ -745,6 +746,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     });
 
     _messageController.clear();
+    _draftImages.clear();
+    _updateCanSend();
     _scrollToBottom(force: true);
 
     final chatFlowPromptSnapshot = await _buildChatFlowPromptSnapshot();
@@ -860,6 +863,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       String lastDisplayedText = '';
       bool hasReceivedContent = false;
       bool hasReceivedToolCalls = false;
+      bool generatingImage = false;
       const networkInactivityTimeout = Duration(seconds: 12);
       const postToolInactivityTimeout = Duration(seconds: 90);
       const activeToolInactivityTimeout = Duration(minutes: 20);
@@ -868,10 +872,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         return _provider.sendMessageStreamWithThinking(
           providerMessageText,
           enableToolCalls: true,
+          images: attachedImages,
         );
       }
 
       Duration currentStreamTimeout() {
+        if (generatingImage) return const Duration(minutes: 5);
         final hasActiveTool = messageBlocks.any(
           (block) =>
               block.type == ChatMessageBlockType.toolCall &&
@@ -936,6 +942,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 _appendThinkingBlock(messageBlocks, chunk.thinking!);
               }
 
+              if (chunk.isGeneratingImage) generatingImage = true;
+              if (chunk.imageDataUrl != null) {
+                generatingImage = false;
+                hasReceivedContent = true;
+                messageBlocks.add(
+                  ChatMessageBlock(
+                    id: 'image-${messageBlocks.length}',
+                    type: ChatMessageBlockType.image,
+                    text: chunk.imageDataUrl,
+                    isComplete: true,
+                  ),
+                );
+              }
               if (chunk.content.isNotEmpty) {
                 hasReceivedContent = true;
                 _appendResponseBlock(messageBlocks, chunk.content);
@@ -964,7 +983,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
               chunkCount++;
               final hasUserVisibleUpdate =
-                  chunk.content.isNotEmpty || chunk.toolCall != null;
+                  chunk.imageDataUrl != null ||
+                  chunk.content.isNotEmpty ||
+                  chunk.toolCall != null;
               final shouldUpdate =
                   hasUserVisibleUpdate &&
                   !shouldReplacePlaceholder &&
@@ -1193,7 +1214,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _replaceTimelineMessageAt(aiTimelineIndex!, finalAssistantMessage!);
         if (!willAutoContinueToolTurn) {
           _isStreaming = false;
-          if (_skipStreamingReveal) {
+          if (_skipStreamingReveal ||
+              finalAssistantMessage.text.trim().isEmpty) {
             _streamingMessageIndex = null;
           }
         }
@@ -1467,20 +1489,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         removeProviderMessageFromHistory: true,
         replaceAssistantMessageIndex: aiMessageIndex,
         automaticToolContinuationDepth: automaticToolContinuationDepth + 1,
-        autoSpeakResponse: autoSpeakResponse,
-        speechLanguageCode: speechLanguageCode,
       );
       return;
     }
 
     await _handlePostTurnSessionState();
-    if (autoSpeakResponse && aiMessageIndex != null) {
-      final languageCode = speechLanguageCode ?? _deviceSpeechLanguageCode;
-      _speechLanguageByMessageIndex[aiMessageIndex] = languageCode;
-      _pendingAutoSpeechMessageIndex = aiMessageIndex;
-      _pendingAutoSpeechLanguageCode = languageCode;
-      _tryStartPendingAutoSpeech();
-    }
     unawaited(_refreshAiUsage());
     _unfocusComposer();
     _scrollToBottom();
@@ -1548,7 +1561,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       await _audioRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
-          sampleRate: 44100,
+          sampleRate: 16000,
           numChannels: 1,
         ),
         path: path,
@@ -1637,13 +1650,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       if (!mounted) return;
       final transcript = transcription.text;
       if (transcript.isEmpty) {
-        setState(() => _isTranscribing = false);
-        _updateCanSend();
         showAppToast(
           context,
-          message:
-              'No speech was detected. Hold the mic, speak clearly, and try again.',
-          type: ToastificationType.info,
+          message: 'No speech detected. Hold the mic and try again.',
         );
         return;
       }
@@ -1653,10 +1662,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
       setState(() => _isTranscribing = false);
       _updateCanSend();
-      await _sendMessage(
-        autoSpeakResponse: true,
-        speechLanguageCode: transcription.languageCode,
-      );
+      await _sendMessage();
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -1680,104 +1686,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       message: '$prefix. ${error.toString().replaceFirst('Exception: ', '')}',
       type: ToastificationType.error,
     );
-  }
-
-  String get _deviceSpeechLanguageCode => speechLanguageCodeForLocale(
-    WidgetsBinding.instance.platformDispatcher.locale,
-  );
-
-  void _tryStartPendingAutoSpeech() {
-    final messageIndex = _pendingAutoSpeechMessageIndex;
-    if (_isAppInBackground || _isAppInactive || !_isOnChatScreen) {
-      _pendingAutoSpeechMessageIndex = null;
-      _pendingAutoSpeechLanguageCode = null;
-      return;
-    }
-    if (!mounted ||
-        messageIndex == null ||
-        _isResponseInProgress ||
-        _streamingMessageIndex == messageIndex ||
-        messageIndex < 0 ||
-        messageIndex >= _messages.length) {
-      return;
-    }
-    final message = _messages[messageIndex];
-    if (message.isUser || message.text.trim().isEmpty) return;
-    final languageCode =
-        _pendingAutoSpeechLanguageCode ?? _deviceSpeechLanguageCode;
-    _pendingAutoSpeechMessageIndex = null;
-    _pendingAutoSpeechLanguageCode = null;
-    unawaited(
-      _playAssistantSpeech(
-        message,
-        messageIndex: messageIndex,
-        languageCode: languageCode,
-      ),
-    );
-  }
-
-  bool _canPlayAssistantSpeech(ChatMessage message, int messageIndex) {
-    final isFinalInTurn =
-        messageIndex == _messages.length - 1 ||
-        _messages[messageIndex + 1].isUser;
-    return assistantSpeechTapEnabled(
-      isUser: message.isUser,
-      hasText: message.text.trim().isNotEmpty,
-      responseInProgress: _isResponseInProgress,
-      isStreamingMessage: _streamingMessageIndex == messageIndex,
-      isFinalInTurn: isFinalInTurn,
-    );
-  }
-
-  Future<void> _toggleAssistantSpeech(
-    ChatMessage message,
-    int messageIndex,
-  ) async {
-    if (!_canPlayAssistantSpeech(message, messageIndex)) return;
-    if (_playingSpeechMessageIndex == messageIndex &&
-        _speechService.isPlaying.value) {
-      await _speechService.stop();
-      if (mounted) setState(() => _playingSpeechMessageIndex = null);
-      return;
-    }
-    await _playAssistantSpeech(
-      message,
-      messageIndex: messageIndex,
-      languageCode:
-          _speechLanguageByMessageIndex[messageIndex] ??
-          _deviceSpeechLanguageCode,
-    );
-  }
-
-  Future<void> _playAssistantSpeech(
-    ChatMessage message, {
-    required int messageIndex,
-    required String languageCode,
-  }) async {
-    final plainText = expandCurrencyAmountsForSpeech(
-      speechPlainText(message.text, languageCode: languageCode),
-      languageCode: languageCode,
-    );
-    if (plainText.isEmpty) return;
-    await _speechService.stop();
-    if (!mounted) return;
-    setState(() => _playingSpeechMessageIndex = messageIndex);
-    try {
-      await _speechService.speak(plainText, languageCode: languageCode);
-    } catch (error) {
-      if (mounted) {
-        showAppToast(
-          context,
-          message:
-              'Could not play response. ${error.toString().replaceFirst('Exception: ', '')}',
-          type: ToastificationType.error,
-        );
-      }
-    } finally {
-      if (mounted && _playingSpeechMessageIndex == messageIndex) {
-        setState(() => _playingSpeechMessageIndex = null);
-      }
-    }
   }
 
   Future<void> _confirmAndCancelRequest() async {
@@ -1867,7 +1775,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   bool get _canSubmitCurrentMessage {
     final hasText = _messageController.text.trim().isNotEmpty;
-    return !_isStreaming && !_isRecording && !_isTranscribing && hasText;
+    return !_isResponseInProgress &&
+        !_isRecording &&
+        !_isTranscribing &&
+        !_isPickingImages &&
+        (hasText || _draftImages.isNotEmpty);
   }
 
   bool get _isResponseInProgress => _isLoading || _isStreaming;
@@ -1878,7 +1790,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return _activeSession != null ||
         _messages.isNotEmpty ||
         _timelineItems.isNotEmpty ||
-        _messageController.text.trim().isNotEmpty;
+        _messageController.text.trim().isNotEmpty ||
+        _draftImages.isNotEmpty;
   }
 
   Future<bool> _showLeaveWhileStreamingSheet() async {
@@ -2732,7 +2645,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (_isRecording || _voiceStartInFlight) {
       unawaited(_cancelVoiceHold());
     }
-    unawaited(_speechService.stop());
   }
 
   @override
@@ -3214,7 +3126,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 curve: Curves.easeOutCubic,
                 constraints: const BoxConstraints(
                   minHeight: 56,
-                  maxHeight: 148,
+                  maxHeight: 320,
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
@@ -3237,7 +3149,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   ],
                 ),
                 child: IgnorePointer(
-                  ignoring: isWorking || isVoiceProcessing,
+                  ignoring: isVoiceProcessing,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 280),
                     reverseDuration: const Duration(milliseconds: 220),
@@ -3289,69 +3201,326 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
+  Future<void> _showAttachmentMenu() async {
+    if (_isResponseInProgress || _isPickingImages || _isRecording) return;
+    final source = await showGeneralDialog<ImageSource>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close attachments',
+      barrierColor: Colors.black12,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, _) => SafeArea(
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.viewInsetsOf(context).bottom + 92,
+            ),
+            child: Material(
+              elevation: 12,
+              borderRadius: BorderRadius.circular(22),
+              clipBehavior: Clip.antiAlias,
+              child: SizedBox(
+                width: 210,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(CupertinoIcons.photo),
+                      title: const Text('Photo'),
+                      onTap: () => Navigator.pop(context, ImageSource.gallery),
+                    ),
+                    ListTile(
+                      leading: const Icon(CupertinoIcons.camera),
+                      title: const Text('Camera'),
+                      onTap: () => Navigator.pop(context, ImageSource.camera),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      transitionBuilder: (context, animation, _, child) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position:
+              Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+          child: child,
+        ),
+      ),
+    );
+    if (source != null && mounted) await _pickImages(source);
+  }
+
+  Future<void> _recoverPickedImages() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final recovered = await ImagePicker().retrieveLostData();
+      for (final file in (recovered.files ?? <XFile>[]).take(3)) {
+        final image = await prepareChatImage(await file.readAsBytes());
+        if (!mounted || _draftImages.length >= 3) return;
+        setState(() => _draftImages.add(image));
+      }
+      if (mounted) _updateCanSend();
+    } catch (error) {
+      if (mounted) {
+        showAppToast(
+          context,
+          message:
+              'Could not restore the selected photo. Please select it again.',
+        );
+      }
+    }
+  }
+
+  Future<void> _pickImages(ImageSource source) async {
+    final remaining = 3 - _draftImages.length;
+    if (remaining <= 0) {
+      showAppToast(context, message: 'You can attach up to 3 images.');
+      return;
+    }
+    setState(() => _isPickingImages = true);
+    _updateCanSend();
+    try {
+      final picker = ImagePicker();
+      final List<XFile> files;
+      if (source == ImageSource.camera || remaining == 1) {
+        final file = await picker.pickImage(
+          source: source,
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 85,
+          requestFullMetadata: false,
+        );
+        files = file == null ? [] : [file];
+      } else {
+        files = await picker.pickMultiImage(
+          limit: remaining,
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 85,
+          requestFullMetadata: false,
+        );
+      }
+      for (final file in files.take(remaining)) {
+        final image = await prepareChatImage(await file.readAsBytes());
+        if (!mounted) return;
+        setState(() => _draftImages.add(image));
+      }
+    } catch (error) {
+      if (mounted) {
+        showAppToast(
+          context,
+          message:
+              'Could not add image. ${error.toString().replaceFirst('FormatException: ', '')}',
+          type: ToastificationType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImages = false);
+        _updateCanSend();
+      }
+    }
+  }
+
+  Future<void> _expandComposer() async {
+    _unfocusComposer();
+    final send = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.82,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: 'Collapse composer',
+                  icon: const Icon(Icons.close_fullscreen),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              if (_draftImages.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: ChatImageStrip(images: _draftImages),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: TextField(
+                    controller: _messageController,
+                    autofocus: true,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      hintText: 'Ask Budget AI',
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _messageController,
+                    builder: (context, value, _) => IconButton.filled(
+                      tooltip: 'Send',
+                      icon: const Icon(Icons.arrow_upward),
+                      onPressed:
+                          value.text.trim().isNotEmpty ||
+                              _draftImages.isNotEmpty
+                          ? () => Navigator.pop(context, true)
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (send == true && mounted) await _handleComposerSubmit();
+  }
+
   Widget _buildNormalComposerContent(
     ThemeData theme, {
     required Color textColor,
     required Color hintColor,
   }) {
-    return Row(
-      key: const ValueKey('normal-composer'),
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (_isRecording) ...[
+    if (_isRecording) {
+      return Row(
+        children: [
           const SizedBox(
             width: 44,
             height: 44,
             child: ChatVoiceRecordingPulse(size: 44),
           ),
-          const SizedBox(width: 2),
+          const Expanded(child: ChatVoiceRecordingStatus()),
+          _buildComposerSendButton(theme),
         ],
-        Expanded(
-          child: _isRecording
-              ? const ChatVoiceRecordingStatus()
-              : Padding(
-                  padding: const EdgeInsets.only(left: 8, bottom: 10),
-                  child: TextField(
-                    focusNode: _messageFocusNode,
-                    scrollController: _messageInputScrollController,
-                    cursorColor: theme.colorScheme.primary,
-                    controller: _messageController,
-                    enabled: true,
-                    autofocus: false,
-                    decoration: InputDecoration(
-                      hoverColor: Colors.transparent,
-                      hintText: 'Ask Budget AI',
-                      hintStyle: TextStyle(
-                        color: hintColor.withValues(alpha: 0.72),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        fontFamily: _chatFontFamily,
-                      ),
-                      border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      fillColor: Colors.transparent,
-                    ),
-                    maxLines: 1,
-                    minLines: 1,
-                    textInputAction: TextInputAction.newline,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: textColor,
-                      fontFamily: _chatFontFamily,
-                    ),
-                  ),
-                ),
-        ),
-        const SizedBox(width: 2),
-        ValueListenableBuilder<bool>(
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter =
+            TextPainter(
+              text: TextSpan(
+                text: _messageController.text,
+                style: TextStyle(fontSize: 16, fontFamily: _chatFontFamily),
+              ),
+              textDirection: Directionality.of(context),
+              textScaler: MediaQuery.textScalerOf(context),
+            )..layout(
+              maxWidth: (constraints.maxWidth - 112).clamp(1, double.infinity),
+            );
+        final multiline =
+            painter.computeLineMetrics().length > 1 || _draftImages.isNotEmpty;
+        painter.dispose();
+        final field = TextField(
+          key: _composerFieldKey,
+          focusNode: _messageFocusNode,
+          scrollController: _messageInputScrollController,
+          controller: _messageController,
+          cursorColor: theme.colorScheme.primary,
+          decoration: InputDecoration(
+            hintText: 'Ask Budget AI',
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            isDense: true,
+            filled: false,
+            hintStyle: TextStyle(
+              color: hintColor.withValues(alpha: 0.72),
+              fontSize: 16,
+              fontFamily: _chatFontFamily,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 10,
+            ),
+          ),
+          minLines: 1,
+          maxLines: 2,
+          textInputAction: TextInputAction.newline,
+          textCapitalization: TextCapitalization.sentences,
+          style: TextStyle(
+            fontSize: 16,
+            color: textColor,
+            fontFamily: _chatFontFamily,
+          ),
+        );
+        final add = IconButton(
+          tooltip: 'Add photos or camera image',
+          onPressed: _isPickingImages ? null : _showAttachmentMenu,
+          icon: _isPickingImages
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(CupertinoIcons.plus, size: 26),
+        );
+        final send = ValueListenableBuilder<bool>(
           valueListenable: _canSendNotifier,
-          builder: (context, canSend, child) => _buildComposerSendButton(theme),
-        ),
-      ],
+          builder: (context, _, _) => _buildComposerSendButton(theme),
+        );
+        return Column(
+          key: const ValueKey('normal-composer'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_draftImages.isNotEmpty)
+              ChatImageStrip(
+                images: _draftImages,
+                onRemove: (index) {
+                  setState(() => _draftImages.removeAt(index));
+                  _updateCanSend();
+                },
+              ),
+            if (multiline) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: field),
+                  IconButton(
+                    tooltip: 'Expand composer',
+                    onPressed: _expandComposer,
+                    icon: const Icon(Icons.open_in_full, size: 18),
+                  ),
+                ],
+              ),
+              Row(children: [add, const Spacer(), send]),
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  add,
+                  Expanded(child: field),
+                  send,
+                ],
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -3365,6 +3534,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
         const SizedBox(width: 8),
         const Expanded(child: ChatWorkingWord(fontSize: 16)),
+        _buildComposerSendButton(theme),
       ],
     );
   }
@@ -3433,7 +3603,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     final canSend = _canSubmitCurrentMessage;
-    final hasText = _messageController.text.trim().isNotEmpty;
+    final hasText =
+        _messageController.text.trim().isNotEmpty || _draftImages.isNotEmpty;
     final canHoldToTalk =
         !hasText && !_isTranscribing && !_isResponseInProgress;
     final activeColor = theme.colorScheme.primary;
@@ -3533,6 +3704,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (message.images.isNotEmpty)
+              ChatImageStrip(images: message.images),
             if (message.text.isNotEmpty)
               ExpandableUserMessageText(
                 text: message.text,
@@ -3607,13 +3780,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       );
 
-      return GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: _canPlayAssistantSpeech(message, resolvedMessageIndex)
-            ? () => _toggleAssistantSpeech(message, resolvedMessageIndex)
-            : null,
-        child: messageContent,
-      );
+      return messageContent;
     }
   }
 
@@ -3649,6 +3816,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     final lastBlock = blocks[lastMeaningfulIndex];
+    if (lastBlock.type == ChatMessageBlockType.image) return false;
     if (lastBlock.type == ChatMessageBlockType.toolCall ||
         lastBlock.type == ChatMessageBlockType.thinking) {
       return true;
@@ -3706,6 +3874,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
 
     final lastBlock = blocks[lastMeaningfulIndex];
+    if (lastBlock.type == ChatMessageBlockType.image) return false;
     if (lastBlock.type == ChatMessageBlockType.toolCall ||
         lastBlock.type == ChatMessageBlockType.thinking) {
       return true;
@@ -3795,6 +3964,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     var index = 0;
     while (index < blocks.length) {
       final block = blocks[index];
+      if (block.type == ChatMessageBlockType.image) {
+        addChild(ChatImageView(dataUrl: block.text ?? ''), isResponse: false);
+        index++;
+        continue;
+      }
       if (block.type == ChatMessageBlockType.response) {
         final responseBuffer = StringBuffer();
         var groupLastIndex = index;
@@ -3874,25 +4048,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       index++;
     }
 
-    if (!isCurrentlyStreaming) {
-      final financeTable = financeResultMarkdown(
-        blocks
-            .where((block) => block.type == ChatMessageBlockType.toolCall)
-            .map((block) => block.toolCall)
-            .whereType<ToolCall>(),
-      );
-      if (financeTable != null) {
-        addChild(
-          _buildResponseMarkdown(
-            financeTable,
-            isStreaming: false,
-            messageIndex: messageIndex,
-          ),
-          isResponse: false,
-        );
-      }
-    }
-
     if (children.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3950,7 +4105,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       return;
     }
     setState(() => _streamingMessageIndex = null);
-    _tryStartPendingAutoSpeech();
   }
 
   Future<void> _handleMarkdownLinkTap(String url, String title) async {

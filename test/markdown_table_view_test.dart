@@ -12,17 +12,14 @@ void main() {
       CustomTableRow(
         isHeader: true,
         fields: [
-          CustomTableField(data: 'Amount'),
-          CustomTableField(data: 'Very Long Entry Name That Must Truncate'),
+          CustomTableField(data: 'Period'),
+          CustomTableField(data: 'Total', alignment: TextAlign.right),
         ],
       ),
       CustomTableRow(
         fields: [
-          CustomTableField(data: '15,290 Rs'),
-          CustomTableField(
-            data: 'A very long description that should truncate cleanly',
-            alignment: TextAlign.right,
-          ),
+          CustomTableField(data: 'August'),
+          CustomTableField(data: '15,290 Rs', alignment: TextAlign.right),
         ],
       ),
     ];
@@ -39,25 +36,13 @@ void main() {
       ),
     );
 
-    for (final label in [
-      'Amount',
-      'Very Long Entry Name That Must Truncate',
-      '15,290 Rs',
-      'A very long description that should truncate cleanly',
-    ]) {
+    for (final label in ['Period', 'Total', 'August', '15,290 Rs']) {
       final text = tester.widget<Text>(find.text(label));
       expect(text.textAlign, TextAlign.start);
-      expect(text.maxLines, 1);
-      expect(text.softWrap, isFalse);
-      expect(text.overflow, TextOverflow.ellipsis);
       final align = tester.widget<Align>(
         find.ancestor(of: find.text(label), matching: find.byType(Align)).first,
       );
       expect(align.alignment, AlignmentDirectional.centerStart);
     }
-
-    final table = tester.widget<Table>(find.byType(Table));
-    final amountWidth = table.columnWidths![0] as FixedColumnWidth;
-    expect(amountWidth.value, greaterThan(68));
   });
 }

@@ -27,6 +27,7 @@ class ResponsesProvider extends BaseChatProvider {
   Stream<ChatStreamChunk> sendMessageStreamWithThinking(
     String message, {
     bool enableToolCalls = true,
+    List<String> images = const [],
   }) async* {
     _refreshSessionCredential();
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -36,7 +37,11 @@ class ResponsesProvider extends BaseChatProvider {
       );
     }
 
-    _chatHistory.add({'role': 'user', 'content': message});
+    if (images.length > 3) throw ArgumentError('Attach at most three images.');
+    _chatHistory.add({
+      'role': 'user',
+      'content': chatInputContent(message, images),
+    });
     final tools = enableToolCalls ? _toolRegistry.getAvailableTools() : [];
     final hasTools = tools.isNotEmpty;
     final reasoningEffort = _reasoningEffortFor(message);
@@ -83,9 +88,15 @@ class ResponsesProvider extends BaseChatProvider {
           'client_turn_id': const Uuid().v4(),
         };
         if (hasTools) {
-          requestData['tools'] = tools
-              .map((tool) => tool.toResponsesJson())
-              .toList();
+          requestData['tools'] = [
+            ...tools.map((tool) => tool.toResponsesJson()),
+            {
+              'type': 'image_generation',
+              'model': 'gpt-image-2',
+              'size': '1024x1024',
+              'quality': 'medium',
+            },
+          ];
           requestData['tool_choice'] = 'auto';
           requestData['parallel_tool_calls'] = false;
         }
@@ -134,6 +145,19 @@ class ResponsesProvider extends BaseChatProvider {
           final eventType = event['type']?.toString() ?? '';
 
           switch (eventType) {
+            case 'response.image_generation_call.in_progress':
+            case 'response.image_generation_call.generating':
+              yield ChatStreamChunk(content: '', isGeneratingImage: true);
+            case 'response.output_item.done':
+              final imageItem = event['item'];
+              if (imageItem is Map &&
+                  imageItem['type'] == 'image_generation_call' &&
+                  imageItem['result'] is String) {
+                yield ChatStreamChunk(
+                  content: '',
+                  imageDataUrl: 'data:image/png;base64,${imageItem['result']}',
+                );
+              }
             case 'response.output_text.delta':
               final delta = event['delta']?.toString() ?? '';
               if (delta.isNotEmpty) {

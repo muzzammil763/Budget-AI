@@ -34,6 +34,7 @@ abstract class ChatProvider {
   Stream<ChatStreamChunk> sendMessageStreamWithThinking(
     String message, {
     bool enableToolCalls = true,
+    List<String> images = const [],
   });
 
   Future<String> generateTitle(List<ChatMessage> messages);
@@ -262,7 +263,9 @@ Title:''';
     for (var msg in messages) {
       nextState.add({
         'role': msg.isUser ? 'user' : 'assistant',
-        'content': msg.text,
+        'content': msg.isUser
+            ? chatInputContent(msg.text, msg.images)
+            : msg.text,
       });
     }
     loadConversationState(nextState);
@@ -292,3 +295,12 @@ Title:''';
     _dio.close();
   }
 }
+
+/// Keep image content structured all the way to the Responses API.
+Object chatInputContent(String text, List<String> images) => images.isEmpty
+    ? text
+    : [
+        if (text.isNotEmpty) {'type': 'input_text', 'text': text},
+        for (final image in images)
+          {'type': 'input_image', 'image_url': image, 'detail': 'auto'},
+      ];

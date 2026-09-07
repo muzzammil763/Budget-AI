@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:budget_ai/src/chat/currency_speech_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -558,19 +557,11 @@ String _formatCompactCount(int value) {
 }
 
 String normalizeChatResponseMarkdown(String text) {
-  final normalized = _normalizeMarkdownSpacing(
+  return _normalizeMarkdownSpacing(
     _autoLinkBareUrls(
       _normalizeMarkdownLinks(_stripInlineDataImageMarkdown(text)),
     ),
   );
-  return normalized
-      .split('\n')
-      .map(
-        (line) => line.trim().startsWith('|') && line.trim().endsWith('|')
-            ? line
-            : expandCurrencyAmountsForSpeech(line),
-      )
-      .join('\n');
 }
 
 /// Keeps incomplete Markdown delimiters from briefly appearing as literal
