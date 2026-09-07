@@ -46,6 +46,11 @@ mixin FinanceSummaryToolHandler {
       final to = toStr.isNotEmpty ? DateTime.tryParse(toStr) ?? now : now;
 
       var entries = await FinanceService.instance.getByDateRange(from, to);
+      final includeRollovers = from.year == to.year && from.month == to.month;
+      entries = FinanceService.reportingEntries(
+        entries,
+        includeRollovers: includeRollovers,
+      );
       if (type != null) {
         entries = entries.where((entry) => entry.type == type).toList();
       }
@@ -74,6 +79,7 @@ mixin FinanceSummaryToolHandler {
         'to':
             '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}',
         'entry_count': entries.length,
+        'includes_month_rollovers': includeRollovers,
         'total': FinanceEntry.money(total),
         'income_total': FinanceEntry.money(incomeTotal),
         'expense_total': FinanceEntry.money(expenseTotal),
