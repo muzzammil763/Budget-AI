@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:math';
+import 'package:image/image.dart' as img;
 import 'package:budget_ai/src/chat/chat_image_widgets.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,32 @@ import 'package:flutter_test/flutter_test.dart';
 const pixel =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 void main() {
+  testWidgets(
+    'photo normalization bounds JPEG upload while preserving dimensions',
+    (tester) async {
+      await tester.runAsync(() async {
+        final random = Random(7);
+        final photo = img.Image(width: 900, height: 700);
+        for (final pixel in photo) {
+          pixel.setRgb(
+            random.nextInt(256),
+            random.nextInt(256),
+            random.nextInt(256),
+          );
+        }
+        final source = img.encodePng(photo);
+        expect(source.length, greaterThan(384 * 1024));
+        final prepared = await prepareChatImage(source);
+        expect(prepared, startsWith('data:image/jpeg;base64,'));
+        final bytes = base64Decode(prepared.split(',').last);
+        expect(bytes.length, lessThanOrEqualTo(768 * 1024));
+        final decoded = img.decodeJpg(bytes)!;
+        expect(decoded.width, 900);
+        expect(decoded.height, 700);
+      });
+    },
+  );
+
   test('images survive serialization and copying of local messages', () {
     final user = ChatMessage(
       text: '',

@@ -1,60 +1,95 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 
-/// Normalize camera/HEIC/gallery inputs to an API-compatible, bounded PNG.
+/// Decode native photo formats once, then send a metadata-free bounded image.
 Future<String> prepareChatImage(Uint8List bytes) async {
   if (bytes.length > 25 * 1024 * 1024) {
     throw const FormatException('Choose an image smaller than 25 MB.');
   }
-  final descriptor = await ui.ImmutableBuffer.fromUint8List(bytes);
-  final imageDescriptor = await ui.ImageDescriptor.encoded(descriptor);
-  final longest = imageDescriptor.width > imageDescriptor.height
-      ? imageDescriptor.width
-      : imageDescriptor.height;
+  final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+  ui.ImageDescriptor? descriptor;
   try {
-    var targetLongest = longest.clamp(1, 1600);
-    while (true) {
-      final scale = targetLongest / longest;
-      final codec = await imageDescriptor.instantiateCodec(
-        targetWidth: (imageDescriptor.width * scale).round(),
-        targetHeight: (imageDescriptor.height * scale).round(),
-      );
+    descriptor = await ui.ImageDescriptor.encoded(buffer);
+    final scale = math.min(
+      1.0,
+      1600 / math.max(descriptor.width, descriptor.height),
+    );
+    final codec = await descriptor.instantiateCodec(
+      targetWidth: math.max(1, (descriptor.width * scale).round()),
+      targetHeight: math.max(1, (descriptor.height * scale).round()),
+    );
+    try {
+      final frame = await codec.getNextFrame();
       try {
-        final frame = await codec.getNextFrame();
-        try {
-          final encoded = await frame.image.toByteData(
-            format: ui.ImageByteFormat.png,
-          );
-          if (encoded == null) {
-            throw const FormatException('Could not prepare this image.');
-          }
-          if (encoded.lengthInBytes <= 4 * 1024 * 1024) {
-            return 'data:image/png;base64,${base64Encode(encoded.buffer.asUint8List())}';
-          }
-          final ratio = math.sqrt((4 * 1024 * 1024) / encoded.lengthInBytes);
-          targetLongest = (targetLongest * ratio * 0.9).floor().clamp(
-            320,
-            targetLongest - 1,
-          );
-        } finally {
-          frame.image.dispose();
-        }
-      } finally {
-        codec.dispose();
-      }
-      if (targetLongest <= 320) {
-        throw const FormatException(
-          'Could not reduce this image enough. Choose another image.',
+        final png = await frame.image.toByteData(
+          format: ui.ImageByteFormat.png,
         );
+        if (png == null) {
+          throw const FormatException('Could not prepare this image.');
+        }
+        if (png.lengthInBytes <= 384 * 1024) {
+          return 'data:image/png;base64,${base64Encode(png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes))}';
+        }
+        final raw = await frame.image.toByteData(
+          format: ui.ImageByteFormat.rawStraightRgba,
+        );
+        if (raw == null) {
+          throw const FormatException('Could not prepare this photo.');
+        }
+        return compute(_encodePhoto, (
+          raw.buffer.asUint8List(raw.offsetInBytes, raw.lengthInBytes),
+          frame.image.width,
+          frame.image.height,
+        ));
+      } finally {
+        frame.image.dispose();
       }
+    } finally {
+      codec.dispose();
     }
   } finally {
-    imageDescriptor.dispose();
-    descriptor.dispose();
+    descriptor?.dispose();
+    buffer.dispose();
+  }
+}
+
+String _encodePhoto((Uint8List, int, int) data) {
+  final (bytes, width, height) = data;
+  var photo = img.Image(width: width, height: height, numChannels: 3);
+  // Flatten transparency onto white without retaining EXIF/GPS metadata.
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final offset = (y * width + x) * 4;
+      final alpha = bytes[offset + 3] / 255;
+      photo.setPixelRgb(
+        x,
+        y,
+        (bytes[offset] * alpha + 255 * (1 - alpha)).round(),
+        (bytes[offset + 1] * alpha + 255 * (1 - alpha)).round(),
+        (bytes[offset + 2] * alpha + 255 * (1 - alpha)).round(),
+      );
+    }
+  }
+  while (true) {
+    for (final quality in [85, 75, 65]) {
+      final encoded = img.encodeJpg(photo, quality: quality);
+      if (encoded.length <= 768 * 1024) {
+        return 'data:image/jpeg;base64,${base64Encode(encoded)}';
+      }
+    }
+    if (math.max(photo.width, photo.height) <= 320) {
+      throw const FormatException('Could not prepare this photo for upload.');
+    }
+    photo = img.copyResize(
+      photo,
+      width: math.max(1, (photo.width * 0.8).round()),
+      height: math.max(1, (photo.height * 0.8).round()),
+    );
   }
 }
 

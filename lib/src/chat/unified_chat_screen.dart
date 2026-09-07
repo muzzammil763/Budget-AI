@@ -3500,6 +3500,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         );
         return Column(
           key: const ValueKey('normal-composer'),
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_draftImages.isNotEmpty)
@@ -3708,7 +3709,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
       Widget buildContent() {
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (message.images.isNotEmpty)
@@ -3716,6 +3717,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             if (message.text.isNotEmpty)
               ExpandableUserMessageText(
                 text: message.text,
+                textAlign: TextAlign.right,
                 style: UserBubbleStyleSurface.messageTextStyle(
                   context,
                   bubbleStyle,

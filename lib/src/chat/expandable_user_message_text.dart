@@ -4,11 +4,13 @@ import 'package:budget_ai/src/helpers/app_theme.dart';
 class ExpandableUserMessageText extends StatefulWidget {
   final String text;
   final TextStyle style;
+  final TextAlign textAlign;
 
   const ExpandableUserMessageText({
     super.key,
     required this.text,
     required this.style,
+    this.textAlign = TextAlign.start,
   });
 
   @override
@@ -35,7 +37,9 @@ class _ExpandableUserMessageTextState extends State<ExpandableUserMessageText> {
         final hasOverflow = textPainter.didExceedMaxLines;
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: widget.textAlign == TextAlign.right
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedCrossFade(
@@ -46,12 +50,17 @@ class _ExpandableUserMessageTextState extends State<ExpandableUserMessageText> {
               firstChild: Text(
                 widget.text,
                 style: widget.style,
+                textAlign: widget.textAlign,
                 maxLines: hasOverflow ? _collapsedMaxLines : null,
                 overflow: hasOverflow
                     ? TextOverflow.fade
                     : TextOverflow.visible,
               ),
-              secondChild: Text(widget.text, style: widget.style),
+              secondChild: Text(
+                widget.text,
+                style: widget.style,
+                textAlign: widget.textAlign,
+              ),
             ),
             if (hasOverflow) ...[
               const SizedBox(height: 6),
