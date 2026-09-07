@@ -136,8 +136,8 @@ class ExpenseSummaryCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTheme.headingLarge.copyWith(
-              color: onCard,
-              fontSize: 32,
+              color: Colors.red,
+              fontSize: 28,
               fontWeight: FontWeight.w500,
               fontFamily: "Boldonse",
               letterSpacing: 1.2,
