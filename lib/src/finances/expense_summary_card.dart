@@ -68,11 +68,21 @@ class ExpenseSummaryCard extends StatelessWidget {
     final average = count <= 0 ? 0.0 : total / count;
     final cardColor = theme.colorScheme.primary;
     final onCard = AppTheme.readableOn(cardColor);
+    String dateLabel(DateTime date) =>
+        '${date.day} ${_monthLabel(date, short: true)}';
+    final currentMonth =
+        scope != null &&
+        scope.year == current.year &&
+        scope.month == current.month;
     final range = scope != null
         ? 'Month · ${_monthLabel(scope)}'
         : entries.isEmpty
-        ? 'Until today'
-        : 'From ${'${entries.first.date.day.toString().padLeft(2, '0')} ${_monthLabel(entries.first.date, short: true)}'} To Today';
+        ? 'Through ${dateLabel(current)}'
+        : 'From ${dateLabel(entries.first.date)} To ${dateLabel(current)}';
+    final subtitle = scope != null
+        ? 'Total spent in ${_monthLabel(scope, short: true)}${currentMonth ? ' · 1–${current.day} ${_monthLabel(scope, short: true).split(' ').first}' : ''}'
+        : 'Total spent through ${dateLabel(current)}';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -135,9 +145,7 @@ class ExpenseSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            scope != null
-                ? 'Total spent in ${_monthLabel(scope, short: true)}'
-                : 'Total spent until today',
+            subtitle,
             style: AppTheme.bodySmall.copyWith(
               color: onCard.withValues(alpha: 0.72),
               fontSize: 14,

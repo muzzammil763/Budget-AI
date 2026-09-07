@@ -46,9 +46,35 @@ void main() {
     );
     await tester.tap(find.byTooltip('Remove image 1'));
     expect(removed, 0);
-    await tester.tap(find.byType(ChatImageView));
+    expect(tester.getSize(find.byType(ChatImageView)), const Size(64, 64));
+    await tester.tapAt(
+      tester.getBottomLeft(find.byType(ChatImageView)) + const Offset(12, -12),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(InteractiveViewer), findsOneWidget);
+  });
+  testWidgets('single sent attachment does not stretch across the bubble', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.centerRight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ChatImageStrip(images: [pixel]),
+                Text('Receipt'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(ChatImageStrip)).width, 72);
+    expect(tester.getSize(find.byType(ChatImageView)), const Size(72, 72));
   });
   testWidgets('invalid saved image renders a fallback', (tester) async {
     await tester.pumpWidget(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
@@ -12,6 +13,30 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  test('stalled transport is aborted before iterator cleanup', () async {
+    final pending = Completer<void>();
+    Stream<ChatStreamChunk> stalled() async* {
+      await pending.future;
+      return;
+    }
+
+    final iterator = StreamIterator<ChatStreamChunk>(stalled());
+    var cancelled = false;
+    await expectLater(
+      moveNextChatChunk(
+        iterator,
+        timeout: const Duration(milliseconds: 10),
+        cancelRequest: () {
+          cancelled = true;
+          pending.complete();
+        },
+      ),
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(cancelled, isTrue);
+    await iterator.cancel().timeout(const Duration(seconds: 1));
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() async {

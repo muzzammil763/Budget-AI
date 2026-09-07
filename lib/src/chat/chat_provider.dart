@@ -304,3 +304,16 @@ Object chatInputContent(String text, List<String> images) => images.isEmpty
         for (final image in images)
           {'type': 'input_image', 'image_url': image, 'detail': 'auto'},
       ];
+
+/// Abort transport before iterator cleanup can wait on an unfinished HTTP read.
+Future<bool> moveNextChatChunk(
+  StreamIterator<ChatStreamChunk> iterator, {
+  required Duration timeout,
+  required void Function() cancelRequest,
+}) => iterator.moveNext().timeout(
+  timeout,
+  onTimeout: () {
+    cancelRequest();
+    throw TimeoutException('The response stopped sending data.');
+  },
+);

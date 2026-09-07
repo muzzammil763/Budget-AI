@@ -909,6 +909,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       bool hasReceivedContent = false;
       bool hasReceivedToolCalls = false;
       bool generatingImage = false;
+      final hasImageContext =
+          attachedImages.isNotEmpty ||
+          _messages.any((message) => message.images.isNotEmpty);
       const networkInactivityTimeout = Duration(seconds: 12);
       const postToolInactivityTimeout = Duration(seconds: 90);
       const activeToolInactivityTimeout = Duration(minutes: 20);
@@ -944,6 +947,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           return postToolInactivityTimeout;
         }
 
+        if (hasImageContext && !hasReceivedContent) {
+          return const Duration(seconds: 90);
+        }
         return networkInactivityTimeout;
       }
 
@@ -958,7 +964,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
           final iterator = StreamIterator<ChatStreamChunk>(createStream());
           try {
-            while (await iterator.moveNext().timeout(currentStreamTimeout())) {
+            while (await moveNextChatChunk(
+              iterator,
+              timeout: currentStreamTimeout(),
+              cancelRequest: _provider.cancelRequest,
+            )) {
               final chunk = iterator.current;
               if (_isReconnectingStream) {
                 setState(() {

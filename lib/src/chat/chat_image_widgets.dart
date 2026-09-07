@@ -67,7 +67,10 @@ class ChatImageStrip extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: SizedBox(
-      height: 96,
+      width:
+          images.length * (onRemove == null ? 72.0 : 64.0) +
+          (images.length - 1) * 8,
+      height: onRemove == null ? 72 : 64,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: images.length,
@@ -75,8 +78,8 @@ class ChatImageStrip extends StatelessWidget {
         itemBuilder: (context, index) => Stack(
           children: [
             SizedBox(
-              width: 96,
-              height: 96,
+              width: onRemove == null ? 72 : 64,
+              height: onRemove == null ? 72 : 64,
               child: ChatImageView(dataUrl: images[index], thumbnail: true),
             ),
             if (onRemove != null)
@@ -90,6 +93,8 @@ class ChatImageStrip extends StatelessWidget {
                     backgroundColor: Colors.black54,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(32, 32),
+                    maximumSize: const Size(32, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: EdgeInsets.zero,
                   ),
                   icon: const Icon(Icons.close, size: 18),
