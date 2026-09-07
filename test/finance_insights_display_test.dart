@@ -79,6 +79,37 @@ void main() {
     },
   );
 
+  testWidgets('past month moves saved income into the following month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final rollover = FinanceService.buildRolloverEntry(
+      sourceMonth: month,
+      closingBalance: 3000,
+    )!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FinanceInsightsScreen(
+          entries: [
+            entry(FinanceEntryType.income, 20000),
+            entry(FinanceEntryType.expense, 17000),
+            rollover,
+          ],
+          selectedMonth: month,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('+${FinanceEntry.money(17000)}'), findsOneWidget);
+    expect(find.text('+${FinanceEntry.money(20000)}'), findsNothing);
+    expect(find.text(FinanceEntry.money(3000)), findsWidgets);
+    expect(find.text('Saved'), findsWidgets);
+  });
+
   testWidgets('overall Net uses the current carried balance', (tester) async {
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1;

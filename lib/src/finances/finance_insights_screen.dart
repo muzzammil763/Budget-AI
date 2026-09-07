@@ -452,12 +452,25 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
       type: FinanceEntryType.expense,
     );
     final monthNet = monthIncome - monthExpense;
+    final scope = _scopeMonth;
+    final outgoingRollover = scope == null
+        ? null
+        : FinanceService.rolloverEntryForMonth(widget.entries, scope);
+    final scopedIncome =
+        insights.totalIncome -
+        (outgoingRollover?.type == FinanceEntryType.income
+            ? outgoingRollover!.amount
+            : 0);
+    final scopedExpense =
+        insights.total -
+        (outgoingRollover?.type == FinanceEntryType.expense
+            ? outgoingRollover!.amount
+            : 0);
     final scopedNet = insights.totalIncome - insights.total;
     final overallIncome = insights.totalIncome;
     // Historical totals describe activity. The balance is what remains after
     // month-to-month carryovers, represented by the current month's figures.
     final overallNet = monthNet;
-    final scope = _scopeMonth;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -471,8 +484,8 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
             _buildIncomeExpenseColumn(
               theme,
               label: _monthLabel(scope),
-              income: insights.totalIncome,
-              expense: insights.total,
+              income: scopedIncome,
+              expense: scopedExpense,
               net: scopedNet,
               isPastMonth: _isPastMonthScope,
             )

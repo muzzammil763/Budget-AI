@@ -664,14 +664,21 @@ class FinanceService {
     List<FinanceEntry> entries,
     DateTime sourceMonth,
   ) {
+    return rolloverEntryForMonth(entries, sourceMonth) != null;
+  }
+
+  static FinanceEntry? rolloverEntryForMonth(
+    Iterable<FinanceEntry> entries,
+    DateTime sourceMonth,
+  ) {
     final source = DateTime(sourceMonth.year, sourceMonth.month);
     final target = DateTime(source.year, source.month + 1);
     final sourceLabel =
         '${_rolloverMonthNames[source.month - 1]} ${source.year}'.toLowerCase();
     final deterministicId = rolloverEntryIdForMonth(source);
 
-    return entries.any((entry) {
-      if (entry.id == deterministicId) return true;
+    for (final entry in entries) {
+      if (entry.id == deterministicId) return entry;
       final category = entry.category.toLowerCase();
       final isRolloverCategory =
           category == savingsCategory.toLowerCase() ||
@@ -679,14 +686,17 @@ class FinanceService {
       if (!isRolloverCategory ||
           entry.date.year != target.year ||
           entry.date.month != target.month) {
-        return false;
+        continue;
       }
       final description = entry.description.toLowerCase();
-      return (description.startsWith('savings from ') ||
+      final matches =
+          (description.startsWith('savings from ') ||
               description.startsWith('overspending from ') ||
               description.startsWith('deficit carried from ')) &&
           description.endsWith(sourceLabel);
-    });
+      if (matches) return entry;
+    }
+    return null;
   }
 
   @visibleForTesting

@@ -206,14 +206,27 @@ class _FinancesScreenState extends State<FinancesScreen> {
       scopedEntries,
       includeRollovers: !_isOverall,
     );
-    final totalExpense = FinanceService.instance.totalAmount(
+    final rawTotalExpense = FinanceService.instance.totalAmount(
       reportingEntries,
       type: FinanceEntryType.expense,
     );
-    final totalIncome = FinanceService.instance.totalAmount(
+    final rawTotalIncome = FinanceService.instance.totalAmount(
       reportingEntries,
       type: FinanceEntryType.income,
     );
+    final outgoingRollover = _isOverall
+        ? null
+        : FinanceService.rolloverEntryForMonth(_allEntries, _selectedMonth);
+    final totalExpense =
+        rawTotalExpense -
+        (outgoingRollover?.type == FinanceEntryType.expense
+            ? outgoingRollover!.amount
+            : 0);
+    final totalIncome =
+        rawTotalIncome -
+        (outgoingRollover?.type == FinanceEntryType.income
+            ? outgoingRollover!.amount
+            : 0);
     final currentBalance =
         FinanceService.instance.totalAmount(
           balanceEntries,

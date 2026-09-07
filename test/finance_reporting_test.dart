@@ -47,6 +47,10 @@ void main() {
         30000,
       );
       expect(
+        FinanceService.rolloverEntryForMonth(all, DateTime(2026, 1))?.amount,
+        30000,
+      );
+      expect(
         FinanceService.instance.totalAmount(
           FinanceService.reportingEntries([carried], includeRollovers: true),
         ),
