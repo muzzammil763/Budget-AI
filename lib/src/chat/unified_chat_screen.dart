@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
@@ -58,6 +59,50 @@ class UnifiedChatScreen extends StatefulWidget {
 
   @override
   State<UnifiedChatScreen> createState() => _UnifiedChatScreenState();
+}
+
+class _AttachmentMenuTile extends StatelessWidget {
+  const _AttachmentMenuTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+              ),
+              child: Icon(icon, size: 25),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: AppTheme.bodyLarge.copyWith(
+                fontSize: 19,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _UnifiedChatScreenState extends State<UnifiedChatScreen>
@@ -3110,6 +3155,30 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final double safeAreaBottom = 32 - (32 - 12) * t;
     final isWorking = _isResponseInProgress;
     final isVoiceProcessing = _isTranscribing;
+    final composerTextWidth =
+        (MediaQuery.sizeOf(context).width - horizontalPadding * 2 - 128).clamp(
+          1.0,
+          double.infinity,
+        );
+    final composerPainter = TextPainter(
+      text: TextSpan(
+        text: _messageController.text,
+        style: TextStyle(fontSize: 16, fontFamily: _chatFontFamily),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: composerTextWidth);
+    final isComposerMultiline =
+        composerPainter.computeLineMetrics().length > 1 ||
+        _draftImages.isNotEmpty;
+    composerPainter.dispose();
+    final composerRadius =
+        !isWorking &&
+            !_isRecording &&
+            !isVoiceProcessing &&
+            !isComposerMultiline
+        ? 100.0
+        : 28.0;
 
     return SafeArea(
       top: false,
@@ -3121,6 +3190,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           children: [
             ChatWorkingComposerFrame(
               isWorking: isWorking || _isRecording || isVoiceProcessing,
+              borderRadius: composerRadius,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -3131,7 +3201,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(composerRadius),
                   border: Border.all(
                     color: isWorking
                         ? Colors.transparent
@@ -3190,6 +3260,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                             theme,
                             textColor: textColor,
                             hintColor: hintColor,
+                            isMultiline: isComposerMultiline,
                           ),
                   ),
                 ),
@@ -3218,26 +3289,41 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               right: 20,
               bottom: MediaQuery.viewInsetsOf(context).bottom + 92,
             ),
-            child: Material(
-              elevation: 12,
-              borderRadius: BorderRadius.circular(22),
-              clipBehavior: Clip.antiAlias,
-              child: SizedBox(
-                width: 210,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.photo),
-                      title: const Text('Photo'),
-                      onTap: () => Navigator.pop(context, ImageSource.gallery),
+            child: ChatWorkingComposerFrame(
+              isWorking: false,
+              borderRadius: 32,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                  child: Material(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.88),
+                    child: SizedBox(
+                      width: 280,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _AttachmentMenuTile(
+                              icon: CupertinoIcons.camera,
+                              label: 'Camera',
+                              onTap: () =>
+                                  Navigator.pop(context, ImageSource.camera),
+                            ),
+                            _AttachmentMenuTile(
+                              icon: CupertinoIcons.photo,
+                              label: 'Photos',
+                              onTap: () =>
+                                  Navigator.pop(context, ImageSource.gallery),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.camera),
-                      title: const Text('Camera'),
-                      onTap: () => Navigator.pop(context, ImageSource.camera),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -3333,80 +3419,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     }
   }
 
-  Future<void> _expandComposer() async {
-    _unfocusComposer();
-    final send = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.82,
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  tooltip: 'Collapse composer',
-                  icon: const Icon(Icons.close_fullscreen),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              if (_draftImages.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: ChatImageStrip(images: _draftImages),
-                ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: TextField(
-                    controller: _messageController,
-                    autofocus: true,
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      hintText: 'Ask Budget AI',
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: _messageController,
-                    builder: (context, value, _) => IconButton.filled(
-                      tooltip: 'Send',
-                      icon: const Icon(Icons.arrow_upward),
-                      onPressed:
-                          value.text.trim().isNotEmpty ||
-                              _draftImages.isNotEmpty
-                          ? () => Navigator.pop(context, true)
-                          : null,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (send == true && mounted) await _handleComposerSubmit();
-  }
-
   Widget _buildNormalComposerContent(
     ThemeData theme, {
     required Color textColor,
     required Color hintColor,
+    required bool isMultiline,
   }) {
     if (_isRecording) {
       return Row(
@@ -3422,21 +3439,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       );
     }
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final painter =
-            TextPainter(
-              text: TextSpan(
-                text: _messageController.text,
-                style: TextStyle(fontSize: 16, fontFamily: _chatFontFamily),
-              ),
-              textDirection: Directionality.of(context),
-              textScaler: MediaQuery.textScalerOf(context),
-            )..layout(
-              maxWidth: (constraints.maxWidth - 112).clamp(1, double.infinity),
-            );
-        final multiline =
-            painter.computeLineMetrics().length > 1 || _draftImages.isNotEmpty;
-        painter.dispose();
+      builder: (context, _) {
+        final multiline = isMultiline;
         final field = TextField(
           key: _composerFieldKey,
           focusNode: _messageFocusNode,
@@ -3461,7 +3465,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             ),
           ),
           minLines: 1,
-          maxLines: 2,
+          maxLines: 4,
           textInputAction: TextInputAction.newline,
           textCapitalization: TextCapitalization.sentences,
           style: TextStyle(
@@ -3499,14 +3503,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             if (multiline) ...[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: field),
-                  IconButton(
-                    tooltip: 'Expand composer',
-                    onPressed: _expandComposer,
-                    icon: const Icon(Icons.open_in_full, size: 18),
-                  ),
-                ],
+                children: [Expanded(child: field)],
               ),
               Row(children: [add, const Spacer(), send]),
             ] else

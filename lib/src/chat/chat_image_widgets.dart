@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -14,28 +15,44 @@ Future<String> prepareChatImage(Uint8List bytes) async {
   final longest = imageDescriptor.width > imageDescriptor.height
       ? imageDescriptor.width
       : imageDescriptor.height;
-  final scale = longest > 1600 ? 1600 / longest : 1.0;
-  final codec = await imageDescriptor.instantiateCodec(
-    targetWidth: (imageDescriptor.width * scale).round(),
-    targetHeight: (imageDescriptor.height * scale).round(),
-  );
   try {
-    final frame = await codec.getNextFrame();
-    try {
-      final encoded = await frame.image.toByteData(
-        format: ui.ImageByteFormat.png,
+    var targetLongest = longest.clamp(1, 1600);
+    while (true) {
+      final scale = targetLongest / longest;
+      final codec = await imageDescriptor.instantiateCodec(
+        targetWidth: (imageDescriptor.width * scale).round(),
+        targetHeight: (imageDescriptor.height * scale).round(),
       );
-      if (encoded == null || encoded.lengthInBytes > 4 * 1024 * 1024) {
+      try {
+        final frame = await codec.getNextFrame();
+        try {
+          final encoded = await frame.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+          if (encoded == null) {
+            throw const FormatException('Could not prepare this image.');
+          }
+          if (encoded.lengthInBytes <= 4 * 1024 * 1024) {
+            return 'data:image/png;base64,${base64Encode(encoded.buffer.asUint8List())}';
+          }
+          final ratio = math.sqrt((4 * 1024 * 1024) / encoded.lengthInBytes);
+          targetLongest = (targetLongest * ratio * 0.9).floor().clamp(
+            320,
+            targetLongest - 1,
+          );
+        } finally {
+          frame.image.dispose();
+        }
+      } finally {
+        codec.dispose();
+      }
+      if (targetLongest <= 320) {
         throw const FormatException(
-          'This image is too large. Crop it and try again.',
+          'Could not reduce this image enough. Choose another image.',
         );
       }
-      return 'data:image/png;base64,${base64Encode(encoded.buffer.asUint8List())}';
-    } finally {
-      frame.image.dispose();
     }
   } finally {
-    codec.dispose();
     imageDescriptor.dispose();
     descriptor.dispose();
   }

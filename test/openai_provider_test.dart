@@ -178,6 +178,46 @@ void main() {
     },
   );
 
+  test(
+    'image generation tool is sent only for explicit visual creation',
+    () async {
+      Future<List<Map<String, dynamic>>> toolsFor(String prompt) async {
+        final requests = <RequestOptions>[];
+        final provider = ResponsesProvider(
+          ChatModelConfig.openAI,
+          dio: _streamingDio(requests),
+          accessTokenProvider: () => 'test-user-jwt',
+        );
+        await provider.initialize();
+        await provider.sendMessageStreamWithThinking(prompt).drain<void>();
+        provider.dispose();
+        return ((requests.single.data as Map)['tools'] as List)
+            .map((tool) => Map<String, dynamic>.from(tool as Map))
+            .toList();
+      }
+
+      final receiptTools = await toolsFor('Analyze this receipt image');
+      expect(receiptTools, hasLength(6));
+      expect(
+        receiptTools.where((tool) => tool['type'] == 'image_generation'),
+        isEmpty,
+      );
+
+      final visualTools = await toolsFor('Make a chart image of my budget');
+      expect(visualTools, hasLength(3));
+      expect(
+        visualTools.where((tool) => tool['type'] == 'image_generation'),
+        hasLength(1),
+      );
+      expect(
+        visualTools
+            .where((tool) => tool['type'] == 'function')
+            .map((tool) => tool['name']),
+        containsAll(['finance_list', 'finance_summary']),
+      );
+    },
+  );
+
   test('GPT-4.1 request omits GPT-5-only controls', () async {
     final requests = <RequestOptions>[];
     final provider = ResponsesProvider(

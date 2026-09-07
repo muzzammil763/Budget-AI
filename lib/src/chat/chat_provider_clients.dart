@@ -42,8 +42,21 @@ class ResponsesProvider extends BaseChatProvider {
       'role': 'user',
       'content': chatInputContent(message, images),
     });
-    final tools = enableToolCalls ? _toolRegistry.getAvailableTools() : [];
-    final hasTools = tools.isNotEmpty;
+    final availableTools = enableToolCalls
+        ? _toolRegistry.getAvailableTools()
+        : <ToolDefinition>[];
+    final wantsImageGeneration =
+        enableToolCalls && _requestsGeneratedImage(message);
+    final tools = wantsImageGeneration
+        ? availableTools
+              .where(
+                (tool) =>
+                    tool.name == 'finance_list' ||
+                    tool.name == 'finance_summary',
+              )
+              .toList()
+        : availableTools;
+    final hasTools = tools.isNotEmpty || wantsImageGeneration;
     final reasoningEffort = _reasoningEffortFor(message);
 
     debugPrint('[$_providerName] Sending authenticated request to $_baseUrl');
@@ -90,12 +103,13 @@ class ResponsesProvider extends BaseChatProvider {
         if (hasTools) {
           requestData['tools'] = [
             ...tools.map((tool) => tool.toResponsesJson()),
-            {
-              'type': 'image_generation',
-              'model': 'gpt-image-2',
-              'size': '1024x1024',
-              'quality': 'medium',
-            },
+            if (wantsImageGeneration)
+              {
+                'type': 'image_generation',
+                'model': 'gpt-image-2',
+                'size': '1024x1024',
+                'quality': 'medium',
+              },
           ];
           requestData['tool_choice'] = 'auto';
           requestData['parallel_tool_calls'] = false;
@@ -436,4 +450,15 @@ class ResponsesProvider extends BaseChatProvider {
       );
     }
   }
+}
+
+bool _requestsGeneratedImage(String message) {
+  final normalized = message.toLowerCase();
+  final asksToCreate = RegExp(
+    r'\b(create|generate|make|draw|design|build|show me)\b',
+  ).hasMatch(normalized);
+  final asksForVisual = RegExp(
+    r'\b(image|picture|illustration|infographic|visual|chart|graph)\b',
+  ).hasMatch(normalized);
+  return asksToCreate && asksForVisual;
 }

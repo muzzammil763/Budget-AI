@@ -454,7 +454,9 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     final monthNet = monthIncome - monthExpense;
     final scopedNet = insights.totalIncome - insights.total;
     final overallIncome = insights.totalIncome;
-    final overallNet = overallIncome - insights.total;
+    // Historical totals describe activity. The balance is what remains after
+    // month-to-month carryovers, represented by the current month's figures.
+    final overallNet = monthNet;
     final scope = _scopeMonth;
 
     return Container(

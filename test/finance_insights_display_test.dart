@@ -78,4 +78,53 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('overall Net uses the current carried balance', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final current = DateTime(now.year, now.month);
+    final prior = DateTime(now.year, now.month - 1);
+    FinanceEntry datedEntry(
+      String id,
+      FinanceEntryType type,
+      double amount,
+      DateTime date,
+    ) => FinanceEntry(
+      id: id,
+      type: type,
+      amount: amount,
+      date: date,
+      hasTime: false,
+      category: type == FinanceEntryType.income ? 'Salary' : 'Food',
+      description: 'Entry',
+      createdAt: date,
+    );
+    final rollover = FinanceService.buildRolloverEntry(
+      sourceMonth: prior,
+      closingBalance: 100,
+    )!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FinanceInsightsScreen(
+          entries: [
+            datedEntry('old-income', FinanceEntryType.income, 1000, prior),
+            datedEntry('old-expense', FinanceEntryType.expense, 100, prior),
+            rollover,
+            datedEntry('new-income', FinanceEntryType.income, 20, current),
+            datedEntry('new-expense', FinanceEntryType.expense, 30, current),
+          ],
+          selectedMonth: current,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Overall'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('+${FinanceEntry.money(90)}'), findsWidgets);
+    expect(find.text('+${FinanceEntry.money(890)}'), findsNothing);
+    expect(find.text('ALL TIME'), findsOneWidget);
+  });
 }
