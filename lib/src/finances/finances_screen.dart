@@ -378,7 +378,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: AppTheme.headingLarge.copyWith(
                   color: balanceColor,
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.w600,
                   fontFamily: "Boldonse",
                   letterSpacing: 1.2,
