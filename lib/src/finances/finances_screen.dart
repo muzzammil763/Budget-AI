@@ -1,3 +1,4 @@
+import 'expense_summary_card.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -191,15 +192,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final isSearching = _isSearching;
     final isBusy = _isLoading || _isInitialSyncPending;
     final shouldShowSearchField = !isBusy;
-    final reportingEntries = FinanceService.reportingEntries(
-      scopedEntries,
-      includeRollovers: !_isOverall,
-    );
-    final totalExpense = FinanceService.instance.totalAmount(
-      reportingEntries,
-      type: FinanceEntryType.expense,
-    );
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -246,10 +238,12 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (!isBusy)
-                  _buildCurrentBalanceCard(
-                    theme,
-                    totalExpense,
-                    isOverall: _isOverall,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: ExpenseSummaryCard(
+                      entries: scopedEntries,
+                      month: _isOverall ? null : _selectedMonth,
+                    ),
                   ),
                 if (!isBusy && isSearching)
                   _buildSearchResultsHeader(theme, visibleEntries.length),
@@ -270,45 +264,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
               alignment: Alignment.bottomCenter,
               child: _buildFinanceSearchRow(),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentBalanceCard(
-    ThemeData theme,
-    double totalExpense, {
-    required bool isOverall,
-  }) {
-    final onCard = AppTheme.readableOn(theme.colorScheme.primary);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            Color.lerp(theme.colorScheme.primary, AppTheme.highlight, 0.28)!,
-          ],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            FinanceEntry.money(totalExpense),
-            style: AppTheme.headingLarge.copyWith(
-              color: onCard,
-              fontSize: 24,
-              fontFamily: 'Boldonse',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Total expenses',
-            style: AppTheme.bodyMedium.copyWith(color: onCard),
-          ),
         ],
       ),
     );

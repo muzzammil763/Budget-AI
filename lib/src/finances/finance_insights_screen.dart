@@ -1,3 +1,4 @@
+import 'expense_summary_card.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -120,7 +121,10 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
                     padding: const EdgeInsets.all(12),
                     children: scope == null
                         ? [
-                            _buildHeroCard(theme, insights),
+                            ExpenseSummaryCard(
+                              entries: _expenseEntries,
+                              month: _scopeMonth,
+                            ),
                             const SizedBox(height: 12),
 
                             const SizedBox(height: 12),
@@ -274,147 +278,6 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHeroCard(ThemeData theme, _FinanceInsights insights) {
-    final cardColor = theme.colorScheme.primary;
-    final onCard = AppTheme.readableOn(cardColor);
-    final scope = _scopeMonth;
-    final range = scope != null
-        ? 'Month · ${_monthLabel(scope)}'
-        : insights.firstDate == null
-        ? 'Until today'
-        : 'From ${_compactDate(insights.firstDate!)} To Today';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cardColor, Color.lerp(cardColor, AppTheme.highlight, 0.28)!],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: cardColor.withValues(alpha: 0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: onCard.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.insights_rounded, color: onCard, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  range,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.bodySmall.copyWith(
-                    color: onCard.withValues(alpha: 0.72),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _money(insights.total),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.headingLarge.copyWith(
-              color: onCard,
-              fontSize: 32,
-              fontWeight: FontWeight.w500,
-              fontFamily: "Boldonse",
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            scope != null
-                ? 'Total spent in ${_pillMonthLabel(scope)}'
-                : 'Total spent until today',
-            style: AppTheme.bodySmall.copyWith(
-              color: onCard.withValues(alpha: 0.72),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _buildHeroStat(
-                  onCard,
-                  'Entries',
-                  '${insights.entryCount}',
-                ),
-              ),
-              Expanded(
-                child: _buildHeroStat(
-                  onCard,
-                  'Active days',
-                  '${insights.activeDays}',
-                ),
-              ),
-              Expanded(
-                child: _buildHeroStat(
-                  onCard,
-                  'Daily avg',
-                  _money(insights.averagePerDay),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroStat(Color onCard, String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: onCard,
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: onCard.withValues(alpha: 0.62),
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
     );
   }
 
@@ -1016,7 +879,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     List<_DatedTotal> days,
   ) {
     return [
-      _buildHeroCard(theme, insights),
+      ExpenseSummaryCard(entries: _expenseEntries, month: _scopeMonth),
       const SizedBox(height: 12),
 
       const SizedBox(height: 12),

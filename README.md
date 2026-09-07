@@ -259,3 +259,5 @@ All reporting excludes legacy income and internal savings/deficit transfers. Sta
 Finance Insights retains expense category breakdowns, daily trends, heatmaps, and monthly spending highlights. Each nonempty month has a **Monthly Summary** card. Generate/Regenerate uses fresh expense totals, categories, and daily spending only. A new expense-summary cache namespace prevents old income/balance summaries from appearing.
 
 Summaries are stored per account/month in local Shared Preferences and cleared at account exit. They are excluded from Supabase synchronization. Generation uses the existing authenticated Responses proxy, active model, and AI quota; the OpenAI key remains server-only. No new backend deployment is required for this feature.
+
+Finances and Insights share `expense_summary_card.dart`: the same rounded gradient card shows scoped spending, entry count, distinct active days, and daily average. Daily average covers calendar days from the first scoped expense through today (or the last day of a past month); empty scopes show zero. Search filters the list without changing the scope summary.

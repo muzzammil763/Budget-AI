@@ -45,6 +45,7 @@ lib/
                                 returns FinanceEntryEditResult
       finance_insights_screen.dart    Insights: opens on current month; heatmap clipped
                                 to first entry; numberless bars w/ tap-to-reveal popups
+      expense_summary_card.dart Shared scoped spending card for Finances and Insights
       finance_service.dart      Finance domain logic, actual-expense filtering; legacy rollover recognition
       monthly_summary_service.dart / monthly_summary_card.dart  On-demand monthly AI summaries,
                                 cached per account/month in local Shared Preferences
@@ -161,3 +162,5 @@ dart format lib test
 flutter analyze
 flutter test
 ```
+
+Finances and Insights share `expense_summary_card.dart`: the same rounded gradient card shows scoped spending, entry count, distinct active days, and daily average. Daily average covers calendar days from the first scoped expense through today (or the last day of a past month); empty scopes show zero. Search filters the list without changing the scope summary.
