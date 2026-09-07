@@ -239,10 +239,10 @@ double _window(
 class _ChatDemo extends StatelessWidget {
   const _ChatDemo({required this.progress, required this.emptyState});
 
-  static const question = 'Build me a 50/30/20 budget';
-  static const answer = '''### Your 50/30/20 budget
+  static const question = 'Summarize my monthly spending';
+  static const answer = '''### Your monthly spending
 
-Based on a **\$5,000 monthly income**:
+Example **spending plan**:
 
 - **Needs — \$2,500**
   Housing, utilities, groceries, transport and minimum debt payments.
@@ -250,12 +250,12 @@ Based on a **\$5,000 monthly income**:
 - **Wants — \$1,500**
   Dining out, entertainment, shopping, hobbies and subscriptions.
 
-- **Savings — \$1,000**
-  Emergency savings, investments and extra debt payments.
+- **Transport — \$1,000**
+  Fuel, commuting and travel.
 
 That gives you a weekly needs limit of about **\$577** and a wants limit of **\$346**.
 
-Start by automating the \$1,000 savings transfer on payday, then track the other two buckets as you spend.
+Track purchases as you spend and review your categories each week.
 
 You’re ready to start budgeting.''';
   static const _answerChunkSize = 12;
@@ -675,15 +675,14 @@ class _FinancesDemo extends StatelessWidget {
                             const SizedBox(height: 4),
                             const _FinanceDayHeader(
                               day: 'YESTERDAY',
-                              income: '+\$5,000',
                               expense: '-\$1,356',
                             ),
                             const _FinanceEntryPill(
                               letter: 'S',
-                              title: 'Monthly salary',
-                              subtitle: 'Salary · Income',
-                              amount: '+\$5,000',
-                              income: true,
+                              title: 'Weekly groceries',
+                              subtitle: 'Groceries',
+                              amount: '-\$156',
+                              income: false,
                             ),
                             const _FinanceEntryPill(
                               letter: 'R',
@@ -717,10 +716,10 @@ class _FinancesDemo extends StatelessWidget {
           if (incomeSheet > 0)
             _FinanceDetailsSheet(
               progress: incomeSheet,
-              isIncome: true,
-              amount: '+\$5,000',
-              title: 'Monthly salary',
-              category: 'Salary',
+              isIncome: false,
+              amount: '-\$156',
+              title: 'Weekly groceries',
+              category: 'Groceries',
             ),
           if (deleteSheet > 0) _DeleteFinanceSheet(progress: deleteSheet),
         ],
@@ -1070,7 +1069,7 @@ class _FinanceBalanceCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'CURRENT BALANCE',
+            'TOTAL EXPENSES',
             style: TextStyle(
               color: onCard.withValues(alpha: 0.68),
               fontSize: 10,
@@ -1080,7 +1079,7 @@ class _FinanceBalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '\$2,840.00',
+            '\$2,160.00',
             style: AppTheme.headingLarge.copyWith(
               color: onCard,
               fontSize: 20,
@@ -1092,21 +1091,6 @@ class _FinanceBalanceCard extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: _BalanceMetric(
-                  icon: CupertinoIcons.arrow_down_left,
-                  label: 'INCOME',
-                  amount: '\$5,000',
-                  amountColor: Colors.green,
-                  onCard: onCard,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 38,
-                margin: const EdgeInsets.symmetric(horizontal: 14),
-                color: onCard.withValues(alpha: 0.2),
-              ),
               Expanded(
                 child: _BalanceMetric(
                   icon: CupertinoIcons.arrow_up_right,
@@ -1176,14 +1160,10 @@ class _BalanceMetric extends StatelessWidget {
 }
 
 class _FinanceDayHeader extends StatelessWidget {
-  const _FinanceDayHeader({
-    required this.day,
-    this.income,
-    required this.expense,
-  });
+  const _FinanceDayHeader({required this.day, required this.expense});
 
   final String day;
-  final String? income;
+  final String? income = null;
   final String expense;
 
   @override
@@ -1584,14 +1564,13 @@ class _IncomeExpenseCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _InsightTitle('INCOME VS EXPENSES'),
+          const _InsightTitle('SPENDING'),
           const SizedBox(height: 12),
           Row(
             children: [
               const Expanded(
                 child: _IncomeColumn(
                   label: 'THIS MONTH',
-                  income: '+\$5,000',
                   expense: '-\$2,160',
                   net: '+\$2,840',
                 ),
@@ -1621,7 +1600,7 @@ class _IncomeExpenseCard extends StatelessWidget {
 class _IncomeColumn extends StatelessWidget {
   const _IncomeColumn({
     required this.label,
-    required this.income,
+    this.income = '',
     required this.expense,
     required this.net,
   });
@@ -1646,11 +1625,9 @@ class _IncomeColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        _MoneyRow('Income', income, Colors.green),
         const SizedBox(height: 6),
         _MoneyRow('Expenses', expense, Colors.red),
         const SizedBox(height: 6),
-        _MoneyRow('Net', net, Colors.green),
       ],
     );
   }

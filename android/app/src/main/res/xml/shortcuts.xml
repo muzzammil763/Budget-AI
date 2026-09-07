@@ -20,21 +20,4 @@
         </intent>
     </capability>
 
-    <capability
-        android:name="custom.actions.intent.ADD_BUDGET_INCOME"
-        app:queryPatterns="@array/addIncomeQueries">
-        <intent android:action="android.intent.action.VIEW">
-            <url-template android:value="budgetai://finance/add-income{?amount,description}" />
-            <parameter
-                android:name="amount"
-                android:key="amount"
-                android:mimeType="https://schema.org/Number"
-                android:required="true" />
-            <parameter
-                android:name="description"
-                android:key="description"
-                android:mimeType="https://schema.org/Text"
-                android:required="true" />
-        </intent>
-    </capability>
 </shortcuts>

@@ -109,7 +109,7 @@ void main() {
       );
     });
 
-    test('startup rollover persists once and does not duplicate', () async {
+    test('expense-only startup never creates rollovers', () async {
       final directory = await Directory.systemTemp.createTemp(
         'budget_ai_rollover_test_',
       );
@@ -157,11 +157,9 @@ void main() {
           )
           .toList();
 
-      expect(firstRun, 1);
+      expect(firstRun, 0);
       expect(secondRun, 0);
-      expect(rollovers, hasLength(1));
-      expect(rollovers.single.amount, 2300);
-      expect(rollovers.single.type, FinanceEntryType.income);
+      expect(rollovers, isEmpty);
 
       FinanceService.instance.invalidateCache();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -170,7 +168,7 @@ void main() {
     });
 
     test(
-      'startup repairs stale rollover chains from oldest to newest',
+      'expense-only startup preserves legacy rollover records unchanged',
       () async {
         final directory = await Directory.systemTemp.createTemp(
           'budget_ai_rollover_repair_test_',
@@ -239,20 +237,20 @@ void main() {
         );
         final repaired = await FinanceService.instance.getAll();
 
-        expect(changed, 2);
+        expect(changed, 0);
         expect(
           FinanceService.rolloverEntryForMonth(
             repaired,
             DateTime(2026, 1),
           )?.amount,
-          3000,
+          1000,
         );
         expect(
           FinanceService.rolloverEntryForMonth(
             repaired,
             DateTime(2026, 2),
           )?.amount,
-          18000,
+          16000,
         );
         expect(
           await FinanceService.instance.applySavingsRollover(

@@ -8,15 +8,15 @@ ToolDefinition buildFinanceUpdateTool({
 }) => ToolDefinition(
   name: 'finance_update',
   description:
-      'Edit an existing finance entry by ID, including income or expense entries. Use finance_list first if you need to find the ID. Only provided fields are changed.',
+      'Edit an existing finance entry by ID, for expenses. Use finance_list first if you need to find the ID. Only provided fields are changed.',
   parameters: {
     'type': 'object',
     'properties': {
       'id': {'type': 'string', 'description': 'Finance entry ID.'},
       'type': {
         'type': 'string',
-        'enum': ['income', 'expense'],
-        'description': 'Change the entry between income and expense.',
+        'enum': ['expense'],
+        'description': 'Expense entries only.',
       },
       'description': {'type': 'string'},
       'amount': {'type': 'number'},
@@ -47,10 +47,13 @@ mixin FinanceUpdateToolHandler {
       final index = entries.indexWhere((entry) => entry.id == id);
       if (index < 0) return {'ok': false, 'error': 'Finance entry not found'};
       final existing = entries[index];
+      if (!FinanceService.isActualExpense(existing)) {
+        return {'error': 'Only expenses can be edited'};
+      }
 
       final typeRaw = (args['type'] as String? ?? '').trim().toLowerCase();
-      if (typeRaw.isNotEmpty && typeRaw != 'income' && typeRaw != 'expense') {
-        return {'ok': false, 'error': 'type must be income or expense'};
+      if (typeRaw.isNotEmpty && typeRaw != 'expense') {
+        return {'ok': false, 'error': 'Only expenses are supported'};
       }
       final updatedType = typeRaw.isEmpty
           ? existing.type

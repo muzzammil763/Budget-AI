@@ -66,7 +66,8 @@ class BudgetHomeWidgetSync {
   ) async {
     if (!Platform.isIOS && !Platform.isAndroid) return;
     await initialize();
-    final list = entries.toList()..sort((a, b) => b.date.compareTo(a.date));
+    final list = entries.where((entry) => entry.type == 'expense').toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
     final now = DateTime.now();
     final monthEntries = list.where(
       (entry) => entry.date.year == now.year && entry.date.month == now.month,

@@ -33,7 +33,7 @@ void main() {
     await directory.delete(recursive: true);
   });
 
-  test('finance_update can change an expense into income', () async {
+  test('finance_update rejects converting an expense to income', () async {
     final entry = _entry(
       id: 'update_me',
       type: FinanceEntryType.expense,
@@ -51,11 +51,8 @@ void main() {
     });
     final saved = (await FinanceService.instance.getAll()).single;
 
-    expect(result['ok'], isTrue, reason: result.toString());
-    expect(saved.type, FinanceEntryType.income);
-    expect(saved.description, 'Monthly Salary & Bonus');
-    expect(saved.category, 'Salary');
-    expect(saved.amount, 4500);
+    expect(result['ok'], isFalse);
+    expect(saved.toJson(), entry.toJson());
   });
 
   test(

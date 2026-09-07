@@ -21,7 +21,6 @@ class BudgetAIWidgetProvider : HomeWidgetProvider() {
         widgetData: SharedPreferences,
     ) {
         val expense = number(widgetData, "budget_ai_widget_month_expense")
-        val income = number(widgetData, "budget_ai_widget_month_income")
         val latestAmount = number(widgetData, "budget_ai_widget_latest_amount")
         val latestType = widgetData.getString(
             "budget_ai_widget_latest_type",
@@ -55,9 +54,8 @@ class BudgetAIWidgetProvider : HomeWidgetProvider() {
                 setTextViewText(R.id.widget_month, month)
                 setTextViewText(
                     R.id.widget_balance,
-                    formatAmount(income - expense, currency),
+                    formatAmount(expense, currency),
                 )
-                setTextViewText(R.id.widget_income, formatAmount(income, currency))
                 setTextViewText(R.id.widget_expense, formatAmount(expense, currency))
                 setTextViewText(R.id.widget_latest, latest)
                 setTextViewText(

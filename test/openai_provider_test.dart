@@ -197,7 +197,7 @@ void main() {
       }
 
       final receiptTools = await toolsFor('Analyze this receipt image');
-      expect(receiptTools, hasLength(6));
+      expect(receiptTools, hasLength(5));
       expect(
         receiptTools.where((tool) => tool['type'] == 'image_generation'),
         isEmpty,

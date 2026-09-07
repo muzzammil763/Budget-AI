@@ -45,24 +45,19 @@ class ToolSettings {
           description: 'Add a finance entry for spending',
         ),
         ToolItemDefinition(
-          name: 'finance_income_add',
-          title: 'Add Income',
-          description: 'Add an income entry',
-        ),
-        ToolItemDefinition(
           name: 'finance_list',
           title: 'List Finances',
-          description: 'List income and expense entries with filters',
+          description: 'List expense entries with filters',
         ),
         ToolItemDefinition(
           name: 'finance_summary',
           title: 'Finance Summary',
-          description: 'Summarize income and spending by date range',
+          description: 'Summarize spending by date range',
         ),
         ToolItemDefinition(
           name: 'finance_update',
           title: 'Edit Finances',
-          description: 'Update an existing income or expense entry',
+          description: 'Update an existing expense entry',
         ),
         ToolItemDefinition(
           name: 'finance_delete',

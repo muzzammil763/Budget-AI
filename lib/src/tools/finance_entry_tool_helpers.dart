@@ -7,6 +7,9 @@ Future<dynamic> addFinanceEntryFromToolArgs(
   final rawDescription = (args['description'] as String? ?? '').trim();
   final amount = (args['amount'] as num?)?.toDouble() ?? 0.0;
   final rawCategory = (args['category'] as String? ?? '').trim();
+  if (type != FinanceEntryType.expense) {
+    return {'error': 'Only expenses are supported'};
+  }
   final dateStr = (args['date'] as String? ?? '').trim();
   final timeStr = (args['time'] as String? ?? '').trim();
 

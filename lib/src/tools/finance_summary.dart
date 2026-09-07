@@ -7,7 +7,7 @@ ToolDefinition buildFinanceSummaryTool({
 }) => ToolDefinition(
   name: 'finance_summary',
   description:
-      'Get a finance summary for a date range, including income, expenses, net balance, and dynamic category breakdowns. Use a type filter for income-only or expense-only questions.',
+      'Get a finance summary for a date range, including expense totals and category breakdowns.',
   parameters: {
     'type': 'object',
     'properties': {
@@ -20,11 +20,7 @@ ToolDefinition buildFinanceSummaryTool({
         'type': 'string',
         'description': 'End date in YYYY-MM-DD format. Defaults to today.',
       },
-      'type': {
-        'type': 'string',
-        'description':
-            'Optional entry type filter: expense or income. Omit to summarize both.',
-      },
+      'type': {'type': 'string', 'description': 'Expense entries only.'},
     },
     'required': [],
   },
@@ -46,19 +42,9 @@ mixin FinanceSummaryToolHandler {
       final to = toStr.isNotEmpty ? DateTime.tryParse(toStr) ?? now : now;
 
       var entries = await FinanceService.instance.getByDateRange(from, to);
-      final includeRollovers = from.year == to.year && from.month == to.month;
-      entries = FinanceService.reportingEntries(
-        entries,
-        includeRollovers: includeRollovers,
-      );
-      if (type != null) {
-        entries = entries.where((entry) => entry.type == type).toList();
-      }
+      entries = FinanceService.expenseEntries(entries);
+      if (type != null && type != FinanceEntryType.expense) entries = [];
       final total = FinanceService.instance.totalAmount(entries);
-      final incomeTotal = FinanceService.instance.totalAmount(
-        entries,
-        type: FinanceEntryType.income,
-      );
       final expenseTotal = FinanceService.instance.totalAmount(
         entries,
         type: FinanceEntryType.expense,
@@ -67,11 +53,6 @@ mixin FinanceSummaryToolHandler {
         entries,
         type: FinanceEntryType.expense,
       );
-      final incomeByCat = FinanceService.instance.categorySummary(
-        entries,
-        type: FinanceEntryType.income,
-      );
-
       return {
         'ok': true,
         'from':
@@ -79,24 +60,15 @@ mixin FinanceSummaryToolHandler {
         'to':
             '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}',
         'entry_count': entries.length,
-        'includes_month_rollovers': includeRollovers,
+        'includes_month_rollovers': false,
         'total': FinanceEntry.money(total),
-        'income_total': FinanceEntry.money(incomeTotal),
         'expense_total': FinanceEntry.money(expenseTotal),
-        'net_balance': _formatSignedAmount(incomeTotal - expenseTotal),
         'expense_by_category': expenseByCat.map(
-          (cat, amount) => MapEntry(cat, FinanceEntry.money(amount)),
-        ),
-        'income_by_category': incomeByCat.map(
           (cat, amount) => MapEntry(cat, FinanceEntry.money(amount)),
         ),
       };
     } catch (e) {
       return {'error': e.toString()};
     }
-  }
-
-  String _formatSignedAmount(double amount) {
-    return FinanceEntry.money(amount);
   }
 }

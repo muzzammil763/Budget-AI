@@ -41,7 +41,7 @@ class AndroidFinanceAppActions {
       if (uri.scheme != 'budgetai' || uri.host != 'finance') return;
       final amount = double.tryParse(uri.queryParameters['amount'] ?? '') ?? 0;
       final description = (uri.queryParameters['description'] ?? '').trim();
-      final isIncome = uri.pathSegments.contains('add-income');
+      if (uri.pathSegments.contains('add-income')) return;
       if (amount <= 0 || description.isEmpty) {
         await _respond(
           'I could not understand the amount and description. Please try again.',
@@ -53,14 +53,10 @@ class AndroidFinanceAppActions {
         'description': description,
         'amount': amount,
         'category': description,
-      }, type: isIncome ? FinanceEntryType.income : FinanceEntryType.expense);
+      }, type: FinanceEntryType.expense);
       if (result is Map && result['ok'] == true) {
         final formatted = CurrencySettingsService.instance.formatAmount(amount);
-        await _respond(
-          isIncome
-              ? 'Added $formatted income from $description to Budget AI.'
-              : 'Added $formatted for $description to Budget AI.',
-        );
+        await _respond('Added $formatted for $description to Budget AI.');
         revision.value++;
       } else {
         await _respond('Budget AI could not save that entry.');

@@ -33,9 +33,8 @@ ToolDefinition buildFinanceListTool({
       },
       'type': {
         'type': 'string',
-        'description':
-            'Optional entry type filter: expense or income. Omit to include both income and expenses.',
-        'enum': ['expense', 'income'],
+        'description': 'Only expenses are supported.',
+        'enum': ['expense'],
       },
       'amount_greater_than': {
         'type': 'number',
@@ -90,6 +89,7 @@ mixin FinanceListToolHandler {
         entries = List.from(await FinanceService.instance.getAll());
       }
 
+      entries = FinanceService.expenseEntries(entries);
       entries = filterFinanceEntriesForList(
         entries,
         keywords: keywords,

@@ -125,10 +125,10 @@ private struct BudgetAIWidgetView: View {
   private var summary: some View {
     HStack(spacing: 16) {
       VStack(alignment: .leading, spacing: 5) {
-        Text("Current Balance")
+        Text("Total expenses")
           .font(.system(size: 9))
           .foregroundStyle(secondary)
-        Text(format(entry.balance))
+        Text(format(entry.expense))
           .font(.custom("Boldonse", size: 20))
           .minimumScaleFactor(0.65)
           .lineLimit(1)
@@ -141,7 +141,6 @@ private struct BudgetAIWidgetView: View {
         .frame(width: 1)
 
       HStack(spacing: 18) {
-        metric("Income", value: entry.income, color: .green)
         metric("Spent", value: entry.expense, color: .red)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -281,7 +280,7 @@ struct BudgetAIWidget: Widget {
       BudgetAIWidgetView(entry: entry)
     }
     .configurationDisplayName("Budget AI")
-    .description("See your current balance, income, spending, and two newest entries.")
+    .description("See your monthly spending and two newest expenses.")
     .supportedFamilies([.systemMedium])
     .contentMarginsDisabled()
   }

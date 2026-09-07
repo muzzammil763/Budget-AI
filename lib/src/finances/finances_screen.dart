@@ -87,8 +87,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
     if (mounted) {
       setState(() {
-        _allEntries = List.from(allEntries);
-        _monthEntries = List.from(month);
+        _allEntries = FinanceService.expenseEntries(allEntries);
+        _monthEntries = FinanceService.expenseEntries(month);
         _isLoading = false;
       });
     }
@@ -116,7 +116,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
     if (mounted) {
       setState(() {
-        _monthEntries = List.from(entries);
+        _monthEntries = FinanceService.expenseEntries(entries);
         _isLoading = false;
       });
     }
@@ -141,16 +141,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   List<FinanceEntry> get _scopedEntries =>
       _isOverall ? _allEntries : _monthEntries;
-
-  List<FinanceEntry> get _currentMonthEntries {
-    final now = DateTime.now();
-    return _allEntries
-        .where(
-          (entry) =>
-              entry.date.year == now.year && entry.date.month == now.month,
-        )
-        .toList();
-  }
 
   List<FinanceEntry> get _visibleEntries {
     final query = _searchController.text.trim();
@@ -198,7 +188,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final months = _availableMonths();
     final visibleEntries = _visibleEntries;
     final scopedEntries = _scopedEntries;
-    final balanceEntries = _isOverall ? _currentMonthEntries : scopedEntries;
     final isSearching = _isSearching;
     final isBusy = _isLoading || _isInitialSyncPending;
     final shouldShowSearchField = !isBusy;
@@ -206,36 +195,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
       scopedEntries,
       includeRollovers: !_isOverall,
     );
-    final rawTotalExpense = FinanceService.instance.totalAmount(
+    final totalExpense = FinanceService.instance.totalAmount(
       reportingEntries,
       type: FinanceEntryType.expense,
     );
-    final rawTotalIncome = FinanceService.instance.totalAmount(
-      reportingEntries,
-      type: FinanceEntryType.income,
-    );
-    final outgoingRollover = _isOverall
-        ? null
-        : FinanceService.rolloverEntryForMonth(_allEntries, _selectedMonth);
-    final totalExpense =
-        rawTotalExpense -
-        (outgoingRollover?.type == FinanceEntryType.expense
-            ? outgoingRollover!.amount
-            : 0);
-    final totalIncome =
-        rawTotalIncome -
-        (outgoingRollover?.type == FinanceEntryType.income
-            ? outgoingRollover!.amount
-            : 0);
-    final currentBalance =
-        FinanceService.instance.totalAmount(
-          balanceEntries,
-          type: FinanceEntryType.income,
-        ) -
-        FinanceService.instance.totalAmount(
-          balanceEntries,
-          type: FinanceEntryType.expense,
-        );
 
     return Scaffold(
       appBar: AppBar(
@@ -285,8 +248,6 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 if (!isBusy)
                   _buildCurrentBalanceCard(
                     theme,
-                    currentBalance,
-                    totalIncome,
                     totalExpense,
                     isOverall: _isOverall,
                   ),
@@ -316,186 +277,40 @@ class _FinancesScreenState extends State<FinancesScreen> {
 
   Widget _buildCurrentBalanceCard(
     ThemeData theme,
-    double balance,
-    double totalIncome,
     double totalExpense, {
     required bool isOverall,
   }) {
-    final cardColor = theme.colorScheme.primary;
-    final onCard = AppTheme.readableOn(cardColor);
-    final isDark = theme.brightness == Brightness.dark;
-    final now = DateTime.now();
-    final currentMonth = DateTime(now.year, now.month);
-    final selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month);
-    final isPreviousMonth = !isOverall && selectedMonth.isBefore(currentMonth);
-    final isSaved = balance > 0;
-    final showBalance = !isPreviousMonth || balance.abs() >= 0.005;
-    final wasTransferred =
-        isPreviousMonth &&
-        balance != 0 &&
-        FinanceService.hasRolloverForMonth(_allEntries, selectedMonth);
-    final balanceColor = !isPreviousMonth
-        ? onCard
-        : isSaved
-        ? Colors.green
-        : Colors.red;
-    final balanceText = !isPreviousMonth
-        ? FinanceEntry.money(balance)
-        : isSaved
-        ? '${FinanceEntry.money(balance)} Saved'
-        : '${FinanceEntry.money(balance.abs())} Overused';
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 520),
-      curve: Curves.easeOutCubic,
-      builder: (context, t, child) {
-        return Opacity(
-          opacity: t,
-          child: Transform.translate(
-            offset: Offset(0, (1 - t) * 10),
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              cardColor,
-              Color.lerp(cardColor, AppTheme.highlight, 0.28)!,
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? theme.colorScheme.primary.withValues(alpha: 0.14)
-                  : Colors.black.withValues(alpha: 0.14),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showBalance)
-              Text(
-                balanceText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTheme.headingLarge.copyWith(
-                  color: balanceColor,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: "Boldonse",
-                  letterSpacing: 1.2,
-                ),
-              ),
-            if (wasTransferred) ...[
-              SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    CupertinoIcons.checkmark_circle_fill,
-                    color: onCard.withValues(alpha: 0.82),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Was Transferred To The Next Month As An ${isSaved ? 'Income' : 'Expense'}',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: onCard.withValues(alpha: 0.76),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (showBalance) const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildBalanceMetric(
-                    onCard: onCard,
-                    amountColor: Colors.green,
-                    label: 'INCOME',
-                    amount: FinanceEntry.money(totalIncome),
-                    icon: CupertinoIcons.arrow_down_left,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 38,
-                  margin: const EdgeInsets.symmetric(horizontal: 14),
-                  color: onCard.withValues(alpha: 0.20),
-                ),
-                Expanded(
-                  child: _buildBalanceMetric(
-                    onCard: onCard,
-                    amountColor: Colors.red,
-                    label: 'EXPENSE',
-                    amount: FinanceEntry.money(totalExpense),
-                    icon: CupertinoIcons.arrow_up_right,
-                  ),
-                ),
-              ],
-            ),
+    final onCard = AppTheme.readableOn(theme.colorScheme.primary);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary,
+            Color.lerp(theme.colorScheme.primary, AppTheme.highlight, 0.28)!,
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildBalanceMetric({
-    required Color onCard,
-    required Color amountColor,
-    required String label,
-    required String amount,
-    required IconData icon,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: onCard, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: AppTheme.bodySmall.copyWith(
-                  color: onCard,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                amount,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTheme.bodyMedium.copyWith(
-                  color: amountColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: "Boldonse",
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            FinanceEntry.money(totalExpense),
+            style: AppTheme.headingLarge.copyWith(
+              color: onCard,
+              fontSize: 24,
+              fontFamily: 'Boldonse',
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            'Total expenses',
+            style: AppTheme.bodyMedium.copyWith(color: onCard),
+          ),
+        ],
+      ),
     );
   }
 

@@ -14,7 +14,7 @@ void main() {
   final month = DateTime(2026, 1);
   FinanceEntry income(double amount) => FinanceEntry(
     id: 'salary',
-    type: FinanceEntryType.income,
+    type: FinanceEntryType.expense,
     date: month,
     hasTime: false,
     description: 'Salary',
@@ -22,6 +22,20 @@ void main() {
     category: 'Salary',
     createdAt: month,
   );
+  test('summary prompt never includes legacy income or transfer amounts', () {
+    final prompt = MonthlySummaryService.buildPrompt(month, [
+      income(100),
+      income(987654).copyWith(type: FinanceEntryType.income),
+      FinanceService.buildRolloverEntry(
+        sourceMonth: DateTime(2025, 12),
+        closingBalance: -876543,
+      )!,
+    ]);
+    expect(prompt, contains('"expenses":100.0'));
+    expect(prompt, isNot(contains('987654')));
+    expect(prompt, isNot(contains('876543')));
+    expect(prompt, isNot(contains('"closing_balance"')));
+  });
   setUp(() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
@@ -37,7 +51,7 @@ void main() {
         loadEntries: (_) async => [income(amount)],
         generateText: (prompt) async {
           calls++;
-          expect(prompt, contains('"income":$amount'));
+          expect(prompt, contains('"expenses":$amount'));
           return 'Saved $amount this month.';
         },
       );

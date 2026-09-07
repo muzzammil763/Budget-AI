@@ -26,6 +26,46 @@ FinanceEntry entry(
 );
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('January to September totals count actual expenses only', () {
+    final records = <FinanceEntry>[];
+    for (var month = 1; month <= 9; month++) {
+      records.add(
+        entry(
+          'expense-$month',
+          FinanceEntryType.expense,
+          month * 100,
+          DateTime(2026, month, 5),
+          category: 'Food',
+        ),
+      );
+      records.add(
+        entry(
+          'income-$month',
+          FinanceEntryType.income,
+          20000,
+          DateTime(2026, month, 1),
+        ),
+      );
+      records.add(
+        FinanceService.buildRolloverEntry(
+          sourceMonth: DateTime(2026, month - 1),
+          closingBalance: -3000,
+        )!,
+      );
+    }
+    final actual = FinanceService.expenseEntries(records);
+    expect(actual, hasLength(9));
+    expect(FinanceService.instance.totalAmount(actual), 4500);
+    for (var month = 1; month <= 9; month++) {
+      expect(
+        FinanceService.instance.totalAmount(
+          actual.where((e) => e.date.month == month).toList(),
+        ),
+        month * 100,
+      );
+    }
+    expect(records, hasLength(27));
+  });
   final january = entry(
     'salary',
     FinanceEntryType.income,
@@ -100,40 +140,35 @@ void main() {
       expect(actual.map((e) => e.id), ['food']);
     },
   );
-  test(
-    'summary tool excludes transfers across months and keeps single-month carry-in',
-    () async {
-      final directory = await Directory.systemTemp.createTemp('reporting_test');
-      const channel = MethodChannel('plugins.flutter.io/path_provider');
+  test('summary tool excludes income and transfers in every scope', () async {
+    final directory = await Directory.systemTemp.createTemp('reporting_test');
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (_) async => directory.path);
+    try {
+      await File(
+        '${directory.path}/finances.json',
+      ).writeAsString(jsonEncode([january.toJson(), carried.toJson()]));
+      FinanceService.instance.invalidateCache();
+      final tool = _SummaryTool();
+      final overall = await tool.handleFinanceSummaryRequest({
+        'from_date': '2026-01-01',
+        'to_date': '2026-02-28',
+      });
+      expect(overall.containsKey('income_total'), isFalse);
+      expect(overall['entry_count'], 0);
+      expect(overall['expense_total'], FinanceEntry.money(0));
+      final month = await tool.handleFinanceSummaryRequest({
+        'from_date': '2026-02-01',
+        'to_date': '2026-02-28',
+      });
+      expect(month.containsKey('income_total'), isFalse);
+      expect(month['includes_month_rollovers'], isFalse);
+    } finally {
+      FinanceService.instance.invalidateCache();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (_) async => directory.path);
-      try {
-        await File(
-          '${directory.path}/finances.json',
-        ).writeAsString(jsonEncode([january.toJson(), carried.toJson()]));
-        FinanceService.instance.invalidateCache();
-        final tool = _SummaryTool();
-        final overall = await tool.handleFinanceSummaryRequest({
-          'from_date': '2026-01-01',
-          'to_date': '2026-02-28',
-        });
-        expect(overall['income_total'], FinanceEntry.money(30000));
-        expect(overall['entry_count'], 1);
-        expect(overall['income_by_category'], {
-          'Salary': FinanceEntry.money(30000),
-        });
-        final month = await tool.handleFinanceSummaryRequest({
-          'from_date': '2026-02-01',
-          'to_date': '2026-02-28',
-        });
-        expect(month['income_total'], FinanceEntry.money(30000));
-        expect(month['includes_month_rollovers'], isTrue);
-      } finally {
-        FinanceService.instance.invalidateCache();
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, null);
-        await directory.delete(recursive: true);
-      }
-    },
-  );
+          .setMockMethodCallHandler(channel, null);
+      await directory.delete(recursive: true);
+    }
+  });
 }

@@ -253,55 +253,6 @@ struct AddBudgetExpenseIntent: AppIntent {
 }
 
 @available(iOS 16.0, *)
-struct AddBudgetIncomeIntent: AppIntent {
-  static let title: LocalizedStringResource = "Add Budget Income"
-  static let description = IntentDescription(
-    "Adds income to Budget AI without opening the app."
-  )
-  static let openAppWhenRun = false
-
-  @Parameter(
-    title: "Amount",
-    description: "The amount received",
-    requestValueDialog: "How much did you receive?"
-  )
-  var amount: Double
-
-  @Parameter(
-    title: "Description",
-    description: "Where the income came from",
-    requestValueDialog: "Where did it come from?"
-  )
-  var details: String
-
-  static var parameterSummary: some ParameterSummary {
-    Summary("Add \(\.$amount) income from \(\.$details)")
-  }
-
-  init() {}
-
-  func perform() async throws -> some IntentResult & ProvidesDialog {
-    guard amount > 0 else {
-      return .result(dialog: "Tell me an amount greater than zero.")
-    }
-    let cleanDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !cleanDetails.isEmpty else {
-      return .result(dialog: "Tell me where the income came from.")
-    }
-    let displayAmount = try BudgetSharedStore.addEntry(
-      type: "income",
-      amount: amount,
-      details: cleanDetails
-    )
-    return .result(
-      dialog: IntentDialog(
-        stringLiteral: "Added \(displayAmount) income from \(cleanDetails) to Budget AI."
-      )
-    )
-  }
-}
-
-@available(iOS 16.0, *)
 struct BudgetAIShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(
@@ -312,15 +263,6 @@ struct BudgetAIShortcuts: AppShortcutsProvider {
       ],
       shortTitle: "Add Expense",
       systemImageName: "minus.circle.fill"
-    )
-    AppShortcut(
-      intent: AddBudgetIncomeIntent(),
-      phrases: [
-        "Add income in \(.applicationName)",
-        "Log money received in \(.applicationName)",
-      ],
-      shortTitle: "Add Income",
-      systemImageName: "plus.circle.fill"
     )
   }
 }

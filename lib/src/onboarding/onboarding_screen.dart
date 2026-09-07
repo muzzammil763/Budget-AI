@@ -601,9 +601,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildTrackPage(ThemeData theme) {
     return _OnboardingPage(
       kicker: 'STAY ON TOP',
-      title: 'Track Every Expense\n& Income',
-      description:
-          'Log every kind of income and expense, including loan cashflows, and see where your month went.',
+      title: 'Track Every Expense',
+      description: 'Log expenses privately and see where your money went.',
       items: const [],
       extra: _InsightsShowcase(
         currency: CurrencySettingsService.instance.current,
@@ -1261,8 +1260,7 @@ class _OverviewGraphic extends StatelessWidget {
         builder: (context, value, _) {
           final onCard = theme.colorScheme.onPrimary;
           final spent = 3240 * value;
-          final income = 8500 * value;
-          final remaining = income - spent;
+          final remaining = spent;
           final budgetProgress = 0.62 * value;
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -1296,7 +1294,7 @@ class _OverviewGraphic extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'ON TRACK',
+                          'SPENDING',
                           style: AppTheme.bodySmall.copyWith(
                             color: onCard,
                             fontSize: 6 * contentScale,
@@ -1328,17 +1326,7 @@ class _OverviewGraphic extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _OverviewAmount(
-                          label: 'Income',
-                          scale: contentScale,
-                          value: CurrencySettingsService.instance.formatAmount(
-                            income,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 5 * contentScale),
-                      Expanded(
-                        child: _OverviewAmount(
-                          label: 'Remaining',
+                          label: 'Total spent',
                           scale: contentScale,
                           value: CurrencySettingsService.instance.formatAmount(
                             remaining,

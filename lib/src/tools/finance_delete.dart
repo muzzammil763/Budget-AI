@@ -29,7 +29,7 @@ ToolDefinition buildFinanceDeleteTool({
       },
       'type': {
         'type': 'string',
-        'enum': ['income', 'expense'],
+        'enum': ['expense'],
         'description': 'Optional entry type filter for range deletion.',
       },
       'category': {
@@ -75,11 +75,13 @@ mixin FinanceDeleteToolHandler {
         }
 
         final typeRaw = (args['type'] as String? ?? '').trim().toLowerCase();
-        if (typeRaw.isNotEmpty && typeRaw != 'income' && typeRaw != 'expense') {
-          return {'error': 'type must be income or expense'};
+        if (typeRaw.isNotEmpty && typeRaw != 'expense') {
+          return {'error': 'Only expenses are supported'};
         }
         final category = (args['category'] as String? ?? '').trim();
-        var matches = await FinanceService.instance.getByDateRange(from, to);
+        var matches = FinanceService.expenseEntries(
+          await FinanceService.instance.getByDateRange(from, to),
+        );
         if (typeRaw.isNotEmpty) {
           final type = FinanceEntryType.fromJson(typeRaw);
           matches = matches.where((entry) => entry.type == type).toList();
@@ -105,6 +107,12 @@ mixin FinanceDeleteToolHandler {
         };
       }
 
+      final allowedIds = FinanceService.expenseEntries(
+        await FinanceService.instance.getAll(),
+      ).map((entry) => entry.id).toSet();
+      if (ids.any((id) => !allowedIds.contains(id))) {
+        return {'error': 'Only existing expenses can be deleted'};
+      }
       if (ids.length == 1) {
         final deleted = await FinanceService.instance.delete(ids.first);
         return {'ok': deleted, 'id': ids.first};

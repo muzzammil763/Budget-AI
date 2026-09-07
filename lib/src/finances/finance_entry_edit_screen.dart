@@ -112,12 +112,7 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           children: [
             _buildAmountCard(theme, accent),
             const SizedBox(height: 12),
-            _buildSection(
-              theme,
-              title: 'ENTRY TYPE',
-              child: _buildTypeSelector(theme),
-            ),
-            const SizedBox(height: 12),
+
             _buildSection(
               theme,
               title: 'DETAILS',
@@ -330,65 +325,6 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTypeSelector(ThemeData theme) {
-    return Row(
-      children: FinanceEntryType.values.map((type) {
-        final selected = _type == type;
-        final isIncome = type == FinanceEntryType.income;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: isIncome ? 0 : 8),
-            child: Material(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _type = type),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isIncome
-                            ? CupertinoIcons.arrow_down_left
-                            : CupertinoIcons.arrow_up_right,
-                        color: selected
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.onSurface,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        isIncome ? 'Income' : 'Expense',
-                        style: TextStyle(
-                          color: selected
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 

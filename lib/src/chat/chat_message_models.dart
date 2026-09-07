@@ -673,8 +673,8 @@ Response rules:
 const String _financeGuidance = '''
 Finance rules:
 - For finance actions, call tools before writing anything; then give one compact confirmation. Never list after a successful add.
-- Expense/default cash out: finance_add. Clear income (salary, received money, freelance, refund, bonus, gift): finance_income_add. "200 fuel" is an expense.
-- Loans use category "Loan": lent/paid repayment = expense; borrowed/received repayment = income.
+- Use finance_add for clear expenses. "200 fuel" is an expense. Income tracking is unavailable; never record received money as spending.
+- Money paid or lent may be an expense under Loan. Do not log money borrowed or received.
 - Infer category and today's date; omit time unless stated. Categories are concise, specific, title-cased, and never Other/Others. Entry titles are title-cased and replace "and" with "&".
 - For spending or summaries, use finance_list/finance_summary. For biggest expenses, list expenses by amount_desc with the requested range and a sensible limit; use amount_greater_than for threshold requests.
 - Update/delete directly when IDs are known; otherwise list first. finance_update may change all entry fields. finance_delete accepts IDs or an inclusive date range with optional type/category filters.

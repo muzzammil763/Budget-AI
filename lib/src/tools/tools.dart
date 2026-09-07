@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:budget_ai/src/tools/finance_add.dart';
 import 'package:budget_ai/src/tools/finance_delete.dart';
-import 'package:budget_ai/src/tools/finance_income_add.dart';
 import 'package:budget_ai/src/tools/finance_list.dart';
 import 'package:budget_ai/src/tools/finance_summary.dart';
 import 'package:budget_ai/src/tools/finance_update.dart';
@@ -58,7 +57,6 @@ class ToolExecutionEvent {
 class ToolRegistry
     with
         FinanceAddToolHandler,
-        FinanceIncomeAddToolHandler,
         FinanceListToolHandler,
         FinanceSummaryToolHandler,
         FinanceUpdateToolHandler,
@@ -67,7 +65,6 @@ class ToolRegistry
     return List.unmodifiable([
       buildFinanceAddTool(handler: handleFinanceAddRequest),
       buildFinanceListTool(handler: handleFinanceListRequest),
-      buildFinanceIncomeAddTool(handler: handleFinanceIncomeAddRequest),
       buildFinanceSummaryTool(handler: handleFinanceSummaryRequest),
       buildFinanceUpdateTool(handler: handleFinanceUpdateRequest),
       buildFinanceDeleteTool(handler: handleFinanceDeleteRequest),

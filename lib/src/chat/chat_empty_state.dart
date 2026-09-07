@@ -17,7 +17,7 @@ class ChatStarterPrompt {
 }
 
 /// Starters are limited to questions the current local finance tools can
-/// answer from completed income and expense records.
+/// answer from recorded expenses.
 const chatStarterPrompts = <ChatStarterPrompt>[
   ChatStarterPrompt(
     icon: Icons.pie_chart_outline_rounded,
@@ -53,7 +53,7 @@ const chatStarterPrompts = <ChatStarterPrompt>[
     icon: Icons.account_balance_wallet_outlined,
     label: 'Show this month’s cash flow',
     prompt:
-        'Summarize my recorded income, expenses, and net balance for the current month. Mention that the result reflects only entries saved in this app.',
+        'Summarize my recorded expenses for the current month. Mention that the result reflects only entries saved in this app.',
   ),
   ChatStarterPrompt(
     icon: Icons.format_list_numbered_rounded,
@@ -75,9 +75,9 @@ const chatStarterPrompts = <ChatStarterPrompt>[
   ),
   ChatStarterPrompt(
     icon: Icons.savings_outlined,
-    label: 'Estimate a savings target',
+    label: 'Suggest a spending limit',
     prompt:
-        'Use my recorded income and expenses from the last three complete months to estimate my average monthly surplus and suggest a conservative savings target. State clearly if the records are incomplete or insufficient.',
+        'Use my recorded expenses from the last three complete months to estimate my average monthly spending and suggest a realistic spending limit. State clearly if the records are incomplete or insufficient.',
   ),
 ];
 
