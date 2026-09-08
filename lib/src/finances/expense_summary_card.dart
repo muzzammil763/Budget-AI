@@ -109,33 +109,19 @@ class ExpenseSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: onCard.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.insights_rounded, color: onCard, size: 24),
+          Expanded(
+            child: Text(
+              range,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodySmall.copyWith(
+                color: onCard.withValues(alpha: 0.72),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  range,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.bodySmall.copyWith(
-                    color: onCard.withValues(alpha: 0.72),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _buildTotal(
             onCard,
             'Expenses',
@@ -143,9 +129,14 @@ class ExpenseSummaryCard extends StatelessWidget {
             Icons.arrow_outward,
             Colors.red,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 3),
+          Divider(
+            color: onCard.withValues(alpha: 0.18),
+            thickness: 1,
+          ),
+          const SizedBox(height: 3),
           _buildTotal(onCard, 'Income', income, Icons.south_west, Colors.green),
-          const SizedBox(height: 2),
+          const SizedBox(height: 6),
           Text(
             subtitle,
             style: AppTheme.bodySmall.copyWith(
@@ -154,7 +145,7 @@ class ExpenseSummaryCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -193,25 +184,19 @@ class ExpenseSummaryCard extends StatelessWidget {
         Icon(icon, color: color, size: 28),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTheme.bodySmall.copyWith(color: onCard)),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  FinanceEntry.money(amount),
-                  style: AppTheme.headingLarge.copyWith(
-                    color: onCard,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Boldonse',
-                  ),
+          child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                FinanceEntry.money(amount),
+                style: AppTheme.headingLarge.copyWith(
+                  color: onCard,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: "Boldonse",
                 ),
               ),
-            ],
-          ),
+            ),
         ),
       ],
     );
@@ -231,13 +216,13 @@ class ExpenseSummaryCard extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: onCard.withValues(alpha: 0.62),
+            color: onCard.withValues(alpha: 0.75),
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
