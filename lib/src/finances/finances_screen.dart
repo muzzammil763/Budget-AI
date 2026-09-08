@@ -88,8 +88,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
     if (mounted) {
       setState(() {
-        _allEntries = FinanceService.expenseEntries(allEntries);
-        _monthEntries = FinanceService.expenseEntries(month);
+        _allEntries = FinanceService.reportingEntries(
+          allEntries,
+          includeRollovers: false,
+        );
+        _monthEntries = FinanceService.reportingEntries(
+          month,
+          includeRollovers: false,
+        );
         _isLoading = false;
       });
     }
@@ -117,7 +123,10 @@ class _FinancesScreenState extends State<FinancesScreen> {
     );
     if (mounted) {
       setState(() {
-        _monthEntries = FinanceService.expenseEntries(entries);
+        _monthEntries = FinanceService.reportingEntries(
+          entries,
+          includeRollovers: false,
+        );
         _isLoading = false;
       });
     }
@@ -702,7 +711,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                       Row(
                         children: [
                           Text(
-                            entry.category,
+                            '${entry.type == FinanceEntryType.income ? 'Income' : 'Expense'} · ${entry.category}',
                             style: TextStyle(
                               color: theme.colorScheme.onSurfaceVariant,
                               fontSize: 11.5,

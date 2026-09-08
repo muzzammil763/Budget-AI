@@ -295,6 +295,7 @@ class FinanceService {
       (e) =>
           e.description.toLowerCase() == entry.description.toLowerCase() &&
           e.amount == entry.amount &&
+          e.type == entry.type &&
           e.date.year == entry.date.year &&
           e.date.month == entry.date.month &&
           e.date.day == entry.date.day &&
@@ -449,6 +450,7 @@ class FinanceService {
         (e) =>
             e.description.toLowerCase() == entry.description.toLowerCase() &&
             e.amount == entry.amount &&
+            e.type == entry.type &&
             e.date.year == entry.date.year &&
             e.date.month == entry.date.month &&
             e.date.day == entry.date.day,

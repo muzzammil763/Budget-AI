@@ -33,7 +33,10 @@ void main() {
     await open(null);
     expect(find.text('From 1 Jan 2026 To 7 Sep 2026'), findsOneWidget);
     await open(DateTime(2026, 9));
-    expect(find.text('Total spent in Sep 2026 · 1–7 Sep'), findsOneWidget);
+    expect(
+      find.text('Income and expenses in Sep 2026 · 1–7 Sep'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('summary scopes expenses and averages over calendar days', (
@@ -71,12 +74,13 @@ void main() {
       ),
     );
     expect(find.text(FinanceEntry.money(600)), findsOneWidget);
+    expect(find.text(FinanceEntry.money(9000)), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.text(FinanceEntry.money(300)), findsOneWidget);
-    expect(find.text('Entries'), findsOneWidget);
+    expect(find.text('Expense entries'), findsOneWidget);
     expect(find.text('Active days'), findsOneWidget);
-    expect(find.text('Daily avg'), findsOneWidget);
+    expect(find.text('Daily expense avg'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -76,8 +76,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
-- Chat’s top-right chrome contains equal-size New Chat, Finances, and Budget Hub
-  actions. New Chat instantly opens a fresh draft unless a response is active.
+- Chat’s top-right chrome contains equal-size Finances (money-circle), Insights (Budget mark), and Budget Hub
+  actions; New Chat sits beside History on the left. New Chat instantly opens a fresh draft unless a response is active.
   Chat preloads monthly usage and authorized admin data in the background
   without delaying Budget Hub navigation. A
   circular AI-usage action lives in the Budget Hub AppBar, tracks whichever
@@ -252,15 +252,15 @@ conflict handling, and encryption boundaries.
 
 ### Monthly finance insights
 
-Budget AI manages expenses only. Finances shows **Total expenses** for every past/current month and Overall. Income entry controls, income breakdowns, balances, Saved/Overused, and transfer notices are removed. Chat and native shortcuts log expenses; image receipts, spending charts, search, and expense editing remain available.
+Budget AI supports manual expense and income entry, editing, and deletion. Finances lists both types with red expense and green income amounts. The shared monthly and Overall card shows separate Expenses and Income totals with red outgoing and green incoming icons and normal card-colored amounts. No balances, Saved/Overused, or rollovers are shown. Chat and native shortcuts log expenses; image receipts, spending charts, search, and expense editing remain available.
 
-All reporting excludes legacy income and internal savings/deficit transfers. Startup no longer creates or recalculates rollovers. Existing records remain stored without a destructive migration, while expense views, tools, and widget exports use actual expenses only.
+Finances and the shared summary include existing income; all reporting excludes internal savings/deficit transfers. Startup no longer creates or recalculates rollovers. Existing records remain stored without a destructive migration, while expense views, tools, and widget exports use actual expenses only.
 
 Finance Insights retains expense category breakdowns, daily trends, heatmaps, and monthly spending highlights. Each nonempty month has a **Monthly Summary** card. Generate/Regenerate uses fresh expense totals, categories, and daily spending only. A new expense-summary cache namespace prevents old income/balance summaries from appearing.
 
 Summaries are stored per account/month in local Shared Preferences and cleared at account exit. They are excluded from Supabase synchronization. Generation uses the existing authenticated Responses proxy, active model, and AI quota; the OpenAI key remains server-only. No new backend deployment is required for this feature.
 
-Finances and Insights share `expense_summary_card.dart`: the same rounded gradient card shows scoped spending, entry count, distinct active days, and daily average. Daily average covers calendar days from the first scoped expense through today (or the last day of a past month); empty scopes show zero. Search filters the list without changing the scope summary.
+Finances and Insights share `expense_summary_card.dart`: the same rounded gradient card shows separate scoped expense and income totals, expense entry count, distinct expense days, and daily expense average. Income-only and empty scopes also show both totals. Daily average covers calendar days from the first scoped expense through today (or the last day of a past month); empty scopes show zero. Search filters the list without changing the scope summary.
 
 Image input uses Responses `input_image` parts with base64 data URLs, as documented at https://developers.openai.com/api/docs/guides/images-vision. Chat allows 90 seconds before the first visible image-analysis content, including retries with existing image context; inactivity timeout cancels HTTP before awaiting stream cleanup. Attachment strips use their content width with 64-pixel composer and 72-pixel message previews, retaining removal and zoom. The shared spending card displays explicit Overall dates and a 1–today range for the current month.
 
