@@ -79,18 +79,13 @@ export function validateAndSanitizeBody(raw: unknown) {
 
   const tools = body.tools;
   if (tools !== undefined) {
-    if (!Array.isArray(tools) || tools.length > allowedTools.size + 1) {
+    if (!Array.isArray(tools) || tools.length > allowedTools.size) {
       throw new Error("invalid_tools");
     }
-    let imageTools = 0;
     for (const tool of tools) {
       if (!tool || typeof tool !== "object") throw new Error("invalid_tools");
       const name = (tool as Record<string, unknown>).name;
       const type = (tool as Record<string, unknown>).type;
-      if (type === "image_generation") {
-        if (++imageTools > 1) throw new Error("invalid_tools");
-        continue;
-      }
       if (
         type !== "function" || typeof name !== "string" ||
         !allowedTools.has(name)
@@ -121,17 +116,7 @@ export function validateAndSanitizeBody(raw: unknown) {
   if (body.text !== undefined) sanitized.text = body.text;
   if (serviceTier === "fast") sanitized.service_tier = "fast";
   if (tools !== undefined) {
-    sanitized.tools = (tools as Record<string, unknown>[]).map((tool) =>
-      tool.type === "image_generation"
-        ? {
-          type: "image_generation",
-          model: "gpt-image-2",
-          size: "1024x1024",
-          quality: "medium",
-        }
-        : tool
-    );
-    sanitized.max_tool_calls = 1;
+    sanitized.tools = tools;
     sanitized.tool_choice = "auto";
     sanitized.parallel_tool_calls = false;
   }

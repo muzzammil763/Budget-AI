@@ -10,34 +10,6 @@ const pixel =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 void main() {
   testWidgets(
-    'generated placeholder and image keep square dimensions and response insets',
-    (tester) async {
-      Widget host(Widget child) => MaterialApp(
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(width: 360, child: child),
-          ),
-        ),
-      );
-      await tester.pumpWidget(host(const GeneratedChatImage()));
-      final placeholder = tester.getRect(find.byType(AspectRatio).first);
-      expect(placeholder.left, 12);
-      expect(placeholder.width, 336);
-      expect(placeholder.height, 336);
-      await tester.pumpWidget(host(const GeneratedChatImage(dataUrl: pixel)));
-      await tester.pump();
-      expect(tester.getRect(find.byType(AspectRatio).first), placeholder);
-      expect(find.text('Budget AI'), findsOneWidget);
-      await tester.tap(find.byType(GeneratedChatImage));
-      await tester.pumpAndSettle();
-      expect(find.byType(GeneratedImageViewer), findsOneWidget);
-      expect(find.byTooltip('Share image'), findsOneWidget);
-      expect(find.text('Budget AI'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
     'photo normalization bounds JPEG upload while preserving dimensions',
     (tester) async {
       await tester.runAsync(() async {

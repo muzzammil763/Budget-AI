@@ -253,7 +253,7 @@ void main() {
   );
 
   test(
-    'image generation tool is sent only for explicit visual creation',
+    'image generation stays unavailable even for explicit chart requests',
     () async {
       Future<List<Map<String, dynamic>>> toolsFor(String prompt) async {
         final requests = <RequestOptions>[];
@@ -285,15 +285,15 @@ void main() {
         final requestedTools = await toolsFor(prompt);
         expect(
           requestedTools.where((tool) => tool['type'] == 'image_generation'),
-          hasLength(1),
+          isEmpty,
         );
       }
 
       final visualTools = await toolsFor('Make a chart image of my budget');
-      expect(visualTools, hasLength(3));
+      expect(visualTools, hasLength(5));
       expect(
         visualTools.where((tool) => tool['type'] == 'image_generation'),
-        hasLength(1),
+        isEmpty,
       );
       expect(
         visualTools

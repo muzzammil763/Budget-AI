@@ -54,25 +54,11 @@ Deno.test("reject too many, oversized and remote image inputs", () => {
     "invalid_image",
   );
 });
-Deno.test("constrain image generation settings and retain tool allowlist", () => {
-  const result = validateAndSanitizeBody({
-    ...request([image]),
-    tools: [{ type: "image_generation", model: "other", quality: "high" }],
-  });
-  const tool = (result.sanitized.tools as Record<string, unknown>[])[0];
-  assert(
-    tool.model === "gpt-image-2" && tool.quality === "medium",
-    "Use server settings",
-  );
-  assert(result.sanitized.max_tool_calls === 1, "Bound hosted tool calls");
-  rejected(
-    { ...request([]), tools: [{ type: "web_search" }] },
-    "unsupported_tool",
-  );
-  rejected({
-    ...request([]),
-    tools: [{ type: "image_generation" }, { type: "image_generation" }],
-  }, "invalid_tools");
+Deno.test("reject image generation while retaining finance tools", () => {
+  rejected({ ...request([]), tools: [{ type: "image_generation" }] }, "unsupported_tool");
+  rejected({ ...request([]), tools: [{ type: "web_search" }] }, "unsupported_tool");
+  const result = validateAndSanitizeBody({ ...request([]), tools: [{ type: "function", name: "finance_summary" }] });
+  assert((result.sanitized.tools as unknown[]).length === 1, "Finance tool allowed");
 });
 Deno.test("text limit still applies alongside images and invalid models fail", () => {
   rejected(

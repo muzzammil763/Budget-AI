@@ -45,18 +45,8 @@ class ResponsesProvider extends BaseChatProvider {
     final availableTools = enableToolCalls
         ? _toolRegistry.getAvailableTools()
         : <ToolDefinition>[];
-    final wantsImageGeneration =
-        enableToolCalls && _requestsGeneratedImage(message);
-    final tools = wantsImageGeneration
-        ? availableTools
-              .where(
-                (tool) =>
-                    tool.name == 'finance_list' ||
-                    tool.name == 'finance_summary',
-              )
-              .toList()
-        : availableTools;
-    final hasTools = tools.isNotEmpty || wantsImageGeneration;
+    final tools = availableTools;
+    final hasTools = tools.isNotEmpty;
     final reasoningEffort = _reasoningEffortFor(message);
 
     debugPrint('[$_providerName] Sending authenticated request to $_baseUrl');
@@ -95,9 +85,7 @@ class ResponsesProvider extends BaseChatProvider {
           'top_p': 1.0,
           ..._responseModelOptions(reasoningEffort: reasoningEffort),
           ..._responseServiceTierOptions,
-          'instructions':
-              '${await _buildChatSystemPrompt()}'
-              '${wantsImageGeneration ? '\nThe user explicitly requested an image. Use finance_list or finance_summary to retrieve the requested spending period, then call image_generation to return an actual chart image. Do not substitute Markdown, ASCII art, or a description for the requested image. Design a polished editorial finance graphic in a square 1:1 composition: strong visual hierarchy, clean readable labels, accurate amounts and dates, restrained cohesive colors, generous whitespace, and no clutter. Reserve the bottom-right 32% of width and 12% of height as calm empty background with no text, chart marks, legends, or key details; the app overlays its own small logo and name there. Do not draw a logo or watermark yourself. If no records exist, explain that instead of inventing amounts.' : ''}',
+          'instructions': await _buildChatSystemPrompt(),
           'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,
           'client_turn_id': const Uuid().v4(),
@@ -105,13 +93,6 @@ class ResponsesProvider extends BaseChatProvider {
         if (hasTools) {
           requestData['tools'] = [
             ...tools.map((tool) => tool.toResponsesJson()),
-            if (wantsImageGeneration)
-              {
-                'type': 'image_generation',
-                'model': 'gpt-image-2',
-                'size': '1024x1024',
-                'quality': 'medium',
-              },
           ];
           requestData['tool_choice'] = 'auto';
           requestData['parallel_tool_calls'] = false;
@@ -498,15 +479,4 @@ class ResponsesProvider extends BaseChatProvider {
       );
     }
   }
-}
-
-bool _requestsGeneratedImage(String message) {
-  final normalized = message.toLowerCase();
-  final asksToCreate = RegExp(
-    r'\b(create|generate|make|draw|design|build|show me)\b',
-  ).hasMatch(normalized);
-  final asksForVisual = RegExp(
-    r'\b(images?|pictures?|illustrations?|infographics?|visuals?|charts?|graphs?)\b',
-  ).hasMatch(normalized);
-  return asksToCreate && asksForVisual;
 }
