@@ -199,7 +199,7 @@ class BudgetMarkPainter extends CustomPainter {
   }
 }
 
-/// Wallet and coin mark for the Finances shortcut.
+/// Transaction list with incoming and outgoing arrows for Finances.
 class FinanceMarkIcon extends StatelessWidget {
   const FinanceMarkIcon({super.key, this.size = 28});
   final double size;
@@ -217,44 +217,49 @@ class _FinanceMarkPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 28, size.height / 28);
-    final wallet = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(2, 7, 24, 18),
+    final card = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(3, 2, 22, 24),
       const Radius.circular(5),
     );
     canvas.drawRRect(
-      wallet,
+      card,
       Paint()
         ..shader = ui.Gradient.linear(
-          const Offset(2, 7),
-          const Offset(26, 25),
-          [colors.primary, Color.lerp(colors.primary, AppTheme.highlight, .3)!],
+          const Offset(3, 2),
+          const Offset(25, 26),
+          [
+            colors.primary,
+            Color.lerp(colors.primary, AppTheme.highlight, .25)!,
+          ],
         ),
     );
-    canvas.drawCircle(
-      const Offset(10, 7),
-      5,
-      Paint()..color = AppTheme.highlight,
+    final ink = Paint()
+      ..color = colors.onPrimary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    // Two ledger rows with opposite directions: money in and money out.
+    canvas.drawPath(
+      Path()
+        ..moveTo(9, 6)
+        ..lineTo(9, 12)
+        ..moveTo(6.5, 9.5)
+        ..lineTo(9, 12)
+        ..lineTo(11.5, 9.5),
+      ink,
     );
-    canvas.drawCircle(
-      const Offset(10, 7),
-      2.5,
-      Paint()
-        ..color = colors.primary
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+    canvas.drawLine(const Offset(15, 9), const Offset(21, 9), ink);
+    canvas.drawPath(
+      Path()
+        ..moveTo(9, 22)
+        ..lineTo(9, 16)
+        ..moveTo(6.5, 18.5)
+        ..lineTo(9, 16)
+        ..lineTo(11.5, 18.5),
+      ink,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(17, 13, 10, 7),
-        const Radius.circular(2.5),
-      ),
-      Paint()..color = colors.onPrimary,
-    );
-    canvas.drawCircle(
-      const Offset(20, 16.5),
-      1,
-      Paint()..color = colors.primary,
-    );
+    canvas.drawLine(const Offset(15, 19), const Offset(21, 19), ink);
     canvas.restore();
   }
 

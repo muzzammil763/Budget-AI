@@ -3294,11 +3294,20 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Material(
-              elevation: 8,
-              shadowColor: Colors.black.withValues(alpha: .25),
-              color: theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(composerRadius),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(composerRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.white.withValues(alpha: .12)
+                        : Colors.black.withValues(alpha: .16),
+                    blurRadius: 18,
+                    spreadRadius: 2,
+                    offset: Offset.zero,
+                  ),
+                ],
+              ),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -3308,7 +3317,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
+                  color: theme.colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(composerRadius),
                 ),
                 child: IgnorePointer(
@@ -3778,7 +3787,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
       Widget buildContent() {
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (message.images.isNotEmpty)
@@ -3786,7 +3795,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             if (message.text.isNotEmpty)
               ExpandableUserMessageText(
                 text: message.text,
-                textAlign: TextAlign.right,
+                textAlign: TextAlign.start,
                 style: UserBubbleStyleSurface.messageTextStyle(
                   context,
                   bubbleStyle,
@@ -3805,7 +3814,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           child: Container(
             margin: const EdgeInsets.only(right: 12, left: 12),
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width,
+              maxWidth: MediaQuery.sizeOf(context).width * .86,
             ),
             child: UserBubbleStyleSurface(
               style: bubbleStyle,

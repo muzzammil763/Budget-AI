@@ -75,7 +75,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
-- Chat’s top-right chrome contains equal-size Finances (painted wallet-and-coin mark), Insights (Budget mark), and Budget Hub
+- Chat’s top-right chrome contains equal-size Finances (painted transaction-list mark), Insights (Budget mark), and Budget Hub
   actions; New Chat sits beside History on the left. New Chat instantly opens a fresh draft unless a response is active.
   Chat preloads monthly usage and authorized admin data in the background
   without delaying Budget Hub navigation. A
@@ -262,10 +262,12 @@ Finances and Insights share `expense_summary_card.dart`: the same rounded gradie
 
 Image input uses Responses `input_image` parts with base64 data URLs, as documented at https://developers.openai.com/api/docs/guides/images-vision. Chat allows 90 seconds before the first visible image-analysis content, including retries with existing image context; inactivity timeout cancels HTTP before awaiting stream cleanup. Attachment strips use their content width with 64-pixel composer and 72-pixel message previews, retaining removal and zoom. The shared spending card displays explicit Overall dates and a 1–today range for the current month.
 
-Attachment composer rows align left, with up to three previews side by side; user text aligns right beneath image previews. Small screenshots stay PNG; larger decoded images become metadata-free JPEGs capped at 768 KB using the `image` package in a background isolate, avoiding photo-to-PNG payload inflation.
+Attachment composer rows align left, with up to three previews side by side; user text uses natural start alignment beneath image previews, sharing their leading edge inside a right-positioned bubble. Small screenshots stay PNG; larger decoded images become metadata-free JPEGs capped at 768 KB using the `image` package in a background isolate, avoiding photo-to-PNG payload inflation.
 
 Request failures include sanitized JSON diagnostics: payload size, attachment MIME/encoded size, uploaded bytes, last confirmed proxy/response stage, and elapsed time. Inactivity timeouts surface immediately instead of silently retrying; stream cleanup is bounded to two seconds. Diagnostics never include prompts, image bytes, or credentials and do not assume OpenAI received an image before response events are observed.
 
 Only explicit Stop actions display Request Cancelled. Internal cancellations retain an interruption message and request diagnostics; cancellation-cleanup exceptions cannot mask the original failure.
 
-Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. Search mode has a non-tappable leading search icon; its close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, elevation, and no animated or static border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.
+Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. Search mode has a non-tappable leading search icon; its close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, a centered soft shadow visible around all sides, a raised surface color, and no animated or static border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.
+
+Outgoing chat bubbles occupy at most 86% of the screen width. Their images and captions share a leading edge; multiline text uses natural start alignment while the bubble itself remains on the right. The Finances shortcut paints a transaction list with incoming and outgoing arrows, shared by chat navigation and the Budget Hub Quick Actions card.

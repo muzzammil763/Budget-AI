@@ -422,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               theme,
               title: 'Finances',
               subtitle: 'Add, search, and edit entries',
-              icon: CupertinoIcons.money_dollar_circle,
+              leading: const FinanceMarkIcon(size: 31),
               color: Colors.transparent,
               foreground: theme.colorScheme.onSurface,
               borderColor: theme.colorScheme.primary.withValues(alpha: 0.35),
