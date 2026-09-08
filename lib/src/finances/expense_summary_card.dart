@@ -186,7 +186,7 @@ class ExpenseSummaryCard extends StatelessWidget {
               FinanceEntry.money(amount),
               style: AppTheme.headingLarge.copyWith(
                 color: onCard,
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: FontWeight.w500,
                 fontFamily: "Boldonse",
               ),
