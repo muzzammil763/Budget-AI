@@ -9,6 +9,8 @@ import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
+import 'package:budget_ai/src/finances/finance_insights_screen.dart';
+import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/settings/admin_service.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
@@ -2854,6 +2856,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                         tooltip: 'Chats',
                         onPressed: _openHistoryScreen,
                       ),
+                      const SizedBox(width: 8),
+                      _buildFloatingAppBarButton(
+                        theme,
+                        icon: CupertinoIcons.square_pencil,
+                        tooltip: 'New Chat',
+                        onPressed: _resetToFreshDraft,
+                      ),
                       const Spacer(),
                       _buildTopChromeActionGroup(theme),
                     ],
@@ -2894,16 +2903,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildTopChromeAction(
-              tooltip: 'New Chat',
-              onPressed: _resetToFreshDraft,
+              tooltip: 'Finances',
+              onPressed: _openFinancesScreen,
               icon: Icon(
-                CupertinoIcons.square_pencil,
+                CupertinoIcons.money_dollar_circle,
                 color: theme.colorScheme.onSurface,
               ),
             ),
             _buildTopChromeAction(
-              tooltip: 'Finances',
-              onPressed: _openFinancesScreen,
+              tooltip: 'Insights',
+              onPressed: _openInsightsScreen,
               icon: const BudgetMarkIcon(size: 28),
             ),
             _buildTopChromeAction(
@@ -3152,6 +3161,20 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
     if (!mounted) return;
     await _refreshChatConfiguration();
+  }
+
+  Future<void> _openInsightsScreen() async {
+    final entries = await FinanceService.instance.getAll();
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FinanceInsightsScreen(
+          entries: entries,
+          selectedMonth: DateTime.now(),
+        ),
+      ),
+    );
   }
 
   Future<void> _openFinancesScreen() {

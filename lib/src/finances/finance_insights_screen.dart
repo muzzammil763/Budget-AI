@@ -73,7 +73,10 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
 
   List<DateTime> _buildAvailableMonths() {
     final months = <DateTime>{};
-    for (final e in _expenseEntries) {
+    for (final e in FinanceService.reportingEntries(
+      widget.entries,
+      includeRollovers: false,
+    )) {
       months.add(DateTime(e.date.year, e.date.month));
     }
     final now = DateTime.now();
@@ -116,13 +119,23 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
           ),
           Expanded(
             child: insights.isEmpty
-                ? _buildEmpty(theme)
+                ? ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
+                      ExpenseSummaryCard(
+                        entries: widget.entries,
+                        month: _scopeMonth,
+                      ),
+                      const SizedBox(height: 24),
+                      _buildEmpty(theme),
+                    ],
+                  )
                 : ListView(
                     padding: const EdgeInsets.all(12),
                     children: scope == null
                         ? [
                             ExpenseSummaryCard(
-                              entries: _expenseEntries,
+                              entries: widget.entries,
                               month: _scopeMonth,
                             ),
                             const SizedBox(height: 12),
@@ -258,8 +271,8 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
             const SizedBox(height: 16),
             Text(
               _isOverall
-                  ? 'No finance entries yet'
-                  : 'No entries for ${_pillMonthLabel(_scopeMonth!)}',
+                  ? 'No expenses yet'
+                  : 'No expenses for ${_pillMonthLabel(_scopeMonth!)}',
               style: AppTheme.headingSmall.copyWith(
                 color: theme.colorScheme.onSurface,
                 fontSize: 18,
@@ -879,7 +892,7 @@ class _FinanceInsightsScreenState extends State<FinanceInsightsScreen> {
     List<_DatedTotal> days,
   ) {
     return [
-      ExpenseSummaryCard(entries: _expenseEntries, month: _scopeMonth),
+      ExpenseSummaryCard(entries: widget.entries, month: _scopeMonth),
       const SizedBox(height: 12),
 
       const SizedBox(height: 12),

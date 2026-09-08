@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'finance_service.dart';
 
-/// Shared expense overview for month and Overall scopes on both finance screens.
+/// Shared income and expense overview for month and Overall scopes on both finance screens.
 class ExpenseSummaryCard extends StatelessWidget {
   const ExpenseSummaryCard({
     super.key,
@@ -39,8 +39,8 @@ class ExpenseSummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
     final current = now ?? DateTime.now();
     final scope = month;
-    final entries =
-        FinanceService.expenseEntries(this.entries)
+    final scopedEntries =
+        FinanceService.reportingEntries(this.entries, includeRollovers: false)
             .where(
               (e) =>
                   !e.date.isAfter(current) &&
@@ -52,6 +52,11 @@ class ExpenseSummaryCard extends StatelessWidget {
           ..sort((a, b) => a.date.compareTo(b.date));
     DateTime day(DateTime date) =>
         DateTime.utc(date.year, date.month, date.day);
+    final entries = FinanceService.expenseEntries(scopedEntries);
+    final income = FinanceService.instance.totalAmount(
+      scopedEntries,
+      type: FinanceEntryType.income,
+    );
     final days = entries.map((e) => day(e.date)).toSet();
     final total = FinanceService.instance.totalAmount(entries);
     final end =
@@ -76,12 +81,12 @@ class ExpenseSummaryCard extends StatelessWidget {
         scope.month == current.month;
     final range = scope != null
         ? 'Month · ${_monthLabel(scope)}'
-        : entries.isEmpty
+        : scopedEntries.isEmpty
         ? 'Through ${dateLabel(current)}'
-        : 'From ${dateLabel(entries.first.date)} To ${dateLabel(current)}';
+        : 'From ${dateLabel(scopedEntries.first.date)} To ${dateLabel(current)}';
     final subtitle = scope != null
-        ? 'Total spent in ${_monthLabel(scope, short: true)}${currentMonth ? ' · 1–${current.day} ${_monthLabel(scope, short: true).split(' ').first}' : ''}'
-        : 'Total spent through ${dateLabel(current)}';
+        ? 'Income and expenses in ${_monthLabel(scope, short: true)}${currentMonth ? ' · 1–${current.day} ${_monthLabel(scope, short: true).split(' ').first}' : ''}'
+        : 'Income and expenses through ${dateLabel(current)}';
 
     return Container(
       width: double.infinity,
@@ -131,18 +136,15 @@ class ExpenseSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            FinanceEntry.money(total),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.headingLarge.copyWith(
-              color: Colors.red,
-              fontSize: 28,
-              fontWeight: FontWeight.w500,
-              fontFamily: "Boldonse",
-              letterSpacing: 1.2,
-            ),
+          _buildTotal(
+            onCard,
+            'Expenses',
+            total,
+            Icons.arrow_outward,
+            Colors.red,
           ),
+          const SizedBox(height: 12),
+          _buildTotal(onCard, 'Income', income, Icons.south_west, Colors.green),
           const SizedBox(height: 2),
           Text(
             subtitle,
@@ -156,7 +158,11 @@ class ExpenseSummaryCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _buildHeroStat(onCard, 'Entries', '${entries.length}'),
+                child: _buildHeroStat(
+                  onCard,
+                  'Expense entries',
+                  '${entries.length}',
+                ),
               ),
               Expanded(
                 child: _buildHeroStat(onCard, 'Active days', '${days.length}'),
@@ -164,7 +170,7 @@ class ExpenseSummaryCard extends StatelessWidget {
               Expanded(
                 child: _buildHeroStat(
                   onCard,
-                  'Daily avg',
+                  'Daily expense avg',
                   FinanceEntry.money(average),
                 ),
               ),
@@ -172,6 +178,42 @@ class ExpenseSummaryCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTotal(
+    Color onCard,
+    String label,
+    double amount,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTheme.bodySmall.copyWith(color: onCard)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  FinanceEntry.money(amount),
+                  style: AppTheme.headingLarge.copyWith(
+                    color: onCard,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Boldonse',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

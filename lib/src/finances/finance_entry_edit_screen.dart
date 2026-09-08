@@ -110,6 +110,27 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
           children: [
+            SegmentedButton<FinanceEntryType>(
+              segments: const [
+                ButtonSegment(
+                  value: FinanceEntryType.expense,
+                  label: Text('Expense'),
+                  icon: Icon(Icons.arrow_outward, color: Colors.red),
+                ),
+                ButtonSegment(
+                  value: FinanceEntryType.income,
+                  label: Text('Income'),
+                  icon: Icon(Icons.south_west, color: Colors.green),
+                ),
+              ],
+              selected: {_type},
+              onSelectionChanged: _isSaving
+                  ? null
+                  : (selection) => setState(() {
+                      _type = selection.single;
+                    }),
+            ),
+            const SizedBox(height: 12),
             _buildAmountCard(theme, accent),
             const SizedBox(height: 12),
 
@@ -160,7 +181,11 @@ class _FinanceEntryEditScreenState extends State<FinanceEntryEditScreen> {
                       final categories = <String>{
                         ...(_type == FinanceEntryType.income
                             ? kIncomeCategories
-                            : kFinanceCategories),
+                            : kFinanceCategories.where(
+                                (category) =>
+                                    category !=
+                                    FinanceService.balanceRolloverCategory,
+                              )),
                         if (widget.entry?.category.trim().isNotEmpty ?? false)
                           widget.entry!.category.trim(),
                       }.toList();
