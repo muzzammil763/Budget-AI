@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
@@ -12,6 +13,8 @@ import 'package:budget_ai/src/storage/local_settings_store.dart';
 typedef OpenAiSpeechFunctionInvoker =
     Future<Map<String, dynamic>> Function(Map<String, dynamic> body);
 
+class SpeechTranscriptionCancelled implements Exception {}
+
 class OpenAiTranscription {
   const OpenAiTranscription({required this.text, required this.languageCode});
 
@@ -24,6 +27,15 @@ class OpenAiSpeechService {
     : _invoke = invoke ?? _invokeFunction;
 
   final OpenAiSpeechFunctionInvoker _invoke;
+  Completer<void>? _transcriptionCancellation;
+
+  void cancelTranscription() {
+    final cancellation = _transcriptionCancellation;
+    if (cancellation != null && !cancellation.isCompleted) {
+      cancellation.complete();
+    }
+    _transcriptionCancellation = null;
+  }
 
   bool get isReadyForVoiceTurn =>
       Supabase.instance.client.auth.currentSession != null;
@@ -47,20 +59,40 @@ class OpenAiSpeechService {
     String audioPath, {
     required Locale locale,
   }) async {
-    final bytes = await File(audioPath).readAsBytes();
-    final requestedLanguageCode = speechLanguageCodeForLocale(locale);
-    final data = await _invoke({
-      'audioContent': base64Encode(bytes),
-      'fileName': p.basename(audioPath),
-      'languageCode': requestedLanguageCode,
-    });
-    final text = data['transcript']?.toString().trim() ?? '';
-    final languageCode =
-        data['languageCode']?.toString().trim() ?? requestedLanguageCode;
-    return OpenAiTranscription(
-      text: text,
-      languageCode: languageCode.isEmpty ? requestedLanguageCode : languageCode,
-    );
+    cancelTranscription();
+    final cancellation = Completer<void>();
+    _transcriptionCancellation = cancellation;
+    try {
+      final bytes = await File(audioPath).readAsBytes();
+      if (cancellation.isCompleted) throw SpeechTranscriptionCancelled();
+      final requestedLanguageCode = speechLanguageCodeForLocale(locale);
+      final data = await Future.any<Map<String, dynamic>>([
+        _invoke({
+          // Compatible with older deployed action-based speech endpoints.
+          'action': 'transcribe',
+          'audioContent': base64Encode(bytes),
+          'fileName': p.basename(audioPath),
+          'languageCode': requestedLanguageCode,
+        }),
+        cancellation.future.then<Map<String, dynamic>>(
+          (_) => throw SpeechTranscriptionCancelled(),
+        ),
+      ]);
+      if (cancellation.isCompleted) throw SpeechTranscriptionCancelled();
+      final text = data['transcript']?.toString().trim() ?? '';
+      final languageCode =
+          data['languageCode']?.toString().trim() ?? requestedLanguageCode;
+      return OpenAiTranscription(
+        text: text,
+        languageCode: languageCode.isEmpty
+            ? requestedLanguageCode
+            : languageCode,
+      );
+    } finally {
+      if (identical(_transcriptionCancellation, cancellation)) {
+        _transcriptionCancellation = null;
+      }
+    }
   }
 
   static Future<Map<String, dynamic>> _invokeFunction(

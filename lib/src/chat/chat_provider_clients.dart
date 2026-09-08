@@ -95,7 +95,9 @@ class ResponsesProvider extends BaseChatProvider {
           'top_p': 1.0,
           ..._responseModelOptions(reasoningEffort: reasoningEffort),
           ..._responseServiceTierOptions,
-          'instructions': await _buildChatSystemPrompt(),
+          'instructions':
+              '${await _buildChatSystemPrompt()}'
+              '${wantsImageGeneration ? '\nThe user explicitly requested an image. Use finance_list or finance_summary to retrieve the requested spending period, then call image_generation to return an actual chart image. Do not substitute Markdown, ASCII art, or a description for the requested image. If no records exist, explain that instead of inventing amounts.' : ''}',
           'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,
           'client_turn_id': const Uuid().v4(),
@@ -504,7 +506,7 @@ bool _requestsGeneratedImage(String message) {
     r'\b(create|generate|make|draw|design|build|show me)\b',
   ).hasMatch(normalized);
   final asksForVisual = RegExp(
-    r'\b(image|picture|illustration|infographic|visual|chart|graph)\b',
+    r'\b(images?|pictures?|illustrations?|infographics?|visuals?|charts?|graphs?)\b',
   ).hasMatch(normalized);
   return asksToCreate && asksForVisual;
 }

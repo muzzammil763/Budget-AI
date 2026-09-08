@@ -277,6 +277,18 @@ void main() {
         isEmpty,
       );
 
+      for (final prompt in [
+        'Generate a picture of chart of my using in th me current week',
+        'Can you please make me an image on how I am spending this week as charts',
+        'Create charts of my weekly spending',
+      ]) {
+        final requestedTools = await toolsFor(prompt);
+        expect(
+          requestedTools.where((tool) => tool['type'] == 'image_generation'),
+          hasLength(1),
+        );
+      }
+
       final visualTools = await toolsFor('Make a chart image of my budget');
       expect(visualTools, hasLength(3));
       expect(

@@ -175,6 +175,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   bool _isPickingImages = false;
   bool _isRecording = false;
   bool _isTranscribing = false;
+  int _voiceTurnRevision = 0;
+  bool _isCancellingVoice = false;
   bool _voiceHoldActive = false;
   bool _voiceStartInFlight = false;
   int? _voiceHoldPointer;
@@ -630,6 +632,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _stopStreamingThrottleTimer();
     _streamingBubble.dispose();
     _notificationActionSubscription?.cancel();
+    _speechService.cancelTranscription();
     unawaited(_audioRecorder.cancel());
     _audioRecorder.dispose();
     _provider.dispose();
@@ -1617,6 +1620,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   Future<void> _beginVoiceHold() async {
     if (_isTranscribing ||
+        _isCancellingVoice ||
         _isResponseInProgress ||
         _isRecording ||
         _voiceStartInFlight ||
@@ -1624,6 +1628,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       return;
     }
 
+    _voiceTurnRevision++;
     _voiceHoldActive = true;
     setState(() => _voiceStartInFlight = true);
     HapticFeedback.mediumImpact();
@@ -1695,18 +1700,27 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   Future<void> _cancelVoiceHold() async {
+    if (_isCancellingVoice) return;
+    _voiceTurnRevision++;
+    _speechService.cancelTranscription();
     _voiceHoldPointer = null;
     _voiceHoldActive = false;
-    if (!_isRecording) return;
+    final wasRecording = _isRecording;
+    _isCancellingVoice = true;
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _isTranscribing = false;
+        _isFinishingVoiceRecording = false;
+        _voiceRecordingStartedAt = null;
+      });
+    }
     try {
-      await _audioRecorder.cancel();
+      if (wasRecording) await _audioRecorder.cancel();
+    } catch (error) {
+      debugPrint('[Voice] Recording cleanup failed: $error');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isRecording = false;
-          _voiceRecordingStartedAt = null;
-        });
-      }
+      _isCancellingVoice = false;
       _updateCanSend();
     }
   }
@@ -1714,13 +1728,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   Future<void> _finishVoiceRecording() async {
     if (_isFinishingVoiceRecording || !_isRecording) return;
     _isFinishingVoiceRecording = true;
+    final revision = _voiceTurnRevision;
+    String? audioPath;
+    bool isCurrent() => mounted && revision == _voiceTurnRevision;
     try {
       final recordedFor = DateTime.now().difference(
         _voiceRecordingStartedAt ?? DateTime.now(),
       );
       if (recordedFor < const Duration(milliseconds: 750)) {
         await _audioRecorder.cancel();
-        if (!mounted) return;
+        if (!mounted || !isCurrent()) return;
         setState(() {
           _isRecording = false;
           _voiceRecordingStartedAt = null;
@@ -1733,8 +1750,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         );
         return;
       }
-      final path = await _audioRecorder.stop();
-      if (!mounted) return;
+      final path = audioPath = await _audioRecorder.stop();
+      if (!mounted || !isCurrent()) return;
       setState(() {
         _isRecording = false;
         _isTranscribing = true;
@@ -1747,8 +1764,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         path,
         locale: WidgetsBinding.instance.platformDispatcher.locale,
       );
-      unawaited(File(path).delete().then<void>((_) {}).catchError((_) {}));
-      if (!mounted) return;
+      if (!mounted || !isCurrent()) return;
       final transcript = transcription.text;
       if (transcript.isEmpty) {
         showAppToast(
@@ -1765,6 +1781,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _updateCanSend();
       await _sendMessage();
     } catch (error) {
+      if (!isCurrent() || error is SpeechTranscriptionCancelled) return;
       if (mounted) {
         setState(() {
           _isRecording = false;
@@ -1775,8 +1792,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _updateCanSend();
       _showSpeechError('Could not transcribe recording', error);
     } finally {
-      _isFinishingVoiceRecording = false;
-      _voiceHoldActive = false;
+      if (audioPath != null) {
+        unawaited(
+          File(audioPath).delete().then<void>((_) {}).catchError((_) {}),
+        );
+      }
+      if (isCurrent()) {
+        setState(() {
+          _isFinishingVoiceRecording = false;
+          _isTranscribing = false;
+          _voiceHoldActive = false;
+        });
+        _updateCanSend();
+      }
     }
   }
 
@@ -3294,20 +3322,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(composerRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.brightness == Brightness.dark
-                        ? Colors.white.withValues(alpha: .12)
-                        : Colors.black.withValues(alpha: .16),
-                    blurRadius: 18,
-                    spreadRadius: 2,
-                    offset: Offset.zero,
-                  ),
-                ],
-              ),
+            Material(
+              elevation: 12,
+              shadowColor: Colors.black.withValues(alpha: .25),
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(composerRadius),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -3317,11 +3336,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHigh,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(composerRadius),
                 ),
                 child: IgnorePointer(
-                  ignoring: isVoiceProcessing,
+                  ignoring: false,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 280),
                     reverseDuration: const Duration(milliseconds: 220),
@@ -3516,10 +3535,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (_isRecording) {
       return Row(
         children: [
-          const SizedBox(
-            width: 44,
-            height: 44,
-            child: ChatVoiceRecordingPulse(size: 44),
+          IconButton(
+            tooltip: 'Cancel recording',
+            onPressed: _cancelVoiceHold,
+            icon: const Icon(CupertinoIcons.xmark),
           ),
           const Expanded(child: ChatVoiceRecordingStatus()),
           _buildComposerSendButton(theme),
@@ -3629,9 +3648,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     return Row(
       key: const ValueKey('voice-processing-composer'),
       children: [
-        const SizedBox.square(
-          dimension: 44,
-          child: RepaintBoundary(child: ChatBudgetLoadingIndicator(size: 44)),
+        IconButton(
+          tooltip: 'Cancel transcription',
+          onPressed: _cancelVoiceHold,
+          icon: const Icon(CupertinoIcons.xmark),
         ),
         const SizedBox(width: 8),
         Expanded(
