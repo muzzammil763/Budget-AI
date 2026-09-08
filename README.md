@@ -13,12 +13,12 @@ end-to-end encrypted synchronization, OpenAI voice input, and image chat.
   unless overridden from the backend — see "Changing the active AI model" below.
 - Chat responses use conservative adaptive reasoning (`none` for exact conversational greetings, `medium` for clearly analytical prompts, and `low` for everything else), low text verbosity, and explicit `top_p: 1.0` sampling, while preserving important amounts, dates, caveats, and next actions.
 - Microphone recordings use PCM16 WAV and pass through the authenticated `openai-speech` Edge Function to OpenAI `gpt-transcribe`. Chat has voice input only: replies never play audio, automatically or on tap. No ElevenLabs or device TTS dependency is used by chat.
-- The composer starts with a **+** button opening a blurred, rounded **Camera / Photos** panel with the composer's animated border. Attach up to three images, remove previews, or tap to inspect them. Camera opens capture directly; Photos opens the system gallery. Large photographs are resized automatically to the API limit instead of asking the user to crop them. Images can be sent with text or on their own and remain visible in local chat history.
+- The composer starts with a **+** button opening a compact, elevated **Camera / Photos** panel with direct icons and content-sized width. Attach up to three images, remove previews, or tap to inspect them. Camera opens capture directly; Photos opens the system gallery. Large photographs are resized automatically to the API limit instead of asking the user to crop them. Images can be sent with text or on their own and remain visible in local chat history.
 - Text grows naturally to four lines without a separate expanded editor. The inactive empty or single-line composer is fully pill-shaped; wrapped text and attachments use the multiline corners and put actions below the text.
 - The active chat model analyzes receipts and expense images and uses the existing finance tools when asked to log entries. Ambiguous or unreadable details require clarification, and receipt totals must not be added again alongside their line items.
 - Requested budget/chart images use the active model's OpenAI image-generation tool (`gpt-image-2`, medium quality, 1024×1024). The assistant retrieves real finance data first. Generated images appear in chat with a zoom viewer. Image generation has separate OpenAI tool charges and requires access on the server's OpenAI project.
 - When the composer is empty, its always-available primary action becomes a hold-to-talk microphone: Chat safely pre-warms the temporary path and existing permission state without activating the microphone, startup reacts immediately on touch-down without replacing the composer, and the recording view appears once audio capture begins. Release transcribes and sends. There is no separate microphone button or microphone setting.
-- While Budget AI is preparing a response, the bottom composer shows the static `Budget AI Working ...` status in the normal composer-hint typography; the conversation stays empty until response content arrives. The composer activity mark uses animated bars without a surrounding ring.
+- While Budget AI is preparing a response, the conversation immediately shows `Thinking ...`, smoothly changing to `Budget AI is working ...` after two seconds until the first visible response content or tool call. The bottom composer retains its working status and Stop action. The composer activity mark uses animated bars without a surrounding ring.
 - The first launch after this migration removes any previously downloaded
   Whisper files and their retired selection key.
 - All message styles use the default bundled Google Sans font while preserving explicitly branded Boldonse text and monospaced code.
@@ -71,12 +71,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   before reaching AI chat. Chat sessions remain local-only; finance data is read
   and written through SQLite and always synchronizes as AES-256-GCM ciphertext
   once the gate is satisfied.
-- In Finances, a circular add button beside the keyboard-responsive search
-  field opens the shared form for manual entry creation. Tapping an existing
+- In Finances, a circular floating add button opens the shared form for manual entry creation. Tapping an existing
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
   gestures.
-- Chat’s top-right chrome contains equal-size Finances (money-circle), Insights (Budget mark), and Budget Hub
+- Chat’s top-right chrome contains equal-size Finances (painted wallet-and-coin mark), Insights (Budget mark), and Budget Hub
   actions; New Chat sits beside History on the left. New Chat instantly opens a fresh draft unless a response is active.
   Chat preloads monthly usage and authorized admin data in the background
   without delaying Budget Hub navigation. A
@@ -109,13 +108,12 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   account deletion. Deletion requires entering `DELETE MY ACCOUNT` with the
   inline keyboard and accepting one final warning; account-owned encrypted
   cloud data is deleted with the account while device-only data remains local. The currency
-  picker has a responsive search field and adjacent circular add action that
+  picker has borderless AppBar search and a circular floating add action that
   opens a dedicated custom-currency form; custom displays are limited to five
   characters and can be edited or deleted later. The picker reveals the current
   selection on entry, jumps directly to a newly saved custom display, and stays
   open when the selection changes so users can return with Back. The message
-  bubble picker currently exposes a searchable bottom control without a custom
-  add action. Its second preset is Outline: the Primary bubble shape with a
+  bubble picker has no search or custom add action. Its second preset is Outline: the Primary bubble shape with a
   transparent fill and 1.5 px primary-color border. Bubble content uses 12 px
   padding on every side. Existing custom styles remain editable and deletable through
   their list actions; the custom editor supports named styles, independent
@@ -269,3 +267,5 @@ Attachment composer rows align left, with up to three previews side by side; use
 Request failures include sanitized JSON diagnostics: payload size, attachment MIME/encoded size, uploaded bytes, last confirmed proxy/response stage, and elapsed time. Inactivity timeouts surface immediately instead of silently retrying; stream cleanup is bounded to two seconds. Diagnostics never include prompts, image bytes, or credentials and do not assume OpenAI received an image before response events are observed.
 
 Only explicit Stop actions display Request Cancelled. Internal cancellations retain an interruption message and request diagnostics; cancellation-cleanup exceptions cannot mask the original failure.
+
+Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. Search mode has a non-tappable leading search icon; its close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, elevation, and no animated or static border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.

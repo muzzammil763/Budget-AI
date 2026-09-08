@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
@@ -76,35 +75,68 @@ class _AttachmentMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
-              ),
-              child: Icon(icon, size: 25),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: AppTheme.bodyLarge.copyWith(
-                fontSize: 19,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Icon(icon),
+            const SizedBox(width: 12),
+            Text(label, style: const TextStyle(fontSize: 14)),
           ],
         ),
       ),
     );
   }
+}
+
+class _PendingResponseLabel extends StatefulWidget {
+  const _PendingResponseLabel({super.key});
+  @override
+  State<_PendingResponseLabel> createState() => _PendingResponseLabelState();
+}
+
+class _PendingResponseLabelState extends State<_PendingResponseLabel> {
+  Timer? _timer;
+  bool _working = false;
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _working = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, .2),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: Text(
+        _working ? 'Budget AI is working ...' : 'Thinking ...',
+        key: ValueKey(_working),
+        style: const TextStyle(fontSize: 16),
+      ),
+    ),
+  );
 }
 
 class _UnifiedChatScreenState extends State<UnifiedChatScreen>
@@ -129,6 +161,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final List<_TimelineViewItem> _timelineItems = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
+  bool _hasVisibleResponse = false;
+  int _responseSequence = 0;
   bool _isAppInBackground = false;
   bool _isAppInactive = false;
   bool _isOnChatScreen = true;
@@ -786,6 +820,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     setState(() {
       _isLoading = true;
+      _hasVisibleResponse = false;
+      _responseSequence++;
       _skipStreamingReveal = _isAppInBackground || _isAppInactive;
       if (appendUserMessage) {
         _appendTimelineMessage(provisionalUserMessage, entryId: null);
@@ -1044,6 +1080,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   chunk.imageDataUrl != null ||
                   chunk.content.isNotEmpty ||
                   chunk.toolCall != null;
+              if (hasUserVisibleUpdate && !_hasVisibleResponse) {
+                setState(() => _hasVisibleResponse = true);
+              }
               final shouldUpdate =
                   hasUserVisibleUpdate &&
                   !shouldReplacePlaceholder &&
@@ -2905,10 +2944,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             _buildTopChromeAction(
               tooltip: 'Finances',
               onPressed: _openFinancesScreen,
-              icon: Icon(
-                CupertinoIcons.money_dollar_circle,
-                color: theme.colorScheme.onSurface,
-              ),
+              icon: const FinanceMarkIcon(size: 28),
             ),
             _buildTopChromeAction(
               tooltip: 'Insights',
@@ -3028,8 +3064,24 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             // expensive markdown and tool sections, so prebuilding several
             // screens of them causes noticeable frame-time spikes.
             scrollCacheExtent: const ScrollCacheExtent.pixels(700.0),
-            itemCount: _timelineItems.length,
+            itemCount:
+                _timelineItems.length +
+                (_isResponseInProgress && !_hasVisibleResponse ? 1 : 0),
             itemBuilder: (context, index) {
+              if (index == _timelineItems.length) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _PendingResponseLabel(
+                      key: ValueKey(_responseSequence),
+                    ),
+                  ),
+                );
+              }
               final item = _timelineItems[index];
               // ValueKey preserves widget state (e.g. expanded/collapsed tool
               // sections) across rebuilds triggered by streaming setState calls.
@@ -3242,35 +3294,22 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ChatWorkingComposerFrame(
-              isWorking: isWorking || _isRecording || isVoiceProcessing,
-              borderRadius: composerRadius,
+            Material(
+              elevation: 8,
+              shadowColor: Colors.black.withValues(alpha: .25),
+              color: theme.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(composerRadius),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
                 constraints: const BoxConstraints(
-                  minHeight: 56,
+                  minHeight: 48,
                   maxHeight: 320,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(composerRadius),
-                  border: Border.all(
-                    color: isWorking
-                        ? Colors.transparent
-                        : theme.brightness == Brightness.dark
-                        ? theme.colorScheme.outline.withValues(alpha: 0.2)
-                        : theme.colorScheme.outline.withValues(alpha: 0.06),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
                 ),
                 child: IgnorePointer(
                   ignoring: isVoiceProcessing,
@@ -3343,41 +3382,27 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               right: 20,
               bottom: MediaQuery.viewInsetsOf(context).bottom + 92,
             ),
-            child: ChatWorkingComposerFrame(
-              isWorking: false,
-              borderRadius: 32,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                  child: Material(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.88),
-                    child: SizedBox(
-                      width: 280,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _AttachmentMenuTile(
-                              icon: CupertinoIcons.camera,
-                              label: 'Camera',
-                              onTap: () =>
-                                  Navigator.pop(context, ImageSource.camera),
-                            ),
-                            _AttachmentMenuTile(
-                              icon: CupertinoIcons.photo,
-                              label: 'Photos',
-                              onTap: () =>
-                                  Navigator.pop(context, ImageSource.gallery),
-                            ),
-                          ],
-                        ),
-                      ),
+            child: Material(
+              elevation: 10,
+              borderRadius: BorderRadius.circular(20),
+              clipBehavior: Clip.antiAlias,
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              child: IntrinsicWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _AttachmentMenuTile(
+                      icon: CupertinoIcons.camera,
+                      label: 'Camera',
+                      onTap: () => Navigator.pop(context, ImageSource.camera),
                     ),
-                  ),
+                    _AttachmentMenuTile(
+                      icon: CupertinoIcons.photo,
+                      label: 'Photos',
+                      onTap: () => Navigator.pop(context, ImageSource.gallery),
+                    ),
+                  ],
                 ),
               ),
             ),

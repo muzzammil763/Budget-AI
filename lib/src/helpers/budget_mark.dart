@@ -198,3 +198,67 @@ class BudgetMarkPainter extends CustomPainter {
         isDark != oldDelegate.isDark;
   }
 }
+
+/// Wallet and coin mark for the Finances shortcut.
+class FinanceMarkIcon extends StatelessWidget {
+  const FinanceMarkIcon({super.key, this.size = 28});
+  final double size;
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: Size.square(size),
+    painter: _FinanceMarkPainter(Theme.of(context).colorScheme),
+  );
+}
+
+class _FinanceMarkPainter extends CustomPainter {
+  const _FinanceMarkPainter(this.colors);
+  final ColorScheme colors;
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 28, size.height / 28);
+    final wallet = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(2, 7, 24, 18),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(
+      wallet,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(2, 7),
+          const Offset(26, 25),
+          [colors.primary, Color.lerp(colors.primary, AppTheme.highlight, .3)!],
+        ),
+    );
+    canvas.drawCircle(
+      const Offset(10, 7),
+      5,
+      Paint()..color = AppTheme.highlight,
+    );
+    canvas.drawCircle(
+      const Offset(10, 7),
+      2.5,
+      Paint()
+        ..color = colors.primary
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(17, 13, 10, 7),
+        const Radius.circular(2.5),
+      ),
+      Paint()..color = colors.onPrimary,
+    );
+    canvas.drawCircle(
+      const Offset(20, 16.5),
+      1,
+      Paint()..color = colors.primary,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _FinanceMarkPainter oldDelegate) =>
+      colors != oldDelegate.colors;
+}

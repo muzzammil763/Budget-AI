@@ -17,25 +17,14 @@ void main() {
     expect(outlineTop, lessThan(ledgerTop));
   });
 
-  testWidgets('bubble picker exposes search without the custom add action', (
+  testWidgets('bubble picker shows styles without search or add controls', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: BubbleStyleScreen()));
-
-    expect(
-      find.byKey(const ValueKey('bubble-style-search-field')),
-      findsOneWidget,
-    );
+    expect(find.byType(TextField), findsNothing);
     expect(find.byKey(const ValueKey('add-custom-bubble')), findsNothing);
-
-    await tester.enterText(
-      find.byKey(const ValueKey('bubble-style-search-field')),
-      'Ledger',
-    );
-    await tester.pump();
-
-    expect(find.text('Ledger'), findsNWidgets(2));
-    expect(find.text('Classic'), findsNothing);
+    expect(find.text('Ledger'), findsOneWidget);
+    expect(find.text('Classic'), findsOneWidget);
   });
 
   testWidgets('custom editor provides colors shapes patterns and deletion', (

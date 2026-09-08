@@ -173,10 +173,12 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: widget.onClose,
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-        ),
+        leading: _isSearchMode
+            ? const Icon(CupertinoIcons.search)
+            : IconButton(
+                onPressed: widget.onClose,
+                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+              ),
         title: _isSearchMode ? _buildSearchField() : const Text('Chat History'),
         actions: _isSearchMode
             ? [
@@ -290,7 +292,8 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
         fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
-        hintText: 'Search chats',
+        hintText: 'Search ...',
+        filled: false,
         hintStyle: AppTheme.bodyLarge.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
           fontSize: 16,

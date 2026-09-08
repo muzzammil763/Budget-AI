@@ -1,4 +1,3 @@
-import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
 import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -49,31 +48,14 @@ class _BubbleStyleScreenContent extends StatefulWidget {
 }
 
 class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   final Map<String, GlobalKey> _optionKeys = {};
   bool _didScheduleInitialScroll = false;
 
   @override
-  void initState() {
-    super.initState();
-    _searchFocusNode.addListener(_handleSearchFocusChanged);
-  }
-
-  @override
   void dispose() {
-    _searchFocusNode.removeListener(_handleSearchFocusChanged);
-    _searchController.dispose();
-    _searchFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  bool get _isSearching => _searchController.text.trim().isNotEmpty;
-
-  void _handleSearchFocusChanged() {
-    if (mounted) setState(() {});
   }
 
   GlobalKey _optionKey(String id) => _optionKeys.putIfAbsent(id, GlobalKey.new);
@@ -113,7 +95,6 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
       style: style,
     );
     if (!mounted || result == null) return;
-    _searchController.clear();
     setState(() {});
     if (result case CustomBubbleSaved(:final style)) {
       _scheduleReveal('custom:${style.id}');
@@ -124,20 +105,6 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
         ? 'custom:${service.currentCustomStyle?.id}'
         : 'preset:${service.current.name}';
     _scheduleReveal(selectedId);
-  }
-
-  bool _matches(_BubbleChoice choice) {
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return true;
-    final haystack = [
-      choice.label,
-      if (choice.customStyle != null) ...[
-        choice.customStyle!.shape.label,
-        choice.customStyle!.pattern.label,
-        'custom',
-      ],
-    ].join(' ').toLowerCase();
-    return haystack.contains(query);
   }
 
   @override
@@ -151,14 +118,13 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
             key: const ValueKey('bubble-style-options-scroll'),
             controller: _scrollController,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 104),
+            padding: const EdgeInsets.all(12),
             child: Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
                   child: Text(
-                    'Pick how your messages look in chat, or use + to create '
-                    'a custom bubble with your own colors, shape and pattern.',
+                    'Pick how your messages look in chat.',
                     style: AppTheme.bodySmall.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -173,19 +139,16 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
                           _BubbleChoice.preset(style),
                       for (final custom in customStyles)
                         _BubbleChoice.custom(custom),
-                    ].where(_matches).toList(growable: false);
+                    ];
                     return ValueListenableBuilder<UserBubbleStyle>(
                       valueListenable: service.style,
                       builder: (context, selected, _) {
                         final selectedId = selected == UserBubbleStyle.custom
                             ? 'custom:${service.currentCustomStyle?.id}'
                             : 'preset:${selected.name}';
-                        if (!_didScheduleInitialScroll && !_isSearching) {
+                        if (!_didScheduleInitialScroll) {
                           _didScheduleInitialScroll = true;
                           _scheduleReveal(selectedId);
-                        }
-                        if (choices.isEmpty) {
-                          return _buildNoResults(theme);
                         }
                         return Column(
                           children: [
@@ -217,175 +180,7 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
             ),
           ),
         ),
-        Align(alignment: Alignment.bottomCenter, child: _buildSearchRow(theme)),
       ],
-    );
-  }
-
-  Widget _buildNoResults(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-      child: Column(
-        children: [
-          Icon(
-            CupertinoIcons.search,
-            size: 42,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'No bubble styles found',
-            style: AppTheme.headingSmall.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Try another style, shape, or pattern name.',
-            textAlign: TextAlign.center,
-            style: AppTheme.bodySmall.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchRow(ThemeData theme) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    const keyboardHeightApprox = 280.0;
-    final progress = (bottomInset / keyboardHeightApprox).clamp(0.0, 1.0);
-    final horizontalPadding = 32 - (32 - 8) * progress;
-    final safeAreaBottom = 32 - (32 - 12) * progress;
-
-    return SafeArea(
-      top: false,
-      minimum: EdgeInsets.only(bottom: safeAreaBottom),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: _buildSearchField(theme),
-      ),
-    );
-  }
-
-  Widget _buildSearchField(ThemeData theme) {
-    return ChatWorkingComposerFrame(
-      isWorking: false,
-      child: Container(
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: theme.brightness == Brightness.dark
-                ? theme.colorScheme.outline.withValues(alpha: 0.2)
-                : theme.colorScheme.outline.withValues(alpha: 0.06),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            SizedBox(
-              width: 44,
-              height: 44,
-              child: IconButton(
-                tooltip: 'Search bubble styles',
-                onPressed: _searchFocusNode.requestFocus,
-                icon: Icon(
-                  CupertinoIcons.search,
-                  size: 26,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-            const SizedBox(width: 2),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: TextField(
-                  key: const ValueKey('bubble-style-search-field'),
-                  focusNode: _searchFocusNode,
-                  controller: _searchController,
-                  cursorColor: theme.colorScheme.primary,
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _searchFocusNode.unfocus(),
-                  onTapOutside: (_) => _searchFocusNode.unfocus(),
-                  decoration: InputDecoration(
-                    hintText: 'Search bubble styles',
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.72,
-                      ),
-                      fontSize: 16,
-                    ),
-                    border: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    fillColor: Colors.transparent,
-                  ),
-                  maxLines: 1,
-                  textInputAction: TextInputAction.search,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: _searchFocusNode.hasFocus
-                  ? SizedBox(
-                      key: const ValueKey('hide-bubble-search-keyboard'),
-                      width: 44,
-                      height: 44,
-                      child: IconButton(
-                        tooltip: 'Hide keyboard',
-                        onPressed: _searchFocusNode.unfocus,
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    )
-                  : _isSearching
-                  ? SizedBox(
-                      key: const ValueKey('clear-bubble-search'),
-                      width: 44,
-                      height: 44,
-                      child: IconButton(
-                        tooltip: 'Clear search',
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                        icon: Icon(
-                          CupertinoIcons.xmark_circle_fill,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    )
-                  : const SizedBox(
-                      key: ValueKey('empty-bubble-search-action'),
-                      width: 44,
-                      height: 44,
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -109,16 +109,14 @@ class ExpenseSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              range,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodySmall.copyWith(
-                color: onCard.withValues(alpha: 0.72),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            range,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodySmall.copyWith(
+              color: onCard.withValues(alpha: 0.72),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 12),
@@ -130,10 +128,7 @@ class ExpenseSummaryCard extends StatelessWidget {
             Colors.red,
           ),
           const SizedBox(height: 3),
-          Divider(
-            color: onCard.withValues(alpha: 0.18),
-            thickness: 1,
-          ),
+          Divider(color: onCard.withValues(alpha: 0.18), thickness: 1),
           const SizedBox(height: 3),
           _buildTotal(onCard, 'Income', income, Icons.south_west, Colors.green),
           const SizedBox(height: 6),
@@ -181,22 +176,22 @@ class ExpenseSummaryCard extends StatelessWidget {
   ) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 28),
+        Icon(icon, color: color, size: 28, semanticLabel: label),
         const SizedBox(width: 12),
         Expanded(
           child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                FinanceEntry.money(amount),
-                style: AppTheme.headingLarge.copyWith(
-                  color: onCard,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: "Boldonse",
-                ),
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              FinanceEntry.money(amount),
+              style: AppTheme.headingLarge.copyWith(
+                color: onCard,
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
+                fontFamily: "Boldonse",
               ),
             ),
+          ),
         ),
       ],
     );

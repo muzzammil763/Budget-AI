@@ -132,7 +132,11 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: CurrencyPickerScreen()));
 
+    expect(find.byKey(const ValueKey('currency-search-field')), findsNothing);
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('currency-search-field')), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
     expect(find.byKey(const ValueKey('add-custom-currency')), findsOneWidget);
 
     await tester.enterText(
@@ -151,6 +155,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('No currencies found'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close search'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Choose Currency Display'), findsOneWidget);
+    expect(find.text('USD'), findsOneWidget);
   });
 
   testWidgets('picker reveals the existing selected currency on entry', (

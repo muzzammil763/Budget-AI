@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('chat starters match the app finance capabilities', () {
-    expect(chatStarterPrompts, hasLength(10));
+    expect(chatStarterPrompts, hasLength(20));
     expect(
       chatStarterPrompts.map((starter) => starter.label).toSet(),
       hasLength(chatStarterPrompts.length),

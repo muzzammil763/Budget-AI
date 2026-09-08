@@ -96,7 +96,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Income'), findsOneWidget);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.south_west)).semanticLabel,
+      'Income',
+    );
     expect(find.text(FinanceEntry.money(500)), findsOneWidget);
     expect(find.byType(MonthlySummaryCard), findsNothing);
     expect(tester.takeException(), isNull);

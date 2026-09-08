@@ -79,6 +79,63 @@ const chatStarterPrompts = <ChatStarterPrompt>[
     prompt:
         'Use my recorded expenses from the last three complete months to estimate my average monthly spending and suggest a realistic spending limit. State clearly if the records are incomplete or insufficient.',
   ),
+  ChatStarterPrompt(
+    icon: Icons.date_range,
+    label: 'Review this week’s spending',
+    prompt: 'Summarize my recorded expenses for the current week by category.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.restaurant,
+    label: 'How much goes to eating out?',
+    prompt:
+        'Summarize restaurant and takeaway expenses in my saved records for the last 30 days.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.directions_car,
+    label: 'Review transport costs',
+    prompt: 'Break down recorded transport expenses for the last 30 days.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.weekend,
+    label: 'Compare weekdays and weekends',
+    prompt:
+        'Compare recorded weekday and weekend expenses for the last 30 days, including average per calendar day.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.event_busy,
+    label: 'Find days with no recorded spending',
+    prompt:
+        'List dates this month with no recorded expenses. Do not assume missing records mean no actual spending.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.receipt_long,
+    label: 'Review recent purchases',
+    prompt:
+        'List my ten most recent recorded expenses with dates, categories and amounts.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.trending_up,
+    label: 'Which categories are growing?',
+    prompt:
+        'Compare category expense totals for the last two complete months and rank increases.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.calendar_today,
+    label: 'What did I spend today?',
+    prompt: 'Summarize today’s recorded expenses and list the entries.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.category,
+    label: 'Find uncategorized expenses',
+    prompt:
+        'Find recorded expenses with missing or unclear categories in the last 30 days. Suggest categories without changing entries.',
+  ),
+  ChatStarterPrompt(
+    icon: Icons.bar_chart,
+    label: 'Show my spending trend',
+    prompt:
+        'Summarize weekly recorded expense totals over the last eight weeks and describe the trend.',
+  ),
 ];
 
 class ChatEmptyState extends StatefulWidget {
@@ -111,7 +168,7 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
     return _EdgeFadeMask(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(12, 112, 12, 112),
+          padding: const EdgeInsets.fromLTRB(12, 128, 12, 128),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 380),
             child: TweenAnimationBuilder<double>(
@@ -163,7 +220,7 @@ class _ChatEmptyStateState extends State<ChatEmptyState> {
                       _PromptCard(
                         icon: _shuffledPrompts[i].icon,
                         label: _shuffledPrompts[i].label,
-                        reveal: _stagger(t, 0.38 + i * 0.045, 0.72 + i * 0.045),
+                        reveal: _stagger(t, 0.38 + i * 0.012, 0.72 + i * 0.012),
                         onTap: () =>
                             widget.onPromptTap(_shuffledPrompts[i].prompt),
                       ),
