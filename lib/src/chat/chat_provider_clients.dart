@@ -97,7 +97,7 @@ class ResponsesProvider extends BaseChatProvider {
           ..._responseServiceTierOptions,
           'instructions':
               '${await _buildChatSystemPrompt()}'
-              '${wantsImageGeneration ? '\nThe user explicitly requested an image. Use finance_list or finance_summary to retrieve the requested spending period, then call image_generation to return an actual chart image. Do not substitute Markdown, ASCII art, or a description for the requested image. If no records exist, explain that instead of inventing amounts.' : ''}',
+              '${wantsImageGeneration ? '\nThe user explicitly requested an image. Use finance_list or finance_summary to retrieve the requested spending period, then call image_generation to return an actual chart image. Do not substitute Markdown, ASCII art, or a description for the requested image. Design a polished editorial finance graphic in a square 1:1 composition: strong visual hierarchy, clean readable labels, accurate amounts and dates, restrained cohesive colors, generous whitespace, and no clutter. Reserve the bottom-right 32% of width and 12% of height as calm empty background with no text, chart marks, legends, or key details; the app overlays its own small logo and name there. Do not draw a logo or watermark yourself. If no records exist, explain that instead of inventing amounts.' : ''}',
           'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,
           'client_turn_id': const Uuid().v4(),

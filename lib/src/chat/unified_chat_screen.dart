@@ -141,6 +141,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   DateTime? _voiceRecordingStartedAt;
   int? _streamingMessageIndex;
   bool _isStreaming = false;
+  bool _isGeneratingImage = false;
   bool _skipStreamingReveal = false;
   bool _isReconnectingStream = false;
   bool _isWaitingForNetwork = false;
@@ -783,6 +784,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     setState(() {
       _isLoading = true;
+      _isGeneratingImage = false;
       _responseStartedAt = DateTime.now();
       _responseSequence++;
       _skipStreamingReveal = _isAppInBackground || _isAppInactive;
@@ -999,7 +1001,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 _appendThinkingBlock(messageBlocks, chunk.thinking!);
               }
 
-              if (chunk.isGeneratingImage) generatingImage = true;
+              if (chunk.isGeneratingImage) {
+                generatingImage = true;
+                if (!_isGeneratingImage) {
+                  setState(() => _isGeneratingImage = true);
+                }
+              }
               if (chunk.imageDataUrl != null) {
                 generatingImage = false;
                 hasReceivedContent = true;
@@ -4051,7 +4058,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     while (index < blocks.length) {
       final block = blocks[index];
       if (block.type == ChatMessageBlockType.image) {
-        addChild(ChatImageView(dataUrl: block.text ?? ''), isResponse: false);
+        addChild(
+          GeneratedChatImage(dataUrl: block.text ?? ''),
+          isResponse: false,
+        );
         index++;
         continue;
       }
@@ -4134,6 +4144,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       index++;
     }
 
+    if (_isResponseInProgress &&
+        isCurrentlyStreaming &&
+        _isGeneratingImage &&
+        !blocks.any((block) => block.type == ChatMessageBlockType.image)) {
+      addChild(const GeneratedChatImage(), isResponse: false);
+    }
     if (children.isEmpty) {
       if (_isResponseInProgress && isCurrentlyStreaming) {
         return _buildPendingResponse();
