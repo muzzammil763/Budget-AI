@@ -299,6 +299,18 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           const SizedBox(height: 8),
           ValueListenableBuilder<bool>(
+            valueListenable: AiResponseSettingsService.instance.showToolCalls,
+            builder: (context, enabled, _) => _toggleTile(
+              theme,
+              icon: CupertinoIcons.list_bullet,
+              title: 'Show Tool Calls',
+              subtitle: 'Show the actions Budget AI takes while replying',
+              value: enabled,
+              busy: false,
+              onChanged: AiResponseSettingsService.instance.setShowToolCalls,
+            ),
+          ),
+          ValueListenableBuilder<bool>(
             valueListenable:
                 AiResponseSettingsService.instance.fastResponsesEnabled,
             builder: (context, enabled, _) => _toggleTile(

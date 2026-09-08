@@ -1,8 +1,67 @@
 import 'package:budget_ai/src/chat/chat_loading_widgets.dart';
+import 'package:budget_ai/src/chat/chat_response_markdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets(
+    'pending text keeps the response inset and never recenters as its label grows',
+    (tester) async {
+      Widget host(Widget child) => MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(width: 320, child: child),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        host(ChatPendingResponse(startedAt: DateTime.now())),
+      );
+      final thinkingPosition = tester.getTopLeft(find.text('Thinking ...'));
+      expect(thinkingPosition.dx, 12);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(
+        tester.getTopLeft(find.text('Budget AI is working ...')),
+        thinkingPosition,
+      );
+      await tester.pumpWidget(
+        host(
+          ChatResponseMarkdown(
+            text: 'Reply begins here.',
+            isStreaming: false,
+            onLinkTap: (_, _) async {},
+          ),
+        ),
+      );
+      final responseText = find
+          .descendant(
+            of: find.byType(ChatResponseMarkdown),
+            matching: find.byType(RichText),
+          )
+          .first;
+      expect(tester.getTopLeft(responseText), thinkingPosition);
+    },
+  );
+
+  testWidgets(
+    'moving pending content to the assistant slot keeps elapsed waiting time',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPendingResponse(
+              startedAt: DateTime.now().subtract(const Duration(seconds: 3)),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Budget AI is working ...'), findsOneWidget);
+      expect(find.text('Thinking ...'), findsNothing);
+    },
+  );
+
   testWidgets('working status stays static and matches composer typography', (
     tester,
   ) async {

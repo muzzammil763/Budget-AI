@@ -23,4 +23,25 @@ void main() {
     await service.load();
     expect(service.fastResponsesEnabled.value, isFalse);
   });
+  test(
+    'tool rows default on, persist visibility, and reset on account exit',
+    () async {
+      final settings = LocalSettingsStore.instance;
+      final service = AiResponseSettingsService.instance;
+      await settings.clearExcept(const {});
+      await service.load();
+      expect(service.showToolCalls.value, isTrue);
+      await service.setShowToolCalls(false);
+      service.showToolCalls.value = true;
+      await service.load();
+      expect(service.showToolCalls.value, isFalse);
+      await service.setShowToolCalls(true);
+      service.showToolCalls.value = false;
+      await service.load();
+      expect(service.showToolCalls.value, isTrue);
+      await service.setShowToolCalls(false);
+      service.resetLocalState();
+      expect(service.showToolCalls.value, isTrue);
+    },
+  );
 }

@@ -11,6 +11,7 @@ import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/ai_usage_service.dart';
+import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/admin_service.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
@@ -92,53 +93,6 @@ class _AttachmentMenuTile extends StatelessWidget {
   }
 }
 
-class _PendingResponseLabel extends StatefulWidget {
-  const _PendingResponseLabel({super.key});
-  @override
-  State<_PendingResponseLabel> createState() => _PendingResponseLabelState();
-}
-
-class _PendingResponseLabelState extends State<_PendingResponseLabel> {
-  Timer? _timer;
-  bool _working = false;
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _working = true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: AnimatedSwitcher(
-      duration: const Duration(milliseconds: 350),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, .2),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
-        ),
-      ),
-      child: Text(
-        _working ? 'Budget AI is working ...' : 'Thinking ...',
-        key: ValueKey(_working),
-        style: const TextStyle(fontSize: 16),
-      ),
-    ),
-  );
-}
-
 class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     with RouteAware, WidgetsBindingObserver {
   static const String _continueInterruptedResponsePrompt =
@@ -161,7 +115,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   final List<_TimelineViewItem> _timelineItems = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
-  bool _hasVisibleResponse = false;
+  DateTime _responseStartedAt = DateTime.now();
   int _responseSequence = 0;
   bool _isAppInBackground = false;
   bool _isAppInactive = false;
@@ -221,6 +175,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _messageController.addListener(_updateCanSend);
     _messageFocusNode.addListener(_handleComposerFocusChanged);
     _scrollController.addListener(_handleChatScroll);
+    AiResponseSettingsService.instance.showToolCalls.addListener(
+      _handleToolVisibilityChanged,
+    );
     NetworkReachabilityService.instance.status.addListener(
       _handleNetworkStatusChanged,
     );
@@ -618,6 +575,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _messageController.removeListener(_updateCanSend);
     _messageFocusNode.removeListener(_handleComposerFocusChanged);
     _scrollController.removeListener(_handleChatScroll);
+    AiResponseSettingsService.instance.showToolCalls.removeListener(
+      _handleToolVisibilityChanged,
+    );
     _showScrollToBottomButton.dispose();
     _canSendNotifier.dispose();
     _tokenUiRevision.dispose();
@@ -823,7 +783,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
     setState(() {
       _isLoading = true;
-      _hasVisibleResponse = false;
+      _responseStartedAt = DateTime.now();
       _responseSequence++;
       _skipStreamingReveal = _isAppInBackground || _isAppInactive;
       if (appendUserMessage) {
@@ -1083,9 +1043,6 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                   chunk.imageDataUrl != null ||
                   chunk.content.isNotEmpty ||
                   chunk.toolCall != null;
-              if (hasUserVisibleUpdate && !_hasVisibleResponse) {
-                setState(() => _hasVisibleResponse = true);
-              }
               final shouldUpdate =
                   hasUserVisibleUpdate &&
                   !shouldReplacePlaceholder &&
@@ -3073,6 +3030,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
+  void _handleToolVisibilityChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildPendingResponse() => ChatPendingResponse(
+    key: ValueKey(_responseSequence),
+    startedAt: _responseStartedAt,
+    fontFamily: _chatFontFamily,
+  );
+
   Widget _buildBody() {
     if (_timelineItems.isEmpty) {
       return _buildEmptyState();
@@ -3094,20 +3061,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             scrollCacheExtent: const ScrollCacheExtent.pixels(700.0),
             itemCount:
                 _timelineItems.length +
-                (_isResponseInProgress && !_hasVisibleResponse ? 1 : 0),
+                (_isResponseInProgress &&
+                        _messages.isNotEmpty &&
+                        _messages.last.isUser
+                    ? 1
+                    : 0),
             itemBuilder: (context, index) {
               if (index == _timelineItems.length) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: _PendingResponseLabel(
-                      key: ValueKey(_responseSequence),
-                    ),
-                  ),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildPendingResponse(),
                 );
               }
               final item = _timelineItems[index];
@@ -3323,7 +3286,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Material(
-              elevation: 12,
+              elevation: 8,
               shadowColor: Colors.black.withValues(alpha: .25),
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(composerRadius),
@@ -3338,6 +3301,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(composerRadius),
+                  border: Border.all(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 25,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: IgnorePointer(
                   ignoring: false,
@@ -4054,7 +4027,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     final isFinalInTurn =
         messageIndex == _messages.length - 1 ||
         _messages[messageIndex + 1].isUser;
-    final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn);
+    final blocks = _getEffectiveBlocks(messageIndex, isFinalInTurn)
+        .where(
+          (block) =>
+              AiResponseSettingsService.instance.showToolCalls.value ||
+              block.type != ChatMessageBlockType.toolCall,
+        )
+        .toList();
     final children = <Widget>[];
     final lastResponseIndex = blocks.lastIndexWhere(
       (block) =>
@@ -4155,7 +4134,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       index++;
     }
 
-    if (children.isEmpty) return const SizedBox.shrink();
+    if (children.isEmpty) {
+      if (_isResponseInProgress && isCurrentlyStreaming) {
+        return _buildPendingResponse();
+      }
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

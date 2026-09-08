@@ -951,3 +951,77 @@ class ChatInitializingSection extends StatelessWidget {
     );
   }
 }
+
+/// Uses the response text's inset and line height so waiting content occupies
+/// the assistant's first line rather than adding a separate timeline row.
+class ChatPendingResponse extends StatefulWidget {
+  const ChatPendingResponse({
+    super.key,
+    required this.startedAt,
+    this.fontFamily,
+  });
+  final DateTime startedAt;
+  final String? fontFamily;
+  @override
+  State<ChatPendingResponse> createState() => _ChatPendingResponseState();
+}
+
+class _ChatPendingResponseState extends State<ChatPendingResponse> {
+  Timer? _timer;
+  bool _working = false;
+  void _schedule() {
+    _timer?.cancel();
+    final remaining =
+        const Duration(seconds: 2) -
+        DateTime.now().difference(widget.startedAt);
+    _working = remaining <= Duration.zero;
+    if (!_working) {
+      _timer = Timer(remaining, () {
+        if (mounted) setState(() => _working = true);
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatPendingResponse oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.startedAt != widget.startedAt) _schedule();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: Semantics(
+      liveRegion: true,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        layoutBuilder: (current, previous) => Stack(
+          alignment: AlignmentDirectional.topStart,
+          children: [...previous, ?current],
+        ),
+        child: Text(
+          _working ? 'Budget AI is working ...' : 'Thinking ...',
+          key: ValueKey(_working),
+          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+            fontFamily: widget.fontFamily,
+            fontSize: 16,
+            height: 1.5,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ),
+    ),
+  );
+}

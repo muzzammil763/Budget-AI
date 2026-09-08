@@ -8,6 +8,9 @@ class AiResponseSettingsService {
   static final AiResponseSettingsService instance =
       AiResponseSettingsService._();
 
+  static const _showToolCallsKey = 'ai_show_tool_calls';
+  final ValueNotifier<bool> showToolCalls = ValueNotifier(true);
+
   static const _fastResponsesKey = 'ai_fast_responses_enabled';
 
   /// Uses OpenAI Fast mode when enabled. Standard processing remains the
@@ -15,6 +18,8 @@ class AiResponseSettingsService {
   final ValueNotifier<bool> fastResponsesEnabled = ValueNotifier(false);
 
   Future<void> load() async {
+    showToolCalls.value =
+        await LocalSettingsStore.instance.getBool(_showToolCallsKey) ?? true;
     fastResponsesEnabled.value =
         await LocalSettingsStore.instance.getBool(_fastResponsesKey) ?? false;
   }
@@ -24,7 +29,13 @@ class AiResponseSettingsService {
     await LocalSettingsStore.instance.setBool(_fastResponsesKey, value);
   }
 
+  Future<void> setShowToolCalls(bool value) async {
+    showToolCalls.value = value;
+    await LocalSettingsStore.instance.setBool(_showToolCallsKey, value);
+  }
+
   void resetLocalState() {
+    showToolCalls.value = true;
     fastResponsesEnabled.value = false;
   }
 }
