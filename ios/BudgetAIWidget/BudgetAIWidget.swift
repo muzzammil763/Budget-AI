@@ -118,102 +118,82 @@ private struct BudgetAIWidgetView: View {
   private let red = Color(red: 238 / 255, green: 63 / 255, blue: 74 / 255)
 
   var body: some View {
-    ZStack {
-      Image("budget_widget_landscape").resizable().scaledToFill()
-      VStack(spacing: 5) {
-        header
-        totalCard(
-          title: "Income", amount: entry.income, color: green,
-          symbol: "arrow.up.right"
-        )
-        totalCard(
-          title: "Expense", amount: entry.expense, color: red,
-          symbol: "arrow.down.right"
-        )
-        footer
+    GeometryReader { proxy in
+      let size = min(proxy.size.width, proxy.size.height)
+      ZStack(alignment: .topLeading) {
+        Image("budget_widget_reference_v2")
+          .resizable()
+          .scaledToFill()
+          .frame(width: proxy.size.width, height: proxy.size.height)
+          .clipped()
+
+        Text(entry.month == WidgetStore.currentMonthKey() ? "This Month" : monthName)
+          .font(.system(size: size * 0.068, weight: .heavy, design: .rounded))
+          .foregroundStyle(navy)
+          .minimumScaleFactor(0.72)
+          .lineLimit(1)
+          .frame(width: size * 0.34, alignment: .leading)
+          .position(x: size * 0.46, y: size * 0.12)
+
+        monthControl(size: size)
+          .position(x: size * 0.80, y: size * 0.12)
+
+        totalText(title: "Income", amount: entry.income, color: green, size: size)
+          .position(x: size * 0.60, y: size * 0.505)
+
+        totalText(title: "Expense", amount: entry.expense, color: red, size: size)
+          .position(x: size * 0.60, y: size * 0.735)
+
+        Text("You're doing great!")
+          .font(.system(size: size * 0.048, weight: .bold, design: .rounded))
+          .foregroundStyle(navy.opacity(0.82))
+          .lineLimit(1)
+          .position(x: size * 0.59, y: size * 0.925)
       }
-      .padding(6)
     }
     .containerBackground(for: .widget) { Color(red: 0.76, green: 0.92, blue: 0.98) }
   }
 
-  private var header: some View {
-    VStack(alignment: .leading, spacing: 1) {
-      HStack(spacing: 3) {
-        Text(entry.month == WidgetStore.currentMonthKey() ? "This Month" : monthName)
-          .font(.system(size: 13, weight: .heavy, design: .rounded))
-          .foregroundStyle(navy)
-          .minimumScaleFactor(0.72)
-          .lineLimit(1)
-        Spacer(minLength: 1)
-        monthControl
-      }
-      Text("Small steps. Brighter tomorrow.")
-        .font(.system(size: 7.5, weight: .semibold, design: .rounded))
-        .foregroundStyle(navy.opacity(0.75))
-        .lineLimit(1)
-    }
-  }
-
-  private var monthControl: some View {
+  private func monthControl(size: CGFloat) -> some View {
     HStack(spacing: 0) {
       Button(intent: ChangeBudgetMonthIntent(direction: -1)) {
         Image(systemName: "chevron.left")
       }
-      .frame(width: 18, height: 24)
+      .frame(width: size * 0.085, height: size * 0.13)
       Text(shortMonth)
-        .font(.system(size: 8, weight: .bold, design: .rounded))
+        .font(.system(size: size * 0.048, weight: .bold, design: .rounded))
         .minimumScaleFactor(0.75)
         .lineLimit(1)
       Button(intent: ChangeBudgetMonthIntent(direction: 1)) {
         Image(systemName: "chevron.right").opacity(entry.canMoveForward ? 1 : 0.25)
       }
       .disabled(!entry.canMoveForward)
-      .frame(width: 18, height: 24)
+      .frame(width: size * 0.085, height: size * 0.13)
     }
     .foregroundStyle(.white)
-    .font(.system(size: 8, weight: .bold))
-    .frame(width: 68, height: 24)
-    .background(.black.opacity(0.72), in: Capsule())
+    .font(.system(size: size * 0.046, weight: .bold))
+    .frame(width: size * 0.37, height: size * 0.13)
+    .background(.black.opacity(0.70), in: Capsule())
+    .shadow(color: .black.opacity(0.18), radius: size * 0.018, y: size * 0.01)
   }
 
-  private func totalCard(title: String, amount: Double, color: Color, symbol: String) -> some View {
-    HStack(spacing: 7) {
-      ZStack {
-        Circle().fill(color.gradient)
-        Image(systemName: symbol)
-          .font(.system(size: 13, weight: .heavy))
-          .foregroundStyle(.white)
-      }
-      .frame(width: 30, height: 30)
-      VStack(alignment: .leading, spacing: 0) {
-        Text(title)
-          .font(.system(size: 9, weight: .bold, design: .rounded))
-          .foregroundStyle(navy)
-        Text(format(amount))
-          .font(.system(size: 17, weight: .heavy, design: .rounded))
-          .minimumScaleFactor(0.52)
-          .lineLimit(1)
-          .foregroundStyle(color)
-      }
-      Spacer(minLength: 0)
+  private func totalText(
+    title: String,
+    amount: Double,
+    color: Color,
+    size: CGFloat
+  ) -> some View {
+    VStack(alignment: .leading, spacing: -size * 0.006) {
+      Text(title)
+        .font(.system(size: size * 0.058, weight: .heavy, design: .rounded))
+        .foregroundStyle(navy)
+      Text(format(amount))
+        .font(.system(size: size * 0.105, weight: .heavy, design: .rounded))
+        .minimumScaleFactor(0.46)
+        .lineLimit(1)
+        .foregroundStyle(color)
     }
-    .padding(.horizontal, 8)
-    .frame(maxWidth: .infinity, minHeight: 42, maxHeight: 42)
-    .background(.white.opacity(0.88), in: RoundedRectangle(cornerRadius: 15))
-    .shadow(color: navy.opacity(0.12), radius: 3, y: 2)
-  }
-
-  private var footer: some View {
-    HStack(spacing: 3) {
-      Image(systemName: "heart.fill")
-        .foregroundStyle(green)
-      Text("You're doing great!")
-    }
-    .font(.system(size: 7.5, weight: .bold, design: .rounded))
-    .foregroundStyle(navy.opacity(0.82))
-    .frame(maxWidth: .infinity, minHeight: 16, maxHeight: 16)
-    .background(.white.opacity(0.66), in: Capsule())
+    .frame(width: size * 0.60, alignment: .leading)
   }
 
   private var monthDate: Date? {
