@@ -13,6 +13,7 @@ private enum BudgetSharedStore {
   static let pendingEntriesKey = "budget_ai_pending_entries"
   static let monthExpenseKey = "budget_ai_widget_month_expense"
   static let monthIncomeKey = "budget_ai_widget_month_income"
+  static let monthSummariesKey = "budget_ai_widget_month_summaries"
   static let latestDescriptionKey = "budget_ai_widget_latest_description"
   static let latestAmountKey = "budget_ai_widget_latest_amount"
   static let latestTypeKey = "budget_ai_widget_latest_type"
@@ -130,6 +131,37 @@ private enum BudgetSharedStore {
 
     defaults.set(expense, forKey: monthExpenseKey)
     defaults.set(income, forKey: monthIncomeKey)
+
+    var totals: [String: (expense: Double, income: Double)] = [:]
+    let keyFormatter = DateFormatter()
+    keyFormatter.dateFormat = "yyyy-MM"
+    keyFormatter.locale = Locale(identifier: "en_US_POSIX")
+    for entry in entries {
+      guard
+        let rawDate = entry["date"] as? String,
+        let date = parseDate(rawDate),
+        let amount = entry["amount"] as? NSNumber
+      else { continue }
+      let key = keyFormatter.string(from: date)
+      var total = totals[key] ?? (0, 0)
+      if entry["type"] as? String == "income" {
+        total.income += amount.doubleValue
+      } else {
+        total.expense += amount.doubleValue
+      }
+      totals[key] = total
+    }
+    let summaries: [[String: Any]] = totals.keys.sorted(by: >).map { key in
+      [
+        "month": key,
+        "expense": totals[key]?.expense ?? 0,
+        "income": totals[key]?.income ?? 0,
+      ]
+    }
+    if let data = try? JSONSerialization.data(withJSONObject: summaries),
+       let value = String(data: data, encoding: .utf8) {
+      defaults.set(value, forKey: monthSummariesKey)
+    }
   }
 
   private static func titleCase(_ value: String) -> String {
