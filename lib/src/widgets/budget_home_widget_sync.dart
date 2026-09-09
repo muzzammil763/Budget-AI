@@ -19,7 +19,6 @@ class BudgetHomeWidgetSync {
   static const pendingEntriesKey = 'budget_ai_pending_entries';
   static const monthExpenseKey = 'budget_ai_widget_month_expense';
   static const monthIncomeKey = 'budget_ai_widget_month_income';
-  static const monthSummariesKey = 'budget_ai_widget_month_summaries';
   static const latestDescriptionKey = 'budget_ai_widget_latest_description';
   static const latestAmountKey = 'budget_ai_widget_latest_amount';
   static const latestTypeKey = 'budget_ai_widget_latest_type';
@@ -67,7 +66,8 @@ class BudgetHomeWidgetSync {
   ) async {
     if (!Platform.isIOS && !Platform.isAndroid) return;
     await initialize();
-    final list = entries.toList()..sort((a, b) => b.date.compareTo(a.date));
+    final list = entries.where((entry) => entry.type == 'expense').toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
     final now = DateTime.now();
     final monthEntries = list.where(
       (entry) => entry.date.year == now.year && entry.date.month == now.month,
@@ -80,7 +80,6 @@ class BudgetHomeWidgetSync {
         .fold<double>(0, (sum, entry) => sum + entry.amount);
     final latest = list.firstOrNull;
     final previous = list.length > 1 ? list[1] : null;
-    final monthSummaries = summarizeMonths(list);
 
     try {
       await HomeWidget.saveWidgetData<String>(
@@ -89,10 +88,6 @@ class BudgetHomeWidgetSync {
       );
       await HomeWidget.saveWidgetData<double>(monthExpenseKey, expense);
       await HomeWidget.saveWidgetData<double>(monthIncomeKey, income);
-      await HomeWidget.saveWidgetData<String>(
-        monthSummariesKey,
-        jsonEncode(monthSummaries),
-      );
       await HomeWidget.saveWidgetData<String>(
         latestDescriptionKey,
         latest?.description ?? 'No entries yet',
@@ -135,31 +130,6 @@ class BudgetHomeWidgetSync {
       // the App Group has not been provisioned on this build.
       debugPrint('[BudgetHomeWidget] Could not sync widget data: $error');
     }
-  }
-
-  @visibleForTesting
-  static List<Map<String, Object>> summarizeMonths(
-    Iterable<BudgetWidgetFinanceEntry> entries,
-  ) {
-    final totals = <String, ({double expense, double income})>{};
-    for (final entry in entries) {
-      final key =
-          '${entry.date.year.toString().padLeft(4, '0')}-${entry.date.month.toString().padLeft(2, '0')}';
-      final current = totals[key] ?? (expense: 0.0, income: 0.0);
-      totals[key] = entry.type == 'income'
-          ? (expense: current.expense, income: current.income + entry.amount)
-          : (expense: current.expense + entry.amount, income: current.income);
-    }
-    final keys = totals.keys.toList()..sort((a, b) => b.compareTo(a));
-    return keys
-        .map(
-          (key) => <String, Object>{
-            'month': key,
-            'expense': totals[key]!.expense,
-            'income': totals[key]!.income,
-          },
-        )
-        .toList(growable: false);
   }
 }
 
