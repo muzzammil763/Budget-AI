@@ -169,14 +169,14 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 
 ## iOS widget and Siri entry
 
-- The iOS 17 Home Screen widget is a compact square soft-3D illustrated summary with a sprout mascot, calendar, money-habits sign, dimensional income/expense cards, and encouragement footer composed as one reference-matched scene for the physical system-small widget size. Native overlays keep its heading, month navigation, amounts, and currency live and accessible; navigation never moves beyond the current month. It contains no Siri instructions.
+- The iOS 17 Home Screen widget is one full-width medium summary with the Budget AI splash mark, monthly spending and up to two newest expenses. Its surface, text, and mark invert with the widget's Light/Dark color scheme. It contains no Siri instructions.
 - Say “Add an expense in Budget AI” to Siri. Siri asks for the amount and description, saves the entry without presenting the app, and speaks the confirmation.
 - Siri-created entries are written to the shared App Group immediately. A Darwin notification and Flutter method channel import them live when Budget AI is running; launch and foreground imports remain the fallback when iOS has suspended the app.
 - Widget data synchronization uses `home_widget` 0.9.3. The WidgetKit UI and App Intents remain native Swift because iOS widgets cannot be rendered as live Flutter views.
 
 Before device testing, create the App Group `group.com.muzamil.budget.ai` in the Apple Developer portal and enable it for both the `Runner` and `BudgetAIWidget` identifiers. App Groups require a paid Apple Developer account. Install and open the app once so iOS can register its App Shortcuts, then add Budget AI from the Home Screen widget gallery. Siri voice entry requires iOS 16 or later; the widget requires iOS 17 or later.
 
-On Android, the matching square, non-resizable native Home Screen widget reads the same `home_widget` month summaries and offers previous/next month controls without opening the app. Tapping outside those controls opens Budget AI. Google Assistant custom App Actions accept one-sentence expense commands such as “Hey Google, use Budget AI to log 300 for fuel.” Assistant custom intents require an explicit Budget AI invocation and currently support `en-US`. The action opens Budget AI through a deep link, saves the entry, refreshes the widget and open Finances screen, then confirms through Android text-to-speech and a toast.
+On Android, one wide, non-resizable native Home Screen widget reads the same `home_widget` summary keys and follows the app's Light/Dark styling, including the dynamically inverted Budget mark, without voice instructions. Google Assistant custom App Actions accept one-sentence expense commands such as “Hey Google, use Budget AI to log 300 for fuel.” Assistant custom intents require an explicit Budget AI invocation and currently support `en-US`. The action opens Budget AI through a deep link, saves the entry, refreshes the widget and open Finances screen, then confirms through Android text-to-speech and a toast.
 
 ## Supabase setup
 
@@ -251,7 +251,7 @@ conflict handling, and encryption boundaries.
 
 Budget AI supports manual expense and income entry, editing, and deletion. Finances lists both types with red expense and green income amounts. The shared monthly and Overall card shows separate Expenses and Income totals with red outgoing and green incoming icons and normal card-colored amounts. No balances, Saved/Overused, or rollovers are shown. Chat and native shortcuts log expenses; image receipts, spending charts, search, and expense editing remain available.
 
-Finances, the shared summary, and the Home Screen widget include existing income; all reporting excludes internal savings/deficit transfers. Startup no longer creates or recalculates rollovers. Existing records remain stored without a destructive migration, while expense views and tools use actual expenses only.
+Finances and the shared summary include existing income; all reporting excludes internal savings/deficit transfers. Startup no longer creates or recalculates rollovers. Existing records remain stored without a destructive migration, while expense views, tools, and widget exports use actual expenses only.
 
 Finance Insights retains expense category breakdowns, daily trends, heatmaps, and monthly spending highlights. Each nonempty month has a **Monthly Summary** card. Generate/Regenerate uses fresh expense totals, categories, and daily spending only. A new expense-summary cache namespace prevents old income/balance summaries from appearing.
 

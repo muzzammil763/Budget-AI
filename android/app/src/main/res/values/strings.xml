@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Square monthly income and expense summary with month navigation</string>
+    <string name="widget_description">Full-width monthly Budget AI summary</string>
     <string name="widget_logo_description">Budget AI logo</string>
 
     <string-array name="addExpenseQueries">
