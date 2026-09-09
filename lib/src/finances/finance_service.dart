@@ -377,7 +377,7 @@ class FinanceService {
   Future<void> _syncHomeWidgetInBackground(List<FinanceEntry> entries) async {
     try {
       await BudgetHomeWidgetSync.syncEntries(
-        expenseEntries(entries).map(
+        reportingEntries(entries, includeRollovers: false).map(
           (entry) => BudgetWidgetFinanceEntry(
             id: entry.id,
             type: entry.type.storageValue,
@@ -398,7 +398,7 @@ class FinanceService {
   Future<void> syncHomeWidget() async {
     final entries = await getAll();
     await BudgetHomeWidgetSync.syncEntries(
-      expenseEntries(entries).map(
+      reportingEntries(entries, includeRollovers: false).map(
         (entry) => BudgetWidgetFinanceEntry(
           id: entry.id,
           type: entry.type.storageValue,

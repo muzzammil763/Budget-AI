@@ -1,273 +1,219 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
 private enum WidgetStore {
   static let appGroup = "group.com.muzamil.budget.ai"
-  static let expenseKey = "budget_ai_widget_month_expense"
-  static let incomeKey = "budget_ai_widget_month_income"
-  static let latestDescriptionKey = "budget_ai_widget_latest_description"
-  static let latestAmountKey = "budget_ai_widget_latest_amount"
-  static let latestTypeKey = "budget_ai_widget_latest_type"
-  static let previousDescriptionKey = "budget_ai_widget_previous_description"
-  static let previousAmountKey = "budget_ai_widget_previous_amount"
-  static let previousTypeKey = "budget_ai_widget_previous_type"
+  static let summariesKey = "budget_ai_widget_month_summaries"
+  static let selectedMonthKey = "budget_ai_widget_selected_month"
   static let currencyKey = "budget_ai_widget_currency"
 
+  static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
+
+  static func summaries() -> [MonthSummary] {
+    guard
+      let raw = defaults?.string(forKey: summariesKey),
+      let data = raw.data(using: .utf8),
+      let decoded = try? JSONDecoder().decode([MonthSummary].self, from: data)
+    else { return [] }
+    return decoded
+  }
+
+  static func currentMonthKey(date: Date = Date()) -> String {
+    let parts = Calendar.current.dateComponents([.year, .month], from: date)
+    return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
+  }
+
+  static func selectedMonth() -> String {
+    let current = currentMonthKey()
+    guard
+      let saved = defaults?.string(forKey: selectedMonthKey),
+      saved <= current,
+      saved == current || summaries().contains(where: { $0.month == saved })
+    else {
+      return current
+    }
+    return saved
+  }
+
+  static func moveSelection(by offset: Int) {
+    let current = selectedMonth()
+    var candidates = Set(summaries().map(\.month))
+    candidates.insert(currentMonthKey())
+    let ordered = candidates.sorted(by: >)
+    guard let index = ordered.firstIndex(of: current) else { return }
+    let target = min(max(index - offset, 0), ordered.count - 1)
+    defaults?.set(ordered[target], forKey: selectedMonthKey)
+  }
+
   static func entry(date: Date = Date()) -> BudgetEntry {
-    let defaults = UserDefaults(suiteName: appGroup)
+    let values = summaries()
+    let selected = selectedMonth()
+    let summary = values.first(where: { $0.month == selected })
     return BudgetEntry(
       date: date,
-      expense: defaults?.double(forKey: expenseKey) ?? 0,
-      income: defaults?.double(forKey: incomeKey) ?? 0,
-      latestDescription: defaults?.string(forKey: latestDescriptionKey) ?? "No entries yet",
-      latestAmount: defaults?.double(forKey: latestAmountKey) ?? 0,
-      latestType: defaults?.string(forKey: latestTypeKey) ?? "expense",
-      previousDescription: defaults?.string(forKey: previousDescriptionKey) ?? "",
-      previousAmount: defaults?.double(forKey: previousAmountKey) ?? 0,
-      previousType: defaults?.string(forKey: previousTypeKey) ?? "expense",
-      currency: defaults?.string(forKey: currencyKey) ?? "USD"
+      month: selected,
+      expense: summary?.expense ?? 0,
+      income: summary?.income ?? 0,
+      currency: defaults?.string(forKey: currencyKey) ?? "USD",
+      canMoveForward: selected < currentMonthKey()
     )
   }
 }
 
-struct BudgetEntry: TimelineEntry {
-  let date: Date
+private struct MonthSummary: Codable {
+  let month: String
   let expense: Double
   let income: Double
-  let latestDescription: String
-  let latestAmount: Double
-  let latestType: String
-  let previousDescription: String
-  let previousAmount: Double
-  let previousType: String
-  let currency: String
+}
 
-  var balance: Double { income - expense }
+struct BudgetEntry: TimelineEntry {
+  let date: Date
+  let month: String
+  let expense: Double
+  let income: Double
+  let currency: String
+  let canMoveForward: Bool
 }
 
 struct BudgetProvider: TimelineProvider {
   func placeholder(in context: Context) -> BudgetEntry {
     BudgetEntry(
-      date: Date(),
-      expense: 42_500,
-      income: 90_000,
-      latestDescription: "Groceries",
-      latestAmount: 2_400,
-      latestType: "expense",
-      previousDescription: "Salary",
-      previousAmount: 90_000,
-      previousType: "income",
-      currency: "Rs"
+      date: Date(), month: "2026-09", expense: 1_480, income: 3_250,
+      currency: "$", canMoveForward: false
     )
   }
 
-  func getSnapshot(
-    in context: Context,
-    completion: @escaping (BudgetEntry) -> Void
-  ) {
+  func getSnapshot(in context: Context, completion: @escaping (BudgetEntry) -> Void) {
     completion(WidgetStore.entry())
   }
 
-  func getTimeline(
-    in context: Context,
-    completion: @escaping (Timeline<BudgetEntry>) -> Void
-  ) {
+  func getTimeline(in context: Context, completion: @escaping (Timeline<BudgetEntry>) -> Void) {
     let entry = WidgetStore.entry()
     let refresh = Calendar.current.date(byAdding: .minute, value: 30, to: entry.date)!
     completion(Timeline(entries: [entry], policy: .after(refresh)))
   }
 }
 
-private struct BudgetAIWidgetView: View {
-  let entry: BudgetEntry
-  @Environment(\.colorScheme) private var colorScheme
+struct ChangeBudgetMonthIntent: AppIntent {
+  static let title: LocalizedStringResource = "Change Budget Month"
+  static let isDiscoverable = false
 
-  private var primary: Color { colorScheme == .dark ? .white : .black }
-  private var secondary: Color { primary.opacity(0.62) }
-  private let accent = Color(red: 68 / 255, green: 138 / 255, blue: 1.0)
-  private var markGradientEnd: Color {
-    colorScheme == .dark
-      ? Color(red: 203 / 255, green: 222 / 255, blue: 1.0)
-      : Color(red: 19 / 255, green: 39 / 255, blue: 71 / 255)
-  }
+  @Parameter(title: "Direction") var direction: Int
 
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      header
-      summary
-      recentEntries
-    }
-    .padding(16)
-    .containerBackground(for: .widget) {
-      Color(uiColor: .systemBackground)
-    }
-  }
+  init() {}
+  init(direction: Int) { self.direction = direction }
 
-  private var header: some View {
-    HStack(spacing: 10) {
-      BudgetMarkView(
-        accent: accent,
-        primary: primary,
-        gradientEnd: markGradientEnd,
-        surface: colorScheme == .dark ? .black : .white
-      )
-        .frame(width: 42, height: 42)
-      Text("Budget AI")
-        .font(.custom("Boldonse", size: 12))
-        .foregroundStyle(primary)
-      Spacer()
-      Text(entry.date.formatted(.dateTime.month(.wide)))
-        .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(primary)
-    }
-  }
-
-  private var summary: some View {
-    HStack(spacing: 16) {
-      VStack(alignment: .leading, spacing: 5) {
-        Text("Total expenses")
-          .font(.system(size: 9))
-          .foregroundStyle(secondary)
-        Text(format(entry.expense))
-          .font(.custom("Boldonse", size: 20))
-          .minimumScaleFactor(0.65)
-          .lineLimit(1)
-          .foregroundStyle(primary)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-
-      Rectangle()
-        .fill(primary.opacity(0.09))
-        .frame(width: 1)
-
-      HStack(spacing: 18) {
-        metric("Spent", value: entry.expense, color: .red)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-  }
-
-  private func metric(_ label: String, value: Double, color: Color) -> some View {
-    VStack(alignment: .leading, spacing: 3) {
-      HStack(spacing: 4) {
-        Circle().fill(color).frame(width: 5, height: 5)
-        Text(label)
-      }
-      .font(.system(size: 9))
-      .foregroundStyle(secondary)
-      Text(format(value))
-        .font(.system(size: 13))
-        .minimumScaleFactor(0.65)
-        .lineLimit(1)
-        .foregroundStyle(primary)
-    }
-  }
-
-  private var recentEntries: some View {
-    VStack(spacing: 2) {
-      recentEntry(
-        description: entry.latestDescription,
-        amount: entry.latestAmount,
-        type: entry.latestType
-      )
-      if entry.previousAmount > 0 {
-        recentEntry(
-          description: entry.previousDescription,
-          amount: entry.previousAmount,
-          type: entry.previousType
-        )
-      }
-    }
-  }
-
-  private func recentEntry(
-    description: String,
-    amount: Double,
-    type: String
-  ) -> some View {
-    HStack(spacing: 6) {
-      Text(description)
-        .font(.system(size: 10))
-        .lineLimit(1)
-        .foregroundStyle(primary)
-      Spacer(minLength: 4)
-      if amount > 0 {
-        Text(format(amount, signed: true, isIncome: type == "income"))
-          .font(.system(size: 10))
-          .lineLimit(1)
-          .foregroundStyle(type == "income" ? .green : .red)
-      }
-    }
-  }
-
-  private func format(
-    _ amount: Double,
-    signed: Bool = false,
-    isIncome: Bool = true
-  ) -> String {
-    let number = NumberFormatter()
-    number.numberStyle = .decimal
-    number.maximumFractionDigits = amount.rounded() == amount ? 0 : 2
-    let sign = signed && amount > 0 ? (isIncome ? "+" : "−") : ""
-    let value = number.string(from: NSNumber(value: amount)) ?? String(amount)
-    if ["$", "€", "£", "₹", "¥"].contains(entry.currency) {
-      return "\(sign)\(entry.currency)\(value)"
-    }
-    return "\(sign)\(value) \(entry.currency)"
+  func perform() async throws -> some IntentResult {
+    WidgetStore.moveSelection(by: direction)
+    WidgetCenter.shared.reloadTimelines(ofKind: "BudgetAIWidget")
+    return .result()
   }
 }
 
-private struct BudgetMarkView: View {
-  let accent: Color
-  let primary: Color
-  let gradientEnd: Color
-  let surface: Color
+private struct BudgetAIWidgetView: View {
+  let entry: BudgetEntry
+  private let navy = Color(red: 22 / 255, green: 41 / 255, blue: 67 / 255)
+  private let green = Color(red: 16 / 255, green: 157 / 255, blue: 87 / 255)
+  private let red = Color(red: 238 / 255, green: 63 / 255, blue: 74 / 255)
 
   var body: some View {
-    GeometryReader { proxy in
-      let size = proxy.size.width
-      ZStack {
-        Circle()
-          .trim(from: 0, to: 0.75)
-          .stroke(
-            AngularGradient(
-              colors: [.clear, accent.opacity(0.65)],
-              center: .center
-            ),
-            style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
-          )
-          .rotationEffect(.degrees(-90))
-        RoundedRectangle(cornerRadius: size * 0.23)
-          .fill(
-            LinearGradient(
-              colors: [primary, gradientEnd],
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            )
-          )
-          .frame(width: size * 0.78, height: size * 0.78)
-        HStack(alignment: .bottom, spacing: size * 0.0585) {
-          markBar(height: size * 0.1872, width: size * 0.1014)
-          markBar(height: size * 0.2964, width: size * 0.1014)
-          markBar(height: size * 0.4056, width: size * 0.1014)
-        }
-        .offset(y: size * 0.0156)
-        Circle()
-          .fill(accent)
-          .frame(width: size * 0.075, height: size * 0.075)
-          .offset(x: size * 0.188, y: -size * 0.277)
-        Image(systemName: "sparkle")
-          .font(.system(size: size * 0.16, weight: .bold))
-          .foregroundStyle(accent)
-          .offset(x: size * 0.429, y: -size * 0.429)
+    ZStack {
+      Image("budget_widget_landscape").resizable().scaledToFill()
+      VStack(spacing: 10) {
+        header
+        Spacer(minLength: 0)
+        totalCard(title: "Income", amount: entry.income, color: green, symbol: "arrow.up.right")
+        totalCard(title: "Expense", amount: entry.expense, color: red, symbol: "arrow.down.right")
       }
+      .padding(14)
+    }
+    .containerBackground(for: .widget) { Color(red: 0.76, green: 0.92, blue: 0.98) }
+  }
+
+  private var header: some View {
+    HStack(alignment: .top, spacing: 8) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(entry.month == WidgetStore.currentMonthKey() ? "This Month" : monthName)
+          .font(.system(size: 19, weight: .heavy, design: .rounded))
+          .foregroundStyle(navy)
+        Text("Small steps. Brighter tomorrows.")
+          .font(.system(size: 9, weight: .medium, design: .rounded))
+          .foregroundStyle(navy.opacity(0.72))
+      }
+      Spacer(minLength: 2)
+      monthControl
     }
   }
 
-  private func markBar(height: CGFloat, width: CGFloat) -> some View {
-    Capsule()
-      .fill(surface)
-      .frame(width: width, height: height)
+  private var monthControl: some View {
+    HStack(spacing: 1) {
+      Button(intent: ChangeBudgetMonthIntent(direction: -1)) {
+        Image(systemName: "chevron.left")
+      }
+      Text(shortMonth)
+        .font(.system(size: 10, weight: .semibold, design: .rounded))
+        .lineLimit(1)
+      Button(intent: ChangeBudgetMonthIntent(direction: 1)) {
+        Image(systemName: "chevron.right").opacity(entry.canMoveForward ? 1 : 0.25)
+      }
+      .disabled(!entry.canMoveForward)
+    }
+    .foregroundStyle(.white)
+    .padding(.horizontal, 6)
+    .frame(height: 30)
+    .background(.black.opacity(0.72), in: Capsule())
+  }
+
+  private func totalCard(title: String, amount: Double, color: Color, symbol: String) -> some View {
+    HStack(spacing: 10) {
+      ZStack {
+        Circle().fill(color.gradient)
+        Image(systemName: symbol)
+          .font(.system(size: 17, weight: .heavy))
+          .foregroundStyle(.white)
+      }
+      .frame(width: 40, height: 40)
+      VStack(alignment: .leading, spacing: 0) {
+        Text(title)
+          .font(.system(size: 11, weight: .bold, design: .rounded))
+          .foregroundStyle(navy)
+        Text(format(amount))
+          .font(.system(size: 21, weight: .heavy, design: .rounded))
+          .minimumScaleFactor(0.58)
+          .lineLimit(1)
+          .foregroundStyle(color)
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(.horizontal, 12)
+    .frame(maxWidth: .infinity, minHeight: 58)
+    .background(.white.opacity(0.90), in: RoundedRectangle(cornerRadius: 20))
+    .shadow(color: navy.opacity(0.12), radius: 5, y: 3)
+  }
+
+  private var monthDate: Date? {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    return formatter.date(from: entry.month)
+  }
+
+  private var monthName: String {
+    monthDate?.formatted(.dateTime.month(.wide).year()) ?? entry.month
+  }
+
+  private var shortMonth: String {
+    monthDate?.formatted(.dateTime.month(.abbreviated).year(.twoDigits)) ?? entry.month
+  }
+
+  private func format(_ amount: Double) -> String {
+    let number = NumberFormatter()
+    number.numberStyle = .decimal
+    number.maximumFractionDigits = amount.rounded() == amount ? 0 : 2
+    let value = number.string(from: NSNumber(value: amount)) ?? String(amount)
+    return ["$", "€", "£", "₹", "¥"].contains(entry.currency)
+      ? "\(entry.currency)\(value)" : "\(value) \(entry.currency)"
   }
 }
 
@@ -278,10 +224,11 @@ struct BudgetAIWidget: Widget {
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: kind, provider: BudgetProvider()) { entry in
       BudgetAIWidgetView(entry: entry)
+        .widgetURL(URL(string: "budgetai://widget?homeWidget"))
     }
-    .configurationDisplayName("Budget AI")
-    .description("See your monthly spending and two newest expenses.")
-    .supportedFamilies([.systemMedium])
+    .configurationDisplayName("Budget AI Monthly")
+    .description("Browse monthly income and expenses from your Home Screen.")
+    .supportedFamilies([.systemSmall])
     .contentMarginsDisabled()
   }
 }
