@@ -169,7 +169,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 
 ## iOS widget and Siri entry
 
-- The iOS 17 Home Screen widget is a square illustrated summary with separate income and expense cards. Its compact corner control browses months that contain local finance data and never moves beyond the current month. It contains no Siri instructions.
+- The iOS 17 Home Screen widget is a compact square illustrated summary with separate income and expense cards, a small encouragement footer, and spacing tuned for the physical system-small widget size. Its fully contained corner control browses months that contain local finance data and never moves beyond the current month. It contains no Siri instructions.
 - Say “Add an expense in Budget AI” to Siri. Siri asks for the amount and description, saves the entry without presenting the app, and speaks the confirmation.
 - Siri-created entries are written to the shared App Group immediately. A Darwin notification and Flutter method channel import them live when Budget AI is running; launch and foreground imports remain the fallback when iOS has suspended the app.
 - Widget data synchronization uses `home_widget` 0.9.3. The WidgetKit UI and App Intents remain native Swift because iOS widgets cannot be rendered as live Flutter views.
