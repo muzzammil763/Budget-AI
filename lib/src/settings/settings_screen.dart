@@ -854,7 +854,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       context,
       title: 'This Cannot Be Undone',
       message:
-          'Your recovery key cannot restore an account after deletion. Are '
+          'A deleted account and its cloud data cannot be restored. Are '
           'you absolutely sure you want to permanently delete it?',
       icon: CupertinoIcons.exclamationmark_triangle_fill,
       confirmLabel: 'Confirm Delete',
@@ -963,9 +963,9 @@ class _DeleteAccountPhraseConfirmationState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'This permanently deletes your Budget AI account, encrypted cloud '
-          'finance data, synced preferences, encryption recovery data, and AI '
-          'usage records. Data remaining only on this device is not removed.',
+          'This permanently deletes your Budget AI account, cloud finance '
+          'data, synced preferences, and AI usage records. Data remaining '
+          'only on this device is not removed.',
           textAlign: TextAlign.center,
           style: AppTheme.bodyMedium.copyWith(
             color: theme.colorScheme.onSurfaceVariant,

@@ -1,8 +1,8 @@
 # Budget AI
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
-Supabase authentication, offline-first SQLite finance tracking, mandatory
-end-to-end encrypted synchronization, OpenAI voice input, and image chat.
+Supabase authentication, offline-first SQLite finance tracking with Supabase
+synchronization, OpenAI voice input, and image chat.
 
 ## AI and voice flow
 
@@ -65,11 +65,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Sign-in sessions restore automatically. Forgot-password and Account password
   changes send secure links that return through
   `budgetai://auth/reset-password`; sign-out lives on the Account screen.
-- After confirmation, an encryption gate requires each session to generate a
-  recovery key (first device on the account) or restore one (later devices)
-  before reaching AI chat. Chat sessions remain local-only; finance data is read
-  and written through SQLite and always synchronizes as AES-256-GCM ciphertext
-  once the gate is satisfied.
+- After confirmation, sign-in leads straight to AI chat. Chat sessions remain
+  local-only; finance data is read and written through SQLite and synchronizes
+  as plain rows in the Supabase `finance_entries` table.
 - In Finances, a circular floating add button opens the shared form for manual entry creation. Tapping an existing
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
@@ -105,7 +103,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   UTC month by default, then transparently falls back to Standard while overall
   request/token limits still apply. A final Danger Zone contains sign-out and permanent
   account deletion. Deletion requires entering `DELETE MY ACCOUNT` with the
-  inline keyboard and accepting one final warning; account-owned encrypted
+  inline keyboard and accepting one final warning; account-owned
   cloud data is deleted with the account while device-only data remains local. The currency
   picker has borderless AppBar search and a circular floating add action that
   opens a dedicated custom-currency form; custom displays are limited to five
@@ -127,7 +125,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   toggle stays on after account creation or sign-in. Turning Notifications off
   suppresses future delivery and clears notifications already shown by the app.
 - Signing out clears the previous user's local finances, chat history,
-  preferences, encryption key, widget data, and legacy storage while preserving
+  preferences, any retired encryption key, widget data, and legacy storage while preserving
   the completed-onboarding flag.
 - Budget Hub exposes Replay onboarding. It opens the same five-page onboarding
   experience with a route-level Back control; Back or completing the final page
@@ -146,22 +144,26 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   consistent reading edge, including numeric comparison columns.
 - Existing `finances.json` and Shared Preferences values are imported once into
   SQLite. Legacy or restored local finance rows missing from Supabase are
-  automatically queued for encrypted upload when sync is enabled.
+  automatically queued for upload when sync is enabled.
 
-## Encrypted synchronization
+## Synchronization
 
-- End-to-end encryption is mandatory and handled by the encryption gate after
-  sign-in, not an opt-in setting.
-- The first device on an account generates a random 256-bit account key. It is
-  wrapped two ways—by a checksummed `BAI1-...` recovery key and by a
-  password-derived key—so a later device can unlock with either the recovery key
-  or the account password. The device copy is protected by iOS Keychain or
-  Android Keystore.
-- Finance payloads are encrypted with AES-256-GCM before upload. Supabase stores
-  ciphertext, nonce, authentication tag, revisions, and sync timestamps—not
-  plaintext descriptions, categories, or amounts.
-- Budget AI and Supabase cannot recover the account key if both the recovery key
-  and the account password are lost.
+- Finance entries sync as plain rows in `finance_entries` (one column per
+  field: type, amount, category, description, date, has_time, created_at, plus
+  revision, tombstone, and timestamp metadata), protected per user by
+  row-level security. End-to-end encryption has been retired.
+- Account settings sync through `users`; roles live in `user_roles`; AI quotas
+  use `user_ai_limits`, `ai_usage`, `ai_requests`, and `ai_model_config`.
+- Upgrading from an encrypted install converts once: before the first plain
+  sync, the app unlocks the old account key from this device's Keychain /
+  Keystore (or, on a device without it, from the account password used when the
+  data was saved), decrypts every row in `legacy_encrypted_finance_entries`,
+  copies it into `finance_entries`, and deletes the legacy rows, the
+  `legacy_user_encryption` metadata, and the device key. Rows that cannot be
+  decrypted are left in place rather than deleted. A device that cannot unlock
+  can sign out or explicitly discard the locked cloud copy.
+- Apply migration `20261012120000_remove_encryption_and_rename_tables.sql`
+  together with the app update: older builds use the previous table names.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
 - Chat history and images are stored locally in SQLite and excluded from account sync. Relevant conversation context and attached images pass through the authenticated Responses proxy to OpenAI to answer requests; audio passes through the speech proxy for transcription. Image inputs are limited to 1600 pixels on the longest edge: small PNGs remain lossless up to 384 KB, and larger images become metadata-free JPEGs capped at 768 KB. Only the latest three image inputs remain in provider context; older images stay visible locally and can be attached again for analysis. Account exit clears local chat data.
@@ -245,7 +247,7 @@ start as fresh machines.
 
 See `SUPABASE_BACKEND_PLAN.md` for architecture, quota controls, rollout, and
 security verification. See `OFFLINE_FIRST_SYNC_PLAN.md` for local persistence,
-conflict handling, and encryption boundaries.
+and conflict handling.
 
 ### Monthly finance insights
 

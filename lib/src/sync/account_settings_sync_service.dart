@@ -83,7 +83,7 @@ class AccountSettingsSyncService {
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'user_settings',
+          table: 'users',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'user_id',
@@ -128,7 +128,7 @@ class AccountSettingsSyncService {
           .where((row) => row['sync_state'] == 'pending')
           .toList(growable: false);
       final remote = await _client
-          .from('user_settings')
+          .from('users')
           .select()
           .eq('user_id', user.id)
           .maybeSingle();
@@ -168,7 +168,7 @@ class AccountSettingsSyncService {
           .reduce((left, right) => left > right ? left : right);
       updatedAt = DateTime.fromMicrosecondsSinceEpoch(latest, isUtc: true);
     }
-    await _client.from('user_settings').upsert({
+    await _client.from('users').upsert({
       'user_id': user.id,
       'display_name': UserNameSettingsService.instance.current,
       'currency_display': CurrencySettingsService.instance.current,

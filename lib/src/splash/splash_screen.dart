@@ -18,9 +18,14 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  static const _introDuration = Duration(milliseconds: 2400);
-  static const _revealDuration = Duration(milliseconds: 560);
-  static const _breathingPause = Duration(milliseconds: 180);
+  // The choreography (particle delays, springs, phase windows) is authored
+  // against these timelines in seconds. Playback runs faster so the same
+  // motion completes in about 1.2 seconds.
+  static const _introTimeline = Duration(milliseconds: 2400);
+  static const _revealTimeline = Duration(milliseconds: 560);
+  static const _introDuration = Duration(milliseconds: 860);
+  static const _revealDuration = Duration(milliseconds: 320);
+  static const _breathingPause = Duration(milliseconds: 40);
 
   late final AnimationController _intro;
   late final AnimationController _reveal;
@@ -94,8 +99,8 @@ class _SplashScreenState extends State<SplashScreen>
                 builder: (context, _) {
                   final revealT = SplashMotion.expoOut.transform(_reveal.value);
                   final time =
-                      _intro.value * _introDuration.inMilliseconds / 1000 +
-                      _reveal.value * _revealDuration.inMilliseconds / 1000;
+                      _intro.value * _introTimeline.inMilliseconds / 1000 +
+                      _reveal.value * _revealTimeline.inMilliseconds / 1000;
                   final markProgress = SplashMotion.phase(
                     _intro.value,
                     0.18,

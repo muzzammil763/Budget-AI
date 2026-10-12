@@ -9,7 +9,7 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
-import 'package:budget_ai/src/sync/account_encryption_service.dart';
+import 'package:budget_ai/src/sync/legacy_encryption_migration_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalPrivacyResetService {
@@ -24,7 +24,7 @@ class LocalPrivacyResetService {
     await NotificationService.instance.clearForAccountExit();
     await FinanceService.instance.clearLocalData();
     if (userId != null) {
-      await AccountEncryptionService.instance.clearDataKey(userId);
+      await LegacyEncryptionMigrationService.instance.clearLocalKey(userId);
     }
 
     // Clear local monthly AI summaries along with legacy preferences so the
