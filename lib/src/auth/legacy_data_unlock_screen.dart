@@ -4,37 +4,78 @@ import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
 import 'package:budget_ai/src/helpers/toast_helper.dart';
-import 'package:budget_ai/src/sync/encrypted_finance_sync_service.dart';
+import 'package:budget_ai/src/sync/legacy_encryption_migration_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:toastification/toastification.dart';
 
-/// Shown when this account already has encryption enabled on another
-/// device, but this device couldn't unlock it automatically with the
-/// account password (a typo in the password just entered, or the
-/// server-side envelope isn't there yet because no other device has
-/// logged in since password-based unlock was introduced). Signing in
-/// again is the normal way out; starting fresh is the last resort if
-/// that keeps failing.
-class EncryptionRestoreScreen extends StatefulWidget {
-  const EncryptionRestoreScreen({super.key, required this.onDone});
+/// Asks for the account password when this device cannot unlock the
+/// finance data saved by the retired encryption. The password that
+/// protected that data is the one the account had when it was last used;
+/// after a password reset, the old password is required instead.
+class LegacyDataUnlockScreen extends StatefulWidget {
+  const LegacyDataUnlockScreen({super.key, required this.onDone});
 
   final VoidCallback onDone;
 
   @override
-  State<EncryptionRestoreScreen> createState() =>
-      _EncryptionRestoreScreenState();
+  State<LegacyDataUnlockScreen> createState() => _LegacyDataUnlockScreenState();
 }
 
-class _EncryptionRestoreScreenState extends State<EncryptionRestoreScreen> {
+class _LegacyDataUnlockScreenState extends State<LegacyDataUnlockScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _password = TextEditingController();
+  bool _obscurePassword = true;
   bool _working = false;
 
-  Future<void> _signOutAndRetry() async {
+  String? get _userId => Supabase.instance.client.auth.currentUser?.id;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _unlock() async {
+    final userId = _userId;
+    if (_working || userId == null) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _working = true);
+    try {
+      final status = await LegacyEncryptionMigrationService.instance.migrate(
+        userId,
+        password: _password.text,
+      );
+      if (!mounted) return;
+      if (status == LegacyMigrationStatus.complete) {
+        widget.onDone();
+      } else {
+        showAppToast(
+          context,
+          message: 'That password did not unlock your saved data.',
+          type: ToastificationType.error,
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        showAppToast(
+          context,
+          message: 'Could not reach Budget AI. Check your connection.',
+          type: ToastificationType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _signOut() async {
     if (_working) return;
     setState(() => _working = true);
     try {
       await AuthService.instance.signOut();
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
         showAppToast(
           context,
@@ -47,26 +88,30 @@ class _EncryptionRestoreScreenState extends State<EncryptionRestoreScreen> {
     }
   }
 
-  Future<void> _confirmReset() async {
+  Future<void> _confirmDiscard() async {
+    final userId = _userId;
+    if (userId == null) return;
     final confirmed = await ResponsiveInfoSheet.confirm(
       context,
-      title: 'Start fresh on this device?',
+      title: 'Continue without old data?',
       message:
-          'This permanently erases your synced finance history for this '
-          'account and starts over with a brand-new key from this device. '
-          'Any other device will need to sign in again to pick up the new '
-          'key. This cannot be undone.',
+          'Finance entries saved before this update stay locked without '
+          'the password that protected them, and will be permanently '
+          'deleted from the cloud. Entries already on another unlocked '
+          'device are not affected. This cannot be undone.',
       icon: CupertinoIcons.exclamationmark_triangle_fill,
-      confirmLabel: 'Erase and start fresh',
+      confirmLabel: 'Delete and continue',
       isRed: true,
       onConfirm: () async {
         try {
-          await EncryptedFinanceSyncService.instance.resetEncryption();
-        } catch (error) {
+          await LegacyEncryptionMigrationService.instance.discardLegacyData(
+            userId,
+          );
+        } catch (_) {
           if (mounted) {
             showAppToast(
               context,
-              message: 'Could not reset encryption. Check your connection.',
+              message: 'Could not reach Budget AI. Check your connection.',
               type: ToastificationType.error,
             );
           }
@@ -80,35 +125,69 @@ class _EncryptionRestoreScreenState extends State<EncryptionRestoreScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthShell(
-      eyebrow: 'THIS ACCOUNT IS PROTECTED',
-      title: "Couldn't unlock\nautomatically",
+      eyebrow: 'ONE-TIME UPDATE',
+      title: 'Unlock your\nsaved data',
       subtitle:
-          "This device couldn't unlock your account with your password. "
-          'Try signing in again, or use the device where your data is '
-          'already unlocked to enable this one.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppButton(
-            text: 'Sign out and try again',
-            icon: CupertinoIcons.arrow_clockwise,
-            isLoading: _working,
-            onPressed: _signOutAndRetry,
-          ),
-          const SizedBox(height: 18),
-          Center(
-            child: TextButton(
-              onPressed: _working ? null : _confirmReset,
-              child: Text(
-                'Start fresh instead',
-                style: AppTheme.bodySmall.copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w700,
+          'Budget AI no longer encrypts your entries. Enter the password '
+          'you used when you last opened the app to move your saved '
+          'finance data over.',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthTextField(
+              controller: _password,
+              label: 'Password',
+              hint: 'Your previous password',
+              icon: CupertinoIcons.lock,
+              obscureText: _obscurePassword,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _unlock(),
+              validator: (value) => value == null || value.isEmpty
+                  ? 'Enter your password.'
+                  : null,
+              trailing: IconButton(
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword
+                      ? CupertinoIcons.eye
+                      : CupertinoIcons.eye_slash,
+                  size: 20,
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 18),
+            AppButton(
+              text: 'Unlock',
+              icon: CupertinoIcons.lock_open,
+              isLoading: _working,
+              onPressed: _unlock,
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton(
+                onPressed: _working ? null : _signOut,
+                child: const Text('Sign out'),
+              ),
+            ),
+            Center(
+              child: TextButton(
+                onPressed: _working ? null : _confirmDiscard,
+                child: Text(
+                  'Continue without old data',
+                  style: AppTheme.bodySmall.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

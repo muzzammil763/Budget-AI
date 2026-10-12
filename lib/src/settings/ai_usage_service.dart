@@ -38,7 +38,7 @@ class AiUsageInfo {
 }
 
 /// Reads this calendar month's AI usage against the user's monthly limits
-/// directly from Supabase. Both `ai_usage_monthly` and `ai_user_limits`
+/// directly from Supabase. Both `ai_usage` and `user_ai_limits`
 /// already grant each authenticated user select access to their own row via
 /// RLS, so no edge function or extra backend surface is needed for a
 /// read-only display.
@@ -67,7 +67,7 @@ class AiUsageService {
 
       final results = await Future.wait([
         client
-            .from('ai_usage_monthly')
+            .from('ai_usage')
             .select(
               'request_count, input_tokens, output_tokens, fast_request_count',
             )
@@ -75,7 +75,7 @@ class AiUsageService {
             .eq('usage_month', currentMonth)
             .maybeSingle(),
         client
-            .from('ai_user_limits')
+            .from('user_ai_limits')
             .select(
               'enabled, monthly_request_limit, monthly_token_limit, '
               'monthly_fast_request_limit',

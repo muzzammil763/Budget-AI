@@ -1,49 +1,59 @@
-import 'package:budget_ai/src/sync/account_encryption_service.dart';
-import 'package:flutter/services.dart';
+import 'dart:convert';
+
+import 'package:budget_ai/src/sync/finance_sync_service.dart';
+import 'package:budget_ai/src/sync/legacy_encryption_migration_service.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-void main() {
-  // In-memory fake for the flutter_secure_storage platform channel, so
-  // methods that cache/read the account data key (create, wrap/unwrap) can
-  // run in a plain unit test without a real keychain/keystore.
-  final secureStorage = <String, String>{};
-  const secureStorageChannel = MethodChannel(
-    'plugins.it_nomads.com/flutter_secure_storage',
+/// Produces ciphertext exactly as the retired AccountEncryptionService did.
+Future<EncryptedPayload> _legacyEncrypt(
+  List<int> keyBytes,
+  Map<String, dynamic> value,
+) async {
+  final box = await AesGcm.with256bits().encrypt(
+    utf8.encode(jsonEncode(value)),
+    secretKey: SecretKeyData(keyBytes),
   );
+  return EncryptedPayload(
+    ciphertext: base64UrlEncode(box.cipherText),
+    nonce: base64UrlEncode(box.nonce),
+    mac: base64UrlEncode(box.mac.bytes),
+  );
+}
 
-  setUpAll(() {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(secureStorageChannel, (call) async {
-          final args = (call.arguments as Map?)?.cast<String, dynamic>();
-          final key = args?['key'] as String?;
-          switch (call.method) {
-            case 'containsKey':
-              return secureStorage.containsKey(key);
-            case 'read':
-              return secureStorage[key];
-            case 'write':
-              secureStorage[key!] = args!['value'] as String;
-              return null;
-            case 'delete':
-              secureStorage.remove(key);
-              return null;
-            default:
-              return null;
-          }
-        });
+Future<WrappedKeyPayload> _legacyWrap(
+  List<int> dataKey,
+  String password,
+) async {
+  final salt = List<int>.generate(16, (index) => index + 1);
+  final derived = await Argon2id(
+    parallelism: 1,
+    memory: 19456,
+    iterations: 2,
+    hashLength: 32,
+  ).deriveKey(secretKey: SecretKey(utf8.encode(password)), nonce: salt);
+  final wrapped = await _legacyEncrypt(await derived.extractBytes(), {
+    'key': base64UrlEncode(dataKey),
   });
+  return WrappedKeyPayload(
+    salt: base64UrlEncode(salt).replaceAll('=', ''),
+    ciphertext: wrapped.ciphertext,
+    nonce: wrapped.nonce,
+    mac: wrapped.mac,
+  );
+}
 
-  test('finance payload uses authenticated encryption', () async {
-    final keyBytes = List<int>.generate(32, (index) => index + 10);
-    final service = AccountEncryptionService.instance;
-    final encrypted = await service.encryptWithKey(keyBytes, {
+void main() {
+  final service = LegacyEncryptionMigrationService.instance;
+  final dataKey = List<int>.generate(32, (index) => index + 10);
+
+  test('decrypts legacy finance payloads and rejects tampering', () async {
+    final encrypted = await _legacyEncrypt(dataKey, {
       'description': 'Private groceries',
       'amount': 1250,
     });
 
-    expect(encrypted.ciphertext, isNot(contains('Private groceries')));
-    expect(await service.decryptWithKey(keyBytes, encrypted), {
+    expect(await service.decryptWithKey(dataKey, encrypted), {
       'description': 'Private groceries',
       'amount': 1250,
     });
@@ -53,7 +63,7 @@ void main() {
         : '${encrypted.mac.substring(0, encrypted.mac.length - 1)}A';
     expect(
       () => service.decryptWithKey(
-        keyBytes,
+        dataKey,
         EncryptedPayload(
           ciphertext: encrypted.ciphertext,
           nonce: encrypted.nonce,
@@ -65,71 +75,58 @@ void main() {
   });
 
   test(
-    'password wrap round-trips the account data key',
+    'password unwraps the legacy data key and rejects a wrong password',
     () async {
-      final service = AccountEncryptionService.instance;
-      const userId = 'password-wrap-user';
-      await service.createDataKey(userId);
-      final fingerprint = await service.fingerprint(userId);
-
-      final wrapped = await service.wrapKeyWithPassword(
-        userId,
-        'correct horse battery staple',
+      final fingerprint = LegacyEncryptionMigrationService.fingerprintForKey(
+        dataKey,
       );
-      await service.unwrapKeyWithPassword(
-        userId,
-        'correct horse battery staple',
-        wrapped,
-        fingerprint!,
-      );
+      final wrapped = await _legacyWrap(dataKey, 'correct horse');
 
-      expect(await service.fingerprint(userId), fingerprint);
-    },
-    timeout: const Timeout(Duration(seconds: 60)),
-  );
-
-  test(
-    'password wrap rejects the wrong password',
-    () async {
-      final service = AccountEncryptionService.instance;
-      const userId = 'password-wrap-wrong-password-user';
-      await service.createDataKey(userId);
-      final fingerprint = await service.fingerprint(userId);
-      final wrapped = await service.wrapKeyWithPassword(
-        userId,
-        'right-password',
-      );
-
-      await expectLater(
-        service.unwrapKeyWithPassword(
-          userId,
-          'wrong-password',
+      expect(
+        await service.unwrapKeyWithPassword(
+          'correct horse',
           wrapped,
-          fingerprint!,
+          fingerprint,
         ),
+        dataKey,
+      );
+      await expectLater(
+        service.unwrapKeyWithPassword('wrong horse', wrapped, fingerprint),
         throwsA(anything),
       );
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
 
-  test('createDataKey is a no-op when a key already exists', () async {
-    final service = AccountEncryptionService.instance;
-    const userId = 'create-data-key-idempotent-user';
-    await service.createDataKey(userId);
-    final firstFingerprint = await service.fingerprint(userId);
+  test('finance rows round-trip through plain sync columns', () {
+    final payload = {
+      'id': 'fin_1',
+      'type': 'income',
+      'date': DateTime(2026, 10, 12, 14, 30).toIso8601String(),
+      'has_time': true,
+      'description': 'Salary',
+      'amount': 1250.5,
+      'category': 'Salary',
+      'created_at': DateTime(2026, 10, 12, 14, 31).toIso8601String(),
+    };
+    final row = FinanceSyncService.remoteRow(
+      userId: 'user',
+      payload: payload,
+      revision: 3,
+      isDeleted: false,
+      clientUpdatedAt: DateTime.utc(2026, 10, 12),
+    );
 
-    await service.createDataKey(userId);
-    expect(await service.fingerprint(userId), firstFingerprint);
-  });
-
-  test('rotateDataKey always replaces the existing key', () async {
-    final service = AccountEncryptionService.instance;
-    const userId = 'rotate-data-key-user';
-    await service.createDataKey(userId);
-    final firstFingerprint = await service.fingerprint(userId);
-
-    await service.rotateDataKey(userId);
-    expect(await service.fingerprint(userId), isNot(firstFingerprint));
+    expect(row['id'], 'fin_1');
+    expect(row['type'], 'income');
+    expect(row['amount'], 1250.5);
+    expect(row['revision'], 3);
+    // PostgREST returns `timestamp` columns without fractional zeros.
+    final returned = {
+      ...row,
+      'date': '2026-10-12T14:30:00',
+      'created_at': '2026-10-12T14:31:00',
+    };
+    expect(FinanceSyncService.payloadFromRemote(returned), payload);
   });
 }

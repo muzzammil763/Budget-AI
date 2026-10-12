@@ -16,9 +16,9 @@ class AuthService extends ChangeNotifier {
   bool _initialized = false;
   bool _passwordRecovery = false;
 
-  // Held only in memory, only long enough for the encryption layer to
-  // derive/verify this device's data key against the account password
-  // right after an auth event. Never persisted, never sent anywhere.
+  // Held only in memory, only long enough for the one-time legacy
+  // encryption migration to unlock data saved under the retired account
+  // key right after an auth event. Never persisted, never sent anywhere.
   String? _pendingPassword;
 
   SupabaseClient get _client => Supabase.instance.client;
