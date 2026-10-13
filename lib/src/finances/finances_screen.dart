@@ -15,7 +15,13 @@ import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:toastification/toastification.dart';
 
 class FinancesScreen extends StatefulWidget {
-  const FinancesScreen({super.key});
+  const FinancesScreen({super.key, this.initialMonth, this.openEntryId});
+
+  /// Month to show first instead of the current one, e.g. from a widget.
+  final DateTime? initialMonth;
+
+  /// Entry whose editor opens once entries load, e.g. a widget row tap.
+  final String? openEntryId;
 
   @override
   State<FinancesScreen> createState() => _FinancesScreenState();
@@ -43,9 +49,9 @@ class _FinancesScreenState extends State<FinancesScreen> {
       _handleExternalFinanceChanged,
     );
     FinanceSyncService.instance.status.addListener(_handleSyncStatusChanged);
-    final now = DateTime.now();
-    _selectedMonth = DateTime(now.year, now.month);
-    _load();
+    final month = widget.initialMonth ?? DateTime.now();
+    _selectedMonth = DateTime(month.year, month.month);
+    _load().then((_) => _openRequestedEntry());
   }
 
   @override
@@ -101,6 +107,14 @@ class _FinancesScreenState extends State<FinancesScreen> {
     }
   }
 
+  Future<void> _openRequestedEntry() async {
+    final id = widget.openEntryId;
+    if (id == null || !mounted) return;
+    final entry = _allEntries.where((item) => item.id == id).firstOrNull;
+    if (entry == null) return;
+    await _openEntryEditor(entry);
+  }
+
   Future<void> _selectMonth(DateTime month) async {
     if (month.year == _selectedMonth.year &&
         month.month == _selectedMonth.month &&
@@ -144,6 +158,8 @@ class _FinancesScreenState extends State<FinancesScreen> {
     }
     final now = DateTime.now();
     months.add(DateTime(now.year, now.month));
+    // A month opened from a widget stays selectable even when it is empty.
+    months.add(DateTime(_selectedMonth.year, _selectedMonth.month));
     return months.toList()..sort((a, b) => b.compareTo(a));
   }
 

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60718293A4B0B /* BudgetInsightWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B0C /* BudgetInsightWidgets.swift */; };
 		A1B2C3D4E5F60718293A4B01 /* BudgetWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B02 /* BudgetWidgetData.swift */; };
 		A1B2C3D4E5F60718293A4B03 /* BudgetWidgetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B04 /* BudgetWidgetComponents.swift */; };
 		A1B2C3D4E5F60718293A4B05 /* BudgetTotalsWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B06 /* BudgetTotalsWidgets.swift */; };
@@ -71,6 +72,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F60718293A4B0C /* BudgetInsightWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BudgetInsightWidgets.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B02 /* BudgetWidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BudgetWidgetData.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B04 /* BudgetWidgetComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BudgetWidgetComponents.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B06 /* BudgetTotalsWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BudgetTotalsWidgets.swift; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 				A1B2C3D4E5F60718293A4B04 /* BudgetWidgetComponents.swift */,
 				A1B2C3D4E5F60718293A4B06 /* BudgetTotalsWidgets.swift */,
 				A1B2C3D4E5F60718293A4B08 /* BudgetActivityWidgets.swift */,
+				A1B2C3D4E5F60718293A4B0C /* BudgetInsightWidgets.swift */,
 				A1B2C3D4E5F60718293A4B0A /* GoogleSans.ttf */,
 				B74D3DA4A81F43C3A765CA12 /* Boldonse.ttf */,
 				C87E9DAFE500EC265A9A8DBF /* Info.plist */,
@@ -526,6 +529,7 @@
 				A1B2C3D4E5F60718293A4B03 /* BudgetWidgetComponents.swift in Sources */,
 				A1B2C3D4E5F60718293A4B05 /* BudgetTotalsWidgets.swift in Sources */,
 				A1B2C3D4E5F60718293A4B07 /* BudgetActivityWidgets.swift in Sources */,
+				A1B2C3D4E5F60718293A4B0B /* BudgetInsightWidgets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

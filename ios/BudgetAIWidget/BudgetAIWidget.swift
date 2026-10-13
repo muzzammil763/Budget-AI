@@ -20,6 +20,7 @@ private struct BudgetAIWidgetView: View {
     .containerBackground(for: .widget) {
       Color(uiColor: .systemBackground)
     }
+    .widgetURL(WidgetLink.finances())
   }
 
   private var header: some View {
@@ -85,11 +86,13 @@ private struct BudgetAIWidgetView: View {
         recentEntry(description: "No entries yet", amount: 0, type: "expense")
       }
       ForEach(recent, id: \.id) { expense in
-        recentEntry(
-          description: expense.description.isEmpty ? expense.category : expense.description,
-          amount: expense.amount,
-          type: "expense"
-        )
+        Link(destination: WidgetLink.finances(month: expense.date, entryId: expense.id)) {
+          recentEntry(
+            description: expense.description.isEmpty ? expense.category : expense.description,
+            amount: expense.amount,
+            type: "expense"
+          )
+        }
       }
     }
   }
@@ -142,6 +145,8 @@ struct BudgetAIWidgets: WidgetBundle {
     RecentExpensesWidget()
     TodayExpensesWidget()
     MonthComparisonWidget()
+    TopCategoriesWidget()
+    BudgetLockScreenWidget()
   }
 }
 

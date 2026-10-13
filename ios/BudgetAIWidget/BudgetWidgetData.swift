@@ -156,6 +156,19 @@ struct BudgetSnapshot {
     )
   }
 
+  /// Expense totals per category for a month, largest first.
+  func categories(offset: Int) -> [(name: String, amount: Double)] {
+    let month = monthStart(offset: offset)
+    var totals: [String: Double] = [:]
+    for entry in entries
+    where !entry.isIncome && calendar.isDate(entry.date, equalTo: month, toGranularity: .month) {
+      let name = entry.category.trimmingCharacters(in: .whitespacesAndNewlines)
+      totals[name.isEmpty ? "Other" : name, default: 0] += entry.amount
+    }
+    return totals.map { (name: $0.key, amount: $0.value) }
+      .sorted { $0.amount > $1.amount }
+  }
+
   var todayExpenses: [WidgetFinanceEntry] {
     entries.filter { !$0.isIncome && calendar.isDate($0.date, inSameDayAs: now) }
       .sorted { $0.date > $1.date }
@@ -190,6 +203,39 @@ struct BudgetSnapshot {
     }
     return BudgetSnapshot(entries: entries, currency: "Rs", now: now)
   }()
+}
+
+// MARK: - Tap destinations
+
+/// Deep links the app's `HomeWidgetLaunch` understands. The `homeWidget`
+/// query item marks them as widget taps for the home_widget plugin.
+enum WidgetLink {
+  static func finances(month: Date? = nil, entryId: String? = nil) -> URL {
+    url(path: "finances", month: month, entryId: entryId)
+  }
+
+  static func insights(month: Date? = nil) -> URL {
+    url(path: "insights", month: month, entryId: nil)
+  }
+
+  private static let monthFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "yyyy-MM"
+    return formatter
+  }()
+
+  private static func url(path: String, month: Date?, entryId: String?) -> URL {
+    var components = URLComponents()
+    components.scheme = "budgetai"
+    components.host = "widget"
+    components.path = "/\(path)"
+    var items = [URLQueryItem(name: "homeWidget", value: nil)]
+    if let month { items.append(URLQueryItem(name: "month", value: monthFormatter.string(from: month))) }
+    if let entryId { items.append(URLQueryItem(name: "entry", value: entryId)) }
+    components.queryItems = items
+    return components.url!
+  }
 }
 
 // MARK: - Timeline

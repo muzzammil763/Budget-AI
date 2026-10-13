@@ -235,7 +235,7 @@ class _NavBarState extends State<NavBar> {
 /// Shows a scrollable list of selectable pills. The selected pill is filled
 /// with the primary color; unselected pills show an outline. Used for
 /// compact spaces where icons are not needed (e.g. Finances month selector).
-class PillNavBar extends StatelessWidget {
+class PillNavBar extends StatefulWidget {
   final List<String> items;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -252,48 +252,89 @@ class PillNavBar extends StatelessWidget {
   });
 
   @override
+  State<PillNavBar> createState() => _PillNavBarState();
+}
+
+class _PillNavBarState extends State<PillNavBar> {
+  final Map<int, GlobalKey> _pillKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _revealSelected(animate: false);
+  }
+
+  @override
+  void didUpdateWidget(PillNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedIndex != oldWidget.selectedIndex) _revealSelected();
+  }
+
+  /// Scrolls the selected pill into view, e.g. when a screen opens on an
+  /// older month that would otherwise sit off-screen.
+  void _revealSelected({bool animate = true}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final pillContext = _pillKeys[widget.selectedIndex]?.currentContext;
+      if (pillContext == null || !mounted) return;
+      Scrollable.ensureVisible(
+        pillContext,
+        alignment: 0.5,
+        duration: animate ? const Duration(milliseconds: 250) : Duration.zero,
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final items = widget.items;
     return SizedBox(
-      height: height,
-      child: ListView.separated(
+      height: widget.height,
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: padding,
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (ctx, i) {
-          final selected = i == selectedIndex;
-          return GestureDetector(
-            onTap: () => onSelected(i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              decoration: BoxDecoration(
-                color: selected
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outline,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  items[i],
-                  style: AppTheme.bodySmall.copyWith(
-                    color: selected
-                        ? theme.colorScheme.onPrimary
-                        : theme.colorScheme.onSurface,
-                    fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: selected ? 14 : 13,
-                  ),
-                ),
-              ),
+        padding: widget.padding,
+        child: Row(
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              _pill(theme, i),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pill(ThemeData theme, int i) {
+    final selected = i == widget.selectedIndex;
+    return GestureDetector(
+      key: _pillKeys.putIfAbsent(i, GlobalKey.new),
+      onTap: () => widget.onSelected(i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        decoration: BoxDecoration(
+          color: selected ? theme.colorScheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            widget.items[i],
+            style: AppTheme.bodySmall.copyWith(
+              color: selected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurface,
+              fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+              fontSize: selected ? 14 : 13,
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

@@ -17,6 +17,7 @@ import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:budget_ai/src/sync/finance_sync_service.dart';
 import 'package:budget_ai/src/sync/account_settings_sync_service.dart';
 import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
+import 'package:budget_ai/src/widgets/home_widget_launch.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
   await UserNameSettingsService.instance.initialize();
   await BubbleStyleSettingsService.instance.initialize();
   await BudgetHomeWidgetSync.initialize();
+  await HomeWidgetLaunch.initialize();
   await AndroidFinanceAppActions.initialize();
   await NotificationService.instance.initialize();
   await FinanceService.instance.applySavingsRollover();

@@ -46,6 +46,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:budget_ai/src/widgets/home_widget_launch.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
@@ -177,6 +178,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     _scrollController.addListener(_handleChatScroll);
     AiResponseSettingsService.instance.showToolCalls.addListener(
       _handleToolVisibilityChanged,
+    );
+    HomeWidgetLaunch.pending.addListener(_openPendingWidgetDestination);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openPendingWidgetDestination(),
     );
     NetworkReachabilityService.instance.status.addListener(
       _handleNetworkStatusChanged,
@@ -571,6 +576,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   @override
   void dispose() {
     appRouteObserver.unsubscribe(this);
+    HomeWidgetLaunch.pending.removeListener(_openPendingWidgetDestination);
     _messageController.removeListener(_handleComposerTextChanged);
     _messageController.removeListener(_updateCanSend);
     _messageFocusNode.removeListener(_handleComposerFocusChanged);
@@ -3214,6 +3220,38 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       ),
     );
+  }
+
+  /// Opens the screen a widget tap asked for, on top of chat only, so Back
+  /// always returns here.
+  Future<void> _openPendingWidgetDestination() async {
+    if (!mounted || HomeWidgetLaunch.pending.value == null) return;
+    final destination = HomeWidgetLaunch.take();
+    if (destination == null) return;
+    final navigator = Navigator.of(context);
+    navigator.popUntil((route) => route.isFirst);
+    switch (destination.screen) {
+      case HomeWidgetScreen.finances:
+        await navigator.push(
+          MaterialPageRoute(
+            builder: (_) => FinancesScreen(
+              initialMonth: destination.month,
+              openEntryId: destination.entryId,
+            ),
+          ),
+        );
+      case HomeWidgetScreen.insights:
+        final entries = await FinanceService.instance.getAll();
+        if (!mounted) return;
+        await navigator.push(
+          MaterialPageRoute(
+            builder: (_) => FinanceInsightsScreen(
+              entries: entries,
+              selectedMonth: destination.month ?? DateTime.now(),
+            ),
+          ),
+        );
+    }
   }
 
   Future<void> _openFinancesScreen() {

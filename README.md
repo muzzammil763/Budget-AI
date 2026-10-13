@@ -166,8 +166,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 
 ## iOS widgets
 
-Budget AI ships seven iOS 17 Home Screen widgets, all following the app's
-monochrome style with red expenses and green income, in Light and Dark:
+Budget AI ships eight iOS 17 Home Screen widgets plus Lock Screen widgets, all
+following the app's monochrome style with red expenses and green income, in
+Light and Dark:
 
 - **Budget AI** (wide): this month's expenses, income, and entry count with
   the two newest expenses.
@@ -180,6 +181,25 @@ monochrome style with red expenses and green income, in Light and Dark:
 - **Today's Expenses** (large): today's total, entry count, and each expense.
 - **This Month vs Last** (small): both months' expenses as bars with the
   percentage change.
+- **Top Categories** (medium): the month's four largest expense categories
+  with amount, share, and bars, with the same `‹ Oct ›` month arrows.
+- **Lock Screen**: a circular ring of this month's spending against last
+  month, a rectangular month expenses/income card, and an inline "Today …
+  spent" line.
+
+Taps open the matching screen after sign-in, on top of chat so Back returns
+there:
+
+| Widget | Tap opens |
+| --- | --- |
+| Budget AI, Recent Expenses, Today's Expenses, Lock Screen | Finances on the current month |
+| Expenses, Income, Income & Expenses | Finances on the month the widget shows (including a month picked with ‹ ›) |
+| A single expense row (wide, Recent, Today) | Finances on that entry's month with its editor open |
+| This Month vs Last | Insights on the current month |
+| Top Categories | Insights on the month the widget shows |
+
+Widget links use `budgetai://widget/<finances|insights>?homeWidget&month=yyyy-MM&entry=<id>`
+and are handled by `HomeWidgetLaunch`. Android's widget tap opens Finances.
 
 Widgets read every actual expense and income entry from the App Group, written
 by `home_widget` whenever finances change. Budget AI exposes no Siri or

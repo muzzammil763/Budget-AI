@@ -87,13 +87,16 @@ private struct RecentExpensesView: View {
       } else {
         VStack(spacing: 0) {
           ForEach(recent, id: \.id) { expense in
-            compactRow(expense, palette: palette)
-              .frame(maxHeight: .infinity)
+            Link(destination: WidgetLink.finances(month: expense.date, entryId: expense.id)) {
+              compactRow(expense, palette: palette)
+                .frame(maxHeight: .infinity)
+            }
           }
         }
       }
     }
     .budgetWidgetSurface(padding: 13)
+    .widgetURL(WidgetLink.finances())
   }
 
   /// Single-line rows so five fit in the medium height.
@@ -180,14 +183,16 @@ private struct TodayExpensesView: View {
       } else {
         VStack(spacing: 10) {
           ForEach(today.prefix(maxRows), id: \.id) { expense in
-            ExpenseRow(
-              entry: expense,
-              detail: expense.hasTime
-                ? expense.date.formatted(.dateTime.hour().minute())
-                : expense.category,
-              currency: entry.snapshot.currency,
-              palette: palette
-            )
+            Link(destination: WidgetLink.finances(entryId: expense.id)) {
+              ExpenseRow(
+                entry: expense,
+                detail: expense.hasTime
+                  ? expense.date.formatted(.dateTime.hour().minute())
+                  : expense.category,
+                currency: entry.snapshot.currency,
+                palette: palette
+              )
+            }
           }
           if today.count > maxRows {
             Text("+\(today.count - maxRows) more")
@@ -201,6 +206,7 @@ private struct TodayExpensesView: View {
       }
     }
     .budgetWidgetSurface(padding: 16)
+    .widgetURL(WidgetLink.finances())
   }
 }
 
@@ -248,6 +254,7 @@ private struct MonthComparisonView: View {
       }
     }
     .budgetWidgetSurface()
+    .widgetURL(WidgetLink.insights())
   }
 
   private func bar(

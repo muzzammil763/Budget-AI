@@ -42,6 +42,7 @@ private struct MonthTotalView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .budgetWidgetSurface()
+    .widgetURL(WidgetLink.finances(month: summary.month))
   }
 }
 
@@ -115,6 +116,7 @@ private struct MonthBalanceView: View {
       )
     }
     .budgetWidgetSurface()
+    .widgetURL(WidgetLink.finances(month: summary.month))
   }
 
   private func row(

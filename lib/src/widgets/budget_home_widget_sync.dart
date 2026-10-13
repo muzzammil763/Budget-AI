@@ -18,6 +18,8 @@ class BudgetHomeWidgetSync {
     'BudgetAIRecentExpensesWidget',
     'BudgetAITodayExpensesWidget',
     'BudgetAIMonthComparisonWidget',
+    'BudgetAITopCategoriesWidget',
+    'BudgetAILockScreenWidget',
   ];
   static const androidWidgetName = 'BudgetAIWidgetProvider';
   static const qualifiedAndroidWidgetName =
