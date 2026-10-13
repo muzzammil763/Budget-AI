@@ -10,4 +10,12 @@
     <color name="widget_mark_bar">#FFFFFFFF</color>
     <color name="widget_accent">#FF448AFF</color>
     <color name="widget_accent_ring">#A6448AFF</color>
+    <color name="widget_expense">#FFE5484D</color>
+    <color name="widget_income">#FF1F9D5C</color>
+    <color name="widget_expense_soft">#22E5484D</color>
+    <color name="widget_income_soft">#221F9D5C</color>
+    <color name="widget_chip">#0F000000</color>
+    <color name="widget_track">#14000000</color>
+    <color name="widget_muted_bar">#29000000</color>
+    <color name="widget_disabled">#33000000</color>
 </resources>

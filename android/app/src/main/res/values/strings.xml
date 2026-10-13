@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Full-width monthly Budget AI summary</string>
+    <string name="widget_description">This month\'s expenses and income with your two newest expenses</string>
     <string name="widget_logo_description">Budget AI logo</string>
+    <string name="widget_expense_total_description">This month\'s total expenses. Use ‹ › to see other months.</string>
+    <string name="widget_income_total_description">This month\'s total income. Use ‹ › to see other months.</string>
+    <string name="widget_month_balance_description">Income and expenses side by side. Use ‹ › to see other months.</string>
+    <string name="widget_recent_description">Your five most recent expenses</string>
+    <string name="widget_today_description">Everything you spent today and the day\'s total</string>
+    <string name="widget_comparison_description">This month\'s expenses compared with last month</string>
+    <string name="widget_categories_description">Where this month\'s money went. Use ‹ › to see other months.</string>
 
     <string-array name="addExpenseQueries">
         <item>log $amount for $description</item>

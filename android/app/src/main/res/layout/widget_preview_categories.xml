@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared by Recent Expenses and Top Categories: header plus code-added rows. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/budget_widget_background"
+    android:orientation="vertical"
+    android:padding="13dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@string/widget_logo_description"
+            android:src="@drawable/ic_budget_mark" />
+
+        <TextView
+            android:id="@+id/list_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/google_sans"
+            android:maxLines="1"
+            android:text="Top categories"
+            android:textColor="@color/widget_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/list_trailing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/google_sans"
+            android:text="Last 5"
+            android:visibility="gone"
+            android:textColor="@color/widget_secondary"
+            android:textSize="11sp" />
+
+        <include
+            layout="@layout/widget_month_switcher" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/list_rows"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+        <LinearLayout     android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/category_name"
+                    android:text="Bills"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/category_amount"
+                    android:text="$191"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/category_share"
+                    android:text="30%"
+                    android:layout_width="34dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/category_bar"
+                android:progress="1000"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="3dp"
+                android:max="1000"
+                android:progressDrawable="@drawable/widget_progress_expense" />
+        </LinearLayout>
+
+        <LinearLayout     android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/category_name"
+                    android:text="Transport"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/category_amount"
+                    android:text="$112"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/category_share"
+                    android:text="17%"
+                    android:layout_width="34dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/category_bar"
+                android:progress="586"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="3dp"
+                android:max="1000"
+                android:progressDrawable="@drawable/widget_progress_expense" />
+        </LinearLayout>
+
+        <LinearLayout     android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/category_name"
+                    android:text="Health"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/category_amount"
+                    android:text="$107"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/category_share"
+                    android:text="17%"
+                    android:layout_width="34dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/category_bar"
+                android:progress="560"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="3dp"
+                android:max="1000"
+                android:progressDrawable="@drawable/widget_progress_expense" />
+        </LinearLayout>
+
+        <LinearLayout     android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/category_name"
+                    android:text="Dining"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/category_amount"
+                    android:text="$107"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/category_share"
+                    android:text="17%"
+                    android:layout_width="34dp"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/google_sans"
+                    android:gravity="end"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/category_bar"
+                android:progress="560"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="3dp"
+                android:max="1000"
+                android:progressDrawable="@drawable/widget_progress_expense" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/list_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fontFamily="@font/google_sans"
+        android:gravity="center"
+        android:text="No expenses yet"
+        android:textColor="@color/widget_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

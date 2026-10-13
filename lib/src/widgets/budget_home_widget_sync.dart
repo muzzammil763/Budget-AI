@@ -21,9 +21,16 @@ class BudgetHomeWidgetSync {
     'BudgetAITopCategoriesWidget',
     'BudgetAILockScreenWidget',
   ];
-  static const androidWidgetName = 'BudgetAIWidgetProvider';
-  static const qualifiedAndroidWidgetName =
-      'com.budgetai.android.BudgetAIWidgetProvider';
+  static const androidWidgetProviders = [
+    'BudgetAIWidgetProvider',
+    'ExpenseTotalWidgetProvider',
+    'IncomeTotalWidgetProvider',
+    'MonthBalanceWidgetProvider',
+    'RecentExpensesWidgetProvider',
+    'TodayExpensesWidgetProvider',
+    'MonthComparisonWidgetProvider',
+    'TopCategoriesWidgetProvider',
+  ];
 
   static const entriesKey = 'budget_ai_widget_entries';
   static const monthExpenseKey = 'budget_ai_widget_month_expense';
@@ -115,10 +122,11 @@ class BudgetHomeWidgetSync {
           await HomeWidget.updateWidget(iOSName: kind);
         }
       } else {
-        await HomeWidget.updateWidget(
-          androidName: androidWidgetName,
-          qualifiedAndroidName: qualifiedAndroidWidgetName,
-        );
+        for (final provider in androidWidgetProviders) {
+          await HomeWidget.updateWidget(
+            qualifiedAndroidName: 'com.budgetai.android.$provider',
+          );
+        }
       }
     } catch (error) {
       // Finance persistence must remain successful if the widget is absent or

@@ -29,12 +29,32 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/boldonse"
                 android:text="Budget AI"
                 android:textColor="@color/widget_primary"
                 android:textSize="12sp" />
+
+
+            <ImageView
+
+                android:id="@+id/widget_title_image"
+
+                android:layout_width="wrap_content"
+
+                android:layout_height="12dp"
+
+                android:adjustViewBounds="true"
+
+                android:contentDescription="@null"
+
+                android:scaleType="fitStart"
+
+                android:tint="@color/widget_primary"
+
+                android:visibility="gone" />
         </LinearLayout>
 
         <TextView
@@ -42,7 +62,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif"
-            android:text="July"
+            android:text="October"
             android:textColor="@color/widget_primary"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -66,7 +86,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif"
-                android:text="Total expenses"
+                android:text="Expenses this month"
                 android:textColor="@color/widget_secondary"
                 android:textSize="9sp" />
 
@@ -77,16 +97,36 @@
                 android:ellipsize="end"
                 android:fontFamily="@font/boldonse"
                 android:maxLines="1"
-                android:text="0 USD"
+                android:text="$682.19"
                 android:textColor="@color/widget_primary"
                 android:textSize="24sp" />
+
+
+            <ImageView
+
+                android:id="@+id/widget_balance_image"
+
+                android:layout_width="match_parent"
+
+                android:layout_height="24dp"
+
+                android:adjustViewBounds="true"
+
+                android:contentDescription="@null"
+
+                android:scaleType="fitStart"
+
+                android:tint="@color/widget_primary"
+
+                android:visibility="gone"
+                android:layout_marginTop="4dp" />
         </LinearLayout>
 
         <TextView
             android:layout_width="1dp"
             android:layout_height="46dp"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="14dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
             android:background="@color/widget_divider" />
 
 
@@ -94,29 +134,55 @@
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:text="●  Spent"
-                android:textColor="#FFFF6B6B"
+                android:fontFamily="@font/google_sans"
+                android:text="●  Income"
+                android:textColor="@color/widget_income"
                 android:textSize="8sp" />
 
             <TextView
-                android:id="@+id/widget_expense"
+                android:id="@+id/widget_income"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif"
+                android:fontFamily="@font/google_sans"
                 android:maxLines="1"
-                android:text="0 USD"
+                android:text="$5,200"
                 android:textColor="@color/widget_primary"
                 android:textSize="13sp" />
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/google_sans"
+                android:text="●  Entries"
+                android:textColor="@color/widget_secondary"
+                android:textSize="8sp" />
+
+            <TextView
+                android:id="@+id/widget_entries"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/google_sans"
+                android:maxLines="1"
+                android:text="29"
+                android:textColor="@color/widget_primary"
+                android:textSize="13sp" />
+        </LinearLayout>
+
     </LinearLayout>
 
     <LinearLayout
@@ -138,7 +204,7 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
-                android:text="No entries yet"
+                android:text="Whole Foods Groceries"
                 android:textColor="@color/widget_primary"
                 android:textSize="10sp" />
 
@@ -147,7 +213,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif"
-                android:text=""
+                android:text="−$40.80"
                 android:textColor="#FFFF6B6B"
                 android:textSize="10sp" />
         </LinearLayout>
@@ -167,7 +233,7 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif"
                 android:maxLines="1"
-                android:text=""
+                android:text="Notebook &amp; pens"
                 android:textColor="@color/widget_primary"
                 android:textSize="10sp" />
 
@@ -176,7 +242,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif"
-                android:text=""
+                android:text="−$12.60"
                 android:textColor="#FFFF6B6B"
                 android:textSize="10sp" />
         </LinearLayout>
