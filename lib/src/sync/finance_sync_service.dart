@@ -26,6 +26,8 @@ class FinanceSyncService {
     Duration(minutes: 1),
   ];
   static const _uploadBatchSize = 100;
+  // PostgREST returns at most this many rows per request (`max_rows`).
+  static const _pageSize = 1000;
   static const _uuid = Uuid();
 
   RealtimeChannel? _channel;
@@ -79,6 +81,29 @@ class FinanceSyncService {
       'category': row['category'],
       'created_at': row['created_at'],
     }).toJson();
+  }
+
+  /// Reads every row of [table] for [userId], one page at a time. A single
+  /// request is silently capped at the API's `max_rows`, so reading without
+  /// paging drops rows once an account grows past that limit.
+  static Future<List<Map<String, dynamic>>> readAllRows(
+    SupabaseClient client, {
+    required String table,
+    required String userId,
+    required String orderBy,
+    String columns = '*',
+  }) async {
+    final rows = <Map<String, dynamic>>[];
+    for (var offset = 0; ; offset += _pageSize) {
+      final page = await client
+          .from(table)
+          .select(columns)
+          .eq('user_id', userId)
+          .order(orderBy)
+          .range(offset, offset + _pageSize - 1);
+      rows.addAll(page.map(Map<String, dynamic>.from));
+      if (page.length < _pageSize) return rows;
+    }
   }
 
   static String _wallClock(DateTime value) {
@@ -229,12 +254,7 @@ class FinanceSyncService {
   }
 
   Future<List<Map<String, dynamic>>> _readRemoteRows(String userId) async {
-    final rows = await _client
-        .from(table)
-        .select()
-        .eq('user_id', userId)
-        .order('server_updated_at');
-    return rows.map(Map<String, dynamic>.from).toList(growable: false);
+    return readAllRows(_client, table: table, userId: userId, orderBy: 'id');
   }
 
   Future<void> _pushPending(
