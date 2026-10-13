@@ -3,7 +3,7 @@
 This file is the source of truth for agents working in this repo. Keep it
 accurate: **any change that affects what this file describes — the project
 structure, features, flows, or architecture — must update this file (and
-`README.md`) as part of the same change, before the PR is opened.** A change
+`README.md`) as part of the same change.** A change
 that adds/removes/renames files or directories, adds or changes a feature or
 screen, or alters a flow or service is not complete until the docs match. If a
 change touches nothing the docs describe, no doc update is needed.
@@ -74,8 +74,7 @@ lib/
 supabase/                       Edge function (openai-responses), migrations, email templates, config
 ```
 
-Root docs: `README.md` (user/setup facing), `SUPABASE_BACKEND_PLAN.md`,
-`OFFLINE_FIRST_SYNC_PLAN.md`. Build: `Makefile` (`make apk`), `pubspec.yaml`,
+Root docs: `README.md` (user/setup facing). Build: `Makefile` (`make apk`), `pubspec.yaml`,
 `analysis_options.yaml`. GitHub Actions runs the Flutter CI workflow for
 `master` pushes and pull requests targeting `master`, with cached Flutter and
 pub dependencies.
@@ -123,34 +122,13 @@ Chat top chrome provides History and New Chat on the left and Finances (painted 
 - Never commit `.env`, an OpenAI key, a Supabase secret/service-role key, or a Supabase access token. All OpenAI traffic must remain behind the authenticated Edge Function.
 - Chat history must remain excluded from Supabase synchronization. Never expose the OpenAI credential in Flutter.
 
-## Change workflow (required for every change request)
+## Change workflow
 
-Whenever the user asks for a code change, run the full cycle below — do not
-commit straight to `master`. If the user explicitly says to skip it, or for a
-trivial non-code edit, you may commit directly; otherwise default to this.
-
-1. **Open a GitHub issue** with `gh issue create` — concise descriptive title,
-   body covering what was asked, the problem, and the intended approach.
-2. **Branch off an up-to-date `master`** with a descriptive name
-   (`feat/…`, `fix/…`, `chore/…`, `docs/…`).
-3. **Do the work.** Keep commits focused; run the verification commands below
-   and make sure they are clean before committing.
-4. **Sync the docs.** If the change touched anything this file or `README.md`
-   describes — structure, files/dirs, features, screens, flows, architecture,
-   services, or setup — update those docs in the same branch before the PR.
-   Skip only when the change genuinely affects nothing the docs cover.
-5. **Push and open a PR** into `master` with `gh pr create` — clear title, a
-   structured description of what changed and why, and `Closes #<issue>` so the
-   issue auto-closes.
-6. **Merge the PR** with a merge commit (`gh pr merge <n> --merge`), writing a
-   clean merge subject and a summary body of the highlights. Preserve the
-   individual commits (do not squash) unless asked otherwise.
-7. **Return to `master`** and fast-forward it:
-   `git checkout master && git fetch origin && git merge --ff-only origin/master`.
-
-Keep the feature branch after merge unless the user asks to delete it. Use
-Conventional Commit prefixes and end commit messages with the co-author and
-session trailers already used in this repo's history.
+Work directly on `master`: no GitHub issues, feature branches, or pull
+requests. For each change, run the verification commands below, update the
+docs if needed, then commit and push to `master`. Use Conventional Commit
+prefixes and end commit messages with the co-author trailer already used in
+this repo's history.
 
 ## Verification
 

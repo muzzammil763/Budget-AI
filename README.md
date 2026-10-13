@@ -213,8 +213,7 @@ supabase functions deploy openai-speech
 supabase functions deploy openai-responses
 ```
 
-Restrict the Google key to Cloud Speech-to-Text and Cloud Text-to-Speech. Delete
-the local `.env` after remote secrets are verified if it has no other purpose.
+Delete the local `.env` after remote secrets are verified if it has no other purpose.
 
 The AI proxy streams OpenAI events immediately and exposes development timing
 headers for quota reservation, OpenAI response headers, and the executing Edge
@@ -239,10 +238,6 @@ base branch is `master`. It uses Flutter 3.44.0, caches the Flutter SDK and
 Dart pub packages, then runs formatting, analysis, and Flutter tests. The
 cache is restored on later workflow runs, although GitHub-hosted runners still
 start as fresh machines.
-
-See `SUPABASE_BACKEND_PLAN.md` for architecture, quota controls, rollout, and
-security verification. See `OFFLINE_FIRST_SYNC_PLAN.md` for local persistence,
-and conflict handling.
 
 ### Monthly finance insights
 
