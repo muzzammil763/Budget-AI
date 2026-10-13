@@ -22,6 +22,7 @@ import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_usage_sheet.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/legal_screens.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -367,6 +368,37 @@ class _SettingsScreenState extends State<SettingsScreen>
           const SizedBox(height: 20),
           _sectionHeading(
             theme,
+            eyebrow: 'ABOUT & LEGAL',
+            title: 'Know Budget AI',
+          ),
+          const SizedBox(height: 8),
+          _navTile(
+            theme,
+            key: const ValueKey('settings-about'),
+            icon: CupertinoIcons.info_circle,
+            title: 'About Budget AI',
+            subtitle: 'What the app does, version, and contact',
+            onTap: () => _push(const AboutBudgetAiScreen()),
+          ),
+          _navTile(
+            theme,
+            key: const ValueKey('settings-privacy'),
+            icon: CupertinoIcons.lock_shield,
+            title: 'Privacy Policy',
+            subtitle: 'What we collect and how it is used',
+            onTap: () => _push(const PrivacyPolicyScreen()),
+          ),
+          _navTile(
+            theme,
+            key: const ValueKey('settings-terms'),
+            icon: CupertinoIcons.doc_text,
+            title: 'Terms & Conditions',
+            subtitle: 'The rules for using Budget AI',
+            onTap: () => _push(const TermsScreen()),
+          ),
+          const SizedBox(height: 20),
+          _sectionHeading(
+            theme,
             eyebrow: 'DANGER ZONE',
             title: 'Account Actions',
             color: theme.colorScheme.error,
@@ -391,6 +423,10 @@ class _SettingsScreenState extends State<SettingsScreen>
         ],
       ),
     );
+  }
+
+  void _push(Widget screen) {
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => screen));
   }
 
   Widget _sectionHeading(
