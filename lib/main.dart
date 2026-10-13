@@ -63,6 +63,7 @@ class MyApp extends StatelessWidget {
       builder: (context, _, _) {
         return MaterialApp(
           title: 'Budget AI',
+          debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: ThemeMode.system,
