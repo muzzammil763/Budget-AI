@@ -125,7 +125,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   toggle stays on after account creation or sign-in. Turning Notifications off
   suppresses future delivery and clears notifications already shown by the app.
 - Signing out clears the previous user's local finances, chat history,
-  preferences, any retired encryption key, widget data, and legacy storage while preserving
+  preferences, widget data, and legacy storage while preserving
   the completed-onboarding flag.
 - Budget Hub exposes Replay onboarding. It opens the same five-page onboarding
   experience with a route-level Back control; Back or completing the final page
@@ -154,16 +154,11 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   row-level security. End-to-end encryption has been retired.
 - Account settings sync through `users`; roles live in `user_roles`; AI quotas
   use `user_ai_limits`, `ai_usage`, `ai_requests`, and `ai_model_config`.
-- Upgrading from an encrypted install converts once: before the first plain
-  sync, the app unlocks the old account key from this device's Keychain /
-  Keystore (or, on a device without it, from the account password used when the
-  data was saved), decrypts every row in `legacy_encrypted_finance_entries`,
-  copies it into `finance_entries`, and deletes the legacy rows, the
-  `legacy_user_encryption` metadata, and the device key. Rows that cannot be
-  decrypted are left in place rather than deleted. A device that cannot unlock
-  can sign out or explicitly discard the locked cloud copy.
-- Apply migration `20261012120000_remove_encryption_and_rename_tables.sql`
-  together with the app update: older builds use the previous table names.
+- Sign-up is email + password with a one-time email code; login is email +
+  password and goes straight to the app with no key or unlock step. Earlier
+  end-to-end encryption has been fully removed.
+- Remote reads page in 1000-row chunks, since Supabase caps a single select at
+  `max_rows`.
 - Realtime events and restored connectivity trigger a SQLite reconciliation;
   UI reads and writes remain local-first.
 - Chat history and images are stored locally in SQLite and excluded from account sync. Relevant conversation context and attached images pass through the authenticated Responses proxy to OpenAI to answer requests; audio passes through the speech proxy for transcription. Image inputs are limited to 1600 pixels on the longest edge: small PNGs remain lossless up to 384 KB, and larger images become metadata-free JPEGs capped at 768 KB. Only the latest three image inputs remain in provider context; older images stay visible locally and can be attached again for analysis. Account exit clears local chat data.
