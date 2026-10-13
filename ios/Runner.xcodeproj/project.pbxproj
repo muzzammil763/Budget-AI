@@ -92,8 +92,8 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9A649EF99C6C461BA3627E50 /* BudgetAIWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BudgetAIWidget.swift; sourceTree = "<group>"; };
-		B74D3DA4A81F43C3A765CA12 /* Boldonse.ttf */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file; name = Boldonse.ttf; path = ../assets/fonts/Boldonse.ttf; sourceTree = SOURCE_ROOT; };
 		A87FAD5A3D7F39F7151457D9 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B74D3DA4A81F43C3A765CA12 /* Boldonse.ttf */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file; name = Boldonse.ttf; path = ../assets/fonts/Boldonse.ttf; sourceTree = SOURCE_ROOT; };
 		C87E9DAFE500EC265A9A8DBF /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C9061FDDAC42D7F4CC8ED42A /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		CECD2CA90852D6E96C3174B9 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
@@ -138,7 +138,6 @@
 				C87E9DAFE500EC265A9A8DBF /* Info.plist */,
 				2CEE2DC2108D212AB0AAA0BD /* BudgetAIWidget.entitlements */,
 			);
-			name = BudgetAIWidget;
 			path = BudgetAIWidget;
 			sourceTree = "<group>";
 		};
