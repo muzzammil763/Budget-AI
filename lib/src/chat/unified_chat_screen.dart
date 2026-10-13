@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -762,6 +763,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _isPickingImages) {
       return;
     }
+    // A user-sent turn needs the one-time agreement to share it with OpenAI.
+    if (appendUserMessage && !await AiConsent.ensure(context)) return;
+    if (!mounted) return;
     final attachedImages = appendUserMessage
         ? List<String>.of(_draftImages)
         : <String>[];
@@ -1584,6 +1588,11 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         _isRecording ||
         _voiceStartInFlight ||
         _messageController.text.trim().isNotEmpty) {
+      return;
+    }
+    // Ask once before recording; the user holds the mic again after agreeing.
+    if (!await AiConsent.isGranted()) {
+      if (mounted) await AiConsent.ensure(context);
       return;
     }
 

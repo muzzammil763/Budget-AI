@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/monthly_summary_card.dart';
 import 'package:budget_ai/src/finances/monthly_summary_service.dart';
@@ -10,6 +11,9 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  setUp(() => AiConsent.debugGranted = true);
+  tearDown(() => AiConsent.debugGranted = null);
+
   TestWidgetsFlutterBinding.ensureInitialized();
   final month = DateTime(2026, 1);
   FinanceEntry income(double amount) => FinanceEntry(

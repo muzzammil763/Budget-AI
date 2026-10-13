@@ -262,6 +262,16 @@ build with `--dart-define=SUPABASE_FUNCTION_REGION=<aws-region>`. Keep this
 empty in production unless measurements show a consistent improvement because
 an explicit region disables automatic regional failover.
 
+## Android release
+
+Release builds are signed with the upload key at
+`/Users/waqas/Muzamil/Keystores/budget-ai.keystore` (alias `budget-ai`). Its
+`key.properties` values are backed up beside it in `budget-ai-key.properties.txt`;
+copy them into the gitignored `android/key.properties` after cloning, then run
+`flutter build appbundle --release`. Losing the keystore or its password blocks
+future Play updates, so keep both backed up. Widget preview layouts must not
+repeat view ids (release lint fails on duplicates).
+
 ## Development
 
 ```sh

@@ -42,7 +42,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Budget AI Uses Face ID To Protect Your Current Balance.</string>
+	<string>Budget AI uses Face ID to confirm before deleting all of your chat history.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Budget AI Uses The Microphone To Transcribe Voice Messages With OpenAI.</string>
 	<key>UIApplicationSceneManifest</key>

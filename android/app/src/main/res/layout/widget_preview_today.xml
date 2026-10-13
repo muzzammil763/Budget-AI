@@ -88,7 +88,7 @@
         android:layout_marginTop="6dp"
         android:layout_weight="1"
         android:orientation="vertical">
-        <LinearLayout     android:id="@+id/row_root"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -102,7 +102,6 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/row_title"
                     android:text="Whole Foods Groceries"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -113,7 +112,6 @@
                     android:textSize="13sp" />
 
                 <TextView
-                    android:id="@+id/row_detail"
                     android:text="5:42 PM"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -124,7 +122,6 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/row_amount"
                     android:text="−$40.80"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -136,7 +133,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <LinearLayout     android:id="@+id/row_root"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -150,7 +147,6 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/row_title"
                     android:text="Notebook &amp; pens"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -161,7 +157,6 @@
                     android:textSize="13sp" />
 
                 <TextView
-                    android:id="@+id/row_detail"
                     android:text="3:27 PM"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -172,7 +167,6 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/row_amount"
                     android:text="−$12.60"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -184,7 +178,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <LinearLayout     android:id="@+id/row_root"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -198,7 +192,6 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/row_title"
                     android:text="Sweetgreen lunch"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -209,7 +202,6 @@
                     android:textSize="13sp" />
 
                 <TextView
-                    android:id="@+id/row_detail"
                     android:text="12:41 PM"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -220,7 +212,6 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/row_amount"
                     android:text="−$15.90"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -232,7 +223,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <LinearLayout     android:id="@+id/row_root"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -246,7 +237,6 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/row_title"
                     android:text="Lunch at Chipotle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -257,7 +247,6 @@
                     android:textSize="13sp" />
 
                 <TextView
-                    android:id="@+id/row_detail"
                     android:text="12:23 PM"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -268,7 +257,6 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/row_amount"
                     android:text="−$14.50"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -280,7 +268,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <LinearLayout     android:id="@+id/row_root"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -294,7 +282,6 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/row_title"
                     android:text="Disney+"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -305,7 +292,6 @@
                     android:textSize="13sp" />
 
                 <TextView
-                    android:id="@+id/row_detail"
                     android:text="12:15 PM"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -316,7 +302,6 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/row_amount"
                     android:text="−$9.99"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

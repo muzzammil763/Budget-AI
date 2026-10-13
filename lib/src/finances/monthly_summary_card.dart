@@ -1,3 +1,4 @@
+import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/finances/monthly_summary_service.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -38,6 +39,7 @@ class _MonthlySummaryCardState extends State<MonthlySummaryCard> {
   }
 
   Future<void> _generate() async {
+    if (!await AiConsent.ensure(context) || !mounted) return;
     setState(() {
       _generating = true;
       _error = null;
