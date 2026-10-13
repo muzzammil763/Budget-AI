@@ -497,35 +497,48 @@ class EmailVerificationScreen extends StatefulWidget {
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     with WidgetsBindingObserver {
-  final _code = TextEditingController();
-  Timer? _timer;
+  // How often to check whether the link in the email has been tapped.
+  static const _pollInterval = Duration(seconds: 5);
+
+  Timer? _cooldownTimer;
+  Timer? _pollTimer;
   int _cooldown = 60;
-  bool _checking = false;
+  bool _busy = false;
+  bool _pollInFlight = false;
+
+  bool get _canPoll => widget.password.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startCooldown();
+    _startPolling();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _timer?.cancel();
-    _code.dispose();
+    _cooldownTimer?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _check(silent: true);
+    // Poll only while visible; check at once when returning from the mail app.
+    if (state == AppLifecycleState.resumed) {
+      _startPolling();
+      _checkConfirmed();
+    } else if (state == AppLifecycleState.paused) {
+      _pollTimer?.cancel();
+    }
   }
 
   void _startCooldown() {
-    _timer?.cancel();
+    _cooldownTimer?.cancel();
     setState(() => _cooldown = 60);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return timer.cancel();
       if (_cooldown <= 1) {
         timer.cancel();
@@ -536,58 +549,33 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     });
   }
 
-  Future<void> _check({bool silent = false}) async {
-    if (_checking || widget.password.isEmpty) {
-      if (!silent && widget.password.isEmpty) {
-        _showAuthToast(
-          context,
-          'Return to sign in after confirming your email.',
-          type: ToastificationType.info,
-        );
-      }
-      return;
-    }
-    setState(() => _checking = true);
+  void _startPolling() {
+    if (!_canPoll) return;
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _checkConfirmed());
+  }
+
+  /// Signing in succeeds only once the email is confirmed; AuthGate then
+  /// moves on to the app. Until then the "not confirmed" error is expected.
+  Future<void> _checkConfirmed() async {
+    if (!_canPoll || _pollInFlight || !mounted) return;
+    _pollInFlight = true;
     try {
       await AuthService.instance.signIn(
         email: widget.email,
         password: widget.password,
       );
-    } catch (error) {
-      if (!silent && mounted) {
-        _showAuthError(context, error);
-      }
+      _pollTimer?.cancel();
+    } catch (_) {
+      // Not confirmed yet, or offline; the next tick retries.
     } finally {
-      if (mounted) setState(() => _checking = false);
-    }
-  }
-
-  Future<void> _verifyCode() async {
-    final code = _code.text.trim();
-    if (code.length != 6 || _checking) {
-      _showAuthToast(
-        context,
-        'Enter the 6-digit code from your email.',
-        type: ToastificationType.error,
-      );
-      return;
-    }
-    setState(() => _checking = true);
-    try {
-      await AuthService.instance.verifySignupCode(
-        email: widget.email,
-        code: code,
-      );
-    } catch (error) {
-      if (mounted) _showAuthError(context, error);
-    } finally {
-      if (mounted) setState(() => _checking = false);
+      _pollInFlight = false;
     }
   }
 
   Future<void> _resend() async {
-    if (_cooldown > 0 || _checking) return;
-    setState(() => _checking = true);
+    if (_cooldown > 0 || _busy) return;
+    setState(() => _busy = true);
     try {
       await AuthService.instance.resendSignupConfirmation(widget.email);
       if (mounted) {
@@ -597,7 +585,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     } catch (error) {
       if (mounted) _showAuthError(context, error);
     } finally {
-      if (mounted) setState(() => _checking = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -614,76 +602,62 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !_checking,
-      child: AuthPageContent(
-        eyebrow: 'ONE MORE STEP',
-        title: 'Check your email',
-        subtitle:
-            'We sent a secure confirmation to ${_maskedEmail(widget.email)}.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _StatusCard(
-              icon: CupertinoIcons.envelope_badge,
-              message:
-                  'Tap the confirmation link to return here automatically, or enter the 6-digit code.',
-            ),
+    final theme = Theme.of(context);
+    return AuthPageContent(
+      eyebrow: 'ONE MORE STEP',
+      title: 'Check your email',
+      subtitle: 'We sent a confirmation link to ${_maskedEmail(widget.email)}.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _StatusCard(
+            icon: CupertinoIcons.envelope_badge,
+            message: _canPoll
+                ? 'Tap the link in that email. This screen continues on its own once your email is confirmed.'
+                : 'Tap the link in that email, then sign in.',
+          ),
+          if (_canPoll) ...[
             const SizedBox(height: 18),
-            AuthTextField(
-              controller: _code,
-              label: 'Confirmation code',
-              hint: '000000',
-              icon: CupertinoIcons.number,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CupertinoActivityIndicator(radius: 8),
+                const SizedBox(width: 10),
+                Text(
+                  'Waiting for confirmation…',
+                  style: AppTheme.bodySmall.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
-              onSubmitted: (_) => _verifyCode(),
-            ),
-            const SizedBox(height: 12),
-            ListenableBuilder(
-              listenable: _code,
-              builder: (context, _) => AppButton(
-                text: 'Verify code',
-                icon: CupertinoIcons.checkmark_shield,
-                isLoading: _checking,
-                onPressed: _code.text.trim().length == 6 ? _verifyCode : null,
-                disabledMessage: 'Enter the 6-digit code from your email.',
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _checking ? null : _openMail,
-              icon: const Icon(CupertinoIcons.mail, size: 18),
-              label: const Text('Open mail app'),
-            ),
-            TextButton(
-              onPressed: _checking ? null : () => _check(),
-              child: const Text("I've confirmed — check again"),
-            ),
-            TextButton(
-              onPressed: _cooldown == 0 && !_checking ? _resend : null,
-              child: Text(
-                _cooldown == 0
-                    ? 'Resend confirmation email'
-                    : 'Resend available in ${_cooldown}s',
-              ),
-            ),
-            const Divider(height: 24),
-            _AuthSecondaryAction(
-              prompt: 'Wrong email?',
-              action: 'Use a different email',
-              onPressed: _checking ? null : widget.onUseDifferentEmail,
-            ),
-            TextButton(
-              onPressed: _checking ? null : widget.onBackToLogin,
-              child: const Text('Back to sign in'),
             ),
           ],
-        ),
+          const SizedBox(height: 18),
+          AppButton(
+            text: 'Open mail app',
+            icon: CupertinoIcons.mail,
+            onPressed: _busy ? null : _openMail,
+          ),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: _cooldown == 0 && !_busy ? _resend : null,
+            child: Text(
+              _cooldown == 0
+                  ? 'Resend confirmation email'
+                  : 'Resend available in ${_cooldown}s',
+            ),
+          ),
+          const Divider(height: 24),
+          _AuthSecondaryAction(
+            prompt: 'Wrong email?',
+            action: 'Use a different email',
+            onPressed: _busy ? null : widget.onUseDifferentEmail,
+          ),
+          TextButton(
+            onPressed: _busy ? null : widget.onBackToLogin,
+            child: const Text('Back to sign in'),
+          ),
+        ],
       ),
     );
   }

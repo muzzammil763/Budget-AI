@@ -60,8 +60,10 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - First launch shows onboarding, followed by the Budget AI account flow.
   Currency presets and custom currency creation are available during onboarding
   before sign-in, and the choice is kept locally for the later account flow.
-- Email/password registration requires email confirmation. Confirmation codes
-  and `budgetai://auth/confirm` links are supported.
+- Email/password registration requires email confirmation by link. The
+  "Check your email" screen has no code field: it signs in every 5 seconds
+  while visible (and on returning to the app) and continues on its own as soon
+  as the link is confirmed; `budgetai://auth/confirm` links also work.
 - Sign-in sessions restore automatically. Forgot-password and Account password
   changes send secure links that return through
   `budgetai://auth/reset-password`; sign-out lives on the Account screen.
@@ -154,7 +156,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   row-level security. End-to-end encryption has been retired.
 - Account settings sync through `users`; roles live in `user_roles`; AI quotas
   use `user_ai_limits`, `ai_usage`, `ai_requests`, and `ai_model_config`.
-- Sign-up is email + password with a one-time email code; login is email +
+- Sign-up is email + password confirmed by an email link; login is email +
   password and goes straight to the app with no key or unlock step. Earlier
   end-to-end encryption has been fully removed.
 - Remote reads page in 1000-row chunks, since Supabase caps a single select at
