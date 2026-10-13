@@ -358,7 +358,6 @@ class FinanceService {
     await LocalFinanceStore.instance.clearAll();
     final legacyFile = await _storageFile();
     if (await legacyFile.exists()) await legacyFile.delete();
-    await BudgetHomeWidgetSync.clearPendingEntries();
     await syncHomeWidget();
   }
 
@@ -376,20 +375,7 @@ class FinanceService {
 
   Future<void> _syncHomeWidgetInBackground(List<FinanceEntry> entries) async {
     try {
-      await BudgetHomeWidgetSync.syncEntries(
-        expenseEntries(entries).map(
-          (entry) => BudgetWidgetFinanceEntry(
-            id: entry.id,
-            type: entry.type.storageValue,
-            date: entry.date,
-            hasTime: entry.hasTime,
-            description: entry.description,
-            amount: entry.amount,
-            category: entry.category,
-            createdAt: entry.createdAt,
-          ),
-        ),
-      );
+      await BudgetHomeWidgetSync.syncEntries(_widgetEntries(entries));
     } catch (e) {
       debugPrint('[FinanceService] Failed to sync the home widget: $e');
     }
@@ -397,18 +383,23 @@ class FinanceService {
 
   Future<void> syncHomeWidget() async {
     final entries = await getAll();
-    await BudgetHomeWidgetSync.syncEntries(
-      expenseEntries(entries).map(
-        (entry) => BudgetWidgetFinanceEntry(
-          id: entry.id,
-          type: entry.type.storageValue,
-          date: entry.date,
-          hasTime: entry.hasTime,
-          description: entry.description,
-          amount: entry.amount,
-          category: entry.category,
-          createdAt: entry.createdAt,
-        ),
+    await BudgetHomeWidgetSync.syncEntries(_widgetEntries(entries));
+  }
+
+  /// Actual expenses and income for the home widgets; rollovers stay hidden.
+  static Iterable<BudgetWidgetFinanceEntry> _widgetEntries(
+    Iterable<FinanceEntry> entries,
+  ) {
+    return reportingEntries(entries, includeRollovers: false).map(
+      (entry) => BudgetWidgetFinanceEntry(
+        id: entry.id,
+        type: entry.type.storageValue,
+        date: entry.date,
+        hasTime: entry.hasTime,
+        description: entry.description,
+        amount: entry.amount,
+        category: entry.category,
+        createdAt: entry.createdAt,
       ),
     );
   }

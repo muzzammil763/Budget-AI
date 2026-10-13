@@ -164,14 +164,27 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - Chat history and images are stored locally in SQLite and excluded from account sync. Relevant conversation context and attached images pass through the authenticated Responses proxy to OpenAI to answer requests; audio passes through the speech proxy for transcription. Image inputs are limited to 1600 pixels on the longest edge: small PNGs remain lossless up to 384 KB, and larger images become metadata-free JPEGs capped at 768 KB. Only the latest three image inputs remain in provider context; older images stay visible locally and can be attached again for analysis. Account exit clears local chat data.
 - iOS camera/gallery access uses `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`. Android uses the system picker/camera and recovers picker results if the activity is recreated. Test camera capture and gallery permissions on a physical device.
 
-## iOS widget and Siri entry
+## iOS widgets
 
-- The iOS 17 Home Screen widget is one full-width medium summary with the Budget AI splash mark, monthly spending and up to two newest expenses. Its surface, text, and mark invert with the widget's Light/Dark color scheme. It contains no Siri instructions.
-- Say “Add an expense in Budget AI” to Siri. Siri asks for the amount and description, saves the entry without presenting the app, and speaks the confirmation.
-- Siri-created entries are written to the shared App Group immediately. A Darwin notification and Flutter method channel import them live when Budget AI is running; launch and foreground imports remain the fallback when iOS has suspended the app.
-- Widget data synchronization uses `home_widget` 0.9.3. The WidgetKit UI and App Intents remain native Swift because iOS widgets cannot be rendered as live Flutter views.
+Budget AI ships seven iOS 17 Home Screen widgets, all following the app's
+monochrome style with red expenses and green income, in Light and Dark:
 
-Before device testing, create the App Group `group.com.muzamil.budget.ai` in the Apple Developer portal and enable it for both the `Runner` and `BudgetAIWidget` identifiers. App Groups require a paid Apple Developer account. Install and open the app once so iOS can register its App Shortcuts, then add Budget AI from the Home Screen widget gallery. Siri voice entry requires iOS 16 or later; the widget requires iOS 17 or later.
+- **Budget AI** (wide): monthly spending and the two newest expenses.
+- **Expenses** and **Income** (small): one large month total with its entry
+  count. **Income & Expenses** (small) shows both with proportion bars. These
+  three have a `‹ Oct ›` chip in the corner; the arrows switch months in place
+  without opening the app, stopping at the first month with data and at the
+  current month.
+- **Recent Expenses** (medium): the last five expenses with day and amount.
+- **Today's Expenses** (large): today's total, entry count, and each expense.
+- **This Month vs Last** (small): both months' expenses as bars with the
+  percentage change.
+
+Widgets read every actual expense and income entry from the App Group, written
+by `home_widget` whenever finances change. Budget AI exposes no Siri or
+Shortcuts actions; the month-arrow intent is hidden from the Shortcuts app.
+
+Before device testing, create the App Group `group.com.muzamil.budget.ai` in the Apple Developer portal and enable it for both the `Runner` and `BudgetAIWidget` identifiers. App Groups require a paid Apple Developer account. Install and open the app once, then add Budget AI widgets from the Home Screen widget gallery. Widgets require iOS 17 or later.
 
 On Android, one wide, non-resizable native Home Screen widget reads the same `home_widget` summary keys and follows the app's Light/Dark styling, including the dynamically inverted Budget mark, without voice instructions. Google Assistant custom App Actions accept one-sentence expense commands such as “Hey Google, use Budget AI to log 300 for fuel.” Assistant custom intents require an explicit Budget AI invocation and currently support `en-US`. The action opens Budget AI through a deep link, saves the entry, refreshes the widget and open Finances screen, then confirms through Android text-to-speech and a toast.
 
@@ -259,7 +272,7 @@ Request failures include sanitized JSON diagnostics: payload size, attachment MI
 
 Only explicit Stop actions display Request Cancelled. Internal cancellations retain an interruption message and request diagnostics; cancellation-cleanup exceptions cannot mask the original failure.
 
-Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. Search mode has a non-tappable leading search icon; its close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, the standard surface with Material elevation 8, a subtle static border and shadow, and no animated border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.
+Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. In Finances, search mode keeps the AppBar's back arrow in the leading slot (it closes search) and the summary card collapses with a fade so results get the full height; Currency keeps a non-tappable leading search icon. The close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, the standard surface with Material elevation 8, a subtle static border and shadow, and no animated border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.
 
 Outgoing chat bubbles occupy at most 86% of the screen width. Their images and captions share a leading edge; multiline text uses natural start alignment while the bubble itself remains on the right. The Finances shortcut paints a transaction list with incoming and outgoing arrows, shared by chat navigation and the Budget Hub Quick Actions card.
 

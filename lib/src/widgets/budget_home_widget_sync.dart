@@ -5,18 +5,25 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
-/// The App Group and keys shared by Flutter, the WidgetKit extension, and Siri.
+/// The App Group and keys shared by Flutter and the WidgetKit extension.
 class BudgetHomeWidgetSync {
   BudgetHomeWidgetSync._();
 
   static const appGroupId = 'group.com.muzamil.budget.ai';
-  static const iOSWidgetKind = 'BudgetAIWidget';
+  static const iOSWidgetKinds = [
+    'BudgetAIWidget',
+    'BudgetAIExpenseTotalWidget',
+    'BudgetAIIncomeTotalWidget',
+    'BudgetAIMonthBalanceWidget',
+    'BudgetAIRecentExpensesWidget',
+    'BudgetAITodayExpensesWidget',
+    'BudgetAIMonthComparisonWidget',
+  ];
   static const androidWidgetName = 'BudgetAIWidgetProvider';
   static const qualifiedAndroidWidgetName =
       'com.budgetai.android.BudgetAIWidgetProvider';
 
   static const entriesKey = 'budget_ai_widget_entries';
-  static const pendingEntriesKey = 'budget_ai_pending_entries';
   static const monthExpenseKey = 'budget_ai_widget_month_expense';
   static const monthIncomeKey = 'budget_ai_widget_month_income';
   static const latestDescriptionKey = 'budget_ai_widget_latest_description';
@@ -40,36 +47,17 @@ class BudgetHomeWidgetSync {
     }
   }
 
-  static Future<String?> pendingEntriesJson() async {
-    if (!Platform.isIOS) return null;
-    await initialize();
-    try {
-      return HomeWidget.getWidgetData<String>(pendingEntriesKey);
-    } catch (error) {
-      debugPrint('[BudgetHomeWidget] Could not read Siri inbox: $error');
-      return null;
-    }
-  }
-
-  static Future<void> clearPendingEntries() async {
-    if (!Platform.isIOS) return;
-    await initialize();
-    try {
-      await HomeWidget.saveWidgetData<String>(pendingEntriesKey, '[]');
-    } catch (error) {
-      debugPrint('[BudgetHomeWidget] Could not clear Siri inbox: $error');
-    }
-  }
-
   static Future<void> syncEntries(
     Iterable<BudgetWidgetFinanceEntry> entries,
   ) async {
     if (!Platform.isIOS && !Platform.isAndroid) return;
     await initialize();
-    final list = entries.where((entry) => entry.type == 'expense').toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    // Widgets compute monthly, daily, and recent views from every actual
+    // expense and income entry; the wide widget's latest rows stay expenses.
+    final all = entries.toList()..sort((a, b) => b.date.compareTo(a.date));
+    final list = all.where((entry) => entry.type == 'expense').toList();
     final now = DateTime.now();
-    final monthEntries = list.where(
+    final monthEntries = all.where(
       (entry) => entry.date.year == now.year && entry.date.month == now.month,
     );
     final expense = monthEntries
@@ -84,7 +72,7 @@ class BudgetHomeWidgetSync {
     try {
       await HomeWidget.saveWidgetData<String>(
         entriesKey,
-        jsonEncode(list.map((entry) => entry.toJson()).toList()),
+        jsonEncode(all.map((entry) => entry.toJson()).toList()),
       );
       await HomeWidget.saveWidgetData<double>(monthExpenseKey, expense);
       await HomeWidget.saveWidgetData<double>(monthIncomeKey, income);
@@ -120,11 +108,16 @@ class BudgetHomeWidgetSync {
         lastUpdatedKey,
         now.toIso8601String(),
       );
-      await HomeWidget.updateWidget(
-        androidName: androidWidgetName,
-        qualifiedAndroidName: qualifiedAndroidWidgetName,
-        iOSName: iOSWidgetKind,
-      );
+      if (Platform.isIOS) {
+        for (final kind in iOSWidgetKinds) {
+          await HomeWidget.updateWidget(iOSName: kind);
+        }
+      } else {
+        await HomeWidget.updateWidget(
+          androidName: androidWidgetName,
+          qualifiedAndroidName: qualifiedAndroidWidgetName,
+        );
+      }
     } catch (error) {
       // Finance persistence must remain successful if the widget is absent or
       // the App Group has not been provisioned on this build.

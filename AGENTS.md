@@ -10,8 +10,8 @@ change touches nothing the docs describe, no doc update is needed.
 
 Budget AI is a Flutter expense-management assistant: an OpenAI-powered chat that
 logs and edits finances through local tools, offline-first SQLite storage with
-plain Supabase sync, OpenAI voice input and image chat, and native iOS
-Siri / Android Assistant + Home Screen widget entry points.
+plain Supabase sync, OpenAI voice input and image chat, native iOS Home Screen
+widgets, and Android Assistant + Home Screen widget entry points.
 
 ## Project structure
 
@@ -35,8 +35,8 @@ lib/
       user_bubble_style_surface.dart  Painted user-bubble styles
       chat_response_markdown.dart, markdown_table_view.dart, streaming_text_reveal.dart
     finances/
-      finances_screen.dart      List (month/overall pills, AppBar search +
-                                floating manual-add button, income/expense totals card); tap → edit
+      finances_screen.dart      List (month/overall pills, AppBar search (back arrow +
+                                collapsing summary while searching), floating manual-add button, income/expense totals card); tap → edit
                                 screen; no swipe gestures
       finance_entry_edit_screen.dart  Shared create/edit form; AppBar + body save,
                                 body delete w/ confirm; auth-style fields;
@@ -69,10 +69,15 @@ lib/
     onboarding/                 First-run onboarding + app showcase
     splash/                     Animated splash (~1.2s; timeline played at speed)
     tools/                      OpenAI finance tools (see below) + registry
-    widgets/                    Siri inbox/realtime sync, Android app actions, home-widget sync
+    widgets/                    Android app actions, home-widget sync (all iOS widget kinds)
     helpers/                    Theme, buttons, sheets, notifications, background services, etc.
 supabase/                       Edge function (openai-responses), migrations, email templates, config
 ```
+
+iOS widget sources live in `ios/BudgetAIWidget/` (`BudgetWidgetData.swift`
+store/timeline/month intent, `BudgetWidgetComponents.swift` shared design,
+`BudgetAIWidget.swift` bundle + wide widget, `BudgetTotalsWidgets.swift`,
+`BudgetActivityWidgets.swift`).
 
 Root docs: `README.md` (user/setup facing). Build: `Makefile` (`make apk`), `pubspec.yaml`,
 `analysis_options.yaml`. GitHub Actions runs the Flutter CI workflow for
@@ -111,7 +116,7 @@ Chat top chrome provides History and New Chat on the left and Finances (painted 
 - **Insights** — selected/current-month spending, Overall spending, expense categories, heatmaps, daily trends, and highlights. The shared summary includes income totals; net/savings cards remain removed. Each nonempty expense month ends with an on-demand Monthly Summary; Generate/Regenerate sends only actual expense totals, categories, and daily spending through the authenticated OpenAI utility endpoint. Account/month Shared Preferences caches use a new expense-summary namespace so old income summaries are not displayed; they never sync and clear on account exit. In-flight requests cannot restore data after account exit.
 - **Administration** — Budget Hub's AppBar owns the preloaded monthly AI-usage indicator and details sheet. Admins and superadmins see role-gated controls for user listing, search, current-month request/token progress, AI blocking, per-user request/token/Fast overrides, and a dedicated local-preferences screen with confirmed deletion. The screen and editor use the same AppBars, 12-radius bordered cards, auth-style fields, app buttons, and responsive sheets as the rest of Budget AI. Only superadmins can assign Member/Admin/Super Admin roles, and they cannot demote themselves.
 - **Budget Hub** — sectioned landing screen with bento-style Finances and Insights Quick Actions, inline Account controls for editing the name, viewing the read-only email, and password recovery, Preferences for Currency display and Message bubble, plus Show Tool Calls, Fast Responses, Notifications, Android Background Service, and Replay onboarding controls under App Behavior. Its AppBar shows the preloaded monthly AI-usage action. Fast Responses is off by default, stays device-local, and opts chat/tool/utility requests into OpenAI Fast mode with a disclosed per-token pricing premium. Notifications strictly gates delivery; disabling it also clears existing app notifications. Replay onboarding pushes the same five-page flow with a top Back action; Back and final completion both return to Budget Hub instead of replacing the route with auth. Sign out and permanent account deletion sit at the end in a dedicated Danger Zone; deletion runs through an authenticated Edge Function and account-owned cloud rows cascade with the auth user. The currency picker is also available during onboarding before sign-in; preset selection and custom currency creation persist locally for the later account flow. It uses borderless AppBar search with a circular floating add action that opens a dedicated custom-currency add/edit form; custom displays are limited to five characters and saved custom entries expose edit/delete actions. It reveals the selected display on entry, jumps directly to newly saved custom displays without a visible scroll animation, and remains open after selection until the user navigates back. The bubble-style picker has no search or custom-add action; its second preset is Outline, using the Primary shape with a transparent fill and primary-color border. Existing custom styles retain edit/delete actions, and its custom editor supports named bubble/text/pattern colors, rounded/chat/pill/angular/ticket shapes, none/dots/diagonal/grid/waves patterns, and a top-floating live preview that remains visible while controls scroll.
-- **Native entry points** — iOS 17 Home Screen widget + Siri App Intents ("Add an expense in Budget AI"); Android Home Screen widget + Google Assistant App Actions. Both write to the shared store and import live via Darwin notification / method channel; the widget UI stays native and shows monthly expenses. Income shortcuts are retired. See README for App Group and setup details.
+- **Native entry points** — iOS 17 WidgetKit widgets (no Siri or Shortcuts actions): the original wide summary; small Expenses, Income, and Income & Expenses totals with in-place ‹ › month arrows backed by a non-discoverable `ShiftWidgetMonthIntent`; medium Recent Expenses (last 5); large Today's Expenses; small This Month vs Last. They read the full actual expense/income list (`budget_ai_widget_entries`) from the App Group. Android keeps one Home Screen widget + Google Assistant App Actions. See README for App Group and setup details.
 
 ## Development rules
 
@@ -148,7 +153,7 @@ Request failures include sanitized JSON diagnostics: payload size, attachment MI
 
 Only explicit Stop actions display Request Cancelled. Internal cancellations retain an interruption message and request diagnostics; cancellation-cleanup exceptions cannot mask the original failure.
 
-Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. Search mode has a non-tappable leading search icon; its close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, the standard surface with Material elevation 8, a subtle static border and shadow, and no animated border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.
+Finances and Currency use a Cupertino search action that replaces the AppBar title with an unfilled, borderless `Search ...` input. In Finances, search mode keeps the AppBar's back arrow in the leading slot (it closes search) and the summary card collapses with a fade so results get the full height; Currency keeps a non-tappable leading search icon. The close action clears the query and restores normal navigation. Chat History uses the same non-tappable search prefix while searching. Add controls retain their circular primary-color design as floating buttons. The chat composer has a compact 48-pixel minimum height, the standard surface with Material elevation 8, a subtle static border and shadow, and no animated border. The empty chat contains 20 shuffled finance starter prompts, all fully revealed by the end of the entrance animation.
 
 Outgoing chat bubbles occupy at most 86% of the screen width. Their images and captions share a leading edge; multiline text uses natural start alignment while the bubble itself remains on the right. The Finances shortcut paints a transaction list with incoming and outgoing arrows, shared by chat navigation and the Budget Hub Quick Actions card.
 

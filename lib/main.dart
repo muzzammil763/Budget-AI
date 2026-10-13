@@ -18,8 +18,6 @@ import 'package:budget_ai/src/sync/finance_sync_service.dart';
 import 'package:budget_ai/src/sync/account_settings_sync_service.dart';
 import 'package:budget_ai/src/widgets/budget_home_widget_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
-import 'package:budget_ai/src/widgets/siri_finance_inbox.dart';
-import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,8 +38,6 @@ Future<void> main() async {
   await BubbleStyleSettingsService.instance.initialize();
   await BudgetHomeWidgetSync.initialize();
   await AndroidFinanceAppActions.initialize();
-  await SiriFinanceInbox.importPendingEntries();
-  SiriFinanceRealtimeSync.initialize();
   await NotificationService.instance.initialize();
   await FinanceService.instance.applySavingsRollover();
   await FinanceService.instance.syncHomeWidget();

@@ -21,6 +21,7 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>Boldonse.ttf</string>
+		<string>GoogleSans.ttf</string>
 	</array>
 	<key>NSExtension</key>
 	<dict>

@@ -1,31 +1,21 @@
 import SwiftUI
 import WidgetKit
 
-private enum WidgetStore {
-  static let appGroup = "group.com.muzamil.budget.ai"
-  static let expenseKey = "budget_ai_widget_month_expense"
-  static let incomeKey = "budget_ai_widget_month_income"
-  static let latestDescriptionKey = "budget_ai_widget_latest_description"
-  static let latestAmountKey = "budget_ai_widget_latest_amount"
-  static let latestTypeKey = "budget_ai_widget_latest_type"
-  static let previousDescriptionKey = "budget_ai_widget_previous_description"
-  static let previousAmountKey = "budget_ai_widget_previous_amount"
-  static let previousTypeKey = "budget_ai_widget_previous_type"
-  static let currencyKey = "budget_ai_widget_currency"
-
+/// The original wide widget reads the precomputed keys Flutter writes.
+private enum WideWidgetStore {
   static func entry(date: Date = Date()) -> BudgetEntry {
-    let defaults = UserDefaults(suiteName: appGroup)
+    let defaults = WidgetStore.defaults
     return BudgetEntry(
       date: date,
-      expense: defaults?.double(forKey: expenseKey) ?? 0,
-      income: defaults?.double(forKey: incomeKey) ?? 0,
-      latestDescription: defaults?.string(forKey: latestDescriptionKey) ?? "No entries yet",
-      latestAmount: defaults?.double(forKey: latestAmountKey) ?? 0,
-      latestType: defaults?.string(forKey: latestTypeKey) ?? "expense",
-      previousDescription: defaults?.string(forKey: previousDescriptionKey) ?? "",
-      previousAmount: defaults?.double(forKey: previousAmountKey) ?? 0,
-      previousType: defaults?.string(forKey: previousTypeKey) ?? "expense",
-      currency: defaults?.string(forKey: currencyKey) ?? "USD"
+      expense: defaults?.double(forKey: WidgetStore.expenseKey) ?? 0,
+      income: defaults?.double(forKey: WidgetStore.incomeKey) ?? 0,
+      latestDescription: defaults?.string(forKey: WidgetStore.latestDescriptionKey) ?? "No entries yet",
+      latestAmount: defaults?.double(forKey: WidgetStore.latestAmountKey) ?? 0,
+      latestType: defaults?.string(forKey: WidgetStore.latestTypeKey) ?? "expense",
+      previousDescription: defaults?.string(forKey: WidgetStore.previousDescriptionKey) ?? "",
+      previousAmount: defaults?.double(forKey: WidgetStore.previousAmountKey) ?? 0,
+      previousType: defaults?.string(forKey: WidgetStore.previousTypeKey) ?? "expense",
+      currency: WidgetStore.currency
     )
   }
 }
@@ -65,14 +55,14 @@ struct BudgetProvider: TimelineProvider {
     in context: Context,
     completion: @escaping (BudgetEntry) -> Void
   ) {
-    completion(WidgetStore.entry())
+    completion(WideWidgetStore.entry())
   }
 
   func getTimeline(
     in context: Context,
     completion: @escaping (Timeline<BudgetEntry>) -> Void
   ) {
-    let entry = WidgetStore.entry()
+    let entry = WideWidgetStore.entry()
     let refresh = Calendar.current.date(byAdding: .minute, value: 30, to: entry.date)!
     completion(Timeline(entries: [entry], policy: .after(refresh)))
   }
@@ -84,12 +74,6 @@ private struct BudgetAIWidgetView: View {
 
   private var primary: Color { colorScheme == .dark ? .white : .black }
   private var secondary: Color { primary.opacity(0.62) }
-  private let accent = Color(red: 68 / 255, green: 138 / 255, blue: 1.0)
-  private var markGradientEnd: Color {
-    colorScheme == .dark
-      ? Color(red: 203 / 255, green: 222 / 255, blue: 1.0)
-      : Color(red: 19 / 255, green: 39 / 255, blue: 71 / 255)
-  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -105,12 +89,7 @@ private struct BudgetAIWidgetView: View {
 
   private var header: some View {
     HStack(spacing: 10) {
-      BudgetMarkView(
-        accent: accent,
-        primary: primary,
-        gradientEnd: markGradientEnd,
-        surface: colorScheme == .dark ? .black : .white
-      )
+      BudgetMarkView(palette: WidgetPalette(colorScheme: colorScheme))
         .frame(width: 42, height: 42)
       Text("Budget AI")
         .font(.custom("Boldonse", size: 12))
@@ -217,61 +196,19 @@ private struct BudgetAIWidgetView: View {
   }
 }
 
-private struct BudgetMarkView: View {
-  let accent: Color
-  let primary: Color
-  let gradientEnd: Color
-  let surface: Color
-
-  var body: some View {
-    GeometryReader { proxy in
-      let size = proxy.size.width
-      ZStack {
-        Circle()
-          .trim(from: 0, to: 0.75)
-          .stroke(
-            AngularGradient(
-              colors: [.clear, accent.opacity(0.65)],
-              center: .center
-            ),
-            style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
-          )
-          .rotationEffect(.degrees(-90))
-        RoundedRectangle(cornerRadius: size * 0.23)
-          .fill(
-            LinearGradient(
-              colors: [primary, gradientEnd],
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            )
-          )
-          .frame(width: size * 0.78, height: size * 0.78)
-        HStack(alignment: .bottom, spacing: size * 0.0585) {
-          markBar(height: size * 0.1872, width: size * 0.1014)
-          markBar(height: size * 0.2964, width: size * 0.1014)
-          markBar(height: size * 0.4056, width: size * 0.1014)
-        }
-        .offset(y: size * 0.0156)
-        Circle()
-          .fill(accent)
-          .frame(width: size * 0.075, height: size * 0.075)
-          .offset(x: size * 0.188, y: -size * 0.277)
-        Image(systemName: "sparkle")
-          .font(.system(size: size * 0.16, weight: .bold))
-          .foregroundStyle(accent)
-          .offset(x: size * 0.429, y: -size * 0.429)
-      }
-    }
-  }
-
-  private func markBar(height: CGFloat, width: CGFloat) -> some View {
-    Capsule()
-      .fill(surface)
-      .frame(width: width, height: height)
+@main
+struct BudgetAIWidgets: WidgetBundle {
+  var body: some Widget {
+    BudgetAIWidget()
+    ExpenseTotalWidget()
+    IncomeTotalWidget()
+    MonthBalanceWidget()
+    RecentExpensesWidget()
+    TodayExpensesWidget()
+    MonthComparisonWidget()
   }
 }
 
-@main
 struct BudgetAIWidget: Widget {
   let kind = "BudgetAIWidget"
 
