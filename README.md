@@ -169,7 +169,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 Budget AI ships seven iOS 17 Home Screen widgets, all following the app's
 monochrome style with red expenses and green income, in Light and Dark:
 
-- **Budget AI** (wide): monthly spending and the two newest expenses.
+- **Budget AI** (wide): this month's expenses, income, and entry count with
+  the two newest expenses.
 - **Expenses** and **Income** (small): one large month total with its entry
   count. **Income & Expenses** (small) shows both with proportion bars. These
   three have a `‹ Oct ›` chip in the corner; the arrows switch months in place

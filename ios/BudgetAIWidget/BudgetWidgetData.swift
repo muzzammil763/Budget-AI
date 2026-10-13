@@ -6,14 +6,6 @@ import WidgetKit
 enum WidgetStore {
   static let appGroup = "group.com.muzamil.budget.ai"
   static let entriesKey = "budget_ai_widget_entries"
-  static let expenseKey = "budget_ai_widget_month_expense"
-  static let incomeKey = "budget_ai_widget_month_income"
-  static let latestDescriptionKey = "budget_ai_widget_latest_description"
-  static let latestAmountKey = "budget_ai_widget_latest_amount"
-  static let latestTypeKey = "budget_ai_widget_latest_type"
-  static let previousDescriptionKey = "budget_ai_widget_previous_description"
-  static let previousAmountKey = "budget_ai_widget_previous_amount"
-  static let previousTypeKey = "budget_ai_widget_previous_type"
   static let currencyKey = "budget_ai_widget_currency"
   static let monthOffsetPrefix = "budget_ai_widget_month_offset_"
 
