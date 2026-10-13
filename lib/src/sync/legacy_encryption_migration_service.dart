@@ -54,7 +54,9 @@ class LegacyEncryptionMigrationService {
   static const legacyEntriesTable = 'legacy_encrypted_finance_entries';
   static const legacyKeyTable = 'legacy_user_encryption';
   static const _keyPrefix = 'budget_ai_account_data_key_v1_';
-  static const _completedKeyPrefix = 'legacy_encryption_migrated_';
+  // v2: the first release read only the first 1000 legacy rows, so every
+  // account converts again with paged reads. Already-copied ids are skipped.
+  static const _completedKeyPrefix = 'legacy_encryption_migrated_v2_';
   static const _insertBatchSize = 100;
 
   final AesGcm _cipher = AesGcm.with256bits();
@@ -125,14 +127,19 @@ class LegacyEncryptionMigrationService {
     final key = await _unlockKey(userId, fingerprint, metadata, password);
     if (key == null) return LegacyMigrationStatus.needsPassword;
 
-    final legacyRows = await _client
-        .from(legacyEntriesTable)
-        .select()
-        .eq('user_id', userId);
-    final existingRows = await _client
-        .from(FinanceSyncService.table)
-        .select('id')
-        .eq('user_id', userId);
+    final legacyRows = await FinanceSyncService.readAllRows(
+      _client,
+      table: legacyEntriesTable,
+      userId: userId,
+      orderBy: 'entry_id',
+    );
+    final existingRows = await FinanceSyncService.readAllRows(
+      _client,
+      table: FinanceSyncService.table,
+      userId: userId,
+      orderBy: 'id',
+      columns: 'id',
+    );
     final existingIds = existingRows.map((row) => row['id'] as String).toSet();
 
     final plainRows = <Map<String, dynamic>>[];
@@ -185,9 +192,28 @@ class LegacyEncryptionMigrationService {
           );
     }
 
-    // Keep unreadable ciphertext rather than deleting the only copy.
-    if (failures == 0) await _deleteLegacy(userId);
-    await _markComplete(userId);
+    // Delete the legacy copy only once the server confirms every legacy id
+    // exists in finance_entries; keep unreadable ciphertext otherwise.
+    if (failures == 0) {
+      final copiedRows = await FinanceSyncService.readAllRows(
+        _client,
+        table: FinanceSyncService.table,
+        userId: userId,
+        orderBy: 'id',
+        columns: 'id',
+      );
+      final copiedIds = copiedRows.map((row) => row['id'] as String).toSet();
+      final allCopied = legacyRows.every(
+        (row) => copiedIds.contains(row['entry_id']),
+      );
+      if (allCopied) {
+        await _deleteLegacy(userId);
+        return LegacyMigrationStatus.complete;
+      }
+    }
+    // Something was not copied: keep the legacy rows and the device key,
+    // let sync continue for this session, and retry on the next launch.
+    _completed.add(userId);
     return LegacyMigrationStatus.complete;
   }
 
@@ -209,8 +235,9 @@ class LegacyEncryptionMigrationService {
     if (salt == null || ciphertext == null || nonce == null || mac == null) {
       return null;
     }
+    final List<int> key;
     try {
-      return await unwrapKeyWithPassword(
+      key = await unwrapKeyWithPassword(
         password,
         WrappedKeyPayload(
           salt: salt,
@@ -223,6 +250,12 @@ class LegacyEncryptionMigrationService {
     } catch (_) {
       return null;
     }
+    // Cache it so an interrupted conversion can retry without the password.
+    await _secureStorage.write(
+      key: '$_keyPrefix$userId',
+      value: base64UrlEncode(key).replaceAll('=', ''),
+    );
+    return key;
   }
 
   Future<void> _deleteLegacy(String userId) async {
