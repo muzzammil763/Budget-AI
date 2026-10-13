@@ -130,8 +130,11 @@ object WidgetFormat {
     private val prefixSymbols = setOf("$", "€", "£", "₹", "¥")
 
     fun amount(value: Double, currency: String, sign: String = ""): String {
+        // Whole amounts drop the decimals; others always show cents ($40.80).
+        val digits = if (value % 1.0 == 0.0) 0 else 2
         val formatter = NumberFormat.getNumberInstance().apply {
-            maximumFractionDigits = if (value % 1.0 == 0.0) 0 else 2
+            minimumFractionDigits = digits
+            maximumFractionDigits = digits
         }
         val text = formatter.format(kotlin.math.abs(value))
         return if (currency in prefixSymbols) "$sign$currency$text" else "$sign$text $currency"
@@ -140,7 +143,8 @@ object WidgetFormat {
     fun month(month: Calendar): String {
         val sameYear = month.get(Calendar.YEAR) == Calendar.getInstance().get(Calendar.YEAR)
         val pattern = if (sameYear) "MMM" else "MMM yy"
-        return SimpleDateFormat(pattern, Locale.getDefault()).format(month.time)
+        // English short names (Sep, not Sept), matching the iOS widgets.
+        return SimpleDateFormat(pattern, Locale.US).format(month.time)
     }
 
     fun day(date: Date): String {

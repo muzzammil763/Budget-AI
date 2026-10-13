@@ -36,7 +36,9 @@ enum WidgetFormat {
   ) -> String {
     let number = NumberFormatter()
     number.numberStyle = .decimal
-    number.maximumFractionDigits = value.rounded() == value ? 0 : 2
+    let digits = value.rounded() == value ? 0 : 2
+    number.minimumFractionDigits = digits
+    number.maximumFractionDigits = digits
     let text = number.string(from: NSNumber(value: value)) ?? String(value)
     if ["$", "€", "£", "₹", "¥"].contains(currency) {
       return "\(sign)\(currency)\(text)"

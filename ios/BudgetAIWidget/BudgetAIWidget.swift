@@ -124,7 +124,9 @@ private struct BudgetAIWidgetView: View {
   ) -> String {
     let number = NumberFormatter()
     number.numberStyle = .decimal
-    number.maximumFractionDigits = amount.rounded() == amount ? 0 : 2
+    let digits = amount.rounded() == amount ? 0 : 2
+    number.minimumFractionDigits = digits
+    number.maximumFractionDigits = digits
     let sign = signed && amount > 0 ? (isIncome ? "+" : "−") : ""
     let value = number.string(from: NSNumber(value: amount)) ?? String(amount)
     let currency = entry.snapshot.currency
