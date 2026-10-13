@@ -11,7 +11,6 @@ import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/storage/local_finance_store.dart';
 import 'package:budget_ai/src/sync/finance_sync_service.dart';
-import 'package:budget_ai/src/widgets/siri_finance_realtime_sync.dart';
 import 'package:budget_ai/src/widgets/android_finance_app_actions.dart';
 import 'package:toastification/toastification.dart';
 
@@ -37,9 +36,12 @@ class _FinancesScreenState extends State<FinancesScreen> {
   void initState() {
     super.initState();
     _searchFocusNode.addListener(_handleSearchFocusChanged);
-    SiriFinanceRealtimeSync.revision.addListener(_handleSiriFinanceChanged);
-    AndroidFinanceAppActions.revision.addListener(_handleSiriFinanceChanged);
-    LocalFinanceStore.instance.changes.addListener(_handleSiriFinanceChanged);
+    AndroidFinanceAppActions.revision.addListener(
+      _handleExternalFinanceChanged,
+    );
+    LocalFinanceStore.instance.changes.addListener(
+      _handleExternalFinanceChanged,
+    );
     FinanceSyncService.instance.status.addListener(_handleSyncStatusChanged);
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
@@ -49,10 +51,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
   @override
   void dispose() {
     _searchFocusNode.removeListener(_handleSearchFocusChanged);
-    SiriFinanceRealtimeSync.revision.removeListener(_handleSiriFinanceChanged);
-    AndroidFinanceAppActions.revision.removeListener(_handleSiriFinanceChanged);
+    AndroidFinanceAppActions.revision.removeListener(
+      _handleExternalFinanceChanged,
+    );
     LocalFinanceStore.instance.changes.removeListener(
-      _handleSiriFinanceChanged,
+      _handleExternalFinanceChanged,
     );
     FinanceSyncService.instance.status.removeListener(_handleSyncStatusChanged);
     _searchController.dispose();
@@ -60,7 +63,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
     super.dispose();
   }
 
-  void _handleSiriFinanceChanged() {
+  void _handleExternalFinanceChanged() {
     _load(showLoading: false);
   }
 
@@ -171,6 +174,12 @@ class _FinancesScreenState extends State<FinancesScreen> {
     return results.map((match) => match.entry).toList();
   }
 
+  void _closeSearch() {
+    _searchFocusNode.unfocus();
+    _searchController.clear();
+    setState(() => _isSearchMode = false);
+  }
+
   void _handleSearchFocusChanged() {
     if (mounted) setState(() {});
   }
@@ -199,12 +208,11 @@ class _FinancesScreenState extends State<FinancesScreen> {
     final isBusy = _isLoading || _isInitialSyncPending;
     return Scaffold(
       appBar: AppBar(
-        leading: _isSearchMode
-            ? const Icon(CupertinoIcons.search)
-            : IconButton(
-                onPressed: Navigator.of(context).pop,
-                icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-              ),
+        leading: IconButton(
+          tooltip: _isSearchMode ? 'Close search' : null,
+          onPressed: _isSearchMode ? _closeSearch : Navigator.of(context).pop,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+        ),
         title: _isSearchMode
             ? TextField(
                 key: const ValueKey('finance-search-field'),
@@ -229,11 +237,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
                 IconButton(
                   tooltip: 'Close search',
                   icon: const Icon(CupertinoIcons.xmark),
-                  onPressed: () {
-                    _searchFocusNode.unfocus();
-                    _searchController.clear();
-                    setState(() => _isSearchMode = false);
-                  },
+                  onPressed: _closeSearch,
                 ),
               ]
             : [
@@ -305,13 +309,38 @@ class _FinancesScreenState extends State<FinancesScreen> {
                       : _selectMonth(months[index - 1]),
                 ),
                 const SizedBox(height: 12),
+                // The summary collapses while searching so results get the
+                // full height.
                 if (!isBusy)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: ExpenseSummaryCard(
-                      entries: scopedEntries,
-                      month: _isOverall ? null : _selectedMonth,
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (current, previous) => Stack(
+                      alignment: Alignment.topCenter,
+                      children: [...previous, ?current],
                     ),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SizeTransition(
+                        sizeFactor: animation,
+                        alignment: Alignment.topCenter,
+                        child: child,
+                      ),
+                    ),
+                    child: _isSearchMode
+                        ? const SizedBox(
+                            key: ValueKey('summary-hidden'),
+                            width: double.infinity,
+                          )
+                        : Padding(
+                            key: const ValueKey('summary-visible'),
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                            child: ExpenseSummaryCard(
+                              entries: scopedEntries,
+                              month: _isOverall ? null : _selectedMonth,
+                            ),
+                          ),
                   ),
                 if (!isBusy && isSearching)
                   _buildSearchResultsHeader(theme, visibleEntries.length),
