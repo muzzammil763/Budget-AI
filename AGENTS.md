@@ -19,13 +19,11 @@ Siri / Android Assistant + Home Screen widget entry points.
 lib/
   main.dart                     App bootstrap: init stores/services, run app.
   src/
-    auth/                       Auth + one-time legacy-encryption conversion gate
-      auth_gate.dart            Routes: loading → recovery → LegacyDataGate(chat) → AuthFlow
+    auth/                       Auth: sign up (email + OTP), login, reset
+      auth_gate.dart            Routes: loading → recovery → chat → AuthFlow
       auth_screens.dart         Onboarding-styled sign in/up, confirm, reset; AuthTextField
       auth_service.dart         Supabase email/password, sessions, OTP, recovery
       local_privacy_reset_service.dart  Clears prior-user device data on account exit
-      legacy_data_gate.dart     Converts retired encrypted data: checking → needsPassword → ready
-      legacy_data_unlock_screen.dart  Password prompt when this device lacks the old key
     chat/                       Chat UI + OpenAI Responses streaming + tool loop
       unified_chat_screen.dart  Main chat screen; unified_chat_widgets.dart
       chat_provider*.dart       Streaming client, helpers, tool-call replay
@@ -66,7 +64,6 @@ lib/
       openai_speech_service.dart  OpenAI transcription client; no reply playback
     sync/
       finance_sync_service.dart  Plain finance_entries sync; Realtime invalidation
-      legacy_encryption_migration_service.dart  One-time decrypt of retired E2E rows
       account_settings_sync_service.dart   Syncs users (name/currency/bubble)
     storage/                    local_finance_store.dart, local_settings_store.dart (SQLite)
     onboarding/                 First-run onboarding + app showcase
@@ -91,9 +88,9 @@ speech uses an authenticated Supabase proxy to OpenAI for transcription only.
 
 - `ResponsesProvider` calls the authenticated Supabase `openai-responses` Edge Function for streaming chat and local finance-tool orchestration. The function validates the user JWT, enforces allowlists and per-user quotas, calls `POST https://api.openai.com/v1/responses`, forwards upstream bytes immediately, and finalizes streamed quota usage in a background task. Provider-facing context keeps the current user turn's complete Responses reasoning/function-call/output chain, but compacts completed turns to the 16 most recent user/assistant dialogue items; finance context is fetched on demand through tools instead of attaching an always-on snapshot to every request and tool round. The device-local Fast Responses preference requests `service_tier: "fast"`; the server grants up to the user's monthly Fast allowance (100 by default), then falls back to Standard while retaining overall request/token quotas. Debug timing headers expose quota, OpenAI-header, and region measurements. `SUPABASE_FUNCTION_REGION` is an optional benchmarking override; empty preserves automatic regional routing and failover.
 - Administrative authorization lives in `user_roles`, not editable user metadata. Missing/null roles are members. Authorized RPCs expose user lists and mutations: admins manage AI access and quota overrides, while only superadmins change roles and a superadmin cannot demote themself. The first superadmin is seeded for `muzamilghafoor2004@icloud.com`.
-- `AuthService` uses Supabase email/password auth with required email confirmation, session restoration, OTP verification, password recovery, and sign-out. `AuthGate` shows onboarding/auth, then wraps the chat in `LegacyDataGate`.
-- End-to-end encryption is retired. `FinanceSyncService` syncs plain rows in `finance_entries` (type, amount, category, description, date, has_time, created_at as wall-clock `timestamp`s, plus revision/tombstone/timestamp metadata) under per-user RLS, with Realtime plus verified connectivity restoration as invalidation signals. Table names: `users` (account settings), `finance_entries`, `user_roles`, `user_ai_limits`, `ai_usage`, `ai_requests`, `ai_model_config`; see migration `20261012120000_remove_encryption_and_rename_tables.sql`.
-- `LegacyEncryptionMigrationService` converts accounts that used the retired encryption, once, before the first plain sync: it unlocks the old AES-256-GCM key from the device Keychain/Keystore or the account password's Argon2id wrap, decrypts `legacy_encrypted_finance_entries` into `finance_entries` (skipping ids already present), then deletes the legacy rows, the `legacy_user_encryption` metadata, and the device key. Undecryptable rows are kept, never deleted. `LegacyDataGate` passes through immediately when the device holds the key or the account is already converted; otherwise it asks for the password, with explicit discard as the last resort. A later migration drops the legacy tables.
+- `AuthService` uses Supabase email/password auth with required email confirmation, session restoration, OTP verification, password recovery, and sign-out. `AuthGate` shows onboarding/auth, then goes straight to chat; there is no key, recovery-key, or unlock step.
+- End-to-end encryption is retired. `FinanceSyncService` syncs plain rows in `finance_entries` (type, amount, category, description, date, has_time, created_at as wall-clock `timestamp`s, plus revision/tombstone/timestamp metadata) under per-user RLS; every read pages in 1000-row chunks because PostgREST caps selects at `max_rows`; with Realtime plus verified connectivity restoration as invalidation signals. Table names: `users` (account settings), `finance_entries`, `user_roles`, `user_ai_limits`, `ai_usage`, `ai_requests`, `ai_model_config`; see migration `20261012120000_remove_encryption_and_rename_tables.sql`.
+- End-to-end encryption and its one-time conversion are fully removed (migration `20261013120000_drop_legacy_encryption_tables.sql` drops the legacy tables). Never reintroduce per-account keys or an unlock step at login.
 - `LocalSettingsStore` stores app settings in SQLite; the retired Shared Preferences import and its migration marker are removed, and database version 2 deletes the obsolete marker from upgraded installs. Account display name, currency, and message bubble style synchronize through `users` via `AccountSettingsSyncService`; custom bubble definitions use the `custom_bubble_styles` JSONB column while `bubble_style` stores the selected preset or `custom:<id>`, so colors, shape, and pattern travel with the account. Onboarding, Fast Responses, and notification/background choices stay local. Permission grants made during onboarding enable the matching local soft preference, and authentication/account sync never replaces it.
 - `LocalFinanceStore` imports the legacy finance JSON file into SQLite and tracks revisions, pending writes, and deletion tombstones. Legacy local rows missing from the remote `finance_entries` table are queued automatically. Income appears in the manual Finances list and shared totals; expense charts, tools, AI summaries, and widgets remain expense-only. Legacy rollover rows remain stored but hidden. Startup never creates or recalculates rollovers.
 - `OpenAiSpeechService` sends PCM16 WAV recordings to the authenticated `openai-speech` Edge Function using `gpt-transcribe` and server-only `OPENAI_API_KEY`. Chat has no automatic or tap-to-play reply audio and no TTS dependency. Empty transcripts show a retry hint. Startup deletes retired `speech_models` artifacts and their selection key.
@@ -124,7 +121,7 @@ Chat top chrome provides History and New Chat on the left and Finances (painted 
 - Preserve Responses API reasoning, function-call, function-call-output, and message items while replaying the active tool turn. Completed turns may discard internal items only after their final assistant message represents the outcome.
 - Update `README.md` and this file when setup, models, API surfaces, voice behavior, structure, or features change.
 - Never commit `.env`, an OpenAI key, a Supabase secret/service-role key, or a Supabase access token. All OpenAI traffic must remain behind the authenticated Edge Function.
-- Never delete legacy ciphertext that failed to decrypt. Chat history must remain excluded from Supabase synchronization. Never expose the OpenAI credential in Flutter.
+- Chat history must remain excluded from Supabase synchronization. Never expose the OpenAI credential in Flutter.
 
 ## Change workflow (required for every change request)
 

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/storage/local_finance_store.dart';
-import 'package:budget_ai/src/sync/legacy_encryption_migration_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -202,17 +201,6 @@ class FinanceSyncService {
     }
     status.value = 'Syncing…';
     try {
-      // Existing encrypted rows must land in finance_entries before the
-      // first plain sync, so deletions recorded only in the legacy table
-      // are not lost by re-uploading this device's copy.
-      final migration = await LegacyEncryptionMigrationService.instance.migrate(
-        user.id,
-      );
-      if (migration == LegacyMigrationStatus.needsPassword) {
-        status.value = 'Password required';
-        return true;
-      }
-
       var remoteRows = await _readRemoteRows(user.id);
       await LocalFinanceStore.instance.markActiveMissingRemotePending(
         remoteRows.map((row) => row['id']! as String).toSet(),

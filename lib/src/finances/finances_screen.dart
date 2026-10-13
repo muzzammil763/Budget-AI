@@ -854,7 +854,7 @@ class _FinancesScreenState extends State<FinancesScreen> {
 }
 
 /// Placeholder shown while entries are being read locally or backfilled by
-/// the encrypted sync, so the finances screen never flashes an empty state
+/// sync, so the finances screen never flashes an empty state
 /// while data is still on its way in.
 class _FinanceListShimmer extends StatelessWidget {
   const _FinanceListShimmer();

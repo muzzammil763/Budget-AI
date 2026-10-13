@@ -16,11 +16,6 @@ class AuthService extends ChangeNotifier {
   bool _initialized = false;
   bool _passwordRecovery = false;
 
-  // Held only in memory, only long enough for the one-time legacy
-  // encryption migration to unlock data saved under the retired account
-  // key right after an auth event. Never persisted, never sent anywhere.
-  String? _pendingPassword;
-
   SupabaseClient get _client => Supabase.instance.client;
 
   bool get initialized => _initialized;
@@ -30,14 +25,6 @@ class AuthService extends ChangeNotifier {
   String? get accessToken => _session?.accessToken;
   bool get isAuthenticated =>
       _session != null && _session!.user.emailConfirmedAt != null;
-
-  /// The most recently typed password, if any consumer has not yet claimed
-  /// it. Does not clear it — call [clearPendingPassword] once done with it.
-  String? get pendingPassword => _pendingPassword;
-
-  void clearPendingPassword() {
-    _pendingPassword = null;
-  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -55,7 +42,6 @@ class AuthService extends ChangeNotifier {
       case AuthChangeEvent.signedOut:
         _passwordRecovery = false;
         _session = null;
-        _pendingPassword = null;
       case AuthChangeEvent.signedIn:
       case AuthChangeEvent.tokenRefreshed:
       case AuthChangeEvent.userUpdated:
@@ -84,7 +70,6 @@ class AuthService extends ChangeNotifier {
       data: {'display_name': normalizedName},
     );
     await UserNameSettingsService.instance.setUserName(normalizedName);
-    _pendingPassword = password;
     return response;
   }
 
@@ -96,7 +81,6 @@ class AuthService extends ChangeNotifier {
       email: email.trim().toLowerCase(),
       password: password,
     );
-    _pendingPassword = password;
     return response;
   }
 
@@ -130,7 +114,6 @@ class AuthService extends ChangeNotifier {
     await _client.auth.updateUser(UserAttributes(password: password));
     _passwordRecovery = false;
     _session = _client.auth.currentSession;
-    _pendingPassword = password;
     notifyListeners();
   }
 
@@ -152,17 +135,14 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    final exitingUserId = user?.id;
     await _client.auth.signOut();
-    await LocalPrivacyResetService.clearAfterAccountExit(userId: exitingUserId);
+    await LocalPrivacyResetService.clearAfterAccountExit();
     _session = null;
     _passwordRecovery = false;
-    _pendingPassword = null;
     notifyListeners();
   }
 
   Future<void> deleteAccount() async {
-    final exitingUserId = user?.id;
     try {
       final response = await _client.functions.invoke('delete-account');
       if (response.status < 200 || response.status >= 300) {
@@ -178,10 +158,9 @@ class AuthService extends ChangeNotifier {
     // device. A local sign-out removes it immediately; the server already
     // removed the user and all account-owned rows cascade with that deletion.
     await _client.auth.signOut(scope: SignOutScope.local);
-    await LocalPrivacyResetService.clearAfterAccountExit(userId: exitingUserId);
+    await LocalPrivacyResetService.clearAfterAccountExit();
     _session = null;
     _passwordRecovery = false;
-    _pendingPassword = null;
     notifyListeners();
   }
 

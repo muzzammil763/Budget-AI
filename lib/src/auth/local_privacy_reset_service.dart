@@ -9,7 +9,6 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
-import 'package:budget_ai/src/sync/legacy_encryption_migration_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalPrivacyResetService {
@@ -17,15 +16,12 @@ class LocalPrivacyResetService {
 
   static const _onboardingCompletedKey = 'onboarding_completed';
 
-  static Future<void> clearAfterAccountExit({String? userId}) async {
+  static Future<void> clearAfterAccountExit() async {
     MonthlySummaryService.invalidatePendingRequests();
     await ChatSessionRepository.instance.deleteAllSessions();
     await AndroidBackgroundChatService.stop();
     await NotificationService.instance.clearForAccountExit();
     await FinanceService.instance.clearLocalData();
-    if (userId != null) {
-      await LegacyEncryptionMigrationService.instance.clearLocalKey(userId);
-    }
 
     // Clear local monthly AI summaries along with legacy preferences so the
     // next account cannot inherit the signed-out user's financial summaries.
