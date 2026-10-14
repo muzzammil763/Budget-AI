@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:budget_ai/src/chat/ai_report.dart';
 import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
@@ -3879,8 +3880,16 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         return const SizedBox.shrink();
       }
       _shouldShowRetryContinue(message, resolvedMessageIndex);
-      _shareableAssistantText(message, resolvedMessageIndex);
+      final replyText = _shareableAssistantText(
+        message,
+        resolvedMessageIndex,
+      ).trim();
       _cacheUsageLabel(message.responseMetadata);
+      // Copy and Report appear only on finished replies with visible text.
+      final showReplyActions =
+          !isCurrentlyStreaming &&
+          replyText.isNotEmpty &&
+          !(_isResponseInProgress && isLastMessage);
 
       Widget messageContent = Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -3896,6 +3905,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                     resolvedMessageIndex,
                     isCurrentlyStreaming,
                   ),
+                  if (showReplyActions)
+                    AiReplyActions(
+                      replyText: replyText,
+                      modelId: message.modelUsed,
+                      onCopy: () => _copyMessage(replyText),
+                    ),
                 ],
               ),
             ),

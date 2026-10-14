@@ -45,6 +45,7 @@ const _privacySections = [
     'When you chat, speak, or attach a receipt, the relevant message, image, or recording is sent through our secure server to OpenAI to generate a reply or transcription. Recordings are deleted from your device once transcribed.',
     'OpenAI processes this data to provide the service under its API terms. We do not use your data to train AI models.',
     'Before your first AI request, the app asks for your agreement to this sharing. Nothing is sent until you agree.',
+    'If you report an AI reply, that reply and your optional note are sent to us for review. Nothing else from your chat is shared.',
   ]),
   _LegalSection(
     'How we use your data',

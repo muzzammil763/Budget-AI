@@ -150,6 +150,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   notification before releasing that task. iOS ultimately controls the
   available background time, so unusually long responses can still resume
   after the app returns.
+- Every finished AI reply shows Copy and Report. Report asks for a reason
+  (inaccurate, harmful, inappropriate, other) and an optional note, then saves
+  it to the insert-only `ai_reports` table for review in the Supabase dashboard.
 - Chat Markdown tables left-align every header and value column for a
   consistent reading edge, including numeric comparison columns.
 - Existing `finances.json` and Shared Preferences values are imported once into
