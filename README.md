@@ -274,7 +274,7 @@ cd website
 npm install
 npm run dev        # http://localhost:4321
 npm run build      # outputs website/dist
-npx wrangler pages deploy dist --project-name budgetai-app --branch master
+make web-deploy    # from the repo root: build + publish to Cloudflare Pages
 # Live at https://budgetai-app.pages.dev (privacy: /privacy, deletion: /delete-account)
 ```
 
@@ -283,8 +283,9 @@ npx wrangler pages deploy dist --project-name budgetai-app --branch master
 Release builds are signed with the upload key at
 `/Users/waqas/Muzamil/Keystores/budget-ai.keystore` (alias `budget-ai`). Its
 `key.properties` values are backed up beside it in `budget-ai-key.properties.txt`;
-copy them into the gitignored `android/key.properties` after cloning, then run
-`flutter build appbundle --release`. Losing the keystore or its password blocks
+`make aab` (or `make apk`) restores the gitignored `android/key.properties`
+from that backup when missing and builds with this key; `make verify-signing`
+checks it. Losing the keystore or its password blocks
 future Play updates, so keep both backed up. Widget preview layouts must not
 repeat view ids (release lint fails on duplicates).
 
