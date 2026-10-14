@@ -1,0 +1,119 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+
+const subject = encodeURIComponent('Delete some of my Budget AI data');
+const body = encodeURIComponent(
+  'Please delete the following Budget AI data but keep my account.\n\nAccount email: \nData to delete (for example: all finance entries, entries before a date, AI reports): \n',
+);
+const mailto = `mailto:${site.email}?subject=${subject}&body=${body}`;
+
+const inApp = [
+  {
+    title: 'A finance entry',
+    steps: 'Open Finances, tap the entry, then tap Delete and confirm.',
+  },
+  {
+    title: 'A chat',
+    steps: 'Open chat History, long-press a chat, and confirm Delete.',
+  },
+  {
+    title: 'All chat history',
+    steps: 'Open chat History and choose Delete All Chats, then confirm with Face ID or fingerprint.',
+  },
+  {
+    title: 'A monthly AI summary',
+    steps: 'Summaries are stored only on your device and are removed when you sign out or uninstall the app.',
+  },
+];
+---
+
+<Base
+  title="Delete some of your data"
+  description="How to delete individual Budget AI data, such as finance entries or chats, without deleting your account."
+>
+  <section class="container page">
+    <header class="reveal">
+      <span class="eyebrow">Data deletion</span>
+      <h1 class="display">Delete some<br />of your data.</h1>
+      <p class="lead">You can remove specific Budget AI data at any time and keep your account. Deleted data is removed from your device and from our servers.</p>
+    </header>
+
+    <section class="card block reveal">
+      <h2>In the app</h2>
+      <ul class="steps">
+        {
+          inApp.map((item) => (
+            <li>
+              <strong>{item.title}</strong>
+              <span>{item.steps}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p>Finance entries you delete are removed from our servers the next time the app syncs, and from your other devices.</p>
+    </section>
+
+    <section class="card block reveal">
+      <h2>By email</h2>
+      <p>To delete data you cannot remove in the app, such as all finance entries at once or AI reply reports you sent, email us from the address you signed up with and say what to delete. We complete requests within 30 days.</p>
+      <a class="btn btn-primary" href={mailto}>Email a data deletion request</a>
+      <p class="small">{site.email}</p>
+    </section>
+
+    <section class="card block reveal">
+      <h2>What is kept</h2>
+      <p>Your account and any data you did not ask us to delete stay as they are. Monthly AI usage counts are kept for billing and fair-use limits until you delete your account. To delete everything, see <a href="/delete-account">Delete your account</a>.</p>
+    </section>
+  </section>
+</Base>
+
+<style>
+  .page {
+    padding: 56px 0 24px;
+    display: grid;
+    gap: 16px;
+    max-width: 860px;
+  }
+  h1 {
+    font-size: clamp(34px, 5vw, 56px);
+    margin: 12px 0 14px;
+  }
+  .lead {
+    max-width: 50ch;
+  }
+  .block {
+    padding: clamp(22px, 3vw, 32px);
+  }
+  h2 {
+    margin: 0 0 12px;
+    font-size: 22px;
+  }
+  p {
+    color: var(--muted);
+  }
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+    display: grid;
+    gap: 14px;
+  }
+  .steps li {
+    display: grid;
+    gap: 2px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .steps li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .steps span {
+    color: var(--muted);
+  }
+  .small {
+    font-size: 14px;
+    margin-top: 10px;
+  }
+</style>

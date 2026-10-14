@@ -19,4 +19,5 @@ export const legalLinks = [
   { href: '/privacy', label: 'Privacy Policy' },
   { href: '/terms', label: 'Terms of Service' },
   { href: '/delete-account', label: 'Delete your account' },
+  { href: '/delete-data', label: 'Delete some of your data' },
 ];
