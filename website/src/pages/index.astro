@@ -120,7 +120,7 @@ const faq = [
     </div>
 
     <div class="container feature">
-      <div class="feature-stage stage-mint top reveal">
+      <div class="feature-stage reveal">
         <Phone src={voiceLight} alt="Recording a voice note while the last one is logged" style="--w: clamp(210px, 26vw, 300px)" />
         <div class="float chip chip-voice"><i class="dot income"></i>Logged $36.50 in 2 entries</div>
       </div>
@@ -137,7 +137,7 @@ const faq = [
     </div>
 
     <div class="container feature flip">
-      <div class="feature-stage stage-peach reveal">
+      <div class="feature-stage reveal">
         <div class="photo">
           <Image src={receiptPhoto} alt="A grocery receipt" widths={[320, 480]} sizes="200px" format="webp" />
         </div>
@@ -156,7 +156,7 @@ const faq = [
     </div>
 
     <div class="container feature">
-      <div class="feature-stage stage-lilac reveal">
+      <div class="feature-stage reveal">
         <Phone src={chatLight} alt="Expenses sorted into categories" style="--w: clamp(210px, 26vw, 300px)" />
         <div class="float chip c1">Dining</div>
         <div class="float chip c2">Streaming</div>
@@ -171,7 +171,7 @@ const faq = [
     </div>
 
     <div class="container feature flip">
-      <div class="feature-stage stage-butter reveal">
+      <div class="feature-stage reveal">
         <Phone src={financesLight} alt="Monthly income and expense totals" style="--w: clamp(210px, 26vw, 300px)" />
         <div class="float chip chip-in"><i class="dot income"></i>Income $5,200</div>
         <div class="float chip chip-out"><i class="dot expense"></i>Spent $576</div>
@@ -184,7 +184,7 @@ const faq = [
     </div>
 
     <div class="container feature">
-      <div class="feature-stage stage-blue reveal">
+      <div class="feature-stage reveal">
         <Phone src={insightsLight} alt="Spending chart and highlights" style="--w: clamp(210px, 26vw, 300px)" />
         <div class="float summary">
           <div class="summary-crop">
@@ -354,25 +354,21 @@ const faq = [
   }
   .hero-stage {
     position: relative;
-    height: clamp(460px, 52vw, 640px);
-    border-radius: 36px;
-    background: var(--stage-blue);
-    overflow: hidden;
-  }
-  .hero-stage :global(.hp) {
-    position: absolute;
-    left: 50%;
-    bottom: -14%;
+    display: flex;
+    justify-content: center;
+    padding: 24px 0 32px;
   }
   .hero-stage :global(.hp-center) {
-    --w: clamp(200px, 22vw, 290px);
-    transform: translateX(-50%);
+    --w: clamp(220px, 22vw, 290px);
+    position: relative;
     z-index: 2;
   }
   .hero-stage :global(.hp-left),
   .hero-stage :global(.hp-right) {
-    --w: clamp(160px, 17vw, 230px);
-    bottom: -4%;
+    --w: clamp(170px, 17vw, 228px);
+    position: absolute;
+    left: 50%;
+    top: 12%;
   }
   .hero-stage :global(.hp-left) {
     transform: translateX(-128%) rotate(-10deg);
@@ -412,12 +408,12 @@ const faq = [
     background: var(--income);
   }
   .chip-a {
-    left: 6%;
-    top: 12%;
+    left: -2%;
+    top: 58%;
   }
   .stat {
-    right: 6%;
-    top: 9%;
+    right: -2%;
+    top: 26%;
     padding: 14px 18px;
     border-radius: 20px;
     display: grid;
@@ -512,30 +508,9 @@ const faq = [
     position: relative;
     display: flex;
     justify-content: center;
-    align-items: flex-end;
-    gap: 16px;
-    padding: 56px 24px 0;
-    border-radius: 36px;
-    min-height: clamp(420px, 44vw, 560px);
-    overflow: hidden;
-  }
-  .feature-stage :global(.phone) {
-    margin-bottom: -18%;
-  }
-  .stage-mint {
-    background: var(--stage-mint);
-  }
-  .stage-peach {
-    background: var(--stage-peach);
-  }
-  .stage-lilac {
-    background: var(--stage-lilac);
-  }
-  .stage-butter {
-    background: var(--stage-butter);
-  }
-  .stage-blue {
-    background: var(--stage-blue);
+    align-items: center;
+    gap: 20px;
+    padding: 24px 0;
   }
   .ticks {
     list-style: none;
@@ -556,26 +531,29 @@ const faq = [
     height: 20px;
     border-radius: 50%;
     flex: none;
-    background: var(--ink)
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12l4 4 8-8'/%3E%3C/svg%3E")
-      center / 14px no-repeat;
+    background: var(--ink);
+    box-shadow: inset 0 0 0 20px var(--ink);
+    position: relative;
+  }
+  .ticks li::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    margin-left: 0;
+    background: var(--bg);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12l4 4 8-8'/%3E%3C/svg%3E") center / 14px no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12l4 4 8-8'/%3E%3C/svg%3E") center / 14px no-repeat;
+  }
+  .ticks li {
+    position: relative;
   }
   .chip-voice {
     left: 8%;
     top: 12%;
   }
-  /* Voice keeps the phone's bottom in view, where the recording pill is. */
-  .feature-stage.top {
-    align-items: flex-start;
-    padding: 0 24px 48px;
-  }
-  .feature-stage.top :global(.phone) {
-    margin-bottom: 0;
-    margin-top: -34%;
-  }
+
   .photo {
-    align-self: center;
-    margin-bottom: 18%;
     padding: 8px 8px 28px;
     background: #fff;
     border-radius: 12px;
@@ -882,14 +860,13 @@ const faq = [
     }
   }
   @media (max-width: 560px) {
-    .hero-stage {
-      height: 470px;
-    }
-    .hero-stage :global(.hp-left) {
-      transform: translateX(-112%) rotate(-9deg);
-    }
+    /* One whole phone on small screens instead of three clipped ones. */
+    .hero-stage :global(.hp-left),
     .hero-stage :global(.hp-right) {
-      transform: translateX(12%) rotate(9deg);
+      display: none;
+    }
+    .hero-stage {
+      padding-top: 72px;
     }
     .stat {
       padding: 10px 14px;
