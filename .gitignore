@@ -47,3 +47,5 @@ app.*.map.json
 /.commandcode/
 /.deslop-cache/
 .mcp.json
+# Cloudflare Wrangler local state
+.wrangler/

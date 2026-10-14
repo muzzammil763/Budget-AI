@@ -274,7 +274,8 @@ cd website
 npm install
 npm run dev        # http://localhost:4321
 npm run build      # outputs website/dist
-npx wrangler pages deploy dist --project-name budget-ai
+npx wrangler pages deploy dist --project-name budget-ai --branch master
+# Live at https://budget-ai-9pq.pages.dev (privacy: /privacy, deletion: /delete-account)
 ```
 
 ## Android release
