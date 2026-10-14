@@ -244,8 +244,8 @@ the previous default limits (`legacy` plan).
   model, and refuses with `premium_required` (Free) or `plan_limit_reached`
   as HTTP 402. Admin quota overrides apply only when `quota_override` is set.
 - The app reads its plan with the `get_my_ai_plan` RPC. A blocked chat send,
-  mic hold, receipt, or Monthly Summary opens the paywall (Pro shows the reset
-  date instead); after the free message a composer notice offers Premium.
+  mic hold, receipt, or Monthly Summary opens a Premium sheet that leads to the
+  paywall (Pro shows the reset date instead); a 402 never shows a chat error; after the free message a composer notice offers Premium.
   Budget Hub shows a Premium card, and Fast Responses is locked on Free/Lite.
 - Play products `budget_ai_lite`, `budget_ai_plus`, `budget_ai_pro`, each with
   `monthly` and `yearly` base plans, map to RevenueCat entitlements `lite`,

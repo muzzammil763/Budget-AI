@@ -1449,18 +1449,33 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         );
       }
     } catch (e) {
-      final errorMessage = e is PremiumRequiredException
-          ? e.userMessage
-          : '${_buildAssistantErrorMessage(e)}\n\n${_requestDiagnosticsText(responseMetadata, startTime)}';
-      if (e is PremiumRequiredException && mounted) {
-        unawaited(PremiumGate.handleRefusal(context, e));
-      }
+      final premiumRefusal = e is PremiumRequiredException ? e : null;
+      final errorMessage =
+          '${_buildAssistantErrorMessage(e)}\n\n${_requestDiagnosticsText(responseMetadata, startTime)}';
 
       final blocks = _cloneBlocks(
         aiMessageIndex != null && aiMessageIndex < _messages.length
             ? _getMessageBlocks(_messages[aiMessageIndex])
             : messageBlocks,
       );
+      // Out of AI messages is not an error: the Premium sheet explains it,
+      // and the chat keeps only what was actually answered.
+      if (premiumRefusal != null) {
+        final answeredNothing =
+            _responseTextFromBlocks(blocks).trim().isEmpty &&
+            !blocks.any((b) => b.type == ChatMessageBlockType.toolCall);
+        if (answeredNothing) {
+          await _dropAssistantPlaceholder(aiTimelineIndex, assistantEntryId);
+          await _syncProviderStateToSession();
+          if (mounted) {
+            unawaited(PremiumGate.handleRefusal(context, premiumRefusal));
+          }
+          return;
+        }
+        if (mounted) {
+          unawaited(PremiumGate.handleRefusal(context, premiumRefusal));
+        }
+      }
       final hasExistingResponse = _responseTextFromBlocks(
         blocks,
       ).trim().isNotEmpty;
@@ -1473,11 +1488,17 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       final shouldKeepPartialResponse =
           hasExistingResponse && _isRecoverableStreamInterruption(e);
       shouldSilentlyContinueAfterToolError =
+          premiumRefusal == null &&
           automaticToolContinuationDepth <
               _maxSilentPostToolErrorContinuations &&
           _shouldSilentlyContinueAfterPostToolError(e, blocks);
 
-      if (shouldSilentlyContinueAfterToolError || shouldKeepPartialResponse) {
+      if (premiumRefusal != null) {
+        // Keep the tool rows already shown, without an error message.
+        _markOpenToolBlocksCancelled(blocks);
+        _markAllOpenTextBlocksComplete(blocks);
+      } else if (shouldSilentlyContinueAfterToolError ||
+          shouldKeepPartialResponse) {
         _markAllOpenTextBlocksComplete(blocks);
       } else if (hasOnlyPlaceholder) {
         blocks
@@ -3442,6 +3463,35 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         ),
       ),
     );
+  }
+
+  /// Removes the empty assistant reply left by a request the server refused.
+  Future<void> _dropAssistantPlaceholder(
+    int? timelineIndex,
+    int? entryId,
+  ) async {
+    _stopStreamingThrottleTimer();
+    _stopStreamingDurationTimer();
+    _streamingBubble.value = null;
+    unawaited(AndroidBackgroundChatService.stop());
+    unawaited(IosBackgroundTaskService.stop());
+    if (mounted) {
+      setState(() {
+        if (timelineIndex != null &&
+            timelineIndex < _timelineItems.length &&
+            _timelineItems[timelineIndex] is _TimelineMessageItem) {
+          _timelineItems.removeAt(timelineIndex);
+          _rebuildMessagesFromTimeline();
+        }
+        _isLoading = false;
+        _isStreaming = false;
+        _isReconnectingStream = false;
+        _isWaitingForNetwork = false;
+      });
+    }
+    if (entryId != null) {
+      await _chatSessions.deleteTimelineEntry(entryId: entryId);
+    }
   }
 
   int get _deepAnalysisRemaining {

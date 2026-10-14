@@ -1,4 +1,6 @@
 import 'package:budget_ai/src/billing/paywall_screen.dart';
+import 'package:budget_ai/src/billing/premium_gate.dart';
+import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/billing/subscription_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/speech/openai_speech_service.dart';
@@ -66,5 +68,45 @@ void main() {
       find.textContaining(r'Continue with Pro · $12.99/mo'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a free-limit refusal shows the Premium sheet, not an error', (
+    tester,
+  ) async {
+    PremiumGate.debugPaywallEnabled = true;
+    addTearDown(() => PremiumGate.debugPaywallEnabled = null);
+    await tester.binding.setSurfaceSize(const Size(400, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    late BuildContext context;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (c) {
+            context = c;
+            return const Scaffold();
+          },
+        ),
+      ),
+    );
+
+    PremiumGate.handleRefusal(
+      context,
+      PremiumRequiredException(
+        providerName: 'OpenAI',
+        code: 'premium_required',
+        userMessage: 'Free message used',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Free AI message used'), findsOneWidget);
+    expect(find.textContaining('Plus · 200 AI messages'), findsOneWidget);
+    final seePlans = find.byKey(const ValueKey('premium-sheet-see-plans'));
+    await tester.ensureVisible(seePlans);
+    await tester.pumpAndSettle();
+    await tester.tap(seePlans);
+    await tester.pumpAndSettle();
+    expect(find.byType(PaywallScreen), findsOneWidget);
   });
 }
