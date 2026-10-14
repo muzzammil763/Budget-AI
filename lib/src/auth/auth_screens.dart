@@ -495,44 +495,41 @@ class EmailVerificationScreen extends StatefulWidget {
       _EmailVerificationScreenState();
 }
 
-class _EmailVerificationScreenState extends State<EmailVerificationScreen>
-    with WidgetsBindingObserver {
-  // How often to check whether the link in the email has been tapped.
-  static const _pollInterval = Duration(seconds: 5);
+class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
+  static const _codeLength = 6;
 
+  final _code = TextEditingController();
+  final _codeFocus = FocusNode();
   Timer? _cooldownTimer;
-  Timer? _pollTimer;
   int _cooldown = 60;
-  bool _busy = false;
-  bool _pollInFlight = false;
+  bool _verifying = false;
+  bool _resending = false;
+  bool _hasError = false;
 
-  bool get _canPoll => widget.password.isNotEmpty;
+  bool get _busy => _verifying || _resending;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _startCooldown();
-    _startPolling();
+    _code.addListener(_handleCodeChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _codeFocus.requestFocus();
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _cooldownTimer?.cancel();
-    _pollTimer?.cancel();
+    _code.dispose();
+    _codeFocus.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Poll only while visible; check at once when returning from the mail app.
-    if (state == AppLifecycleState.resumed) {
-      _startPolling();
-      _checkConfirmed();
-    } else if (state == AppLifecycleState.paused) {
-      _pollTimer?.cancel();
-    }
+  void _handleCodeChanged() {
+    if (_hasError) setState(() => _hasError = false);
+    setState(() {});
+    if (_code.text.length == _codeLength) _verify();
   }
 
   void _startCooldown() {
@@ -549,43 +546,64 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     });
   }
 
-  void _startPolling() {
-    if (!_canPoll) return;
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(_pollInterval, (_) => _checkConfirmed());
+  /// A verified code signs the user in; AuthGate then moves on to the app.
+  Future<void> _verify() async {
+    final code = _code.text.trim();
+    if (code.length != _codeLength || _verifying) return;
+    setState(() => _verifying = true);
+    try {
+      await AuthService.instance.verifySignupCode(
+        email: widget.email,
+        code: code,
+      );
+      HapticFeedback.mediumImpact();
+    } catch (error) {
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+      setState(() => _hasError = true);
+      _code.clear();
+      _codeFocus.requestFocus();
+      _showAuthToast(
+        context,
+        'That code is incorrect or has expired. Try again or resend it.',
+        type: ToastificationType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
   }
 
-  /// Signing in succeeds only once the email is confirmed; AuthGate then
-  /// moves on to the app. Until then the "not confirmed" error is expected.
-  Future<void> _checkConfirmed() async {
-    if (!_canPoll || _pollInFlight || !mounted) return;
-    _pollInFlight = true;
-    try {
-      await AuthService.instance.signIn(
-        email: widget.email,
-        password: widget.password,
-      );
-      _pollTimer?.cancel();
-    } catch (_) {
-      // Not confirmed yet, or offline; the next tick retries.
-    } finally {
-      _pollInFlight = false;
+  Future<void> _paste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final digits = (data?.text ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length < _codeLength) {
+      if (mounted) {
+        _showAuthToast(
+          context,
+          'Copy the $_codeLength-digit code from the email first.',
+          type: ToastificationType.info,
+        );
+      }
+      return;
     }
+    _code.text = digits.substring(0, _codeLength);
+    _code.selection = TextSelection.collapsed(offset: _codeLength);
   }
 
   Future<void> _resend() async {
     if (_cooldown > 0 || _busy) return;
-    setState(() => _busy = true);
+    setState(() => _resending = true);
     try {
       await AuthService.instance.resendSignupConfirmation(widget.email);
       if (mounted) {
-        _showAuthToast(context, 'A new confirmation email was sent.');
+        _code.clear();
+        _showAuthToast(context, 'A new code is on its way.');
         _startCooldown();
       }
     } catch (error) {
       if (mounted) _showAuthError(context, error);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _resending = false);
     }
   }
 
@@ -602,62 +620,198 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AuthPageContent(
-      eyebrow: 'ONE MORE STEP',
-      title: 'Check your email',
-      subtitle: 'We sent a confirmation link to ${_maskedEmail(widget.email)}.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _StatusCard(
-            icon: CupertinoIcons.envelope_badge,
-            message: _canPoll
-                ? 'Tap the link in that email. This screen continues on its own once your email is confirmed.'
-                : 'Tap the link in that email, then sign in.',
-          ),
-          if (_canPoll) ...[
+    return PopScope(
+      canPop: !_verifying,
+      child: AuthPageContent(
+        eyebrow: 'ONE MORE STEP',
+        title: 'Enter your code',
+        subtitle:
+            'We sent a $_codeLength-digit code to ${_maskedEmail(widget.email)}.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _OtpCodeField(
+              controller: _code,
+              focusNode: _codeFocus,
+              length: _codeLength,
+              hasError: _hasError,
+              enabled: !_verifying,
+            ),
             const SizedBox(height: 18),
+            AppButton(
+              key: const ValueKey('verify-code'),
+              text: 'Verify',
+              icon: CupertinoIcons.checkmark_shield,
+              isLoading: _verifying,
+              onPressed: _code.text.length == _codeLength ? _verify : null,
+              disabledMessage:
+                  'Enter the $_codeLength-digit code from your email.',
+            ),
+            const SizedBox(height: 10),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const CupertinoActivityIndicator(radius: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _paste,
+                    icon: const Icon(CupertinoIcons.doc_on_clipboard, size: 18),
+                    label: const Text('Paste code'),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Text(
-                  'Waiting for confirmation…',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _openMail,
+                    icon: const Icon(CupertinoIcons.mail, size: 18),
+                    label: const Text('Open mail'),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: _cooldown == 0 && !_busy ? _resend : null,
+              child: Text(
+                _cooldown == 0 ? 'Resend code' : 'Resend code in ${_cooldown}s',
+              ),
+            ),
+            const Divider(height: 24),
+            _AuthSecondaryAction(
+              prompt: 'Wrong email?',
+              action: 'Use a different email',
+              onPressed: _busy ? null : widget.onUseDifferentEmail,
+            ),
+            TextButton(
+              onPressed: _busy ? null : widget.onBackToLogin,
+              child: const Text('Back to sign in'),
+            ),
           ],
-          const SizedBox(height: 18),
-          AppButton(
-            text: 'Open mail app',
-            icon: CupertinoIcons.mail,
-            onPressed: _busy ? null : _openMail,
-          ),
-          const SizedBox(height: 6),
-          TextButton(
-            onPressed: _cooldown == 0 && !_busy ? _resend : null,
-            child: Text(
-              _cooldown == 0
-                  ? 'Resend confirmation email'
-                  : 'Resend available in ${_cooldown}s',
+        ),
+      ),
+    );
+  }
+}
+
+/// Six rounded digit boxes backed by one invisible text field, so typing,
+/// deleting, autofill, and paste all behave like a normal input.
+class _OtpCodeField extends StatelessWidget {
+  const _OtpCodeField({
+    required this.controller,
+    required this.focusNode,
+    required this.length,
+    required this.hasError,
+    required this.enabled,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final int length;
+  final bool hasError;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return GestureDetector(
+      onTap: () => focusNode.requestFocus(),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0,
+              child: TextField(
+                key: const ValueKey('otp-input'),
+                controller: controller,
+                focusNode: focusNode,
+                enabled: enabled,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                showCursor: false,
+                enableInteractiveSelection: false,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(length),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 24),
-          _AuthSecondaryAction(
-            prompt: 'Wrong email?',
-            action: 'Use a different email',
-            onPressed: _busy ? null : widget.onUseDifferentEmail,
-          ),
-          TextButton(
-            onPressed: _busy ? null : widget.onBackToLogin,
-            child: const Text('Back to sign in'),
+          ListenableBuilder(
+            listenable: Listenable.merge([controller, focusNode]),
+            builder: (context, _) {
+              final text = controller.text;
+              return Row(
+                children: [
+                  for (var i = 0; i < length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: _OtpBox(
+                        digit: i < text.length ? text[i] : '',
+                        isActive:
+                            focusNode.hasFocus &&
+                            (i == text.length ||
+                                (i == length - 1 && text.length == length)),
+                        hasError: hasError,
+                        scheme: scheme,
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OtpBox extends StatelessWidget {
+  const _OtpBox({
+    required this.digit,
+    required this.isActive,
+    required this.hasError,
+    required this.scheme,
+  });
+
+  final String digit;
+  final bool isActive;
+  final bool hasError;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = hasError
+        ? scheme.error
+        : isActive
+        ? scheme.primary
+        : scheme.outline.withValues(alpha: digit.isEmpty ? 0.35 : 0.7);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      height: 58,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: digit.isEmpty
+            ? Colors.transparent
+            : scheme.onSurface.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: isActive ? 2 : 1.2),
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 140),
+        transitionBuilder: (child, animation) =>
+            ScaleTransition(scale: animation, child: child),
+        child: Text(
+          digit,
+          key: ValueKey(digit),
+          style: TextStyle(
+            fontFamily: 'Boldonse',
+            fontSize: 22,
+            height: 1.6,
+            color: hasError ? scheme.error : scheme.onSurface,
+          ),
+        ),
       ),
     );
   }
@@ -1365,8 +1519,10 @@ class _AuthSecondaryAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    // Wraps instead of overflowing on narrow screens or large text sizes.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(prompt, style: AppTheme.bodySmall),
         TextButton(onPressed: onPressed, child: Text(action)),

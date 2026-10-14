@@ -60,10 +60,15 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 - First launch shows onboarding, followed by the Budget AI account flow.
   Currency presets and custom currency creation are available during onboarding
   before sign-in, and the choice is kept locally for the later account flow.
-- Email/password registration requires email confirmation by link. The
-  "Check your email" screen has no code field: it signs in every 5 seconds
-  while visible (and on returning to the app) and continues on its own as soon
-  as the link is confirmed; `budgetai://auth/confirm` links also work.
+- Email/password registration is confirmed with a 6-digit code. The signup
+  email (`supabase/templates/confirmation.html`) shows only the code; the
+  "Enter your code" screen has six boxes that verify automatically once full,
+  plus Paste code, Open mail, and a 60-second Resend.
+- Auth emails use branded templates in `supabase/templates/` (app-style
+  monochrome design, Boldonse heading, hosted logo at
+  `https://budgetai-app.pages.dev/email/logo.png`, light and dark). Paste them
+  into Supabase Dashboard → Authentication → Emails → Templates. Password
+  reset stays a link to `budgetai://auth/reset-password`.
 - Sign-in sessions restore automatically. Forgot-password and Account password
   changes send secure links that return through
   `budgetai://auth/reset-password`; sign-out lives on the Account screen.
@@ -159,7 +164,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   row-level security. End-to-end encryption has been retired.
 - Account settings sync through `users`; roles live in `user_roles`; AI quotas
   use `user_ai_limits`, `ai_usage`, `ai_requests`, and `ai_model_config`.
-- Sign-up is email + password confirmed by an email link; login is email +
+- Sign-up is email + password confirmed by a 6-digit email code; login is email +
   password and goes straight to the app with no key or unlock step. Earlier
   end-to-end encryption has been fully removed.
 - Remote reads page in 1000-row chunks, since Supabase caps a single select at

@@ -1,35 +1,92 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Confirm your Budget AI account</title>
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <title>Your Budget AI code</title>
+    <style>
+      @font-face {
+        font-family: 'Boldonse';
+        src: url('https://budgetai-app.pages.dev/fonts/boldonse.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Google Sans';
+        src: url('https://budgetai-app.pages.dev/fonts/google-sans.woff2') format('woff2');
+      }
+      @media (prefers-color-scheme: dark) {
+        .bg { background: #050506 !important; }
+        .card { background: #0c0c0e !important; border-color: #26262b !important; }
+        .ink { color: #f4f4f5 !important; }
+        .muted { color: #a1a1aa !important; }
+        .code { background: #18181b !important; border-color: #3f3f46 !important; color: #ffffff !important; }
+        .rule { border-color: #26262b !important; }
+      }
+      @media (max-width: 520px) {
+        .pad { padding: 28px 22px !important; }
+        .code { font-size: 32px !important; letter-spacing: 8px !important; }
+        .title { font-size: 26px !important; }
+      }
+    </style>
   </head>
-  <body style="margin:0;background:#f5f5f5;color:#111;font-family:Arial,sans-serif">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+  <body class="bg" style="margin:0;padding:0;background:#f5f5f3;-webkit-font-smoothing:antialiased">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0">
+      Your Budget AI code is {{ .Token }}. It expires in 1 hour.
+    </div>
+    <table role="presentation" class="bg" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f5f3">
       <tr>
-        <td align="center" style="padding:32px 16px">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
-                 style="max-width:520px;background:#fff;border:1px solid #ddd;border-radius:16px">
+        <td align="center" style="padding:40px 16px">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px">
             <tr>
-              <td style="padding:32px">
-                <p style="margin:0 0 8px;color:#2563eb;font-size:12px;font-weight:700;letter-spacing:1.4px">
-                  BUDGET AI
+              <td style="padding:0 4px 20px">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="vertical-align:middle">
+                      <img src="https://budgetai-app.pages.dev/email/logo.png" width="40" height="40" alt="Budget AI" style="display:block;border:0;border-radius:11px">
+                    </td>
+                    <td class="ink" style="vertical-align:middle;padding-left:12px;font-family:'Boldonse','Arial Black',Arial,sans-serif;font-size:17px;line-height:1.6;color:#0b0b0c">
+                      Budget AI
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="card pad" style="background:#ffffff;border:1px solid #e7e7e4;border-radius:20px;padding:36px 32px">
+                <p class="muted" style="margin:0 0 10px;font-family:'Google Sans',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:#5f6368">
+                  ONE MORE STEP
                 </p>
-                <h1 style="margin:0 0 16px;font-size:26px">Confirm your email</h1>
-                <p style="margin:0 0 24px;line-height:1.6">
-                  Confirm this email address to finish creating your secure
-                  Budget AI account.
+                <h1 class="ink title" style="margin:0 0 14px;font-family:'Boldonse','Arial Black',Arial,sans-serif;font-size:30px;font-weight:400;line-height:1.55;color:#0b0b0c">
+                  Confirm your email
+                </h1>
+                <p class="muted" style="margin:0 0 26px;font-family:'Google Sans',Arial,sans-serif;font-size:16px;line-height:1.6;color:#5f6368">
+                  Enter this code in Budget AI to finish creating your account.
                 </p>
-                <p style="margin:0 0 24px">
-                  <a href="{{ .ConfirmationURL }}"
-                     style="display:inline-block;padding:13px 20px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:700">
-                    Confirm email
-                  </a>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="center" class="code" style="background:#f5f5f3;border:1px solid #e7e7e4;border-radius:16px;padding:22px 12px;font-family:'Google Sans','SF Mono',Menlo,Consolas,monospace;font-size:38px;font-weight:700;letter-spacing:12px;color:#0b0b0c">
+                      {{ .Token }}
+                    </td>
+                  </tr>
+                </table>
+                <p class="muted" style="margin:18px 0 0;font-family:'Google Sans',Arial,sans-serif;font-size:14px;line-height:1.6;color:#5f6368">
+                  The code expires in 1 hour. For your security, never share it with anyone, including people claiming to be from Budget AI.
                 </p>
-                <p style="margin:0;color:#666;font-size:13px;line-height:1.5">
-                  If you did not create this account, you can ignore this email.
+                <hr class="rule" style="border:0;border-top:1px solid #ececea;margin:28px 0 20px">
+                <p class="muted" style="margin:0;font-family:'Google Sans',Arial,sans-serif;font-size:13px;line-height:1.6;color:#80868b">
+                  Didn't sign up for Budget AI? You can safely ignore this email; no account will be created.
                 </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" class="muted" style="padding:22px 12px 0;font-family:'Google Sans',Arial,sans-serif;font-size:12px;line-height:1.7;color:#80868b">
+                Budget AI · Your money, logged by itself.<br>
+                <a href="https://budgetai-app.pages.dev/privacy" class="muted" style="color:#80868b;text-decoration:underline">Privacy</a>
+                &nbsp;·&nbsp;
+                <a href="https://budgetai-app.pages.dev/terms" class="muted" style="color:#80868b;text-decoration:underline">Terms</a>
+                &nbsp;·&nbsp;
+                <a href="mailto:deadbase763@gmail.com" class="muted" style="color:#80868b;text-decoration:underline">Support</a>
               </td>
             </tr>
           </table>

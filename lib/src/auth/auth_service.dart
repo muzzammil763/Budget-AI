@@ -84,6 +84,17 @@ class AuthService extends ChangeNotifier {
     return response;
   }
 
+  Future<AuthResponse> verifySignupCode({
+    required String email,
+    required String code,
+  }) {
+    return _client.auth.verifyOTP(
+      email: email.trim().toLowerCase(),
+      token: code.trim(),
+      type: OtpType.signup,
+    );
+  }
+
   Future<void> resendSignupConfirmation(String email) async {
     await _client.auth.resend(
       type: OtpType.signup,
