@@ -28,8 +28,12 @@ class ResponsesProvider extends BaseChatProvider {
     String message, {
     bool enableToolCalls = true,
     List<String> images = const [],
+    String? userTurnId,
+    bool deepAnalysis = false,
   }) async* {
     _refreshSessionCredential();
+    final turnId = userTurnId ?? const Uuid().v4();
+    _currentUserTurnId = turnId;
     if (_apiKey == null || _apiKey!.isEmpty) {
       throw _providerException(
         _providerName,
@@ -89,6 +93,8 @@ class ResponsesProvider extends BaseChatProvider {
           'input': _sanitizeConversationStateForApi(_chatHistory),
           'stream': true,
           'client_turn_id': const Uuid().v4(),
+          'user_turn_id': turnId,
+          if (deepAnalysis) 'deep_analysis': true,
         };
         if (hasTools) {
           requestData['tools'] = [

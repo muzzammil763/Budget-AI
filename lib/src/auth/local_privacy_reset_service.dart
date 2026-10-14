@@ -5,6 +5,7 @@ import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
@@ -33,5 +34,6 @@ class LocalPrivacyResetService {
     BubbleStyleSettingsService.instance.resetLocalState();
     PermissionPreferencesService.instance.resetLocalState();
     AiResponseSettingsService.instance.resetLocalState();
+    AiUsageService.instance.usage.value = null;
   }
 }

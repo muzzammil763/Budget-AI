@@ -2,11 +2,40 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Budget AI Premium tiers, from lowest to highest.
 enum PremiumTier { free, lite, plus, pro }
+
+enum PremiumPeriod { monthly, yearly }
+
+/// One purchasable Play base plan, e.g. Plus · Yearly.
+class PremiumPlanOption {
+  const PremiumPlanOption({
+    required this.tier,
+    required this.period,
+    required this.package,
+  });
+
+  final PremiumTier tier;
+  final PremiumPeriod period;
+  final Package package;
+
+  String get price => package.storeProduct.priceString;
+
+  /// Google Play subscription id without the base plan (`budget_ai_plus`).
+  String get subscriptionId => package.storeProduct.identifier.split(':').first;
+
+  /// The monthly equivalent of a yearly price, for the paywall's subtitle.
+  String? get monthlyEquivalent {
+    if (period != PremiumPeriod.yearly) return null;
+    return package.storeProduct.pricePerMonthString;
+  }
+}
+
+enum PremiumPurchaseOutcome { purchased, cancelled, pending, failed }
 
 /// Owns the RevenueCat SDK on Android: ties purchases to the signed-in
 /// Supabase user and exposes the active Premium tier.
@@ -37,7 +66,8 @@ class SubscriptionService {
   String? _loggedInUserId;
   StreamSubscription<AuthState>? _authSubscription;
 
-  bool get isAvailable => Platform.isAndroid && _androidKey.isNotEmpty;
+  bool get isAvailable =>
+      !kIsWeb && Platform.isAndroid && _androidKey.isNotEmpty;
   bool get isConfigured => _configured;
 
   Future<void> initialize() async {
@@ -88,6 +118,97 @@ class SubscriptionService {
   void _applyCustomerInfo(CustomerInfo? info) {
     customerInfo.value = info;
     tier.value = tierFor(info);
+  }
+
+  /// The six Play base plans from the current RevenueCat offering.
+  Future<List<PremiumPlanOption>> loadPlans() async {
+    if (!_configured) return const [];
+    final offerings = await Purchases.getOfferings();
+    final packages = offerings.current?.availablePackages ?? const <Package>[];
+    return [
+      for (final package in packages)
+        if (planFor(package.storeProduct.identifier, package.packageType)
+            case final (PremiumTier, PremiumPeriod) plan)
+          PremiumPlanOption(tier: plan.$1, period: plan.$2, package: package),
+    ];
+  }
+
+  /// Buys [option]. Moving up a tier takes effect now with prorated credit;
+  /// moving down waits for the current period to end.
+  Future<PremiumPurchaseOutcome> purchase(PremiumPlanOption option) async {
+    if (!_configured) return PremiumPurchaseOutcome.failed;
+    final current = _activeSubscriptionId();
+    final changeInfo = current != null && current != option.subscriptionId
+        ? StoreProductChangeInfo(
+            current,
+            replacementMode: option.tier.index > tier.value.index
+                ? StoreReplacementMode.chargeProratedPrice
+                : StoreReplacementMode.deferred,
+          )
+        : null;
+    try {
+      final result = await Purchases.purchase(
+        PurchaseParams.package(option.package, productChangeInfo: changeInfo),
+      );
+      _applyCustomerInfo(result.customerInfo);
+      return PremiumPurchaseOutcome.purchased;
+    } on PlatformException catch (error) {
+      switch (PurchasesErrorHelper.getErrorCode(error)) {
+        case PurchasesErrorCode.purchaseCancelledError:
+          return PremiumPurchaseOutcome.cancelled;
+        case PurchasesErrorCode.paymentPendingError:
+          return PremiumPurchaseOutcome.pending;
+        default:
+          debugPrint('[SubscriptionService] Purchase failed: $error');
+          return PremiumPurchaseOutcome.failed;
+      }
+    }
+  }
+
+  /// Re-links Play purchases made with this Google account to the signed-in
+  /// Budget AI account. Returns the restored tier.
+  Future<PremiumTier> restore() async {
+    if (!_configured) return PremiumTier.free;
+    _applyCustomerInfo(await Purchases.restorePurchases());
+    return tier.value;
+  }
+
+  String? _activeSubscriptionId() {
+    final active = customerInfo.value?.entitlements.active ?? const {};
+    for (final key in _entitlements.keys) {
+      final entitlement = active[key];
+      if (entitlement != null) {
+        return entitlement.productIdentifier.split(':').first;
+      }
+    }
+    return null;
+  }
+
+  /// Maps a Play product (`budget_ai_plus:yearly`) to its tier and period.
+  @visibleForTesting
+  static (PremiumTier, PremiumPeriod)? planFor(
+    String productIdentifier,
+    PackageType packageType,
+  ) {
+    final parts = productIdentifier.toLowerCase().split(':');
+    final tier = switch (parts.first) {
+      'budget_ai_lite' => PremiumTier.lite,
+      'budget_ai_plus' => PremiumTier.plus,
+      'budget_ai_pro' => PremiumTier.pro,
+      _ => null,
+    };
+    if (tier == null) return null;
+    final basePlan = parts.length > 1 ? parts[1] : '';
+    final PremiumPeriod? period = basePlan.contains('year')
+        ? PremiumPeriod.yearly
+        : basePlan.contains('month')
+        ? PremiumPeriod.monthly
+        : switch (packageType) {
+            PackageType.annual => PremiumPeriod.yearly,
+            PackageType.monthly => PremiumPeriod.monthly,
+            _ => null,
+          };
+    return period == null ? null : (tier, period);
   }
 
   @visibleForTesting

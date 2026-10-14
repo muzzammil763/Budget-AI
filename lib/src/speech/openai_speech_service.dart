@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:budget_ai/src/chat/chat_provider.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 
 typedef OpenAiSpeechFunctionInvoker =
@@ -98,16 +100,40 @@ class OpenAiSpeechService {
   static Future<Map<String, dynamic>> _invokeFunction(
     Map<String, dynamic> body,
   ) async {
-    final response = await Supabase.instance.client.functions.invoke(
-      'openai-speech',
-      body: body,
-    );
+    final FunctionResponse response;
+    try {
+      response = await Supabase.instance.client.functions.invoke(
+        'openai-speech',
+        headers: {'x-client-platform': AiUsageService.clientPlatform},
+        body: body,
+      );
+    } on FunctionException catch (error) {
+      final premium = premiumRefusalFrom(error.status, error.details);
+      if (premium != null) throw premium;
+      rethrow;
+    }
     final data = response.data;
     if (data is! Map) {
       throw StateError('OpenAI transcription returned an invalid response.');
     }
     return Map<String, dynamic>.from(data);
   }
+}
+
+/// A voice message is an AI message: the speech function refuses it with 402
+/// once the month's messages are used.
+@visibleForTesting
+PremiumRequiredException? premiumRefusalFrom(int status, Object? details) {
+  if (status != 402 || details is! Map) return null;
+  final code = details['code'];
+  if (code != 'premium_required' && code != 'plan_limit_reached') return null;
+  return PremiumRequiredException(
+    providerName: 'OpenAI',
+    code: code as String,
+    userMessage:
+        details['message']?.toString() ??
+        "You have used this month's AI messages on your plan.",
+  );
 }
 
 String speechLanguageCodeForLocale(Locale locale) {

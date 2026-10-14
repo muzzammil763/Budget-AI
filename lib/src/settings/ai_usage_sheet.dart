@@ -133,9 +133,9 @@ class _AiUsageContent extends StatelessWidget {
                     child: _metric(
                       theme,
                       CupertinoIcons.bolt,
-                      'Requests',
-                      info.requestsUsed,
-                      info.requestsLimit,
+                      'Messages',
+                      info.messagesUsed,
+                      info.messagesLimit,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -154,7 +154,7 @@ class _AiUsageContent extends StatelessWidget {
               _metric(
                 theme,
                 CupertinoIcons.bolt_fill,
-                'Fast requests',
+                'Fast replies',
                 info.fastRequestsUsed,
                 info.fastRequestsLimit,
               ),

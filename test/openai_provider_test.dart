@@ -367,6 +367,40 @@ void main() {
     expect((requests.single.data as Map)['service_tier'], 'fast');
   });
 
+  test('a 402 plan refusal surfaces as PremiumRequiredException', () async {
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) => handler.resolve(
+          Response<dynamic>(
+            requestOptions: options,
+            statusCode: 402,
+            data: {
+              'code': 'premium_required',
+              'message': "You've used this month's free AI message.",
+            },
+          ),
+        ),
+      ),
+    );
+    final provider = ResponsesProvider(
+      ChatModelConfig.openAI,
+      dio: dio,
+      accessTokenProvider: () => 'test-user-jwt',
+      fastResponsesProvider: () => false,
+    );
+    await provider.initialize();
+
+    await expectLater(
+      provider.runUtilityPrompt('Summarize'),
+      throwsA(
+        isA<PremiumRequiredException>()
+            .having((e) => e.isFreeLimit, 'isFreeLimit', isTrue)
+            .having((e) => e.statusCode, 'statusCode', 402),
+      ),
+    );
+  });
+
   test('Responses tool output is replayed before the final answer', () async {
     final requests = <RequestOptions>[];
     final provider = ResponsesProvider(
@@ -397,6 +431,12 @@ void main() {
       (requests[0].data as Map)['client_turn_id'],
       isNot((requests[1].data as Map)['client_turn_id']),
     );
+    // Both rounds answer one user message, so the server counts it once.
+    expect(
+      (requests[0].data as Map)['user_turn_id'],
+      (requests[1].data as Map)['user_turn_id'],
+    );
+    expect(requests[0].headers['x-client-platform'], isNotNull);
     final secondInput = (requests[1].data as Map)['input'] as List;
     expect(
       (secondInput.first as Map)['content'],

@@ -11,6 +11,11 @@ KEYSTORE_FILE := $(HOME)/Muzamil/Keystores/budget-ai.keystore
 KEYSTORE_PROPS_BACKUP := $(HOME)/Muzamil/Keystores/budget-ai-key.properties.txt
 KEY_PROPERTIES := android/key.properties
 
+# Public RevenueCat Android SDK key (goog_...). Only this one line is read
+# from the ignored .env; Premium purchases are disabled when it is empty.
+REVENUECAT_ANDROID_KEY ?= $(shell sed -n 's/^REVENUECAT_ANDROID_KEY=//p' .env 2>/dev/null)
+REVENUECAT_DEFINE := --dart-define=REVENUECAT_ANDROID_KEY=$(REVENUECAT_ANDROID_KEY)
+
 WEBSITE_DIR := website
 PAGES_PROJECT := budgetai-app
 PAGES_URL := https://$(PAGES_PROJECT).pages.dev
@@ -56,7 +61,7 @@ signing:
 	fi
 
 apk: signing
-	@flutter build apk --release --target-platform android-arm64 \
+	@flutter build apk --release --target-platform android-arm64 $(REVENUECAT_DEFINE) \
 		--split-debug-info=build/debug-info --obfuscate || exit $$?; \
 	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \
@@ -64,7 +69,7 @@ apk: signing
 	printf "APK ready: $$dest/$(APP_NAME) $$version.apk\n"
 
 apk-split: signing
-	@flutter build apk --release --split-per-abi \
+	@flutter build apk --release --split-per-abi $(REVENUECAT_DEFINE) \
 		--split-debug-info=build/debug-info --obfuscate || exit $$?; \
 	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \
@@ -75,7 +80,10 @@ apk-split: signing
 	done
 
 aab: signing
-	@flutter build appbundle --release \
+	@if [ -z "$(REVENUECAT_ANDROID_KEY)" ]; then \
+		printf "Warning: REVENUECAT_ANDROID_KEY is not set in .env; Premium purchases will be disabled.\n"; \
+	fi
+	@flutter build appbundle --release $(REVENUECAT_DEFINE) \
 		--split-debug-info=build/debug-info --obfuscate || exit $$?; \
 	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \

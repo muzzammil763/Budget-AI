@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:budget_ai/src/billing/premium_gate.dart';
+import 'package:budget_ai/src/chat/chat_provider.dart';
 import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/finances/monthly_summary_service.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
@@ -40,6 +44,7 @@ class _MonthlySummaryCardState extends State<MonthlySummaryCard> {
 
   Future<void> _generate() async {
     if (!await AiConsent.ensure(context) || !mounted) return;
+    if (!await PremiumGate.ensure(context) || !mounted) return;
     setState(() {
       _generating = true;
       _error = null;
@@ -47,6 +52,8 @@ class _MonthlySummaryCardState extends State<MonthlySummaryCard> {
     try {
       final summary = await _service.generate(widget.month);
       if (mounted) setState(() => _summary = summary);
+    } on PremiumRequiredException catch (error) {
+      if (mounted) unawaited(PremiumGate.handleRefusal(context, error));
     } catch (error) {
       if (mounted) {
         setState(

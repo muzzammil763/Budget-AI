@@ -4,7 +4,7 @@ import { withSupabase } from "@supabase/server";
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
-    "authorization, apikey, content-type, x-client-info",
+    "authorization, apikey, content-type, x-client-info, x-client-platform",
   "access-control-allow-methods": "POST, OPTIONS",
 };
 const openAiApiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
@@ -86,9 +86,44 @@ async function transcribe(body: Record<string, unknown>) {
   });
 }
 
+type AdminClientWithRpc = {
+  rpc: (
+    functionName: string,
+    arguments_: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { code?: string } | null }>;
+};
+
+function clientPlatform(req: Request) {
+  const value = req.headers.get("x-client-platform")?.toLowerCase();
+  return value === "android" || value === "ios" ? value : "unknown";
+}
+
+/** A voice note becomes an AI message, so it needs room in the plan. */
+async function messageAccessCode(
+  req: Request,
+  ctx: {
+    userClaims?: { id?: string } | null;
+    jwtClaims?: { sub?: string } | null;
+    supabaseAdmin: unknown;
+  },
+) {
+  const userId = ctx.userClaims?.id ?? ctx.jwtClaims?.sub;
+  if (!userId) return "unauthorized";
+  const admin = ctx.supabaseAdmin as AdminClientWithRpc;
+  const { data, error } = await admin.rpc("can_start_ai_message", {
+    p_user_id: userId,
+    p_platform: clientPlatform(req),
+  });
+  if (error) {
+    console.error("Speech access check failed", error.code);
+    return "quota_unavailable";
+  }
+  return typeof data === "string" ? data : "quota_unavailable";
+}
+
 const authenticatedHandler = withSupabase(
   { auth: "user" },
-  async (req) => {
+  async (req, ctx) => {
     if (req.method !== "POST") {
       return jsonResponse(405, {
         code: "method_not_allowed",
@@ -99,6 +134,25 @@ const authenticatedHandler = withSupabase(
       return jsonResponse(503, {
         code: "speech_not_configured",
         message: "OpenAI transcription is not configured.",
+      });
+    }
+    const access = await messageAccessCode(req, ctx);
+    if (access !== "allowed") {
+      const status = access === "premium_required" ||
+          access === "plan_limit_reached"
+        ? 402
+        : access === "account_disabled"
+        ? 403
+        : access === "unauthorized"
+        ? 401
+        : 503;
+      return jsonResponse(status, {
+        code: access,
+        message: access === "premium_required"
+          ? "You've used your free AI message this month. Upgrade to keep going."
+          : access === "plan_limit_reached"
+          ? "You've reached this month's AI limit for your plan."
+          : "Voice messages are unavailable right now.",
       });
     }
     try {

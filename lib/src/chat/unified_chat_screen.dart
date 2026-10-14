@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:budget_ai/src/billing/paywall_screen.dart';
+import 'package:budget_ai/src/billing/premium_gate.dart';
 import 'package:budget_ai/src/chat/ai_report.dart';
 import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
@@ -102,6 +104,13 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       'Continue from the previous assistant turn. Use the completed tool results already in this conversation. Do not repeat successful tool calls unless required. Finish the original request.';
   static const int _maxAutomaticToolContinuations = 3;
   static const int _maxSilentPostToolErrorContinuations = 1;
+
+  /// Shared by every request answering the latest user message, so tool
+  /// rounds and automatic continuations count as one AI message.
+  String? _activeUserTurnId;
+
+  /// Pro only: the next message uses a Deep analysis.
+  bool _deepAnalysisNext = false;
 
   static const int _maxReconnectAttempts = 5;
   static const List<Duration> _reconnectDelays = [
@@ -767,6 +776,14 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     // A user-sent turn needs the one-time agreement to share it with OpenAI.
     if (appendUserMessage && !await AiConsent.ensure(context)) return;
     if (!mounted) return;
+    if (appendUserMessage && !await PremiumGate.ensure(context)) return;
+    if (!mounted) return;
+    if (appendUserMessage || _activeUserTurnId == null) {
+      _activeUserTurnId = const Uuid().v4();
+    }
+    final userTurnId = _activeUserTurnId;
+    final deepAnalysis = appendUserMessage && _deepAnalysisNext;
+    if (deepAnalysis) setState(() => _deepAnalysisNext = false);
     final attachedImages = appendUserMessage
         ? List<String>.of(_draftImages)
         : <String>[];
@@ -933,6 +950,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           providerMessageText,
           enableToolCalls: true,
           images: attachedImages,
+          userTurnId: userTurnId,
+          deepAnalysis: deepAnalysis,
         );
       }
 
@@ -1430,8 +1449,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         );
       }
     } catch (e) {
-      final errorMessage =
-          '${_buildAssistantErrorMessage(e)}\n\n${_requestDiagnosticsText(responseMetadata, startTime)}';
+      final errorMessage = e is PremiumRequiredException
+          ? e.userMessage
+          : '${_buildAssistantErrorMessage(e)}\n\n${_requestDiagnosticsText(responseMetadata, startTime)}';
+      if (e is PremiumRequiredException && mounted) {
+        unawaited(PremiumGate.handleRefusal(context, e));
+      }
 
       final blocks = _cloneBlocks(
         aiMessageIndex != null && aiMessageIndex < _messages.length
@@ -1594,6 +1617,12 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     // Ask once before recording; the user holds the mic again after agreeing.
     if (!await AiConsent.isGranted()) {
       if (mounted) await AiConsent.ensure(context);
+      return;
+    }
+    // Opening the paywall replaces the hold; the user holds again after.
+    final usage = AiUsageService.instance.usage.value;
+    if (PremiumGate.paywallEnabled && (usage?.blocksNewMessage ?? false)) {
+      if (mounted) await PremiumGate.ensure(context);
       return;
     }
 
@@ -1759,6 +1788,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         });
       }
       _updateCanSend();
+      if (error is PremiumRequiredException) {
+        if (mounted) unawaited(PremiumGate.handleRefusal(context, error));
+        return;
+      }
       _showSpeechError('Could not transcribe recording', error);
     } finally {
       if (audioPath != null) {
@@ -3329,6 +3362,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _buildPremiumNotice(theme),
             Material(
               elevation: 8,
               shadowColor: Colors.black.withValues(alpha: .25),
@@ -3410,6 +3444,58 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     );
   }
 
+  int get _deepAnalysisRemaining {
+    final usage = AiUsageService.instance.usage.value;
+    if (usage == null || usage.plan != AiPlanTier.pro) return 0;
+    return (usage.deepLimit - usage.deepUsed).clamp(0, usage.deepLimit);
+  }
+
+  /// Above the composer: the Deep analysis chip for the next message, or the
+  /// free-message notice once this month's free AI message is used.
+  Widget _buildPremiumNotice(ThemeData theme) {
+    return ValueListenableBuilder<AiUsageInfo?>(
+      valueListenable: AiUsageService.instance.usage,
+      builder: (context, usage, _) {
+        final Widget? notice;
+        if (_deepAnalysisNext && _deepAnalysisRemaining > 0) {
+          notice = _ComposerNotice(
+            key: const ValueKey('deep-analysis-notice'),
+            icon: CupertinoIcons.sparkles,
+            text: 'Deep analysis with Expert AI · $_deepAnalysisRemaining left',
+            actionIcon: CupertinoIcons.xmark,
+            onTap: () => setState(() => _deepAnalysisNext = false),
+          );
+        } else if (PremiumGate.paywallEnabled &&
+            usage != null &&
+            usage.enabled &&
+            !usage.isPaid &&
+            usage.messagesExhausted) {
+          notice = _ComposerNotice(
+            key: const ValueKey('free-message-notice'),
+            icon: CupertinoIcons.lock_open,
+            text: 'That was your free AI message this month · Unlock Premium',
+            onTap: () => PaywallScreen.show(
+              context,
+              reason: PaywallReason.freeMessageUsed,
+            ),
+          );
+        } else {
+          notice = null;
+        }
+        return AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          child: notice == null
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: notice,
+                ),
+        );
+      },
+    );
+  }
+
   Future<void> _showAttachmentMenu() async {
     if (_isResponseInProgress || _isPickingImages || _isRecording) return;
     final source = await showGeneralDialog<ImageSource>(
@@ -3447,6 +3533,19 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
                       label: 'Photos',
                       onTap: () => Navigator.pop(context, ImageSource.gallery),
                     ),
+                    if (_deepAnalysisRemaining > 0)
+                      _AttachmentMenuTile(
+                        icon: CupertinoIcons.sparkles,
+                        label: _deepAnalysisNext
+                            ? 'Turn off Deep analysis'
+                            : 'Deep analysis',
+                        onTap: () {
+                          Navigator.pop(context);
+                          setState(
+                            () => _deepAnalysisNext = !_deepAnalysisNext,
+                          );
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -4407,5 +4506,60 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
     if (decoded is! Map) return false;
     final error = decoded['error']?.toString().toLowerCase() ?? '';
     return error.contains('tool call loop detected');
+  }
+}
+
+class _ComposerNotice extends StatelessWidget {
+  const _ComposerNotice({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.onTap,
+    this.actionIcon = CupertinoIcons.chevron_right,
+  });
+
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  final IconData actionIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                actionIcon,
+                size: 14,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

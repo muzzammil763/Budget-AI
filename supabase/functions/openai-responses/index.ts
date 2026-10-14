@@ -12,10 +12,10 @@ const openAIResponsesUrl = "https://api.openai.com/v1/responses";
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
-    "authorization, apikey, content-type, x-client-info, x-region",
+    "authorization, apikey, content-type, x-client-info, x-region, x-client-platform",
   "access-control-allow-methods": "POST, OPTIONS",
   "access-control-expose-headers":
-    "server-timing, x-budget-ai-request-id, x-budget-ai-edge-region, x-budget-ai-quota-ms, x-budget-ai-openai-headers-ms, x-sb-edge-region",
+    "server-timing, x-budget-ai-request-id, x-budget-ai-edge-region, x-budget-ai-quota-ms, x-budget-ai-openai-headers-ms, x-sb-edge-region, x-budget-ai-plan, x-budget-ai-remaining-messages",
 };
 
 type Usage = {
@@ -27,13 +27,27 @@ type Usage = {
 type Reservation = {
   allowed: boolean;
   code: string;
-  request_id: string;
-  monthly_request_limit: number;
-  monthly_token_limit: number;
-  remaining_requests: number;
-  remaining_tokens: number;
+  plan_tier: string | null;
+  model: string | null;
   effective_service_tier: "default" | "fast";
+  monthly_message_limit: number;
+  remaining_messages: number;
+  remaining_tokens: number;
+  remaining_deep: number;
 };
+
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function uuidOrNull(value: unknown) {
+  return typeof value === "string" && uuidPattern.test(value) ? value : null;
+}
+
+/** `android` or `ios` from the app; anything else counts as unknown. */
+function clientPlatform(req: Request) {
+  const value = req.headers.get("x-client-platform")?.toLowerCase();
+  return value === "android" || value === "ios" ? value : "unknown";
+}
 
 type AdminRpc = (
   functionName: string,
@@ -90,7 +104,28 @@ function extractUsage(payload: unknown): Usage {
 function quotaStatus(code: string) {
   if (code === "duplicate_request") return 409;
   if (code === "account_disabled") return 403;
+  // The app opens the paywall (or the upgrade sheet) on 402.
+  if (code === "premium_required" || code === "plan_limit_reached") return 402;
   return 429;
+}
+
+function quotaMessage(code: string) {
+  switch (code) {
+    case "concurrent_request_limit":
+      return "Another response is already running. Please wait.";
+    case "duplicate_request":
+      return "This request was already submitted.";
+    case "account_disabled":
+      return "Your AI access has been blocked by an administrator.";
+    case "premium_required":
+      return "You've used your free AI message this month. Upgrade to keep going.";
+    case "plan_limit_reached":
+      return "You've reached this month's AI limit for your plan.";
+    case "message_round_limit":
+      return "This reply needed too many steps. Try a simpler request.";
+    default:
+      return "Your AI usage limit has been reached.";
+  }
 }
 
 function elapsedMilliseconds(startedAt: number) {
@@ -183,25 +218,30 @@ const authenticatedHandler = withSupabase(
       });
     }
 
-    const rawClientTurnId = (rawBody as Record<string, unknown>).client_turn_id;
-    const clientTurnId =
-      typeof rawClientTurnId === "string" && rawClientTurnId.length <= 64
-        ? rawClientTurnId
-        : crypto.randomUUID();
+    const rawRecord = rawBody as Record<string, unknown>;
+    const clientTurnId = uuidOrNull(rawRecord.client_turn_id) ??
+      crypto.randomUUID();
+    // Every request answering one user message shares this id, so the
+    // message counts once toward the plan.
+    const userTurnId = uuidOrNull(rawRecord.user_turn_id);
+    const deepAnalysis = rawRecord.deep_analysis === true;
     const requestId = crypto.randomUUID();
     const adminClient = ctx.supabaseAdmin as unknown as AdminClientWithRpc;
 
     const quotaStartedAt = performance.now();
     const { data: reservationData, error: reservationError } = await adminClient
-      .rpc("reserve_ai_request", {
+      .rpc("reserve_ai_message_request", {
         p_user_id: userId,
         p_request_id: requestId,
         p_client_turn_id: clientTurnId,
-        p_model: model,
+        p_user_turn_id: userTurnId,
+        p_platform: clientPlatform(req),
+        p_requested_model: model,
         p_estimated_tokens: estimatedTokens,
         p_requested_service_tier: requestBody.service_tier === "fast"
           ? "fast"
           : "default",
+        p_deep: deepAnalysis,
       });
     const quotaMilliseconds = elapsedMilliseconds(quotaStartedAt);
 
@@ -220,21 +260,25 @@ const authenticatedHandler = withSupabase(
       const code = reservation?.code ?? "quota_rejected";
       return jsonResponse(quotaStatus(code), {
         code,
-        message: code === "concurrent_request_limit"
-          ? "Another response is already running. Please wait."
-          : code === "duplicate_request"
-          ? "This request was already submitted."
-          : code === "account_disabled"
-          ? "Your AI access has been blocked by an administrator."
-          : "Your AI usage limit has been reached.",
+        message: quotaMessage(code),
+        plan_tier: reservation?.plan_tier ?? null,
         limits: reservation
           ? {
-            remaining_requests: reservation.remaining_requests,
+            monthly_message_limit: reservation.monthly_message_limit,
+            remaining_messages: reservation.remaining_messages,
             remaining_tokens: reservation.remaining_tokens,
+            remaining_deep: reservation.remaining_deep,
           }
           : undefined,
       });
     }
+
+    // The plan decides the model, not the client.
+    if (reservation.model) requestBody.model = reservation.model;
+    const planHeaders = {
+      "x-budget-ai-plan": reservation.plan_tier ?? "unknown",
+      "x-budget-ai-remaining-messages": String(reservation.remaining_messages),
+    };
 
     if (reservation.effective_service_tier !== "fast") {
       delete requestBody.service_tier;
@@ -328,6 +372,7 @@ const authenticatedHandler = withSupabase(
         await finalize("completed", extractUsage(payload));
         return jsonResponse(200, payload as Record<string, unknown>, {
           "x-budget-ai-request-id": requestId,
+          ...planHeaders,
           ...timingHeaders,
         });
       } catch {
@@ -441,6 +486,7 @@ const authenticatedHandler = withSupabase(
         "cache-control": "no-cache, no-transform",
         "x-accel-buffering": "no",
         "x-budget-ai-request-id": requestId,
+        ...planHeaders,
         ...timingHeaders,
       },
     });

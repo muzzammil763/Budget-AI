@@ -25,6 +25,22 @@ class ChatProviderException implements Exception {
   String toString() => userMessage;
 }
 
+/// The server refused a new AI message: the free message is used
+/// (`premium_required`) or the plan's monthly limit is reached
+/// (`plan_limit_reached`). The app answers with the paywall.
+class PremiumRequiredException extends ChatProviderException {
+  PremiumRequiredException({
+    required super.providerName,
+    required this.code,
+    required super.userMessage,
+    super.debugMessage = '',
+  }) : super(statusCode: 402);
+
+  final String code;
+
+  bool get isFreeLimit => code == 'premium_required';
+}
+
 String _stringifyProviderPayload(dynamic data) {
   if (data == null) return '';
   if (data is ResponseBody) {
@@ -234,6 +250,16 @@ ChatProviderException _mapHttpFailure(
         log: log,
       );
     case 402:
+      final code = responseData is Map ? responseData['code'] : null;
+      if (code == 'premium_required' || code == 'plan_limit_reached') {
+        return PremiumRequiredException(
+          providerName: providerName,
+          code: code as String,
+          userMessage:
+              apiMessage ??
+              'You have used this month\'s AI messages on your plan.',
+        );
+      }
       return _providerException(
         providerName,
         apiMessage != null && apiMessage.isNotEmpty

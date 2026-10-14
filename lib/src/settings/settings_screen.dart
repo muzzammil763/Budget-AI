@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:app_settings/app_settings.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
+import 'package:budget_ai/src/billing/paywall_screen.dart';
+import 'package:budget_ai/src/billing/premium_gate.dart';
+import 'package:budget_ai/src/billing/premium_hub_card.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
@@ -18,6 +21,7 @@ import 'package:budget_ai/src/settings/admin_screen.dart';
 import 'package:budget_ai/src/settings/admin_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/settings/ai_usage_sheet.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
@@ -207,6 +211,12 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           const SizedBox(height: 8),
           _buildQuickActions(theme),
+          if (PremiumGate.paywallEnabled) ...[
+            const SizedBox(height: 20),
+            _sectionHeading(theme, eyebrow: 'PREMIUM', title: 'Your Plan'),
+            const SizedBox(height: 8),
+            const PremiumHubCard(),
+          ],
           const SizedBox(height: 20),
           _sectionHeading(
             theme,
@@ -308,19 +318,41 @@ class _SettingsScreenState extends State<SettingsScreen>
               onChanged: AiResponseSettingsService.instance.setShowToolCalls,
             ),
           ),
-          ValueListenableBuilder<bool>(
-            valueListenable:
-                AiResponseSettingsService.instance.fastResponsesEnabled,
-            builder: (context, enabled, _) => _toggleTile(
-              theme,
-              icon: CupertinoIcons.bolt_fill,
-              title: 'Fast Responses',
-              subtitle: 'Lower latency with higher OpenAI token pricing',
-              value: enabled,
-              busy: false,
-              onChanged:
-                  AiResponseSettingsService.instance.setFastResponsesEnabled,
-            ),
+          AnimatedBuilder(
+            animation: Listenable.merge([
+              AiResponseSettingsService.instance.fastResponsesEnabled,
+              AiUsageService.instance.usage,
+            ]),
+            builder: (context, _) {
+              final enabled =
+                  AiResponseSettingsService.instance.fastResponsesEnabled.value;
+              final usage = AiUsageService.instance.usage.value;
+              // Fast replies are a Plus and Pro feature on Android.
+              final locked =
+                  PremiumGate.paywallEnabled &&
+                  usage != null &&
+                  usage.fastRequestsLimit <= 0;
+              return _toggleTile(
+                theme,
+                icon: locked
+                    ? CupertinoIcons.lock_fill
+                    : CupertinoIcons.bolt_fill,
+                title: 'Fast Responses',
+                subtitle: locked
+                    ? 'Included with Plus and Pro'
+                    : PremiumGate.paywallEnabled && usage != null
+                    ? 'Faster replies · ${usage.fastRequestsUsed} of '
+                          '${usage.fastRequestsLimit} used this month'
+                    : 'Lower latency with higher OpenAI token pricing',
+                value: enabled && !locked,
+                busy: false,
+                onChanged: locked
+                    ? (_) => PaywallScreen.show(context)
+                    : AiResponseSettingsService
+                          .instance
+                          .setFastResponsesEnabled,
+              );
+            },
           ),
           ValueListenableBuilder<bool>(
             valueListenable:
@@ -998,7 +1030,8 @@ class _DeleteAccountPhraseConfirmationState
         Text(
           'This permanently deletes your Budget AI account, cloud finance '
           'data, synced preferences, and AI usage records. Data remaining '
-          'only on this device is not removed.',
+          'only on this device is not removed. It does not cancel a Google '
+          'Play subscription; cancel that in Google Play first.',
           textAlign: TextAlign.center,
           style: AppTheme.bodyMedium.copyWith(
             color: theme.colorScheme.onSurfaceVariant,

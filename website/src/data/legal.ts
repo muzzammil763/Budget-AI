@@ -22,7 +22,8 @@ export const privacySections: LegalSection[] = [
       'Account: your email address, display name, and a securely hashed password, handled by our authentication provider.',
       'Finances: the expense and income entries you add, including amount, category, description, and date.',
       'Preferences: your currency display and message bubble style, so they follow you to other devices.',
-      'AI usage: the number of AI requests and tokens used each month, to enforce fair-use limits.',
+      "AI usage: the number of AI messages and tokens used each month, to apply your plan's limits.",
+      'Subscriptions: if you buy Budget AI Premium, your plan, renewal status, and expiry date. Payments are handled by Google Play; we never see your card details.',
     ],
   },
   {
@@ -56,6 +57,12 @@ export const privacySections: LegalSection[] = [
     title: 'Where your data is stored',
     paragraphs: [
       'Synced data is stored with Supabase, our cloud database provider, and protected so that only your signed-in account can read or change your entries. Data travels over encrypted connections (HTTPS).',
+    ],
+  },
+  {
+    title: 'Purchases',
+    paragraphs: [
+      'Budget AI Premium is sold through Google Play. We use RevenueCat to verify purchases and keep your plan in sync. RevenueCat receives your purchase details and your Budget AI account ID, never your finances or chats.',
     ],
   },
   {
@@ -117,12 +124,25 @@ export const termsSections: LegalSection[] = [
   {
     title: 'Fair use',
     paragraphs: [
-      'AI features have monthly request and token limits to keep the service fast and reliable for everyone. You agree not to:',
+      "AI features have monthly message and token limits that depend on your plan, to keep the service fast and reliable for everyone. You agree not to:",
     ],
     bullets: [
       'Misuse, overload, or attempt to break the service or its security.',
       'Use Budget AI for anything unlawful, harmful, or abusive.',
       "Reverse engineer the app or access other people's data.",
+    ],
+  },
+  {
+    title: 'Premium subscriptions',
+    paragraphs: [
+      "Manual entries, charts, and widgets are free, and every account includes one free AI message each month. Budget AI Premium (Lite, Plus, and Pro) adds more AI messages each month; the app shows each plan's limits and price before you buy.",
+    ],
+    bullets: [
+      'Subscriptions are billed through Google Play monthly or yearly and renew automatically until you cancel.',
+      'Cancel at least 24 hours before renewal in Google Play › Payments & subscriptions. You keep Premium until the end of the paid period.',
+      'Upgrades start immediately with credit for unused time; downgrades start at your next renewal.',
+      'Unused AI messages do not roll over. Limits reset on the first day of each month (UTC).',
+      "Refunds follow Google Play's refund policy. Uninstalling the app or deleting your account does not cancel a Google Play subscription.",
     ],
   },
   {

@@ -444,3 +444,11 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/delete-account/deno.json"
 entrypoint = "./functions/delete-account/index.ts"
+
+[functions.revenuecat-webhook]
+enabled = true
+# Called by RevenueCat, not the app: the function checks the shared
+# REVENUECAT_WEBHOOK_SECRET Authorization header itself.
+verify_jwt = false
+import_map = "./functions/revenuecat-webhook/deno.json"
+entrypoint = "./functions/revenuecat-webhook/index.ts"

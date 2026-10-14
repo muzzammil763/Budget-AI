@@ -84,8 +84,8 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   Chat preloads monthly usage and authorized admin data in the background
   without delaying Budget Hub navigation. A
   circular AI-usage action lives in the Budget Hub AppBar, tracks whichever
-  request/token quota is closest to full, and opens immediately with
-  loading placeholders, exact request/token/Fast counters, and a centered UTC
+  message/token quota is closest to full, and opens immediately with
+  loading placeholders, exact message/token/Fast counters, and a centered UTC
   renewal date. Administratively blocked accounts show a red indicator and an
   explanatory sheet. The Budget mark
   opens Finances directly; the composer + action opens image attachments.
@@ -222,6 +222,46 @@ Before device testing, create the App Group `group.com.muzamil.budget.ai` in the
 
 On Android, the same eight Home Screen widgets are native `RemoteViews` providers (`BudgetAIWidgetProvider.kt`): the wide summary, small Expenses / Income / Income & Expenses with per-widget ‹ › month arrows, Recent Expenses, Today's Expenses, This Month vs Last, and Top Categories. They read the shared `budget_ai_widget_entries` list, follow Light/Dark through resource colors, draw headline amounts in Boldonse as tinted bitmaps (launchers ignore app fonts in widgets), and use the same `budgetai://widget/...` tap links. Each widget has a sample-filled picker preview. Google Assistant custom App Actions accept one-sentence expense commands such as “Hey Google, use Budget AI to log 300 for fuel.” Assistant custom intents require an explicit Budget AI invocation and currently support `en-US`. The action opens Budget AI through a deep link, saves the entry, refreshes the widget and open Finances screen, then confirms through Android text-to-speech and a toast.
 
+## Premium (Android)
+
+Android sells Budget AI Premium through Google Play, using RevenueCat
+(`purchases_flutter`) with a custom paywall. iOS has no paywall yet and keeps
+the previous default limits (`legacy` plan).
+
+| Plan | AI | Messages / month | Tokens | Fast | Deep analysis | Price |
+| --- | --- | --- | --- | --- | --- | --- |
+| Free | Swift AI | 1 | 60K | — | — | — |
+| Lite | Swift AI | 150 | 750K | — | — | $2.99/mo · $24.99/yr |
+| Plus | Smart AI | 200 | 1M | 20 | — | $7.99/mo · $79.99/yr |
+| Pro | Smart AI | 250 | 1.25M | 30 | 50 on Expert AI | $12.99/mo · $129.99/yr |
+
+- A message is one user turn: its tool rounds, automatic continuations, voice
+  transcription, and chat title share the client's `user_turn_id` and count
+  once. A Monthly Summary is its own message.
+- The server is the source of truth. `plan_limits` holds the numbers (editable
+  in the dashboard), `user_subscriptions` mirrors RevenueCat, and
+  `reserve_ai_message_request` resolves the plan (admins get Pro), picks the
+  model, and refuses with `premium_required` (Free) or `plan_limit_reached`
+  as HTTP 402. Admin quota overrides apply only when `quota_override` is set.
+- The app reads its plan with the `get_my_ai_plan` RPC. A blocked chat send,
+  mic hold, receipt, or Monthly Summary opens the paywall (Pro shows the reset
+  date instead); after the free message a composer notice offers Premium.
+  Budget Hub shows a Premium card, and Fast Responses is locked on Free/Lite.
+- Play products `budget_ai_lite`, `budget_ai_plus`, `budget_ai_pro`, each with
+  `monthly` and `yearly` base plans, map to RevenueCat entitlements `lite`,
+  `plus`, `pro`. The RevenueCat app user ID is the Supabase user id. Upgrades
+  apply now with proration; downgrades wait for renewal.
+- Complimentary access (for example the Play reviewer account): insert a
+  `user_subscriptions` row with `tier = 'pro'`, `status = 'active'`,
+  `expires_at = null`, `store = 'complimentary'`. The webhook never revokes it.
+
+Setup: put the public SDK key in `.env` as `REVENUECAT_ANDROID_KEY=goog_...`
+(`make aab`/`make apk` pass it as a Dart define). Set the server secrets
+`REVENUECAT_SECRET_KEY` and `REVENUECAT_WEBHOOK_SECRET`, deploy
+`revenuecat-webhook`, and in RevenueCat add the webhook URL
+`https://<project>.supabase.co/functions/v1/revenuecat-webhook` with the same
+Authorization value as `REVENUECAT_WEBHOOK_SECRET`.
+
 ## Supabase setup
 
 The checked-in Supabase project files live in `supabase/`. The client only
@@ -258,6 +298,7 @@ the authenticated speech proxy with:
 ```sh
 supabase functions deploy openai-speech
 supabase functions deploy openai-responses
+supabase functions deploy revenuecat-webhook
 ```
 
 Delete the local `.env` after remote secrets are verified if it has no other purpose.

@@ -6,6 +6,7 @@ import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/chat/chat_model_config.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/ai_response_settings_service.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/tools/tools.dart';
 import 'package:budget_ai/src/helpers/app_constants.dart';
@@ -31,18 +32,26 @@ abstract class ChatProvider {
   Stream<String> sendMessageStream(String message);
 
   /// Enhanced stream with thinking/reasoning tokens
+  ///
+  /// [userTurnId] groups every request made for one user message (tool rounds,
+  /// automatic continuations, its title) so the server counts the message
+  /// once. [deepAnalysis] asks for the plan's Deep analysis model.
   Stream<ChatStreamChunk> sendMessageStreamWithThinking(
     String message, {
     bool enableToolCalls = true,
     List<String> images = const [],
+    String? userTurnId,
+    bool deepAnalysis = false,
   });
 
   Future<String> generateTitle(List<ChatMessage> messages);
 
+  /// A one-off prompt. Without [userTurnId] it counts as its own AI message.
   Future<String> runUtilityPrompt(
     String prompt, {
     int maxTokens = 400,
     double temperature = 0.2,
+    String? userTurnId,
   });
 
   /// Cancel the current in-flight request
@@ -81,6 +90,7 @@ abstract class BaseChatProvider extends ChatProvider {
   final String? Function() _accessTokenProvider;
   final bool Function() _fastResponsesProvider;
   CancelToken? _cancelToken;
+  String? _currentUserTurnId;
 
   BaseChatProvider(
     super.config, {
@@ -115,6 +125,7 @@ abstract class BaseChatProvider extends ChatProvider {
 
   Map<String, String> get _additionalRequestHeaders => {
     'apikey': AppConstants.supabasePublishableKey,
+    'x-client-platform': AiUsageService.clientPlatform,
     if (AppConstants.supabaseFunctionRegion.isNotEmpty)
       'x-region': AppConstants.supabaseFunctionRegion,
   };
@@ -168,6 +179,7 @@ abstract class BaseChatProvider extends ChatProvider {
     String prompt, {
     int maxTokens = 400,
     double temperature = 0.2,
+    String? userTurnId,
   }) async {
     _refreshSessionCredential();
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -188,6 +200,7 @@ abstract class BaseChatProvider extends ChatProvider {
           'input': prompt,
           'max_output_tokens': maxTokens,
           'client_turn_id': const Uuid().v4(),
+          'user_turn_id': userTurnId ?? const Uuid().v4(),
         },
         additionalHeaders: _additionalRequestHeaders,
         onKeySelected: (apiKey) => _apiKey = apiKey,
@@ -196,6 +209,8 @@ abstract class BaseChatProvider extends ChatProvider {
       if (response.statusCode == 200) {
         return _responseOutputText(response.data).trim();
       }
+    } on PremiumRequiredException {
+      rethrow;
     } catch (e) {
       debugPrint('[$_providerName] Utility prompt failed: $e');
     }
@@ -241,10 +256,12 @@ $conversationSummary
 Title:''';
 
       debugPrint('[$_providerName] Generating title...');
+      // The title belongs to the message that started the chat.
       final generatedTitle = await runUtilityPrompt(
         titlePrompt,
         maxTokens: 80,
         temperature: 0.2,
+        userTurnId: _currentUserTurnId,
       );
       if (generatedTitle.isNotEmpty) {
         return generatedTitle;

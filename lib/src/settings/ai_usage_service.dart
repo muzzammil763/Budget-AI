@@ -1,54 +1,140 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Server-side plan names. `legacy` is iOS before it has a paywall: the old
+/// default limits with no Premium prompts.
+enum AiPlanTier { free, lite, plus, pro, legacy }
 
 class AiUsageInfo {
   const AiUsageInfo({
     required this.enabled,
-    required this.requestsUsed,
-    required this.requestsLimit,
+    required this.messagesUsed,
+    required this.messagesLimit,
     required this.tokensUsed,
     required this.tokensLimit,
     this.fastRequestsUsed = 0,
     this.fastRequestsLimit = 100,
+    this.deepUsed = 0,
+    this.deepLimit = 0,
+    this.plan = AiPlanTier.legacy,
+    this.subscriptionStatus,
+    this.subscriptionPeriod,
+    this.subscriptionExpiresAt,
+    this.willRenew = false,
     required this.renewsOn,
   });
 
   final bool enabled;
-  final int requestsUsed;
-  final int requestsLimit;
+
+  /// AI messages this month. One message is one user turn, including its tool
+  /// rounds, voice transcription, and receipt analysis.
+  final int messagesUsed;
+  final int messagesLimit;
   final int tokensUsed;
   final int tokensLimit;
   final int fastRequestsUsed;
   final int fastRequestsLimit;
+  final int deepUsed;
+  final int deepLimit;
+  final AiPlanTier plan;
+  final String? subscriptionStatus;
+  final String? subscriptionPeriod;
+
+  /// Null with an active status means complimentary (never expires).
+  final DateTime? subscriptionExpiresAt;
+  final bool willRenew;
 
   /// First day of next month (UTC) — when usage resets, since limits are
   /// enforced per UTC calendar month on the backend.
   final DateTime renewsOn;
 
-  double get requestsFraction =>
-      requestsLimit <= 0 ? 0 : (requestsUsed / requestsLimit).clamp(0, 1);
+  bool get isPaid =>
+      plan == AiPlanTier.lite ||
+      plan == AiPlanTier.plus ||
+      plan == AiPlanTier.pro;
+
+  bool get messagesExhausted => messagesUsed >= messagesLimit;
+
+  bool get tokensExhausted => tokensUsed >= tokensLimit;
+
+  /// The next new AI message would be refused by the server.
+  bool get blocksNewMessage => !enabled || messagesExhausted || tokensExhausted;
+
+  double get messagesFraction =>
+      messagesLimit <= 0 ? 1 : (messagesUsed / messagesLimit).clamp(0, 1);
 
   double get tokensFraction =>
-      tokensLimit <= 0 ? 0 : (tokensUsed / tokensLimit).clamp(0, 1);
+      tokensLimit <= 0 ? 1 : (tokensUsed / tokensLimit).clamp(0, 1);
 
   /// One operational progress value for compact surfaces. Whichever quota is
-  /// closer to exhaustion governs whether the next AI request can run.
+  /// closer to exhaustion governs whether the next AI message can run.
   double get quotaFraction =>
-      requestsFraction >= tokensFraction ? requestsFraction : tokensFraction;
+      messagesFraction >= tokensFraction ? messagesFraction : tokensFraction;
+
+  AiUsageInfo copyWith({int? messagesUsed}) => AiUsageInfo(
+    enabled: enabled,
+    messagesUsed: messagesUsed ?? this.messagesUsed,
+    messagesLimit: messagesLimit,
+    tokensUsed: tokensUsed,
+    tokensLimit: tokensLimit,
+    fastRequestsUsed: fastRequestsUsed,
+    fastRequestsLimit: fastRequestsLimit,
+    deepUsed: deepUsed,
+    deepLimit: deepLimit,
+    plan: plan,
+    subscriptionStatus: subscriptionStatus,
+    subscriptionPeriod: subscriptionPeriod,
+    subscriptionExpiresAt: subscriptionExpiresAt,
+    willRenew: willRenew,
+    renewsOn: renewsOn,
+  );
+
+  @visibleForTesting
+  static AiUsageInfo fromPlanRow(Map<String, dynamic> row, DateTime renewsOn) {
+    int count(String key) => (row[key] as num?)?.toInt() ?? 0;
+    return AiUsageInfo(
+      enabled: row['enabled'] as bool? ?? true,
+      messagesUsed: count('messages_used'),
+      messagesLimit: count('message_limit'),
+      tokensUsed: count('tokens_used'),
+      tokensLimit: count('token_limit'),
+      fastRequestsUsed: count('fast_used'),
+      fastRequestsLimit: count('fast_limit'),
+      deepUsed: count('deep_used'),
+      deepLimit: count('deep_limit'),
+      plan: AiPlanTier.values.firstWhere(
+        (tier) => tier.name == row['plan_tier'],
+        orElse: () => AiPlanTier.free,
+      ),
+      subscriptionStatus: row['status'] as String?,
+      subscriptionPeriod: row['period'] as String?,
+      subscriptionExpiresAt: DateTime.tryParse(
+        row['expires_at'] as String? ?? '',
+      ),
+      willRenew: row['will_renew'] as bool? ?? false,
+      renewsOn: renewsOn,
+    );
+  }
 }
 
-/// Reads this calendar month's AI usage against the user's monthly limits
-/// directly from Supabase. Both `ai_usage` and `user_ai_limits`
-/// already grant each authenticated user select access to their own row via
-/// RLS, so no edge function or extra backend surface is needed for a
-/// read-only display.
+/// Reads the signed-in user's AI plan and this calendar month's usage from
+/// the `get_my_ai_plan` RPC. The server enforces the same numbers; the app
+/// only uses them for the paywall, Budget Hub, and the usage sheet.
 class AiUsageService {
   AiUsageService._();
 
   static final AiUsageService instance = AiUsageService._();
 
-  static const int _defaultRequestLimit = 1000;
-  static const int _defaultTokenLimit = 5000000;
+  /// Sent as `x-client-platform` so the server can apply the platform's plan
+  /// rules (iOS has no paywall yet).
+  static String get clientPlatform {
+    if (kIsWeb) return 'web';
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isIOS) return 'ios';
+    return 'other';
+  }
 
   final ValueNotifier<AiUsageInfo?> usage = ValueNotifier<AiUsageInfo?>(null);
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
@@ -62,58 +148,24 @@ class AiUsageService {
 
     isLoading.value = true;
     try {
-      final currentMonth = _currentMonthUtc();
-      final client = Supabase.instance.client;
-
-      final results = await Future.wait([
-        client
-            .from('ai_usage')
-            .select(
-              'request_count, input_tokens, output_tokens, fast_request_count',
-            )
-            .eq('user_id', userId)
-            .eq('usage_month', currentMonth)
-            .maybeSingle(),
-        client
-            .from('user_ai_limits')
-            .select(
-              'enabled, monthly_request_limit, monthly_token_limit, '
-              'monthly_fast_request_limit',
-            )
-            .eq('user_id', userId)
-            .maybeSingle(),
-      ]);
-
-      final usageRow = results[0];
-      final limitsRow = results[1];
-
-      usage.value = AiUsageInfo(
-        enabled: limitsRow?['enabled'] as bool? ?? true,
-        requestsUsed: (usageRow?['request_count'] as num?)?.toInt() ?? 0,
-        requestsLimit:
-            (limitsRow?['monthly_request_limit'] as num?)?.toInt() ??
-            _defaultRequestLimit,
-        tokensUsed:
-            ((usageRow?['input_tokens'] as num?)?.toInt() ?? 0) +
-            ((usageRow?['output_tokens'] as num?)?.toInt() ?? 0),
-        tokensLimit:
-            (limitsRow?['monthly_token_limit'] as num?)?.toInt() ??
-            _defaultTokenLimit,
-        fastRequestsUsed:
-            (usageRow?['fast_request_count'] as num?)?.toInt() ?? 0,
-        fastRequestsLimit:
-            (limitsRow?['monthly_fast_request_limit'] as num?)?.toInt() ?? 100,
-        renewsOn: _startOfNextMonthUtc(),
+      final rows = await Supabase.instance.client.rpc(
+        'get_my_ai_plan',
+        params: {'p_platform': clientPlatform},
       );
+      final row = rows is List && rows.isNotEmpty ? rows.first : null;
+      if (row is Map<String, dynamic>) {
+        usage.value = AiUsageInfo.fromPlanRow(row, _startOfNextMonthUtc());
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
-  String _currentMonthUtc() {
-    final now = DateTime.now().toUtc();
-    final month = now.month.toString().padLeft(2, '0');
-    return '${now.year}-$month-01';
+  /// Applies a refusal from the server without waiting for a refresh.
+  void markMessagesExhausted() {
+    final current = usage.value;
+    if (current == null) return;
+    usage.value = current.copyWith(messagesUsed: current.messagesLimit);
   }
 
   DateTime _startOfNextMonthUtc() {
