@@ -66,7 +66,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   plus Paste code, Open mail, and a 60-second Resend.
 - Auth emails use branded templates in `supabase/templates/` (app-style
   monochrome design, Boldonse heading, hosted logo at
-  `https://budgetai-app.pages.dev/email/logo.png`, light and dark). Paste them
+  `https://budgetai-app.pages.dev/email/app-icon.png`, light and dark). Paste them
   into Supabase Dashboard → Authentication → Emails → Templates. Password
   reset stays a link to `budgetai://auth/reset-password`.
 - Sign-in sessions restore automatically. Forgot-password and Account password
