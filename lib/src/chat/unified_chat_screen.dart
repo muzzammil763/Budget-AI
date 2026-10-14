@@ -610,9 +610,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
 
   void _startStreamingDurationTimer(DateTime startedAt) {
     _streamingDurationTimer?.cancel();
-    // Android's foreground/background service is user-controlled: only start
-    // it if the background feature is turned on, so it stays dormant even
-    // when the OS battery-optimization exemption was granted earlier. iOS
+    // Android's foreground service is user-controlled: it starts only when
+    // the Background Service preference is on, and needs no battery
+    // exemption because a running foreground service is not suspended. iOS
     // background execution begins only when the app actually leaves the
     // foreground, preserving its limited allowance for when it is needed.
     if (PermissionPreferencesService.instance.backgroundEnabled.value) {

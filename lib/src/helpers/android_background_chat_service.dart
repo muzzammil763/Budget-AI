@@ -25,18 +25,4 @@ class AndroidBackgroundChatService {
     if (!Platform.isAndroid) return false;
     return await _channel.invokeMethod<bool>('stop') ?? false;
   }
-
-  static Future<bool> isBatteryOptimizationIgnored() async {
-    if (!Platform.isAndroid) return true;
-    return await _channel.invokeMethod<bool>('isBatteryOptimizationIgnored') ??
-        false;
-  }
-
-  static Future<bool> requestBatteryOptimizationExemption() async {
-    if (!Platform.isAndroid) return true;
-    return await _channel.invokeMethod<bool>(
-          'requestBatteryOptimizationExemption',
-        ) ??
-        false;
-  }
 }

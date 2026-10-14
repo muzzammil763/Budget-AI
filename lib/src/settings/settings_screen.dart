@@ -6,7 +6,6 @@ import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
-import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
@@ -77,11 +76,10 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Future<void> _refreshPermissionStatus() async {
     final notificationGranted = await Permission.notification.status;
-    var backgroundGranted = false;
-    if (Platform.isAndroid) {
-      backgroundGranted =
-          await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
-    }
+    // The background reply runs as a foreground service, which needs its
+    // ongoing notification; no battery-optimization exemption is requested.
+    final backgroundGranted =
+        Platform.isAndroid && notificationGranted.isGranted;
     if (!mounted) return;
     setState(() {
       _notificationPermissionGranted = notificationGranted.isGranted;
@@ -148,9 +146,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     try {
       var granted = _backgroundPermissionGranted;
       if (!granted) {
-        await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
-        granted =
-            await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
+        granted = (await Permission.notification.request()).isGranted;
+        if (mounted) setState(() => _notificationPermissionGranted = granted);
       }
       if (!mounted) return;
       setState(() => _backgroundPermissionGranted = granted);

@@ -8,7 +8,6 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:budget_ai/src/auth/auth_gate.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
-import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
 import 'package:budget_ai/src/helpers/budget_mark.dart';
 import 'package:budget_ai/src/helpers/notification_service.dart';
 import 'package:budget_ai/src/helpers/responsive_info_sheet.dart';
@@ -51,7 +50,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _isFinishing = false;
 
   bool? _notificationGranted;
-  bool? _backgroundBatteryGranted;
+  bool _backgroundEnabled = false;
 
   @override
   void initState() {
@@ -78,20 +77,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _checkPermissions() async {
     final notificationStatus = await Permission.notification.status;
 
-    bool? backgroundBatteryGranted;
-    if (Platform.isAndroid) {
-      backgroundBatteryGranted =
-          await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
-    }
     await PermissionPreferencesService.instance.recordOnboardingGrants(
       notificationsGranted: notificationStatus.isGranted,
-      backgroundGranted: backgroundBatteryGranted ?? false,
+      backgroundGranted: false,
     );
 
     if (mounted) {
       setState(() {
         _notificationGranted = notificationStatus.isGranted;
-        _backgroundBatteryGranted = backgroundBatteryGranted;
+        _backgroundEnabled =
+            notificationStatus.isGranted &&
+            PermissionPreferencesService.instance.backgroundEnabled.value;
       });
     }
   }
@@ -114,20 +110,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  Future<void> _requestBackgroundBatteryPermission() async {
+  Future<void> _requestBackgroundService() async {
     if (!(_notificationGranted ?? false)) {
       await _requestNotificationPermission();
     }
-    await AndroidBackgroundChatService.requestBatteryOptimizationExemption();
-    final granted =
-        await AndroidBackgroundChatService.isBatteryOptimizationIgnored();
+    // The background reply runs as a foreground service; it only needs the
+    // notification permission for its ongoing notification.
+    final granted = _notificationGranted ?? false;
     await PermissionPreferencesService.instance.recordOnboardingGrants(
-      notificationsGranted: _notificationGranted ?? false,
+      notificationsGranted: granted,
       backgroundGranted: granted,
     );
-    if (mounted) {
-      setState(() => _backgroundBatteryGranted = granted);
-    }
+    if (mounted) setState(() => _backgroundEnabled = granted);
   }
 
   Future<void> _showPermissionDeniedDialog(String permissionName) async {
@@ -639,9 +633,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       items: const [],
       extra: _FinalSetupPanel(
         notificationGranted: _notificationGranted ?? false,
-        backgroundBatteryGranted: _backgroundBatteryGranted ?? false,
+        backgroundServiceEnabled: _backgroundEnabled,
         onRequestNotification: _requestNotificationPermission,
-        onRequestBackgroundBattery: _requestBackgroundBatteryPermission,
+        onRequestBackgroundService: _requestBackgroundService,
       ),
     );
   }
@@ -2013,15 +2007,15 @@ class _ChatPreviewReveal extends StatelessWidget {
 class _FinalSetupPanel extends StatefulWidget {
   const _FinalSetupPanel({
     required this.notificationGranted,
-    required this.backgroundBatteryGranted,
+    required this.backgroundServiceEnabled,
     required this.onRequestNotification,
-    required this.onRequestBackgroundBattery,
+    required this.onRequestBackgroundService,
   });
 
   final bool notificationGranted;
-  final bool backgroundBatteryGranted;
+  final bool backgroundServiceEnabled;
   final VoidCallback onRequestNotification;
-  final VoidCallback onRequestBackgroundBattery;
+  final VoidCallback onRequestBackgroundService;
 
   @override
   State<_FinalSetupPanel> createState() => _FinalSetupPanelState();
@@ -2204,8 +2198,8 @@ class _FinalSetupPanelState extends State<_FinalSetupPanel> {
                                   'Keep Budget AI active in the background',
                               isGranted:
                                   widget.notificationGranted &&
-                                  widget.backgroundBatteryGranted,
-                              onRequest: widget.onRequestBackgroundBattery,
+                                  widget.backgroundServiceEnabled,
+                              onRequest: widget.onRequestBackgroundService,
                             ),
                           ],
                         ],
