@@ -63,6 +63,9 @@ lib/
       ai_consent.dart           One-time OpenAI data-sharing consent sheet (local per device)
       ai_response_settings_service.dart  Device-local OpenAI Fast mode + tool-row visibility choices
       permission_preferences_service.dart  Soft on/off for notifications + background
+    billing/
+      subscription_service.dart  RevenueCat (Android only): Supabase-user-tied purchases, PremiumTier
+                                (free/lite/plus/pro); enabled by --dart-define=REVENUECAT_ANDROID_KEY
     speech/
       openai_speech_service.dart  OpenAI transcription client; no reply playback
     sync/

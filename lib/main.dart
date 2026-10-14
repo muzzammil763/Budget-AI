@@ -1,3 +1,4 @@
+import 'package:budget_ai/src/billing/subscription_service.dart';
 import 'package:budget_ai/src/auth/auth_gate.dart';
 import 'package:budget_ai/src/auth/auth_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -45,6 +46,7 @@ Future<void> main() async {
   await FinanceService.instance.syncHomeWidget();
   await AccountSettingsSyncService.instance.initialize();
   await FinanceSyncService.instance.initialize();
+  await SubscriptionService.instance.initialize();
   final onboardingCompleted =
       await LocalSettingsStore.instance.getBool(_onboardingCompletedKey) ??
       false;
