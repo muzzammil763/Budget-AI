@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Page not found">
+  <section class="container nf">
+    <span class="eyebrow">404</span>
+    <h1 class="display">This page<br />went off budget.</h1>
+    <p class="lead">The page you are looking for does not exist or has moved.</p>
+    <a class="btn btn-primary" href="/">Back to home</a>
+  </section>
+</Base>
+
+<style>
+  .nf {
+    padding: 96px 0 48px;
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+  }
+  h1 {
+    font-size: clamp(36px, 6vw, 64px);
+    margin: 8px 0;
+  }
+  .lead {
+    margin: 0 0 20px;
+  }
+</style>

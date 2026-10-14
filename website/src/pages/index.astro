@@ -1,0 +1,920 @@
+---
+import { Image } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import Phone from '../components/Phone.astro';
+import Mark from '../components/Mark.astro';
+import StoreButtons from '../components/StoreButtons.astro';
+import { site } from '../data/site';
+
+import chatLight from '../assets/screens/chat2_light.png';
+import financesLight from '../assets/screens/finances_light.png';
+import financesDark from '../assets/screens/finances_dark.png';
+import insightsDark from '../assets/screens/insights_chart_dark.png';
+import insightsLight from '../assets/screens/insights_chart_light.png';
+import summaryLight from '../assets/screens/summary_light.png';
+import voiceLight from '../assets/screens/voice_light.png';
+import receiptLight from '../assets/screens/receipt_light.png';
+import receiptPhoto from '../assets/screens/receipt_photo.png';
+import bubblesDark from '../assets/screens/bubbles_dark.png';
+import currencyLight from '../assets/screens/currency_light.png';
+import widgetsHome from '../assets/screens/widgets_home.png';
+import widgetsLock from '../assets/screens/widgets_lock.png';
+
+const trust = [
+  { label: 'No ads or tracking', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5 5l14 14' },
+  { label: 'Your data is never sold', icon: 'M6 11V8a6 6 0 0 1 12 0v3M5 11h14v10H5z' },
+  { label: 'Chats stay on your phone', icon: 'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2' },
+  { label: 'Light and dark', icon: 'M12 3a9 9 0 1 0 0 18V3z' },
+];
+
+const widgets = [
+  'Budget AI summary',
+  'Expenses',
+  'Income',
+  'Income & Expenses',
+  'Recent expenses',
+  "Today's spending",
+  'This month vs last',
+  'Top categories',
+];
+
+const faq = [
+  {
+    q: 'Does Budget AI connect to my bank?',
+    a: 'No. You stay in control of what is logged: type it, say it, or snap a receipt, and Budget AI records it for you. Nothing is pulled from your bank.',
+  },
+  {
+    q: 'Which AI does it use?',
+    a: 'Budget AI uses OpenAI models through our own secure server. The app asks for your agreement before your first AI request, and nothing is sent until you agree.',
+  },
+  {
+    q: 'Is my data sold or used for ads?',
+    a: 'Never. There are no ads, no third-party analytics, and your data is not used by us to train AI models. Your chat history stays on your device.',
+  },
+  {
+    q: 'Does it work with my currency?',
+    a: 'Yes. Pick from common currencies or create your own display, like $, Rs, € or PKR, and every amount follows it.',
+  },
+  {
+    q: 'Is Budget AI financial advice?',
+    a: 'No. Budget AI helps you track and understand your spending. Its answers and summaries are for information only.',
+  },
+  {
+    q: 'How do I delete my account?',
+    a: 'In the app, open Budget Hub → Danger Zone → Delete Account. You can also request deletion from our website without the app.',
+  },
+];
+---
+
+<Base>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy reveal">
+        <span class="eyebrow">AI budget manager</span>
+        <h1 class="display hero-title">
+          Your money,<br /><span class="underline-mark">logs itself.</span>
+        </h1>
+        <p class="lead">
+          Talk, snap a receipt, or just type. Budget AI records every expense, sorts it into the right
+          category, and shows you where your money goes.
+        </p>
+        <StoreButtons />
+        <p class="fine">Free to download · No bank connection needed</p>
+      </div>
+      <div class="hero-stage reveal" style="--delay: 0.12s">
+        <Phone class="hp hp-left" src={financesLight} alt="Finances list with income and expenses" sizes="(max-width: 720px) 40vw, 240px" />
+        <Phone class="hp hp-right" src={insightsDark} alt="Insights chart in dark mode" sizes="(max-width: 720px) 40vw, 240px" />
+        <Phone class="hp hp-center" src={chatLight} alt="Chat logging expenses and showing a category table" eager sizes="(max-width: 720px) 52vw, 300px" />
+        <div class="float chip chip-a"><i class="dot expense"></i>Dinner · Dining</div>
+        <div class="float stat">
+          <span><i class="dot expense"></i> Spent in October</span>
+          <strong class="display">$576</strong>
+          <em>23 entries · 12 active days</em>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust strip -->
+  <section class="trust">
+    <div class="container trust-row">
+      {
+        trust.map((item, i) => (
+          <div class="trust-item reveal" style={`--delay:${i * 0.06}s`}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d={item.icon} />
+            </svg>
+            {item.label}
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="section">
+    <div class="container head reveal">
+      <span class="eyebrow">Features</span>
+      <h2 class="display h2">One assistant for<br />every dollar.</h2>
+    </div>
+
+    <div class="container feature">
+      <div class="feature-stage stage-mint top reveal">
+        <Phone src={voiceLight} alt="Recording a voice note while the last one is logged" style="--w: clamp(210px, 26vw, 300px)" />
+        <div class="float chip chip-voice"><i class="dot income"></i>Logged $36.50 in 2 entries</div>
+      </div>
+      <div class="feature-copy reveal" style="--delay: 0.08s">
+        <span class="eyebrow">Voice</span>
+        <h3 class="display h3">Just say it.</h3>
+        <p>Hold the mic and speak naturally: "Lunch at Chipotle 14.50 and a cab home for 22 dollars." Budget AI transcribes it, splits it into entries, and logs each one.</p>
+        <ul class="ticks">
+          <li>Starts the moment you press</li>
+          <li>Several expenses in one sentence</li>
+          <li>Cancel any time before it sends</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container feature flip">
+      <div class="feature-stage stage-peach reveal">
+        <div class="photo">
+          <Image src={receiptPhoto} alt="A grocery receipt" widths={[320, 480]} sizes="200px" format="webp" />
+        </div>
+        <Phone src={receiptLight} alt="Chat adding a Whole Foods receipt" style="--w: clamp(200px, 24vw, 280px)" />
+      </div>
+      <div class="feature-copy reveal" style="--delay: 0.08s">
+        <span class="eyebrow">Receipts</span>
+        <h3 class="display h3">Snap any receipt.</h3>
+        <p>Take a photo or pick one from your gallery. Budget AI reads every line, logs the total once, and can break down each item on request.</p>
+        <ul class="ticks">
+          <li>Camera or photo library</li>
+          <li>Totals are never counted twice</li>
+          <li>Asks when something is unclear</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container feature">
+      <div class="feature-stage stage-lilac reveal">
+        <Phone src={chatLight} alt="Expenses sorted into categories" style="--w: clamp(210px, 26vw, 300px)" />
+        <div class="float chip c1">Dining</div>
+        <div class="float chip c2">Streaming</div>
+        <div class="float chip c3">Groceries</div>
+        <div class="float chip c4">Transport</div>
+      </div>
+      <div class="feature-copy reveal" style="--delay: 0.08s">
+        <span class="eyebrow">Smart categories</span>
+        <h3 class="display h3">Sorted for you.</h3>
+        <p>Every entry lands in the right category automatically, so your reports make sense without any manual tagging. Ask anything, like "How much did I spend on dining this month?"</p>
+      </div>
+    </div>
+
+    <div class="container feature flip">
+      <div class="feature-stage stage-butter reveal">
+        <Phone src={financesLight} alt="Monthly income and expense totals" style="--w: clamp(210px, 26vw, 300px)" />
+        <div class="float chip chip-in"><i class="dot income"></i>Income $5,200</div>
+        <div class="float chip chip-out"><i class="dot expense"></i>Spent $576</div>
+      </div>
+      <div class="feature-copy reveal" style="--delay: 0.08s">
+        <span class="eyebrow">Finances</span>
+        <h3 class="display h3">Every dollar, tracked.</h3>
+        <p>Income in green, spending in red, grouped by day. Search everything, switch months in one tap, and add or edit entries by hand whenever you like.</p>
+      </div>
+    </div>
+
+    <div class="container feature">
+      <div class="feature-stage stage-blue reveal">
+        <Phone src={insightsLight} alt="Spending chart and highlights" style="--w: clamp(210px, 26vw, 300px)" />
+        <div class="float summary">
+          <div class="summary-crop">
+            <Image src={summaryLight} alt="AI monthly summary" widths={[640, 960]} sizes="340px" format="webp" />
+          </div>
+        </div>
+      </div>
+      <div class="feature-copy reveal" style="--delay: 0.08s">
+        <span class="eyebrow">Insights</span>
+        <h3 class="display h3">See where it goes.</h3>
+        <p>Daily charts, top categories, highlights like your biggest day, and a one-tap AI summary of every month in plain words.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Widgets -->
+  <section id="widgets" class="band">
+    <div class="container band-grid">
+      <div class="band-copy reveal">
+        <span class="eyebrow on-dark">Widgets</span>
+        <h2 class="display h2">Glance,<br /><span class="underline-mark">don't open.</span></h2>
+        <p>Eight Home Screen widgets, plus Lock Screen widgets on iPhone. Switch months right on the widget, and tap any expense to jump straight to it.</p>
+        <ul class="pills">
+          {widgets.map((name) => <li>{name}</li>)}
+        </ul>
+      </div>
+      <div class="band-stage reveal" style="--delay: 0.1s">
+        <Phone class="w-back" src={widgetsLock} alt="Lock Screen widgets" style="--w: clamp(180px, 22vw, 250px)" />
+        <Phone class="w-front" src={widgetsHome} alt="Home Screen widgets" style="--w: clamp(200px, 25vw, 290px)" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Light and dark -->
+  <section class="section">
+    <div class="container theme-grid">
+      <div class="reveal">
+        <span class="eyebrow">Design</span>
+        <h2 class="display h2">Light or dark.</h2>
+        <p class="lead">Budget AI follows your phone's appearance. Drag to compare.</p>
+        <div class="personal">
+          <Phone src={bubblesDark} alt="Message bubble styles" style="--w: 150px" sizes="150px" />
+          <Phone src={currencyLight} alt="Currency picker" style="--w: 150px" sizes="150px" />
+        </div>
+        <p class="fine">Make it yours with bubble styles and any currency.</p>
+      </div>
+      <div class="compare reveal" style="--delay: 0.08s; --pos: 50%">
+        <div class="compare-frame">
+          <Image class="cmp light" src={financesLight} alt="Finances in light mode" widths={[480, 720]} sizes="(max-width: 720px) 70vw, 320px" format="webp" />
+          <Image class="cmp dark" src={financesDark} alt="Finances in dark mode" widths={[480, 720]} sizes="(max-width: 720px) 70vw, 320px" format="webp" />
+          <div class="handle" aria-hidden="true"><span>‹ ›</span></div>
+          <label class="sr">Compare light and dark
+            <input class="range" type="range" min="0" max="100" value="50" />
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy -->
+  <section id="privacy" class="section soft">
+    <div class="container">
+      <div class="head reveal">
+        <span class="eyebrow">Privacy</span>
+        <h2 class="display h2">Private by design.</h2>
+        <p class="lead">Your finances are personal. Budget AI collects only what it needs and keeps your conversations on your phone.</p>
+      </div>
+      <div class="privacy-grid">
+        {
+          [
+            ['No ads, no tracking', 'No advertising and no third-party analytics, ever.'],
+            ['Never sold', 'Your data is never sold or rented to anyone.'],
+            ['Chats stay local', 'Conversations, images and AI summaries live only on your device.'],
+            ['AI only with consent', 'Nothing goes to OpenAI until you agree, and only what is needed to answer.'],
+            ['Protected sync', 'Entries sync over HTTPS, and only your account can read them.'],
+            ['Delete any time', 'Remove entries, chats, or your whole account in a few taps.'],
+          ].map(([title, body], i) => (
+            <div class="card p-card reveal" style={`--delay:${(i % 3) * 0.06}s`}>
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </div>
+          ))
+        }
+      </div>
+      <a class="btn btn-ghost read" href="/privacy">Read the Privacy Policy →</a>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section">
+    <div class="container faq-grid">
+      <div class="head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2 class="display h2">Questions,<br />answered.</h2>
+        <p class="lead">Something else? Email <a href={`mailto:${site.email}`}>{site.email}</a>.</p>
+      </div>
+      <div class="faq">
+        {
+          faq.map((item) => (
+            <details class="card qa reveal">
+              <summary>
+                {item.q}
+                <span class="plus" aria-hidden="true" />
+              </summary>
+              <p>{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Final call to action -->
+  <section class="container final reveal">
+    <div class="final-card">
+      <Mark size={64} />
+      <h2 class="display h2">Start logging<br />in seconds.</h2>
+      <p>Download Budget AI and let your next expense log itself.</p>
+      <StoreButtons invert />
+    </div>
+  </section>
+</Base>
+
+<script>
+  function armCompare() {
+    document.querySelectorAll<HTMLElement>('.compare').forEach((box) => {
+      const range = box.querySelector<HTMLInputElement>('.range');
+      if (!range) return;
+      const update = () => {
+        box.style.setProperty('--pos', `${range.value}%`);
+        box.style.setProperty('--p', `${Number(range.value) / 100}`);
+      };
+      range.addEventListener('input', update);
+      update();
+    });
+    document.querySelectorAll<HTMLAnchorElement>('.menu .sheet a').forEach((link) => {
+      link.addEventListener('click', () => link.closest('details')?.removeAttribute('open'));
+    });
+  }
+  document.addEventListener('astro:page-load', armCompare);
+</script>
+
+<style>
+  .fine {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 14px 0 0;
+  }
+
+  /* Hero */
+  .hero {
+    padding: clamp(40px, 7vw, 96px) 0 40px;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .hero-title {
+    font-size: clamp(40px, 6.4vw, 78px);
+    margin: 14px 0 18px;
+  }
+  .hero-copy .lead {
+    margin: 0 0 28px;
+    max-width: 30ch;
+  }
+  .hero-stage {
+    position: relative;
+    height: clamp(460px, 52vw, 640px);
+    border-radius: 36px;
+    background: var(--stage-blue);
+    overflow: hidden;
+  }
+  .hero-stage :global(.hp) {
+    position: absolute;
+    left: 50%;
+    bottom: -14%;
+  }
+  .hero-stage :global(.hp-center) {
+    --w: clamp(200px, 22vw, 290px);
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+  .hero-stage :global(.hp-left),
+  .hero-stage :global(.hp-right) {
+    --w: clamp(160px, 17vw, 230px);
+    bottom: -4%;
+  }
+  .hero-stage :global(.hp-left) {
+    transform: translateX(-128%) rotate(-10deg);
+  }
+  .hero-stage :global(.hp-right) {
+    transform: translateX(28%) rotate(10deg);
+  }
+
+  .float {
+    position: absolute;
+    z-index: 3;
+    background: var(--card);
+    border: 1.5px solid #ff7a45;
+    box-shadow: 0 18px 40px -12px rgba(255, 122, 69, 0.35);
+    animation: bob 6s ease-in-out infinite;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .dot.expense {
+    background: var(--expense);
+  }
+  .dot.income {
+    background: var(--income);
+  }
+  .chip-a {
+    left: 6%;
+    top: 12%;
+  }
+  .stat {
+    right: 6%;
+    top: 9%;
+    padding: 14px 18px;
+    border-radius: 20px;
+    display: grid;
+    gap: 2px;
+    animation-delay: -3s;
+  }
+  .stat span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stat strong {
+    font-size: 26px;
+    line-height: 1.5;
+  }
+  .stat em {
+    font-style: normal;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  @keyframes bob {
+    50% {
+      translate: 0 -8px;
+    }
+  }
+
+  /* Trust */
+  .trust {
+    padding: 8px 0 24px;
+  }
+  .trust-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .trust-item svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+
+  /* Sections */
+  .section {
+    padding: clamp(64px, 9vw, 120px) 0;
+  }
+  .section.soft {
+    background: var(--soft);
+  }
+  .head {
+    margin-bottom: 48px;
+  }
+  .h2 {
+    font-size: clamp(32px, 4.6vw, 56px);
+    margin: 12px 0 14px;
+  }
+  .h3 {
+    font-size: clamp(28px, 3.4vw, 42px);
+    margin: 10px 0 12px;
+  }
+
+  .feature {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 6vw, 80px);
+    align-items: center;
+    margin-bottom: clamp(56px, 8vw, 104px);
+  }
+  .feature.flip .feature-stage {
+    order: 2;
+  }
+  .feature-copy p {
+    color: var(--muted);
+    font-size: 18px;
+    max-width: 44ch;
+  }
+  .feature-stage {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 56px 24px 0;
+    border-radius: 36px;
+    min-height: clamp(420px, 44vw, 560px);
+    overflow: hidden;
+  }
+  .feature-stage :global(.phone) {
+    margin-bottom: -18%;
+  }
+  .stage-mint {
+    background: var(--stage-mint);
+  }
+  .stage-peach {
+    background: var(--stage-peach);
+  }
+  .stage-lilac {
+    background: var(--stage-lilac);
+  }
+  .stage-butter {
+    background: var(--stage-butter);
+  }
+  .stage-blue {
+    background: var(--stage-blue);
+  }
+  .ticks {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0 0;
+    display: grid;
+    gap: 10px;
+  }
+  .ticks li {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-weight: 500;
+  }
+  .ticks li::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--ink)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12l4 4 8-8'/%3E%3C/svg%3E")
+      center / 14px no-repeat;
+  }
+  .chip-voice {
+    left: 8%;
+    top: 12%;
+  }
+  /* Voice keeps the phone's bottom in view, where the recording pill is. */
+  .feature-stage.top {
+    align-items: flex-start;
+    padding: 0 24px 48px;
+  }
+  .feature-stage.top :global(.phone) {
+    margin-bottom: 0;
+    margin-top: -34%;
+  }
+  .photo {
+    align-self: center;
+    margin-bottom: 18%;
+    padding: 8px 8px 28px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    transform: rotate(-7deg);
+    width: clamp(120px, 15vw, 190px);
+  }
+  .photo :global(img) {
+    border-radius: 6px;
+  }
+  .c1 {
+    left: 6%;
+    top: 22%;
+    rotate: -5deg;
+  }
+  .c2 {
+    right: 6%;
+    top: 34%;
+    rotate: 4deg;
+    animation-delay: -2s;
+  }
+  .c3 {
+    left: 8%;
+    top: 58%;
+    rotate: 3deg;
+    animation-delay: -4s;
+  }
+  .c4 {
+    right: 8%;
+    top: 70%;
+    rotate: -4deg;
+    animation-delay: -1s;
+  }
+  .chip-in {
+    left: 6%;
+    top: 18%;
+  }
+  .chip-out {
+    right: 6%;
+    top: 30%;
+    animation-delay: -3s;
+  }
+  .summary {
+    left: 50%;
+    bottom: 8%;
+    translate: -50% 0;
+    width: min(88%, 380px);
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 0;
+    animation: none;
+  }
+  .summary-crop {
+    aspect-ratio: 1248 / 708;
+    overflow: hidden;
+  }
+  .summary-crop :global(img) {
+    width: 105.77%;
+    max-width: none;
+    margin-left: -2.88%;
+    margin-top: -169.87%;
+  }
+
+  /* Widgets band */
+  .band {
+    background: #0b0b0c;
+    color: #f4f4f5;
+    padding: clamp(64px, 9vw, 120px) 0;
+    overflow: hidden;
+  }
+  .band-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .band-copy p {
+    color: #a1a1aa;
+    font-size: 18px;
+    max-width: 44ch;
+  }
+  .on-dark {
+    color: #a1a1aa;
+  }
+  .pills {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pills li {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .band-stage {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    min-height: 560px;
+  }
+  .band-stage :global(.w-back) {
+    position: absolute;
+    right: 4%;
+    top: 40px;
+    rotate: 7deg;
+    opacity: 0.92;
+  }
+  .band-stage :global(.w-front) {
+    position: relative;
+    rotate: -4deg;
+    margin-right: 18%;
+  }
+
+  /* Light / dark compare */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .personal {
+    display: flex;
+    gap: 16px;
+    margin-top: 28px;
+  }
+  .compare {
+    display: flex;
+    justify-content: center;
+  }
+  .compare-frame {
+    position: relative;
+    width: clamp(230px, 28vw, 320px);
+    padding: 9px;
+    border-radius: 48px;
+    background: #0f1012;
+    box-shadow: 0 0 0 2px #2b2d33, var(--shadow);
+  }
+  .compare-frame :global(.cmp) {
+    width: 100%;
+    border-radius: 40px;
+  }
+  .compare-frame :global(.cmp.dark) {
+    position: absolute;
+    inset: 9px;
+    width: calc(100% - 18px);
+    clip-path: inset(0 0 0 var(--pos));
+  }
+  .handle {
+    position: absolute;
+    top: 9px;
+    bottom: 9px;
+    left: calc(9px + (100% - 18px) * var(--p, 0.5));
+    width: 2px;
+    background: #ff7a45;
+    pointer-events: none;
+  }
+  .handle span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #ff7a45;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .sr {
+    position: absolute;
+    inset: 0;
+    font-size: 0;
+  }
+  .range {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: ew-resize;
+    margin: 0;
+  }
+
+  /* Privacy */
+  .privacy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .p-card {
+    padding: 24px;
+  }
+  .p-card h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+  }
+  .p-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .read {
+    margin-top: 28px;
+  }
+
+  /* FAQ */
+  .faq-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 48px;
+    align-items: start;
+  }
+  .faq {
+    display: grid;
+    gap: 10px;
+  }
+  .qa {
+    padding: 0 22px;
+  }
+  .qa summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 0;
+    font-weight: 600;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  .qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .plus {
+    width: 14px;
+    height: 14px;
+    position: relative;
+    flex: none;
+  }
+  .plus::before,
+  .plus::after {
+    content: '';
+    position: absolute;
+    inset: 6px 0;
+    background: var(--ink);
+    border-radius: 2px;
+    transition: transform 0.3s ease;
+  }
+  .plus::after {
+    transform: rotate(90deg);
+  }
+  .qa[open] .plus::after {
+    transform: rotate(0deg);
+  }
+  .qa p {
+    margin: 0 0 20px;
+    color: var(--muted);
+  }
+
+  /* Final CTA */
+  .final {
+    padding-bottom: 40px;
+  }
+  .final-card {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: clamp(48px, 8vw, 96px) 24px;
+    border-radius: 40px;
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+  .final-card p {
+    margin: 0 0 22px;
+    opacity: 0.75;
+  }
+
+  @media (max-width: 960px) {
+    .hero-grid,
+    .feature,
+    .band-grid,
+    .theme-grid,
+    .faq-grid {
+      grid-template-columns: 1fr;
+    }
+    .feature.flip .feature-stage {
+      order: 0;
+    }
+    .trust-row {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .privacy-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .band-stage {
+      min-height: 460px;
+    }
+  }
+  @media (max-width: 560px) {
+    .hero-stage {
+      height: 470px;
+    }
+    .hero-stage :global(.hp-left) {
+      transform: translateX(-112%) rotate(-9deg);
+    }
+    .hero-stage :global(.hp-right) {
+      transform: translateX(12%) rotate(9deg);
+    }
+    .stat {
+      padding: 10px 14px;
+    }
+    .stat strong {
+      font-size: 20px;
+    }
+    .chip {
+      font-size: 13px;
+      padding: 8px 12px;
+    }
+    .privacy-grid {
+      grid-template-columns: 1fr;
+    }
+    .trust-item {
+      font-size: 14px;
+      padding: 14px;
+    }
+    .personal :global(.phone) {
+      --w: 120px !important;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .float {
+      animation: none;
+    }
+  }
+</style>

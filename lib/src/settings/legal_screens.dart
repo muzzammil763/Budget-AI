@@ -44,6 +44,7 @@ const _privacySections = [
   _LegalSection('How AI features work', [
     'When you chat, speak, or attach a receipt, the relevant message, image, or recording is sent through our secure server to OpenAI to generate a reply or transcription. Recordings are deleted from your device once transcribed.',
     'OpenAI processes this data to provide the service under its API terms. We do not use your data to train AI models.',
+    'Before your first AI request, the app asks for your agreement to this sharing. Nothing is sent until you agree.',
   ]),
   _LegalSection(
     'How we use your data',
@@ -66,6 +67,7 @@ const _privacySections = [
       'Microphone: hold-to-talk voice entries.',
       'Camera and Photos: adding receipts and images to chat.',
       'Notifications: letting you know when a reply is ready.',
+      'Face ID or fingerprint: confirming before you delete all chat history.',
     ],
   ),
   _LegalSection('Your choices and rights', [

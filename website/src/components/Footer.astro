@@ -1,0 +1,97 @@
+---
+import Mark from './Mark.astro';
+import { legalLinks, nav, site } from '../data/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container grid">
+    <div class="about">
+      <a class="brand" href="/">
+        <Mark size={40} />
+        <span class="display">Budget AI</span>
+      </a>
+      <p>{site.description}</p>
+      <a class="mail" href={`mailto:${site.email}`}>{site.email}</a>
+    </div>
+    <nav aria-label="Product">
+      <h2>Product</h2>
+      {nav.map((item) => <a href={item.href}>{item.label}</a>)}
+    </nav>
+    <nav aria-label="Legal">
+      <h2>Legal</h2>
+      {legalLinks.map((item) => <a href={item.href}>{item.label}</a>)}
+    </nav>
+  </div>
+  <div class="container base">
+    <span>© {year} Budget AI. All rights reserved.</span>
+    <span>Not financial advice. Made for better money habits.</span>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: 1px solid var(--line);
+    padding: 64px 0 32px;
+    margin-top: 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 40px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+  }
+  .brand .display {
+    font-size: 19px;
+  }
+  .about p {
+    color: var(--muted);
+    max-width: 42ch;
+    margin: 16px 0 12px;
+  }
+  .mail {
+    font-weight: 600;
+  }
+  nav {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  h2 {
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 4px 0 6px;
+  }
+  nav a {
+    text-decoration: none;
+  }
+  nav a:hover {
+    text-decoration: underline;
+  }
+  .base {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  @media (max-width: 760px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .about {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

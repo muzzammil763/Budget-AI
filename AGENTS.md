@@ -75,6 +75,8 @@ lib/
                                 home_widget_launch.dart (widget tap → screen)
     helpers/                    Theme, buttons, sheets, notifications, background services, etc.
 supabase/                       Edge function (openai-responses), migrations, email templates, config
+website/                        Astro marketing site + /privacy, /terms, /delete-account (Cloudflare Pages);
+                                legal text in website/src/data/legal.ts mirrors legal_screens.dart
 ```
 
 iOS widget sources live in `ios/BudgetAIWidget/` (`BudgetWidgetData.swift`

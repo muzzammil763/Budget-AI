@@ -1,0 +1,220 @@
+@font-face {
+  font-family: 'Boldonse';
+  src: url('/fonts/boldonse.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/google-sans.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* The app's monochrome system: black on white, white on black, with red
+   for spending, green for income, and soft pastel stages for visuals. */
+:root {
+  --bg: #ffffff;
+  --ink: #0b0b0c;
+  --muted: #5f6368;
+  --line: rgba(11, 11, 12, 0.09);
+  --soft: #f5f5f3;
+  --card: #ffffff;
+  --expense: #e5484d;
+  --income: #1f9d5c;
+  --accent: #448aff;
+  --on-ink: #ffffff;
+  --stage-blue: #dcebff;
+  --stage-peach: #ffe7d6;
+  --stage-mint: #e0f5e7;
+  --stage-lilac: #ede6ff;
+  --stage-butter: #fff4cc;
+  --shadow: 0 30px 60px -20px rgba(20, 30, 60, 0.28);
+  --radius: 20px;
+  --max: 1180px;
+  --display: 'Boldonse', 'Arial Black', sans-serif;
+  --body: 'Google Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #050506;
+    --ink: #f4f4f5;
+    --muted: #a1a1aa;
+    --line: rgba(255, 255, 255, 0.1);
+    --soft: #111113;
+    --card: #0c0c0e;
+    --expense: #ff6b6b;
+    --income: #3dd68c;
+    --on-ink: #050506;
+    --stage-blue: #101a2b;
+    --stage-peach: #2a1810;
+    --stage-mint: #0f2418;
+    --stage-lilac: #1c1530;
+    --stage-butter: #2a230c;
+    --shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.container {
+  width: min(100% - 32px, var(--max));
+  margin-inline: auto;
+}
+
+/* Boldonse has very tall glyphs; generous line height keeps lines apart. */
+.display {
+  font-family: var(--display);
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lead {
+  font-size: clamp(17px, 2.2vw, 20px);
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+.btn:hover {
+  transform: translateY(-2px);
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.45);
+}
+.btn-ghost {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--card);
+}
+.btn svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.btn small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+  line-height: 1.1;
+}
+.btn span {
+  line-height: 1.15;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.underline-mark {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+.underline-mark::after {
+  content: '';
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  bottom: 0.08em;
+  height: 0.16em;
+  border-radius: 99px;
+  background: #ff7a45;
+  transform: rotate(-1.2deg);
+  z-index: -1;
+  opacity: 0.9;
+}
+
+/* Scroll reveal: enabled only when JavaScript runs, so content is never
+   hidden without it, and skipped entirely for reduced motion. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--delay, 0s);
+}
+.js .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .btn,
+  .btn:hover {
+    transition: none;
+    transform: none;
+  }
+}

@@ -262,6 +262,21 @@ build with `--dart-define=SUPABASE_FUNCTION_REGION=<aws-region>`. Keep this
 empty in production unless measurements show a consistent improvement because
 an explicit region disables automatic regional failover.
 
+## Website
+
+`website/` is an Astro static site (landing page, `/privacy`, `/terms`,
+`/delete-account`) for Cloudflare Pages. Its legal text in
+`website/src/data/legal.ts` mirrors `lib/src/settings/legal_screens.dart`;
+change both together.
+
+```sh
+cd website
+npm install
+npm run dev        # http://localhost:4321
+npm run build      # outputs website/dist
+npx wrangler pages deploy dist --project-name budget-ai
+```
+
 ## Android release
 
 Release builds are signed with the upload key at

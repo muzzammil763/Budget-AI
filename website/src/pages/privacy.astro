@@ -1,0 +1,13 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { privacyHighlights, privacySections } from '../data/legal';
+---
+
+<Legal
+  title="Privacy Policy"
+  eyebrow="Privacy Policy"
+  headline="Your money,<br />your data."
+  intro="Budget AI is built to keep your finances private. This policy explains what we collect, why, and the choices you have."
+  highlights={privacyHighlights}
+  sections={privacySections}
+/>
