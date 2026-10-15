@@ -3,7 +3,7 @@ export const site = {
   tagline: 'Your money, logged by itself.',
   description:
     'Budget AI is an AI budget manager. Log expenses by chat, voice, or a photo of a receipt, and see exactly where your money goes.',
-  email: 'deadbase763@gmail.com',
+  email: 'budgetaitracker@gmail.com',
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.budgetai.android',
   effectiveDate: '14 October 2026',
 };

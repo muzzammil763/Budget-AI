@@ -135,7 +135,7 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   preferences, widget data, and legacy storage while preserving
   the completed-onboarding flag.
 - Budget Hub has an About & Legal section: About (version, features, support at
-  deadbase763@gmail.com), Privacy Policy, and Terms & Conditions, styled like
+  budgetaitracker@gmail.com), Privacy Policy, and Terms & Conditions, styled like
   the rest of the app.
 - Budget Hub exposes Replay onboarding. It opens the same five-page onboarding
   experience with a route-level Back control; Back or completing the final page

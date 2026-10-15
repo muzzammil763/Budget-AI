@@ -8,7 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Support and legal contact shown on About, Privacy Policy, and Terms.
-const String kSupportEmail = 'deadbase763@gmail.com';
+const String kSupportEmail = 'budgetaitracker@gmail.com';
 const String _effectiveDate = '14 October 2026';
 
 class _LegalSection {

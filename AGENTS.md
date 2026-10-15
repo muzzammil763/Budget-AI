@@ -59,7 +59,7 @@ lib/
       ai_usage_sheet.dart          Budget Hub AppBar usage action + details
       admin_service.dart / admin_screen.dart  Role-gated user, quota, AI access,
                                 and local-device preference controls
-      legal_screens.dart        About, Privacy Policy, Terms & Conditions (support: deadbase763@gmail.com)
+      legal_screens.dart        About, Privacy Policy, Terms & Conditions (support: budgetaitracker@gmail.com)
       ai_consent.dart           One-time OpenAI data-sharing consent sheet (local per device)
       ai_response_settings_service.dart  Device-local OpenAI Fast mode + tool-row visibility choices
       permission_preferences_service.dart  Soft on/off for notifications + background
