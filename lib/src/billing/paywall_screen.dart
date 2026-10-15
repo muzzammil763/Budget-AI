@@ -50,7 +50,7 @@ class PaywallScreen extends StatefulWidget {
 class _PaywallScreenState extends State<PaywallScreen> {
   late final SubscriptionService _subscriptions =
       widget.subscriptions ?? SubscriptionService.instance;
-  PremiumPeriod _period = PremiumPeriod.yearly;
+  PremiumPeriod _period = PremiumPeriod.monthly;
   PremiumTier _selected = PremiumTier.plus;
   List<PremiumPlanOption> _options = const [];
   bool _loadingPlans = true;
@@ -88,6 +88,24 @@ class _PaywallScreenState extends State<PaywallScreen> {
       (period == PremiumPeriod.yearly
           ? plan.fallbackYearly
           : plan.fallbackMonthly);
+
+  double? _priceValue(PremiumPlanInfo plan, PremiumPeriod period) {
+    final store = _option(plan.tier, period)?.package.storeProduct.price;
+    if (store != null && store > 0) return store;
+    final fallback = period == PremiumPeriod.yearly
+        ? plan.fallbackYearly
+        : plan.fallbackMonthly;
+    return double.tryParse(fallback.replaceAll(RegExp(r'[^0-9.]'), ''));
+  }
+
+  /// How much cheaper a year is than twelve months, as a whole percent.
+  int? _yearlySavings(PremiumPlanInfo plan) {
+    final monthly = _priceValue(plan, PremiumPeriod.monthly);
+    final yearly = _priceValue(plan, PremiumPeriod.yearly);
+    if (monthly == null || yearly == null || monthly <= 0) return null;
+    final percent = ((1 - yearly / (monthly * 12)) * 100).round();
+    return percent > 0 ? percent : null;
+  }
 
   Future<void> _purchase() async {
     final option = _option(_selected, _period);
@@ -252,9 +270,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           ? _option(plan.tier, _period)?.monthlyEquivalent
                           : null,
                       period: _period,
+                      yearlySavings: _yearlySavings(plan),
                       selected: _selected == plan.tier,
                       isCurrent: current == plan.tier,
                       onTap: () => setState(() => _selected = plan.tier),
+                      onChooseYearly: () => setState(() {
+                        _selected = plan.tier;
+                        _period = PremiumPeriod.yearly;
+                      }),
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -427,18 +450,22 @@ class _PlanCard extends StatelessWidget {
     required this.price,
     required this.perMonth,
     required this.period,
+    required this.yearlySavings,
     required this.selected,
     required this.isCurrent,
     required this.onTap,
+    required this.onChooseYearly,
   });
 
   final PremiumPlanInfo plan;
   final String price;
   final String? perMonth;
   final PremiumPeriod period;
+  final int? yearlySavings;
   final bool selected;
   final bool isCurrent;
   final VoidCallback onTap;
+  final VoidCallback onChooseYearly;
 
   @override
   Widget build(BuildContext context) {
@@ -498,6 +525,12 @@ class _PlanCard extends StatelessWidget {
                           label: 'Most popular',
                           color: theme.colorScheme.primary,
                         ),
+                      if (period == PremiumPeriod.yearly &&
+                          yearlySavings != null)
+                        _Badge(
+                          label: '-$yearlySavings%',
+                          color: Colors.green.shade600,
+                        ),
                       if (isCurrent)
                         _Badge(label: 'Current', color: Colors.green.shade600),
                     ],
@@ -509,6 +542,23 @@ class _PlanCard extends StatelessWidget {
                       child: Text(
                         feature,
                         style: AppTheme.bodyMedium.copyWith(color: muted),
+                      ),
+                    ),
+                  if (period == PremiumPeriod.monthly && yearlySavings != null)
+                    GestureDetector(
+                      key: ValueKey('paywall-yearly-hint-${plan.tier.name}'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onChooseYearly,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Save $yearlySavings% with yearly →',
+                          style: AppTheme.bodySmall.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.green.shade600,
+                          ),
+                        ),
                       ),
                     ),
                 ],

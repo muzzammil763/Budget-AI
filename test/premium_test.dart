@@ -39,7 +39,7 @@ void main() {
     expect(premiumRefusalFrom(402, 'text'), isNull);
   });
 
-  testWidgets('paywall preselects Yearly Plus and compares every plan', (
+  testWidgets('paywall preselects Monthly Plus and shows yearly savings', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(360, 1800));
@@ -53,21 +53,26 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Keep chatting'), findsOneWidget);
-    expect(find.textContaining('Continue with Plus'), findsOneWidget);
-    expect(find.textContaining(r'$79.99'), findsWidgets);
+    expect(
+      find.textContaining(r'Continue with Plus · $7.99/mo'),
+      findsOneWidget,
+    );
+    expect(find.text('Save 30% with yearly →'), findsOneWidget);
+    expect(find.text('Save 17% with yearly →'), findsNWidgets(2));
     for (final name in ['Free', 'Lite', 'Plus', 'Pro']) {
       expect(find.text(name), findsWidgets);
     }
     expect(find.text('Most popular'), findsOneWidget);
     expect(find.textContaining('gpt-'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('paywall-period-monthly')));
-    await tester.tap(find.byKey(const ValueKey('paywall-plan-pro')));
+    await tester.tap(find.byKey(const ValueKey('paywall-yearly-hint-pro')));
     await tester.pump(const Duration(milliseconds: 300));
     expect(
-      find.textContaining(r'Continue with Pro · $12.99/mo'),
+      find.textContaining(r'Continue with Pro · $129.99/yr'),
       findsOneWidget,
     );
+    expect(find.text('-17%'), findsNWidgets(2));
+    expect(find.text('-30%'), findsOneWidget);
   });
 
   testWidgets('a free-limit refusal shows the Premium sheet, not an error', (
