@@ -351,6 +351,31 @@ const authenticatedHandler = withSupabase(
     });
 
     if (!upstream.ok) {
+      // OpenAI's error names the failing parameter; log it (never the
+      // request body) so 4xx causes are visible in the function logs.
+      const upstreamError = await upstream.text().catch(() => "");
+      let detail = upstreamError.slice(0, 300);
+      try {
+        const parsed = JSON.parse(upstreamError) as {
+          error?: {
+            code?: string;
+            type?: string;
+            param?: string;
+            message?: string;
+          };
+        };
+        const e = parsed.error ?? {};
+        detail = [e.code, e.type, e.param, e.message?.slice(0, 240)]
+          .filter(Boolean).join(" | ");
+      } catch {
+        // Not JSON; keep the truncated text.
+      }
+      console.error(
+        "OpenAI request failed",
+        upstream.status,
+        requestBody.model,
+        detail,
+      );
       await finalize(
         "failed",
         { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 },

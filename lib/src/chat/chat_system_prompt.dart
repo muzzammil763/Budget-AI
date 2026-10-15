@@ -339,6 +339,24 @@ List<Map<String, dynamic>> _sanitizeConversationStateForApi(
   return compacted;
 }
 
+/// A completed turn's assistant output item as plain role/content. Replaying
+/// the original item keeps its `msg_` id, and OpenAI then rejects the request
+/// because the reasoning item that produced it was dropped by compaction.
+Map<String, dynamic> _plainDialogueItem(Map<String, dynamic> item) {
+  if (item['role']?.toString() != 'assistant' || item['type'] != 'message') {
+    return item;
+  }
+  final content = item['content'];
+  final text = content is List
+      ? content
+            .whereType<Map>()
+            .where((part) => part['type'] == 'output_text')
+            .map((part) => part['text']?.toString() ?? '')
+            .join()
+      : content?.toString() ?? '';
+  return {'role': 'assistant', 'content': text};
+}
+
 /// Keeps the current user turn intact because Responses tool calls, reasoning,
 /// and outputs must be replayed together. Completed turns need only their
 /// visible dialogue; their internal tool payloads are already represented by
@@ -356,12 +374,16 @@ List<Map<String, dynamic>> _compactCompletedConversationTurns(
   }
   if (currentTurnStart <= 0) return items;
 
-  final previousDialogue = items.take(currentTurnStart).where((item) {
-    final role = item['role']?.toString();
-    final type = item['type']?.toString();
-    return (role == 'user' || role == 'assistant') &&
-        (type == null || type == 'message');
-  }).toList();
+  final previousDialogue = items
+      .take(currentTurnStart)
+      .where((item) {
+        final role = item['role']?.toString();
+        final type = item['type']?.toString();
+        return (role == 'user' || role == 'assistant') &&
+            (type == null || type == 'message');
+      })
+      .map(_plainDialogueItem)
+      .toList();
   final windowStart = previousDialogue.length > maxPreviousDialogueItems
       ? previousDialogue.length - maxPreviousDialogueItems
       : 0;

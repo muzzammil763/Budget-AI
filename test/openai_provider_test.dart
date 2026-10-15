@@ -367,6 +367,89 @@ void main() {
     expect((requests.single.data as Map)['service_tier'], 'fast');
   });
 
+  test(
+    'completed turns replay assistant text without output item ids',
+    () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            final completed = jsonEncode({
+              'type': 'response.completed',
+              'response': {
+                'id': 'resp_${requests.length}',
+                'output': [
+                  {'id': 'rs_1', 'type': 'reasoning', 'summary': []},
+                  {
+                    'id': 'msg_1',
+                    'type': 'message',
+                    'role': 'assistant',
+                    'status': 'completed',
+                    'content': [
+                      {
+                        'type': 'output_text',
+                        'text': 'Receipt total 1,022.83 Rs. Log it?',
+                        'annotations': [],
+                      },
+                    ],
+                  },
+                ],
+                'usage': {'input_tokens': 10, 'output_tokens': 4},
+              },
+            });
+            handler.resolve(
+              Response<ResponseBody>(
+                requestOptions: options,
+                statusCode: 200,
+                data: ResponseBody.fromString(
+                  'data: $completed\n\ndata: [DONE]\n\n',
+                  200,
+                  headers: {
+                    Headers.contentTypeHeader: ['text/event-stream'],
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      final provider = ResponsesProvider(
+        ChatModelConfig.openAI,
+        dio: dio,
+        accessTokenProvider: () => 'test-user-jwt',
+        fastResponsesProvider: () => false,
+      );
+      await provider.initialize();
+
+      await provider
+          .sendMessageStreamWithThinking(
+            'Read this receipt',
+            enableToolCalls: false,
+            images: ['data:image/png;base64,aA=='],
+          )
+          .drain<void>();
+      await provider
+          .sendMessageStreamWithThinking('Log all', enableToolCalls: false)
+          .drain<void>();
+
+      final input = (requests[1].data as Map)['input'] as List;
+      final encoded = jsonEncode(input);
+      expect(encoded, isNot(contains('msg_1')));
+      expect(encoded, isNot(contains('rs_1')));
+      expect(
+        input,
+        contains(
+          equals({
+            'role': 'assistant',
+            'content': 'Receipt total 1,022.83 Rs. Log it?',
+          }),
+        ),
+      );
+    },
+  );
+
   test('a 402 plan refusal surfaces as PremiumRequiredException', () async {
     final dio = Dio();
     dio.interceptors.add(
