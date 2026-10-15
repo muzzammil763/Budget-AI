@@ -338,6 +338,22 @@ checks it. Losing the keystore or its password blocks
 future Play updates, so keep both backed up. Widget preview layouts must not
 repeat view ids (release lint fails on duplicates).
 
+Store builds use [Shorebird](https://shorebird.dev) code push (`shorebird.yaml`
+holds the public app id):
+
+```sh
+make aab            # Shorebird release → upload the AAB to Play (bump version code first)
+make patch          # Dart-only fix → live on next app launch, no Play review
+make patch-preview  # same, to the staging track (test with: shorebird preview --track=staging)
+make aab-flutter    # plain Flutter bundle without code push
+```
+
+Native changes (new plugins, Kotlin/Swift, widgets, manifest) require a new
+release. Users get store releases through Google Play in-app updates: a
+flexible background download with a restart prompt, or an immediate update when
+the release's Play update priority is 4–5 (set through the Play Developer API).
+
+
 ## Development
 
 ```sh

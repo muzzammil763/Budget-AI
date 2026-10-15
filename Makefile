@@ -16,13 +16,17 @@ KEY_PROPERTIES := android/key.properties
 REVENUECAT_ANDROID_KEY ?= $(shell sed -n 's/^REVENUECAT_ANDROID_KEY=//p' .env 2>/dev/null)
 REVENUECAT_DEFINE := --dart-define=REVENUECAT_ANDROID_KEY=$(REVENUECAT_ANDROID_KEY)
 
+# Shorebird releases must use the Flutter version the app is developed on;
+# patches are built with the same version automatically.
+FLUTTER_VERSION ?= $(shell flutter --version --machine 2>/dev/null | sed -n 's/.*"frameworkVersion": *"\([^"]*\)".*/\1/p')
+
 WEBSITE_DIR := website
 PAGES_PROJECT := budgetai-app
 PAGES_URL := https://$(PAGES_PROJECT).pages.dev
 
 .DEFAULT_GOAL := help
 
-.PHONY: help apk apk-split aab clean verify-signing signing \
+.PHONY: help apk apk-split aab aab-flutter copy-aab patch patch-preview clean verify-signing signing \
 	web-install web-dev web-build web-preview web-deploy
 
 help:
@@ -31,7 +35,10 @@ help:
 	@printf "  App\n"
 	@printf "    apk             Build a signed arm64 APK and copy it to ~/Documents/$(APP_NAME)/\n"
 	@printf "    apk-split       Build split-per-abi APKs (smaller per-device) and copy them\n"
-	@printf "    aab             Build the signed Play App Bundle and copy it\n"
+	@printf "    aab             Shorebird release: signed Play App Bundle for a store update\n"
+	@printf "    patch           Shorebird patch: ship Dart-only fixes to the latest release\n"
+	@printf "    patch-preview   Shorebird patch to the staging track for testing first\n"
+	@printf "    aab-flutter     Plain flutter App Bundle (no Shorebird code push)\n"
 	@printf "    verify-signing  Check the Play upload keystore and key.properties\n"
 	@printf "    clean           Run flutter clean\n"
 	@printf "\n"
@@ -83,13 +90,32 @@ aab: signing
 	@if [ -z "$(REVENUECAT_ANDROID_KEY)" ]; then \
 		printf "Warning: REVENUECAT_ANDROID_KEY is not set in .env; Premium purchases will be disabled.\n"; \
 	fi
+	@shorebird release android --artifact aab --flutter-version=$(FLUTTER_VERSION) \
+		$(REVENUECAT_DEFINE) --split-debug-info=build/debug-info --obfuscate || exit $$?; \
+	$(MAKE) --no-print-directory copy-aab
+
+aab-flutter: signing
 	@flutter build appbundle --release $(REVENUECAT_DEFINE) \
 		--split-debug-info=build/debug-info --obfuscate || exit $$?; \
-	version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
+	$(MAKE) --no-print-directory copy-aab
+
+copy-aab:
+	@version=$$(awk '/^version:[[:space:]]*/ { print $$2; exit }' pubspec.yaml); \
 	dest="$(DOCUMENTS_DIR)"; mkdir -p "$$dest"; \
 	cp "$(AAB_OUTPUT)" "$$dest/$(APP_NAME) $$version.aab"; \
 	printf "AAB ready: $$dest/$(APP_NAME) $$version.aab\n"; \
 	keytool -printcert -jarfile "$(AAB_OUTPUT)" 2>/dev/null | grep -m1 "SHA256" | sed 's/^/Signed with /'
+
+# Dart-only changes reach installed apps on next launch. Native changes
+# (plugins, Kotlin/Swift, widgets, permissions) need `make aab` instead;
+# Shorebird refuses those patches unless forced.
+patch: signing
+	@shorebird patch android --release-version=latest \
+		$(REVENUECAT_DEFINE) --split-debug-info=build/debug-info-patch
+
+patch-preview: signing
+	@shorebird patch android --release-version=latest --track=staging \
+		$(REVENUECAT_DEFINE) --split-debug-info=build/debug-info-patch
 
 clean:
 	@flutter clean

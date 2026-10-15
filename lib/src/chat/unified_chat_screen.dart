@@ -10,6 +10,7 @@ import 'package:budget_ai/src/chat/ai_report.dart';
 import 'package:budget_ai/src/settings/ai_consent.dart';
 import 'package:budget_ai/src/chat/active_model_resolver.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
+import 'package:budget_ai/src/helpers/app_update_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
@@ -68,30 +69,154 @@ class UnifiedChatScreen extends StatefulWidget {
   State<UnifiedChatScreen> createState() => _UnifiedChatScreenState();
 }
 
-class _AttachmentMenuTile extends StatelessWidget {
-  const _AttachmentMenuTile({
+/// One bento card in the composer's + panel, styled like Budget Hub's
+/// Quick Actions.
+class _AttachmentOption extends StatelessWidget {
+  const _AttachmentOption({
+    super.key,
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
   final IconData icon;
-  final String label;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon),
-            const SizedBox(width: 12),
-            Text(label, style: const TextStyle(fontSize: 14)),
-          ],
+    final theme = Theme.of(context);
+    final foreground = theme.colorScheme.onSurface;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: foreground.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 19, color: foreground),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: AppTheme.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: foreground,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pro's Deep analysis switch for the next message, shown under the cards.
+class _DeepAnalysisOption extends StatelessWidget {
+  const _DeepAnalysisOption({
+    required this.enabled,
+    required this.remaining,
+    required this.onTap,
+  });
+
+  final bool enabled;
+  final int remaining;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        key: const ValueKey('attachment-deep-analysis'),
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: enabled ? primary.withValues(alpha: 0.08) : null,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: enabled ? primary : primary.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(CupertinoIcons.sparkles, size: 19, color: primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Deep analysis',
+                      style: AppTheme.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Expert AI for the next message · $remaining left',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: enabled ? primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: primary.withValues(alpha: 0.5)),
+                ),
+                child: Text(
+                  enabled ? 'On' : 'Off',
+                  style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: enabled ? theme.colorScheme.onPrimary : primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -191,9 +316,10 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       _handleToolVisibilityChanged,
     );
     HomeWidgetLaunch.pending.addListener(_openPendingWidgetDestination);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _openPendingWidgetDestination(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openPendingWidgetDestination();
+      if (mounted) unawaited(AppUpdateService.instance.check(context));
+    });
     NetworkReachabilityService.instance.status.addListener(
       _handleNetworkStatusChanged,
     );
@@ -2829,6 +2955,8 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       }
       NetworkReachabilityService.instance.start();
       unawaited(NetworkReachabilityService.instance.refresh());
+      // A background download may have finished while the app was away.
+      unawaited(AppUpdateService.instance.check(context));
       if (_isResponseInProgress) {
         _scrollToBottom();
       }
@@ -3552,7 +3680,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close attachments',
-      barrierColor: Colors.black12,
+      barrierColor: Colors.black26,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, _, _) => SafeArea(
         child: Align(
@@ -3564,39 +3692,81 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
               bottom: MediaQuery.viewInsetsOf(context).bottom + 92,
             ),
             child: Material(
-              elevation: 10,
-              borderRadius: BorderRadius.circular(20),
+              elevation: 8,
+              shadowColor: Colors.black.withValues(alpha: .25),
+              color: Theme.of(context).colorScheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.18),
+                ),
+              ),
               clipBehavior: Clip.antiAlias,
-              color: Theme.of(context).colorScheme.surfaceContainerHigh,
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _AttachmentMenuTile(
-                      icon: CupertinoIcons.camera,
-                      label: 'Camera',
-                      onTap: () => Navigator.pop(context, ImageSource.camera),
-                    ),
-                    _AttachmentMenuTile(
-                      icon: CupertinoIcons.photo,
-                      label: 'Photos',
-                      onTap: () => Navigator.pop(context, ImageSource.gallery),
-                    ),
-                    if (_deepAnalysisRemaining > 0)
-                      _AttachmentMenuTile(
-                        icon: CupertinoIcons.sparkles,
-                        label: _deepAnalysisNext
-                            ? 'Turn off Deep analysis'
-                            : 'Deep analysis',
-                        onTap: () {
-                          Navigator.pop(context);
-                          setState(
-                            () => _deepAnalysisNext = !_deepAnalysisNext,
-                          );
-                        },
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 340),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 2, 4, 10),
+                        child: Text(
+                          'ADD TO MESSAGE',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
                       ),
-                  ],
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _AttachmentOption(
+                                key: const ValueKey('attachment-camera'),
+                                icon: CupertinoIcons.camera,
+                                title: 'Camera',
+                                subtitle: 'Snap a receipt',
+                                onTap: () =>
+                                    Navigator.pop(context, ImageSource.camera),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _AttachmentOption(
+                                key: const ValueKey('attachment-photos'),
+                                icon: CupertinoIcons.photo_on_rectangle,
+                                title: 'Photos',
+                                subtitle: 'Up to 3 images',
+                                onTap: () =>
+                                    Navigator.pop(context, ImageSource.gallery),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_deepAnalysisRemaining > 0) ...[
+                        const SizedBox(height: 10),
+                        _DeepAnalysisOption(
+                          enabled: _deepAnalysisNext,
+                          remaining: _deepAnalysisRemaining,
+                          onTap: () {
+                            Navigator.pop(context);
+                            setState(
+                              () => _deepAnalysisNext = !_deepAnalysisNext,
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),

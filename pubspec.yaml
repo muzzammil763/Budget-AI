@@ -1,7 +1,7 @@
 name: budget_ai
 description: "Budget AI - Personal Finance Assistant"
 publish_to: "none"
-version: 1.0.0+4
+version: 1.0.0+5
 
 environment:
   sdk: ^3.9.2
@@ -36,6 +36,7 @@ dependencies:
   image_picker: ^1.2.3
   image: ^4.9.2
   purchases_flutter: ^10.15.2
+  in_app_update_flutter: ^3.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -52,3 +53,5 @@ flutter:
     - family: Boldonse
       fonts:
         - asset: assets/fonts/Boldonse.ttf
+  assets:
+    - shorebird.yaml
