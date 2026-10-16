@@ -32,6 +32,7 @@ import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/sync/finance_sync_preference_service.dart';
 import 'package:budget_ai/src/sync/finance_sync_service.dart';
+import 'package:budget_ai/src/widgets/home_widget_gallery_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -302,6 +303,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                   'for your messages',
               onTap: () => BubbleStyleScreen.show(context),
             ),
+          ),
+          _navTile(
+            theme,
+            key: const ValueKey('settings-home-widgets'),
+            icon: CupertinoIcons.square_grid_2x2,
+            title: 'Home Screen Widgets',
+            subtitle: 'Preview widgets and add them to your Home Screen',
+            onTap: () => HomeWidgetGalleryScreen.show(context),
           ),
           const SizedBox(height: 12),
           _sectionHeading(theme, eyebrow: 'YOUR DATA', title: 'Sync & Backup'),

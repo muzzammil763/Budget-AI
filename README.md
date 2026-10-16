@@ -139,6 +139,12 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   "Keep Your Entries Safe": Back Up Entries, Turn On Cloud Sync (or Sync Now)
   & Sign Out, or Sign Out & Erase N entries. Delete Account offers a backup
   first whenever the device has entries.
+- Budget Hub → Preferences → Home Screen Widgets previews every widget with
+  the user's own numbers (sample numbers until the first entry). On Android
+  launchers that support pinning (including Samsung One UI), Add to Home
+  Screen opens the system "Add to Home screen?" sheet and the card shows "On
+  Home Screen" once placed; elsewhere, and on iOS, it shows step-by-step
+  instructions (iOS has no API to add widgets from an app).
 - Cancelling a password reset started from Budget Hub → Change Password keeps
   the account signed in with its local entries; a reset started from the
   sign-in screen returns to sign-in.
