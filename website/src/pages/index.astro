@@ -16,7 +16,6 @@ import androidWidgetsToday from '../assets/screens/android/06.png';
 import androidCategories from '../assets/screens/android/07.png';
 import androidBubbles from '../assets/screens/android/08.png';
 import androidReceipt from '../assets/screens/android/09.png';
-import androidSummary from '../assets/screens/android/summary.png';
 // iPhone captures for screens without an Android capture yet.
 import financesLight from '../assets/screens/finances_light.png';
 import financesDark from '../assets/screens/finances_dark.png';
@@ -152,7 +151,6 @@ const faq = [
     <div id="f-voice" class="container feature">
       <div class="feature-stage reveal">
         <Phone src={voiceLight} alt="Recording a voice note while the last one is logged" style="--w: clamp(210px, 26vw, 300px)" />
-        <div class="float chip chip-voice"><i class="dot income"></i>Logged $36.50 in 2 entries</div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Voice</span>
@@ -188,10 +186,6 @@ const faq = [
     <div id="f-categories" class="container feature">
       <div class="feature-stage reveal">
         <Phone src={androidCategories} alt="Expenses sorted into categories" style="--w: clamp(210px, 26vw, 300px)" />
-        <div class="float chip c1">Breakfast</div>
-        <div class="float chip c2">Food</div>
-        <div class="float chip c3">Gym</div>
-        <div class="float chip c4">Fuel</div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Smart categories</span>
@@ -203,8 +197,6 @@ const faq = [
     <div id="f-finances" class="container feature flip">
       <div class="feature-stage reveal">
         <Phone src={androidFinances} alt="Monthly income and expense totals" style="--w: clamp(210px, 26vw, 300px)" />
-        <div class="float chip chip-in"><i class="dot income"></i>Income 500 USD</div>
-        <div class="float chip chip-out"><i class="dot expense"></i>Spent 325 USD</div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Finances</span>
@@ -216,9 +208,6 @@ const faq = [
     <div id="f-insights" class="container feature">
       <div class="feature-stage reveal">
         <Phone src={androidInsights} alt="Spending today, this week and this month" style="--w: clamp(210px, 26vw, 300px)" />
-        <div class="float summary">
-          <Image src={androidSummary} alt="AI monthly summary" widths={[480, 662]} sizes="380px" format="webp" />
-        </div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Insights</span>
@@ -438,41 +427,6 @@ const faq = [
     transform: translateX(28%) rotate(10deg);
   }
 
-  .float {
-    position: absolute;
-    z-index: 3;
-    background: var(--card);
-    border: 1.5px solid #ff7a45;
-    box-shadow: 0 18px 40px -12px rgba(255, 122, 69, 0.35);
-    animation: bob 6s ease-in-out infinite;
-  }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 15px;
-    white-space: nowrap;
-  }
-  .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-  .dot.expense {
-    background: var(--expense);
-  }
-  .dot.income {
-    background: var(--income);
-  }
-  @keyframes bob {
-    50% {
-      translate: 0 -8px;
-    }
-  }
 
   /* Trust */
   .trust {
@@ -582,10 +536,6 @@ const faq = [
   .ticks li {
     position: relative;
   }
-  .chip-voice {
-    left: 8%;
-    top: 12%;
-  }
 
   .photo {
     padding: 8px 8px 28px;
@@ -597,53 +547,6 @@ const faq = [
   }
   .photo :global(img) {
     border-radius: 6px;
-  }
-  .c1 {
-    left: 6%;
-    top: 22%;
-    rotate: -5deg;
-  }
-  .c2 {
-    right: 6%;
-    top: 34%;
-    rotate: 4deg;
-    animation-delay: -2s;
-  }
-  .c3 {
-    left: 8%;
-    top: 58%;
-    rotate: 3deg;
-    animation-delay: -4s;
-  }
-  .c4 {
-    right: 8%;
-    top: 70%;
-    rotate: -4deg;
-    animation-delay: -1s;
-  }
-  .chip-in {
-    left: 6%;
-    top: 18%;
-  }
-  .chip-out {
-    right: 6%;
-    top: 30%;
-    animation-delay: -3s;
-  }
-  .summary {
-    left: 50%;
-    bottom: 8%;
-    translate: -50% 0;
-    width: min(88%, 380px);
-    border-radius: 20px;
-    overflow: hidden;
-    padding: 0;
-    animation: none;
-  }
-  .summary :global(img) {
-    display: block;
-    width: 100%;
-    height: auto;
   }
 
   /* Widgets band */
@@ -897,10 +800,6 @@ const faq = [
     .hero-stage {
       padding-top: 72px;
     }
-    .chip {
-      font-size: 13px;
-      padding: 8px 12px;
-    }
     .privacy-grid {
       grid-template-columns: 1fr;
     }
@@ -979,12 +878,6 @@ const faq = [
   @media (max-width: 720px) {
     .shot {
       width: 62vw;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .float {
-      animation: none;
     }
   }
 </style>
