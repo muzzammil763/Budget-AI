@@ -465,4 +465,7 @@ Replace the captures in `public/screenshots/apple/iphone/en/` and
 rerun `build-deck.mjs`; it prints where each phone is cropped so crops can be
 moved off UI rows. `node scripts/export.cjs <iphone|android|feature-graphic> <dir>`
 exports a deck headlessly through the editor's own Export bundle.
+The Android phone frame is an original premium bezel (graphite rail, centred
+punch-hole camera) drawn by `node scripts/make-android-frame.cjs`; Android
+captures are `01.png`–`09.png` (720×1600).
 

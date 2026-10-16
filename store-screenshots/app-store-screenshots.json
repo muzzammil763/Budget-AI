@@ -8,7 +8,7 @@
     "en"
   ],
   "locale": "en",
-  "device": "feature-graphic",
+  "device": "iphone",
   "orientation": "portrait",
   "appIcon": "/app-icon.png",
   "slidesByDevice": {
@@ -670,7 +670,7 @@
         "headline": {
           "en": "Talk money.\n[[It logs itself.]]"
         },
-        "screenshot": "/screenshots/android/phone/en/chat2_light.png",
+        "screenshot": "/screenshots/android/phone/en/01.png",
         "captionAlign": "center",
         "transforms": {
           "caption": {
@@ -685,7 +685,7 @@
             "x": 173.45454545454547,
             "y": 648,
             "width": 733.0909090909091,
-            "height": 1588.3636363636365,
+            "height": 1540.3562777862946,
             "rotation": 0,
             "zIndex": 2
           }
@@ -748,7 +748,7 @@
         "headline": {
           "en": "Snap a\nreceipt.\n[[It's logged.]]"
         },
-        "screenshot": "/screenshots/android/phone/en/receipt_light.png",
+        "screenshot": "/screenshots/android/phone/en/09.png",
         "captionAlign": "left",
         "typography": {
           "headlineScale": 0.8857142857142857
@@ -766,22 +766,22 @@
             "x": 176.72727272727275,
             "y": 680.7272727272727,
             "width": 726.5454545454546,
-            "height": 1574.1818181818182,
+            "height": 1526.6030967346314,
             "rotation": 0,
             "zIndex": 2
           }
         },
         "tiles": [
           {
-            "id": "lines",
+            "id": "hold",
             "kind": "inline",
             "x": 56,
             "y": 528,
             "w": 688,
             "h": 184,
             "fill": "white",
-            "icon": "ReceiptText",
-            "label": "Every line, read."
+            "icon": "Mic",
+            "label": "Hold to talk."
           },
           {
             "id": "photos",
@@ -809,15 +809,15 @@
         ]
       },
       {
-        "id": "voice",
+        "id": "finances",
         "layout": "device-bottom",
         "label": {
           "en": ""
         },
         "headline": {
-          "en": "Just [[say it.]]"
+          "en": "Every [[dollar.]]"
         },
-        "screenshot": "/screenshots/android/phone/en/voice_light.png",
+        "screenshot": "/screenshots/android/phone/en/03.png",
         "captionAlign": "left",
         "typography": {
           "headlineScale": 1.0142857142857142
@@ -835,7 +835,7 @@
             "x": 193.0909090909091,
             "y": 268.3636363636364,
             "width": 693.8181818181819,
-            "height": 1503.2727272727273,
+            "height": 1457.8371914763145,
             "rotation": 0,
             "zIndex": 2
           }
@@ -851,54 +851,54 @@
             "fill": "night"
           },
           {
-            "id": "two",
+            "id": "entries",
             "kind": "stat",
             "x": 56,
             "y": 1990.6666666666665,
             "w": 376,
             "h": 300,
             "fill": "brand",
-            "eyebrow": "From one sentence",
-            "value": "2",
-            "unit": "entries",
-            "valueSize": 196
+            "eyebrow": "Expenses in October",
+            "value": "10",
+            "valueSize": 200
           },
           {
-            "id": "hold",
+            "id": "income",
             "kind": "icon",
             "x": 472,
             "y": 1990.6666666666665,
             "w": 376,
             "h": 300,
             "fill": "white",
-            "icon": "Mic",
-            "label": "Hold to\ntalk.",
+            "icon": "ArrowDownLeft",
+            "iconColor": "#1F7A4D",
+            "label": "Income\ntoo.",
             "labelSize": 60
           },
           {
-            "id": "currency",
+            "id": "search",
             "kind": "icon",
             "x": 888,
             "y": 1990.6666666666665,
             "w": 376,
             "h": 300,
             "fill": "sky",
-            "icon": "Coins",
-            "label": "Any\ncurrency.",
+            "icon": "Search",
+            "label": "Find\nany.",
             "labelSize": 60
           }
         ]
       },
       {
-        "id": "finances",
+        "id": "insights",
         "layout": "device-bottom",
         "label": {
           "en": ""
         },
         "headline": {
-          "en": "Every dollar.\n[[In one place.]]"
+          "en": "Know your\n[[momentum.]]"
         },
-        "screenshot": "/screenshots/android/phone/en/finances_light.png",
+        "screenshot": "/screenshots/android/phone/en/04.png",
         "captionAlign": "center",
         "transforms": {
           "caption": {
@@ -913,48 +913,47 @@
             "x": 173.45454545454547,
             "y": 648,
             "width": 733.0909090909091,
-            "height": 1588.3636363636365,
+            "height": 1540.3562777862946,
             "rotation": 0,
             "zIndex": 2
           }
         },
         "tiles": [
           {
-            "id": "entries",
+            "id": "week",
             "kind": "stat",
             "x": 56,
             "y": 412,
             "w": 376,
             "h": 260,
             "fill": "brand",
-            "eyebrow": "Expenses this month",
-            "value": "23",
-            "valueSize": 190
+            "eyebrow": "This week, USD",
+            "value": "325",
+            "valueSize": 170
           },
           {
-            "id": "income",
+            "id": "daily",
             "kind": "icon",
             "x": 472,
             "y": 412,
             "w": 376,
             "h": 260,
             "fill": "white",
-            "icon": "ArrowDownLeft",
-            "iconColor": "#1F7A4D",
-            "label": "Income too.",
+            "icon": "Activity",
+            "label": "Every day.",
             "labelSize": 56
           },
           {
-            "id": "search",
+            "id": "rings",
             "kind": "icon",
             "x": 888,
             "y": 412,
             "w": 376,
             "h": 260,
             "fill": "sage",
-            "icon": "Search",
-            "label": "Find any.",
-            "labelSize": 56
+            "icon": "Gauge",
+            "label": "Week vs\nmonth.",
+            "labelSize": 52
           },
           {
             "id": "stage",
@@ -968,73 +967,6 @@
         ]
       },
       {
-        "id": "insights",
-        "layout": "device-bottom",
-        "label": {
-          "en": ""
-        },
-        "headline": {
-          "en": "Spot the [[leaks.]]"
-        },
-        "screenshot": "/screenshots/android/phone/en/insights_chart_light.png",
-        "captionAlign": "left",
-        "typography": {
-          "headlineScale": 1.0142857142857142
-        },
-        "transforms": {
-          "caption": {
-            "x": 45.81818181818182,
-            "y": 76.90909090909092,
-            "width": 988.3636363636364,
-            "height": 133.49454545454546,
-            "rotation": 0,
-            "zIndex": 4
-          },
-          "device": {
-            "x": 186.54545454545456,
-            "y": 546.5454545454546,
-            "width": 706.909090909091,
-            "height": 1531.6363636363637,
-            "rotation": 0,
-            "zIndex": 2
-          }
-        },
-        "tiles": [
-          {
-            "id": "peak",
-            "kind": "stat",
-            "x": 56,
-            "y": 272,
-            "w": 792,
-            "h": 300,
-            "fill": "brand",
-            "eyebrow": "Peak day, 13 October",
-            "value": "$146",
-            "valueSize": 220
-          },
-          {
-            "id": "compare",
-            "kind": "widget",
-            "x": 888,
-            "y": 272,
-            "w": 376,
-            "h": 300,
-            "fill": "widgetNight",
-            "src": "/widgets/w-compare.png",
-            "fit": "cover"
-          },
-          {
-            "id": "stage",
-            "kind": "stage",
-            "x": 56,
-            "y": 612,
-            "w": 1208,
-            "h": 1678.6666666666665,
-            "fill": "sky"
-          }
-        ]
-      },
-      {
         "id": "summary",
         "layout": "device-bottom",
         "label": {
@@ -1043,7 +975,7 @@
         "headline": {
           "en": "Your month.\n[[Summed up.]]"
         },
-        "screenshot": "/screenshots/android/phone/en/summary_light.png",
+        "screenshot": "/screenshots/android/phone/en/07.png",
         "captionAlign": "center",
         "inverted": true,
         "backgroundColor": "#000000",
@@ -1058,24 +990,24 @@
           },
           "device": {
             "x": 173.45454545454547,
-            "y": 220.36363636363632,
+            "y": 268.37099494097805,
             "width": 733.0909090909091,
-            "height": 1588.3636363636365,
+            "height": 1540.3562777862946,
             "rotation": 0,
             "zIndex": 2
           }
         },
         "tiles": [
           {
-            "id": "bills",
+            "id": "breakfast",
             "kind": "stat",
             "x": 56,
             "y": 412,
             "w": 376,
             "h": 260,
             "fill": "brand",
-            "eyebrow": "Bills, top category",
-            "value": "30",
+            "eyebrow": "Breakfast, top category",
+            "value": "31",
             "unit": "%",
             "valueSize": 190
           },
@@ -1123,7 +1055,7 @@
         "headline": {
           "en": "Glance. [[Done.]]"
         },
-        "screenshot": "/screenshots/android/phone/en/widgets_home.png",
+        "screenshot": "/screenshots/android/phone/en/05.png",
         "captionAlign": "left",
         "typography": {
           "headlineScale": 1.0142857142857142
@@ -1139,24 +1071,37 @@
           },
           "device": {
             "x": 186.54545454545456,
-            "y": 546.5454545454546,
+            "y": 644.7272727272727,
             "width": 706.909090909091,
-            "height": 1531.6363636363637,
+            "height": 1485.3435535796414,
             "rotation": 0,
             "zIndex": 2
           }
         },
         "tiles": [
           {
-            "id": "summary-widget",
+            "id": "expenses-widget",
             "kind": "widget",
             "x": 56,
             "y": 272,
-            "w": 792,
-            "h": 300,
+            "w": 376,
+            "h": 420,
             "fill": "white",
-            "src": "/widgets/w-summary.png",
-            "fit": "cover"
+            "src": "/widgets/a-expenses.png",
+            "fit": "contain",
+            "inset": 10
+          },
+          {
+            "id": "income-widget",
+            "kind": "widget",
+            "x": 472,
+            "y": 272,
+            "w": 376,
+            "h": 420,
+            "fill": "white",
+            "src": "/widgets/a-income.png",
+            "fit": "contain",
+            "inset": 10
           },
           {
             "id": "count",
@@ -1164,20 +1109,100 @@
             "x": 888,
             "y": 272,
             "w": 376,
-            "h": 300,
+            "h": 420,
             "fill": "brand",
             "eyebrow": "Home Screen widgets",
             "value": "8",
-            "valueSize": 220
+            "valueSize": 230
           },
           {
             "id": "stage",
             "kind": "stage",
             "x": 56,
-            "y": 612,
+            "y": 732,
+            "w": 1208,
+            "h": 1558.6666666666665,
+            "fill": "sky"
+          }
+        ]
+      },
+      {
+        "id": "bubbles",
+        "layout": "device-bottom",
+        "label": {
+          "en": ""
+        },
+        "headline": {
+          "en": "Make it [[yours.]]"
+        },
+        "screenshot": "/screenshots/android/phone/en/08.png",
+        "captionAlign": "left",
+        "typography": {
+          "headlineScale": 1.0142857142857142
+        },
+        "transforms": {
+          "caption": {
+            "x": 45.81818181818182,
+            "y": 76.90909090909092,
+            "width": 988.3636363636364,
+            "height": 133.49454545454546,
+            "rotation": 0,
+            "zIndex": 4
+          },
+          "device": {
+            "x": 193.0909090909091,
+            "y": 268.3636363636364,
+            "width": 693.8181818181819,
+            "height": 1457.8371914763145,
+            "rotation": 0,
+            "zIndex": 2
+          }
+        },
+        "tiles": [
+          {
+            "id": "stage",
+            "kind": "stage",
+            "x": 56,
+            "y": 272,
             "w": 1208,
             "h": 1678.6666666666665,
-            "fill": "sky"
+            "fill": "tint"
+          },
+          {
+            "id": "styles",
+            "kind": "stat",
+            "x": 56,
+            "y": 1990.6666666666665,
+            "w": 376,
+            "h": 300,
+            "fill": "brand",
+            "eyebrow": "Bubble styles",
+            "value": "11",
+            "valueSize": 200
+          },
+          {
+            "id": "colors",
+            "kind": "icon",
+            "x": 472,
+            "y": 1990.6666666666665,
+            "w": 376,
+            "h": 300,
+            "fill": "white",
+            "icon": "Palette",
+            "label": "Your\ncolors.",
+            "labelSize": 60
+          },
+          {
+            "id": "shape",
+            "kind": "icon",
+            "x": 888,
+            "y": 1990.6666666666665,
+            "w": 376,
+            "h": 300,
+            "fill": "sage",
+            "icon": "Shapes",
+            "label": "Your\nshape.",
+            "labelSize": 60
           }
         ]
       },
@@ -1216,7 +1241,7 @@
             "fill": "brand",
             "eyebrow": "Currencies built in",
             "value": "16",
-            "valueSize": 250,
+            "valueSize": 230,
             "caption": "Plus any symbol you add."
           },
           {
@@ -1229,29 +1254,31 @@
             "fill": "sage",
             "icon": "Mic",
             "label": "Talk or\ntype.",
-            "labelSize": 76
+            "labelSize": 72
           },
           {
-            "id": "recent",
+            "id": "categories",
             "kind": "widget",
             "x": 56,
             "y": 920,
             "w": 792,
             "h": 330,
             "fill": "white",
-            "src": "/widgets/w-recent.png",
-            "fit": "cover"
+            "src": "/widgets/a-categories.png",
+            "fit": "contain",
+            "inset": 12
           },
           {
-            "id": "expenses",
+            "id": "income",
             "kind": "widget",
             "x": 888,
             "y": 920,
             "w": 376,
             "h": 330,
             "fill": "white",
-            "src": "/widgets/w-expenses.png",
-            "fit": "cover"
+            "src": "/widgets/a-income.png",
+            "fit": "contain",
+            "inset": 12
           },
           {
             "id": "receipts",
@@ -1263,7 +1290,7 @@
             "fill": "sky",
             "icon": "ScanLine",
             "label": "Snap\nreceipts.",
-            "labelSize": 76
+            "labelSize": 72
           },
           {
             "id": "ask",
@@ -1279,7 +1306,7 @@
               "Fix it.",
               "Sum it up."
             ],
-            "labelSize": 62
+            "labelSize": 58
           },
           {
             "id": "identity",
@@ -1291,26 +1318,39 @@
             "fill": "white",
             "src": "/app-icon.png",
             "label": "Budget AI",
-            "labelSize": 56,
+            "labelSize": 52,
             "caption": "Money, by chat."
           },
           {
-            "id": "lock",
-            "kind": "image",
+            "id": "balance",
+            "kind": "widget",
             "x": 472,
             "y": 1810,
-            "w": 792,
+            "w": 376,
             "h": 480.6666666666665,
-            "fill": "night",
-            "src": "/widgets/lock.png",
-            "fit": "cover"
+            "fill": "white",
+            "src": "/widgets/a-balance.png",
+            "fit": "contain",
+            "inset": 12
+          },
+          {
+            "id": "compare",
+            "kind": "widget",
+            "x": 888,
+            "y": 1810,
+            "w": 376,
+            "h": 480.6666666666665,
+            "fill": "white",
+            "src": "/widgets/a-compare.png",
+            "fit": "contain",
+            "inset": 12
           }
         ]
       }
     ],
     "ipad": [
       {
-        "id": "s_mvau9162_a",
+        "id": "s_mvauzysv_a",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1321,7 +1361,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_b",
+        "id": "s_mvauzysv_b",
         "layout": "device-bottom",
         "label": {
           "en": "FEATURE 01"
@@ -1332,7 +1372,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_c",
+        "id": "s_mvauzysv_c",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1346,7 +1386,7 @@
     ],
     "tvos": [
       {
-        "id": "s_mvau9162_d",
+        "id": "s_mvauzysv_d",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1357,7 +1397,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_e",
+        "id": "s_mvauzysv_e",
         "layout": "split-landscape",
         "label": {
           "en": "FEATURE 01"
@@ -1368,7 +1408,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_f",
+        "id": "s_mvauzysv_f",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1380,7 +1420,7 @@
         "inverted": true
       },
       {
-        "id": "s_mvau9162_g",
+        "id": "s_mvauzysv_g",
         "layout": "no-device",
         "label": {
           "en": "MORE"
@@ -1393,7 +1433,7 @@
     ],
     "watchos": [
       {
-        "id": "s_mvau9162_h",
+        "id": "s_mvauzysv_h",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1404,7 +1444,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_i",
+        "id": "s_mvauzysv_i",
         "layout": "device-bottom",
         "label": {
           "en": "FEATURE 01"
@@ -1415,7 +1455,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_j",
+        "id": "s_mvauzysv_j",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1429,7 +1469,7 @@
     ],
     "carplay": [
       {
-        "id": "s_mvau9162_k",
+        "id": "s_mvauzysv_k",
         "layout": "split-landscape",
         "label": {
           "en": "CARPLAY"
@@ -1440,7 +1480,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_l",
+        "id": "s_mvauzysv_l",
         "layout": "device-bottom",
         "label": {
           "en": "FEATURE 01"
@@ -1451,7 +1491,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_m",
+        "id": "s_mvauzysv_m",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1465,7 +1505,7 @@
     ],
     "mac": [
       {
-        "id": "s_mvau9162_n",
+        "id": "s_mvauzysv_n",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1476,7 +1516,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_o",
+        "id": "s_mvauzysv_o",
         "layout": "split-landscape",
         "label": {
           "en": "FEATURE 01"
@@ -1487,7 +1527,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_p",
+        "id": "s_mvauzysv_p",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1499,7 +1539,7 @@
         "inverted": true
       },
       {
-        "id": "s_mvau9162_q",
+        "id": "s_mvauzysv_q",
         "layout": "two-devices",
         "label": {
           "en": "FEATURE 03"
@@ -1511,7 +1551,7 @@
         "screenshotSecondary": ""
       },
       {
-        "id": "s_mvau9162_r",
+        "id": "s_mvauzysv_r",
         "layout": "no-device",
         "label": {
           "en": "MORE"
@@ -1524,7 +1564,7 @@
     ],
     "android-7": [
       {
-        "id": "s_mvau9162_s",
+        "id": "s_mvauzysv_s",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1535,7 +1575,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_t",
+        "id": "s_mvauzysv_t",
         "layout": "split-landscape",
         "label": {
           "en": "FEATURE 01"
@@ -1548,7 +1588,7 @@
     ],
     "android-10": [
       {
-        "id": "s_mvau9162_u",
+        "id": "s_mvauzysv_u",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1559,7 +1599,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9162_v",
+        "id": "s_mvauzysv_v",
         "layout": "split-landscape",
         "label": {
           "en": "FEATURE 01"
@@ -1585,7 +1625,7 @@
     ],
     "duo-outer": [
       {
-        "id": "s_mvau9163_x",
+        "id": "s_mvauzysv_x",
         "layout": "hero",
         "label": {
           "en": "MEET YOUR APP"
@@ -1596,7 +1636,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_y",
+        "id": "s_mvauzysv_y",
         "layout": "device-bottom",
         "label": {
           "en": "FEATURE 01"
@@ -1607,7 +1647,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_z",
+        "id": "s_mvauzysv_z",
         "layout": "two-devices",
         "label": {
           "en": "OPEN IT"
@@ -1619,7 +1659,7 @@
         "screenshotSecondary": ""
       },
       {
-        "id": "s_mvau9163_10",
+        "id": "s_mvauzysv_10",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1631,7 +1671,7 @@
         "inverted": true
       },
       {
-        "id": "s_mvau9163_11",
+        "id": "s_mvauzysv_11",
         "layout": "no-device",
         "label": {
           "en": "MORE"
@@ -1644,7 +1684,7 @@
     ],
     "duo-outer-landscape": [
       {
-        "id": "s_mvau9163_12",
+        "id": "s_mvauzysv_12",
         "layout": "hero",
         "label": {
           "en": "TURN IT"
@@ -1655,7 +1695,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_13",
+        "id": "s_mvauzysv_13",
         "layout": "split-landscape",
         "label": {
           "en": "FEATURE 01"
@@ -1666,7 +1706,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_14",
+        "id": "s_mvauzysv_14",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1680,7 +1720,7 @@
     ],
     "duo-inner": [
       {
-        "id": "s_mvau9163_15",
+        "id": "s_mvauzysv_15",
         "layout": "hero",
         "label": {
           "en": "UNFOLD IT"
@@ -1691,7 +1731,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_16",
+        "id": "s_mvauzysv_16",
         "layout": "device-bottom",
         "label": {
           "en": "FEATURE 01"
@@ -1702,7 +1742,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_17",
+        "id": "s_mvauzysv_17",
         "layout": "two-devices",
         "label": {
           "en": "FOLDED + OPEN"
@@ -1714,7 +1754,7 @@
         "screenshotSecondary": ""
       },
       {
-        "id": "s_mvau9163_18",
+        "id": "s_mvauzysv_18",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 02"
@@ -1728,7 +1768,7 @@
     ],
     "duo-inner-landscape": [
       {
-        "id": "s_mvau9163_19",
+        "id": "s_mvauzysv_19",
         "layout": "hero",
         "label": {
           "en": "UNFOLD IT"
@@ -1739,7 +1779,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_1a",
+        "id": "s_mvauzysv_1a",
         "layout": "two-devices",
         "label": {
           "en": "FOLDED + OPEN"
@@ -1751,7 +1791,7 @@
         "screenshotSecondary": ""
       },
       {
-        "id": "s_mvau9163_1b",
+        "id": "s_mvauzysv_1b",
         "layout": "split-landscape",
         "label": {
           "en": "FEATURE 02"
@@ -1762,7 +1802,7 @@
         "screenshot": ""
       },
       {
-        "id": "s_mvau9163_1c",
+        "id": "s_mvauzysv_1c",
         "layout": "device-top",
         "label": {
           "en": "FEATURE 03"
@@ -1774,7 +1814,7 @@
         "inverted": true
       },
       {
-        "id": "s_mvau9163_1d",
+        "id": "s_mvauzysv_1d",
         "layout": "no-device",
         "label": {
           "en": "MORE"
@@ -1787,7 +1827,7 @@
     ],
     "creative-universal": [
       {
-        "id": "s_mvau9163_1e",
+        "id": "s_mvauzysv_1e",
         "layout": "split-landscape",
         "label": {
           "en": "NEW"
@@ -1800,7 +1840,7 @@
     ],
     "creative-header": [
       {
-        "id": "s_mvau9163_1f",
+        "id": "s_mvauzysv_1f",
         "layout": "split-landscape",
         "label": {
           "en": "NEW"
@@ -1813,7 +1853,7 @@
     ],
     "creative-search": [
       {
-        "id": "s_mvau9163_1g",
+        "id": "s_mvauzysv_1g",
         "layout": "split-landscape",
         "label": {
           "en": "NEW"

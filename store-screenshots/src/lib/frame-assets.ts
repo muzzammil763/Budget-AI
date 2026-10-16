@@ -23,6 +23,8 @@ export const FRAME_FILES = [
   "duo-outer-landscape",
   "duo-inner-portrait",
   "duo-inner-landscape",
+  // An original Android bezel (scripts/make-android-frame.cjs), not Apple's.
+  "android-portrait",
 ] as const;
 export type FrameFile = (typeof FRAME_FILES)[number];
 
@@ -43,6 +45,7 @@ const FRAME_SOURCES: Partial<Record<Device, { file: FrameFile; rotateFrom?: Fram
   watchos: { file: "watch" },
   tvos: { file: "tv" },
   mac: { file: "mac" },
+  android: { file: "android-portrait" },
   "creative-universal": { file: "iphone-portrait" },
   "creative-header": { file: "iphone-portrait" },
   "creative-search": { file: "iphone-portrait" },

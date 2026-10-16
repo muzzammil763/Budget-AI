@@ -23,10 +23,11 @@ const DEVICES = {
     canvasW: 1080,
     canvasH: 1920,
     dir: "/screenshots/android/phone/en",
-    // Built-in AndroidPhone frame: 9:19.5, screen at 2% top, 96% tall.
-    aspect: 9 / 19.5,
-    screenTop: 0.02 * (19.5 / 9),
-    screenH: 0.96 * (19.5 / 9),
+    // Original bezel public/frames/android-portrait.png (1186×2492), drawn
+    // by scripts/make-android-frame.cjs; screen 1080×2400 at (53, 46).
+    aspect: 1186 / 2492,
+    screenTop: 46 / 1186,
+    screenH: 2400 / 1186,
     crown: 260,
     floor: 300,
     // A narrower phone on the shorter 9:16 canvas, so more of the screen shows.
@@ -89,6 +90,151 @@ function build(deviceKey) {
   const crownY = 412;
   const crownH = d.crown;
   const l1StageY = crownY + crownH + 40;
+  const floorY = bottom - d.floor;
+  const l1bCrownH = deviceKey === "iphone" ? 376 : 300;
+  const l1bStageY = 272 + l1bCrownH + 40;
+
+  if (deviceKey === "android") return { slides: androidSlides(), report };
+
+  // Google Play deck, built from the Android captures 01–09.
+  function androidSlides() {
+    const stage = (y, fill) => ({ id: "stage", kind: "stage", x: 56, y, w: 1208, h: (y === 272 ? floorY - 40 : bottom) - y, fill });
+
+    const a1Stage = stage(l1StageY, "sky");
+    const a1 = slide("hero", {
+      headline: "Talk money.\n[[It logs itself.]]",
+      align: "center",
+      captionRect: caption(96, 2, 140),
+      typography: fs140,
+      shot: "01",
+      device: phone("hero", a1Stage, 1120, 80, "01"),
+      tiles: [
+        { id: "ways", kind: "stat", x: col(1), y: crownY, w: span(4), h: crownH, fill: "brand", eyebrow: "Type, talk or snap", value: "3", unit: "ways", valueSize: 190 },
+        { id: "say", kind: "icon", x: col(5), y: crownY, w: span(4), h: crownH, fill: "white", icon: "Mic", label: "Say it.", labelSize: 60 },
+        { id: "snap", kind: "icon", x: col(9), y: crownY, w: span(4), h: crownH, fill: "sage", icon: "Camera", label: "Snap it.", labelSize: 60 },
+        a1Stage,
+      ],
+    });
+
+    const a2Stage = stage(752, "tint");
+    const a2 = slide("receipts", {
+      headline: "Snap a\nreceipt.\n[[It's logged.]]",
+      align: "left",
+      captionRect: caption(96, 3, 124, 688),
+      typography: fs124,
+      shot: "09",
+      device: phone("receipts", a2Stage, 1110, 80, "09"),
+      tiles: [
+        { id: "hold", kind: "inline", x: col(1), y: 528, w: span(7), h: 184, fill: "white", icon: "Mic", label: "Hold to talk." },
+        { id: "photos", kind: "stat", x: col(8), y: 96, w: span(5), h: 616, fill: "brand", eyebrow: "Per message", value: "3", unit: "photos", valueSize: 240, caption: "Receipts, bills or screenshots." },
+        a2Stage,
+      ],
+    });
+
+    const a3Stage = stage(272, "night");
+    const a3 = slide("finances", {
+      headline: "Every [[dollar.]]",
+      align: "left",
+      captionRect: caption(94, 1, 142),
+      typography: fs142,
+      shot: "03",
+      device: phone("finances", a3Stage, 1060, 56, "03"),
+      tiles: [
+        a3Stage,
+        { id: "entries", kind: "stat", x: col(1), y: floorY, w: span(4), h: d.floor, fill: "brand", eyebrow: "Expenses in October", value: "10", valueSize: 200 },
+        { id: "income", kind: "icon", x: col(5), y: floorY, w: span(4), h: d.floor, fill: "white", icon: "ArrowDownLeft", iconColor: "#1F7A4D", label: "Income\ntoo.", labelSize: 60 },
+        { id: "search", kind: "icon", x: col(9), y: floorY, w: span(4), h: d.floor, fill: "sky", icon: "Search", label: "Find\nany.", labelSize: 60 },
+      ],
+    });
+
+    const a4Stage = stage(l1StageY, "tint");
+    const a4 = slide("insights", {
+      headline: "Know your\n[[momentum.]]",
+      align: "center",
+      captionRect: caption(96, 2, 140),
+      typography: fs140,
+      shot: "04",
+      device: phone("insights", a4Stage, 1120, 80, "04"),
+      tiles: [
+        { id: "week", kind: "stat", x: col(1), y: crownY, w: span(4), h: crownH, fill: "brand", eyebrow: "This week, USD", value: "325", valueSize: 170 },
+        { id: "daily", kind: "icon", x: col(5), y: crownY, w: span(4), h: crownH, fill: "white", icon: "Activity", label: "Every day.", labelSize: 56 },
+        { id: "rings", kind: "icon", x: col(9), y: crownY, w: span(4), h: crownH, fill: "sage", icon: "Gauge", label: "Week vs\nmonth.", labelSize: 52 },
+        a4Stage,
+      ],
+    });
+
+    const a5Stage = stage(l1StageY, "white");
+    const a5 = slide("summary", {
+      headline: "Your month.\n[[Summed up.]]",
+      align: "center",
+      captionRect: caption(96, 2, 140),
+      typography: fs140,
+      inverted: true,
+      shot: "07",
+      device: phone("summary", a5Stage, 1120, -80, "07"),
+      tiles: [
+        { id: "breakfast", kind: "stat", x: col(1), y: crownY, w: span(4), h: crownH, fill: "brand", eyebrow: "Breakfast, top category", value: "31", unit: "%", valueSize: 190 },
+        { id: "tap", kind: "icon", x: col(5), y: crownY, w: span(4), h: crownH, fill: "white", icon: "Sparkles", label: "One tap.", labelSize: 60 },
+        { id: "monthly", kind: "icon", x: col(9), y: crownY, w: span(4), h: crownH, fill: "tint", icon: "CalendarDays", label: "Every\nmonth.", labelSize: 56 },
+        a5Stage,
+      ],
+    });
+
+    // A taller crown so the two small widgets fill their tiles.
+    const a6CrownH = 420;
+    const a6Stage = stage(272 + a6CrownH + 40, "sky");
+    const a6 = slide("widgets", {
+      headline: "Glance. [[Done.]]",
+      align: "left",
+      captionRect: caption(94, 1, 142),
+      typography: fs142,
+      shot: "05",
+      device: phone("widgets", a6Stage, 1080, 56, "05"),
+      tiles: [
+        { id: "expenses-widget", kind: "widget", x: col(1), y: 272, w: span(4), h: a6CrownH, fill: "white", src: "/widgets/a-expenses.png", fit: "contain", inset: 10 },
+        { id: "income-widget", kind: "widget", x: col(5), y: 272, w: span(4), h: a6CrownH, fill: "white", src: "/widgets/a-income.png", fit: "contain", inset: 10 },
+        { id: "count", kind: "stat", x: col(9), y: 272, w: span(4), h: a6CrownH, fill: "brand", eyebrow: "Home Screen widgets", value: "8", valueSize: 230 },
+        a6Stage,
+      ],
+    });
+
+    const a7Stage = stage(272, "tint");
+    const a7 = slide("bubbles", {
+      headline: "Make it [[yours.]]",
+      align: "left",
+      captionRect: caption(94, 1, 142),
+      typography: fs142,
+      shot: "08",
+      device: phone("bubbles", a7Stage, 1060, 56, "08"),
+      tiles: [
+        a7Stage,
+        { id: "styles", kind: "stat", x: col(1), y: floorY, w: span(4), h: d.floor, fill: "brand", eyebrow: "Bubble styles", value: "11", valueSize: 200 },
+        { id: "colors", kind: "icon", x: col(5), y: floorY, w: span(4), h: d.floor, fill: "white", icon: "Palette", label: "Your\ncolors.", labelSize: 60 },
+        { id: "shape", kind: "icon", x: col(9), y: floorY, w: span(4), h: d.floor, fill: "sage", icon: "Shapes", label: "Your\nshape.", labelSize: 60 },
+      ],
+    });
+
+    const [A, B, C, D] = [[400, 480], [920, 330], [1290, 480], [1810, bottom - 1810]];
+    const a8 = slide("closer", {
+      headline: "Your money.\n[[One chat away.]]",
+      align: "center",
+      captionRect: caption(96, 2, 132),
+      typography: fs132,
+      tiles: [
+        { id: "currencies", kind: "stat", x: col(1), y: A[0], w: span(7), h: A[1], fill: "brand", eyebrow: "Currencies built in", value: "16", valueSize: 230, caption: "Plus any symbol you add." },
+        { id: "talk", kind: "icon", x: col(8), y: A[0], w: span(5), h: A[1], fill: "sage", icon: "Mic", label: "Talk or\ntype.", labelSize: 72 },
+        { id: "categories", kind: "widget", x: col(1), y: B[0], w: span(8), h: B[1], fill: "white", src: "/widgets/a-categories.png", fit: "contain", inset: 12 },
+        { id: "income", kind: "widget", x: col(9), y: B[0], w: span(4), h: B[1], fill: "white", src: "/widgets/a-income.png", fit: "contain", inset: 12 },
+        { id: "receipts", kind: "icon", x: col(1), y: C[0], w: span(5), h: C[1], fill: "sky", icon: "ScanLine", label: "Snap\nreceipts.", labelSize: 72 },
+        { id: "ask", kind: "list", x: col(6), y: C[0], w: span(7), h: C[1], fill: "white", eyebrow: "Just ask it to", items: ["Log it.", "Fix it.", "Sum it up."], labelSize: 58 },
+        { id: "identity", kind: "identity", x: col(1), y: D[0], w: span(4), h: D[1], fill: "white", src: "/app-icon.png", label: "Budget AI", labelSize: 52, caption: "Money, by chat." },
+        { id: "balance", kind: "widget", x: col(5), y: D[0], w: span(4), h: D[1], fill: "white", src: "/widgets/a-balance.png", fit: "contain", inset: 12 },
+        { id: "compare", kind: "widget", x: col(9), y: D[0], w: span(4), h: D[1], fill: "white", src: "/widgets/a-compare.png", fit: "contain", inset: 12 },
+      ],
+    });
+
+    return [a1, a2, a3, a4, a5, a6, a7, a8];
+  }
 
   // 1 · Hero (L1 Crown + Stage)
   const s1Stage = { id: "stage", kind: "stage", x: 56, y: l1StageY, w: 1208, h: bottom - l1StageY, fill: "sky" };
@@ -124,7 +270,6 @@ function build(deviceKey) {
   });
 
   // 3 · Feature (L2 Stage + Floor)
-  const floorY = bottom - d.floor;
   const s3Stage = { id: "stage", kind: "stage", x: 56, y: 272, w: 1208, h: floorY - 40 - 272, fill: "night" };
   const s3 = slide("voice", {
     headline: "Just [[say it.]]",
@@ -159,8 +304,6 @@ function build(deviceKey) {
   });
 
   // 5 · Feature (L1b Widget crown + Stage)
-  const l1bCrownH = deviceKey === "iphone" ? 376 : 300;
-  const l1bStageY = 272 + l1bCrownH + 40;
   const s5Stage = { id: "stage", kind: "stage", x: 56, y: l1bStageY, w: 1208, h: bottom - l1bStageY, fill: "sky" };
   const s5 = slide("insights", {
     headline: "Spot the [[leaks.]]",
