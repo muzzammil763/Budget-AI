@@ -4753,7 +4753,7 @@ class _ComposerNotice extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
           child: Row(
             children: [
               Icon(icon, size: 16, color: theme.colorScheme.primary),
