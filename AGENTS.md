@@ -88,6 +88,7 @@ supabase/                       Edge functions (openai-responses, openai-speech,
                                 revenuecat-webhook), migrations, email templates, config
 website/                        Astro marketing site + /privacy, /terms, /delete-account (Cloudflare Pages);
                                 legal text in website/src/data/legal.ts mirrors legal_screens.dart
+                                scroll guide: Companion.astro + data/companion.ts (bubble avoids screenshots)
 ```
 
 iOS widget sources live in `ios/BudgetAIWidget/` (`BudgetWidgetData.swift`
