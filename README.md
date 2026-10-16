@@ -445,3 +445,24 @@ Budget Hub → App Behavior → Show Tool Calls toggles inline single/grouped to
 
 
 Chat image generation and its square shimmer, branded viewer, and image-sharing controls are removed. Camera/gallery input and receipt analysis remain available; existing local image history is preserved. Deploy the updated `openai-responses` function to reject generation requests from older clients too.
+
+## Store screenshots
+
+`store-screenshots/` is the App Store and Google Play screenshot editor
+(Next.js, scaffolded by the `app-store-screenshots` skill) in the Bento Keynote
+Grid style: 8 iPhone slides, 8 Android phone slides and the Play feature
+graphic.
+
+```sh
+cd store-screenshots
+npm install                      # first time only
+node scripts/build-deck.mjs      # regenerate app-store-screenshots.json from the deck plan
+npm run dev                      # → http://localhost:3000, then Export bundle per device
+```
+
+Replace the captures in `public/screenshots/apple/iphone/en/` and
+`public/screenshots/android/phone/en/` (same file names) with fresh ones, then
+rerun `build-deck.mjs`; it prints where each phone is cropped so crops can be
+moved off UI rows. `node scripts/export.cjs <iphone|android|feature-graphic> <dir>`
+exports a deck headlessly through the editor's own Export bundle.
+
