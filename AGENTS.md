@@ -107,7 +107,7 @@ store-listing/                  Final store uploads: google-play/ (PLAY-CONSOLE-
 website/                        Astro marketing site + /privacy, /terms, /delete-account (Cloudflare Pages);
                                 screens in src/assets/screens/android (Play-first), iPhone captures where no Android one exists;
                                 legal text in website/src/data/legal.ts mirrors legal_screens.dart
-                                scroll guide: Companion.astro + data/companion.ts (bubble avoids screenshots)
+                                store screenshot gallery (Android / iPhone) from website/src/assets/store
 ```
 
 iOS widget sources live in `ios/BudgetAIWidget/` (`BudgetWidgetData.swift`

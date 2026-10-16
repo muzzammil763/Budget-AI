@@ -12,6 +12,7 @@ export const nav = [
   { href: '/#features', label: 'Features' },
   { href: '/#widgets', label: 'Widgets' },
   { href: '/#privacy', label: 'Privacy' },
+  { href: '/#screenshots', label: 'Screenshots' },
   { href: '/#faq', label: 'FAQ' },
 ];
 

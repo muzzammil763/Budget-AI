@@ -357,11 +357,9 @@ an explicit region disables automatic regional failover.
 `website/src/data/legal.ts` mirrors `lib/src/settings/legal_screens.dart`;
 change both together.
 
-A guide character shaped like the app tile tours the landing page as you
-scroll. It sits beside each section where its bubble covers no screenshot,
-types its line like a chat reply, and offers Next steps. Its lines live in
-`website/src/data/companion.ts`; the character is
-`website/src/components/Companion.astro`.
+The landing page ends with a Screenshots section: an Android / iPhone switch
+over a swipeable strip of the full store slides from `store-listing/`
+(copied into `website/src/assets/store/`).
 
 ```sh
 cd website
