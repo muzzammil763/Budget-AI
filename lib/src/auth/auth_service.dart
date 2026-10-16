@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:budget_ai/src/helpers/app_constants.dart';
 import 'package:budget_ai/src/auth/local_privacy_reset_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
+import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,11 +16,23 @@ class AuthService extends ChangeNotifier {
   Session? _session;
   bool _initialized = false;
   bool _passwordRecovery = false;
+  bool _recoveryForDeviceAccount = false;
+
+  /// The account whose data this device holds; cleared with that data at
+  /// account exit. A password-recovery session alone never claims it.
+  static const _deviceAccountKey = 'device_account_user_id';
+  String? _deviceAccountId;
 
   SupabaseClient get _client => Supabase.instance.client;
 
   bool get initialized => _initialized;
   bool get isPasswordRecovery => _passwordRecovery;
+
+  /// Whether the active password reset is for the account already signed in
+  /// on this device (Budget Hub → Change Password). Cancelling it then keeps
+  /// that account signed in instead of signing out and erasing its data.
+  bool get isRecoveryForDeviceAccount =>
+      _passwordRecovery && _recoveryForDeviceAccount;
   Session? get session => _session;
   User? get user => _session?.user;
   String? get accessToken => _session?.accessToken;
@@ -29,6 +42,9 @@ class AuthService extends ChangeNotifier {
   Future<void> initialize() async {
     if (_initialized) return;
     _session = _client.auth.currentSession;
+    _deviceAccountId = await LocalSettingsStore.instance.getString(
+      _deviceAccountKey,
+    );
     _authSubscription = _client.auth.onAuthStateChange.listen(_handleAuthState);
     _initialized = true;
     notifyListeners();
@@ -39,6 +55,8 @@ class AuthService extends ChangeNotifier {
     switch (state.event) {
       case AuthChangeEvent.passwordRecovery:
         _passwordRecovery = true;
+        _recoveryForDeviceAccount =
+            _deviceAccountId != null && _deviceAccountId == _session?.user.id;
       case AuthChangeEvent.signedOut:
         _passwordRecovery = false;
         _session = null;
@@ -54,7 +72,29 @@ class AuthService extends ChangeNotifier {
     if (_session?.user case final user?) {
       unawaited(UserNameSettingsService.instance.syncFromUser(user));
     }
+    _claimDeviceAccount();
     notifyListeners();
+  }
+
+  void _claimDeviceAccount() {
+    final user = _session?.user;
+    if (_passwordRecovery || !isAuthenticated || user == null) return;
+    if (user.id == _deviceAccountId) return;
+    _deviceAccountId = user.id;
+    unawaited(
+      LocalSettingsStore.instance.setString(_deviceAccountKey, user.id),
+    );
+  }
+
+  /// Leaves the password-reset screen without changing the password. Resets
+  /// for the account already on this device keep it signed in; any other
+  /// reset session is signed out (the device holds no data for it).
+  Future<void> leavePasswordRecovery() async {
+    if (isRecoveryForDeviceAccount) {
+      cancelPasswordRecovery();
+      return;
+    }
+    await signOut();
   }
 
   Future<AuthResponse> register({
@@ -114,6 +154,7 @@ class AuthService extends ChangeNotifier {
     await _client.auth.updateUser(UserAttributes(password: password));
     _passwordRecovery = false;
     _session = _client.auth.currentSession;
+    _claimDeviceAccount();
     notifyListeners();
   }
 
@@ -131,6 +172,7 @@ class AuthService extends ChangeNotifier {
 
   void cancelPasswordRecovery() {
     _passwordRecovery = false;
+    _recoveryForDeviceAccount = false;
     notifyListeners();
   }
 
@@ -139,6 +181,7 @@ class AuthService extends ChangeNotifier {
     await LocalPrivacyResetService.clearAfterAccountExit();
     _session = null;
     _passwordRecovery = false;
+    _deviceAccountId = null;
     notifyListeners();
   }
 
@@ -161,6 +204,7 @@ class AuthService extends ChangeNotifier {
     await LocalPrivacyResetService.clearAfterAccountExit();
     _session = null;
     _passwordRecovery = false;
+    _deviceAccountId = null;
     notifyListeners();
   }
 

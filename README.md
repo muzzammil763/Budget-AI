@@ -139,6 +139,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   "Keep Your Entries Safe": Back Up Entries, Turn On Cloud Sync (or Sync Now)
   & Sign Out, or Sign Out & Erase N entries. Delete Account offers a backup
   first whenever the device has entries.
+- Cancelling a password reset started from Budget Hub → Change Password keeps
+  the account signed in with its local entries; a reset started from the
+  sign-in screen returns to sign-in.
 - Budget Hub → Your Data: Cloud Sync toggle, Back Up Entries (saves
   `BudgetAI-Backup-YYYY-MM-DD.json` wherever the user picks via the system
   save dialog; the last backup date is shown), and Restore From Backup

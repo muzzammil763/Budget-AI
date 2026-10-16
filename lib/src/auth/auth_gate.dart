@@ -17,7 +17,12 @@ class AuthGate extends StatelessWidget {
           return const AuthLoadingScreen();
         }
         if (auth.isPasswordRecovery) {
-          return ResetPasswordScreen(onCancel: () async => auth.signOut());
+          return ResetPasswordScreen(
+            onCancel: auth.leavePasswordRecovery,
+            cancelLabel: auth.isRecoveryForDeviceAccount
+                ? 'Cancel and keep current password'
+                : 'Cancel and return to sign in',
+          );
         }
         if (auth.isAuthenticated) {
           return const UnifiedChatScreen(config: ChatModelConfig.openAI);

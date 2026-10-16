@@ -927,9 +927,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 }
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key, required this.onCancel});
+  const ResetPasswordScreen({
+    super.key,
+    required this.onCancel,
+    this.cancelLabel = 'Cancel and return to sign in',
+  });
 
   final Future<void> Function() onCancel;
+  final String cancelLabel;
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -1040,7 +1045,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: _working ? null : widget.onCancel,
-                  child: const Text('Cancel and return to sign in'),
+                  child: Text(widget.cancelLabel),
                 ),
               ],
             ),
