@@ -101,6 +101,9 @@ store-screenshots/              App Store + Google Play screenshot editor (Next.
                                 Bento tiles in src/components/editor/bento-tiles.tsx, source captures in
                                 public/screenshots/{apple/iphone,android/phone}/en, widget crops in public/widgets;
                                 original Android bezel from scripts/make-android-frame.cjs
+store-listing/                  Final store uploads: google-play/ (PLAY-CONSOLE-ANSWERS.md, icon,
+                                feature graphic, phone screenshots, subscription icons) and
+                                app-store/ (iPhone screenshots at every size)
 website/                        Astro marketing site + /privacy, /terms, /delete-account (Cloudflare Pages);
                                 legal text in website/src/data/legal.ts mirrors legal_screens.dart
                                 scroll guide: Companion.astro + data/companion.ts (bubble avoids screenshots)

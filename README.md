@@ -448,6 +448,9 @@ Chat image generation and its square shimmer, branded viewer, and image-sharing 
 
 ## Store screenshots
 
+Final store uploads (Play Console answers, icon, feature graphic, screenshots,
+subscription icons) live in `store-listing/`; see its README.
+
 `store-screenshots/` is the App Store and Google Play screenshot editor
 (Next.js, scaffolded by the `app-store-screenshots` skill) in the Bento Keynote
 Grid style: 8 iPhone slides, 8 Android phone slides and the Play feature
