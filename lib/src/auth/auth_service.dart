@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:budget_ai/src/helpers/app_constants.dart';
 import 'package:budget_ai/src/auth/local_privacy_reset_service.dart';
+import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
+import 'package:budget_ai/src/storage/local_finance_store.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +24,7 @@ class AuthService extends ChangeNotifier {
   /// account exit. A password-recovery session alone never claims it.
   static const _deviceAccountKey = 'device_account_user_id';
   String? _deviceAccountId;
+  String? _financeOwnerConfirmedFor;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -79,11 +82,24 @@ class AuthService extends ChangeNotifier {
   void _claimDeviceAccount() {
     final user = _session?.user;
     if (_passwordRecovery || !isAuthenticated || user == null) return;
+    if (user.id != _financeOwnerConfirmedFor) {
+      _financeOwnerConfirmedFor = user.id;
+      unawaited(_claimFinanceEntries(user.id));
+    }
     if (user.id == _deviceAccountId) return;
     _deviceAccountId = user.id;
     unawaited(
       LocalSettingsStore.instance.setString(_deviceAccountKey, user.id),
     );
+  }
+
+  /// Entries restored by Android Auto Backup carry their owner's account id;
+  /// another account signing in on that phone never sees or uploads them.
+  Future<void> _claimFinanceEntries(String userId) async {
+    final store = LocalFinanceStore.instance;
+    if (await store.claimFor(userId)) return;
+    await FinanceService.instance.clearLocalData();
+    await store.claimFor(userId);
   }
 
   /// Leaves the password-reset screen without changing the password. Resets
@@ -182,6 +198,7 @@ class AuthService extends ChangeNotifier {
     _session = null;
     _passwordRecovery = false;
     _deviceAccountId = null;
+    _financeOwnerConfirmedFor = null;
     notifyListeners();
   }
 
@@ -205,6 +222,7 @@ class AuthService extends ChangeNotifier {
     _session = null;
     _passwordRecovery = false;
     _deviceAccountId = null;
+    _financeOwnerConfirmedFor = null;
     notifyListeners();
   }
 

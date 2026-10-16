@@ -231,6 +231,9 @@ class FinanceSyncService {
       status.value = 'Sign in to sync';
       return true;
     }
+    // Entries not yet confirmed as this account's (see AuthService) are never
+    // uploaded; confirming them triggers a new sync.
+    if (!await LocalFinanceStore.instance.isOwnedBy(user.id)) return true;
     status.value = 'Syncing…';
     try {
       var remoteRows = await _readRemoteRows(user.id);

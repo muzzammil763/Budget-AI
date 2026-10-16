@@ -33,4 +33,18 @@ void main() {
     expect(await finances.readActive(), isEmpty);
     expect(await finances.pendingRows(), isEmpty);
   });
+
+  test('restored entries belong only to the account that owns them', () async {
+    final finances = LocalFinanceStore.instance;
+    await finances.clearAll();
+
+    expect(await finances.isOwnedBy('owner'), isFalse);
+    expect(await finances.claimFor('owner'), isTrue);
+    expect(await finances.isOwnedBy('owner'), isTrue);
+    expect(await finances.claimFor('someone-else'), isFalse);
+    expect(await finances.isOwnedBy('someone-else'), isFalse);
+
+    await finances.clearAll();
+    expect(await finances.claimFor('someone-else'), isTrue);
+  });
 }

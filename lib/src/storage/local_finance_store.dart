@@ -11,6 +11,7 @@ class LocalFinanceStore {
   static final LocalFinanceStore instance = LocalFinanceStore._();
 
   final Map<String, Map<String, dynamic>> _memoryRows = {};
+  String? _memoryOwner;
   final ValueNotifier<int> changes = ValueNotifier(0);
   final ValueNotifier<int> pendingChanges = ValueNotifier(0);
   Future<Database?>? _opening;
@@ -24,8 +25,12 @@ class LocalFinanceStore {
       final root = await getDatabasesPath();
       return openDatabase(
         p.join(root, 'budget_ai_finance.db'),
-        version: 1,
+        version: 2,
+        onUpgrade: (database, oldVersion, _) async {
+          if (oldVersion < 2) await _createMetaTable(database);
+        },
         onCreate: (database, _) async {
+          await _createMetaTable(database);
           await database.execute('''
             CREATE TABLE finance_entries (
               id TEXT PRIMARY KEY,
@@ -50,6 +55,55 @@ class LocalFinanceStore {
       debugPrint('[LocalFinanceStore] Could not open SQLite: $error');
       return null;
     }
+  }
+
+  static Future<void> _createMetaTable(Database database) {
+    return database.execute('''
+      CREATE TABLE IF NOT EXISTS store_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+  }
+
+  /// Records [userId] as the owner of these entries when none is recorded.
+  /// Returns false when they belong to a different account — e.g. restored
+  /// from another account's Android device backup.
+  Future<bool> claimFor(String userId) async {
+    final database = await _database();
+    if (database == null) {
+      if (_memoryOwner == null) {
+        _memoryOwner = userId;
+        pendingChanges.value++;
+      }
+      return _memoryOwner == userId;
+    }
+    final rows = await database.query(
+      'store_meta',
+      columns: const ['value'],
+      where: "key = 'owner_user_id'",
+      limit: 1,
+    );
+    if (rows.isNotEmpty) return rows.single['value'] == userId;
+    await database.insert('store_meta', {
+      'key': 'owner_user_id',
+      'value': userId,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+    // Lets sync start now that the entries have a confirmed owner.
+    pendingChanges.value++;
+    return true;
+  }
+
+  Future<bool> isOwnedBy(String userId) async {
+    final database = await _database();
+    if (database == null) return _memoryOwner == userId;
+    final rows = await database.query(
+      'store_meta',
+      columns: const ['value'],
+      where: "key = 'owner_user_id'",
+      limit: 1,
+    );
+    return rows.isNotEmpty && rows.single['value'] == userId;
   }
 
   Future<List<Map<String, dynamic>>> readActive() async {
@@ -369,7 +423,11 @@ class LocalFinanceStore {
   Future<void> clearAll() async {
     final database = await _database();
     _memoryRows.clear();
-    if (database != null) await database.delete('finance_entries');
+    _memoryOwner = null;
+    if (database != null) {
+      await database.delete('finance_entries');
+      await database.delete('store_meta');
+    }
     changes.value++;
     pendingChanges.value++;
   }

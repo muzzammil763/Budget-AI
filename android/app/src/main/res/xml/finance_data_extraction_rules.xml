@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ Auto Backup and device-to-device transfer: only the finance
+     entries database. Chat history, sign-in sessions, and settings stay out. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="database" path="budget_ai_finance.db" />
+        <include domain="database" path="budget_ai_finance.db-wal" />
+        <include domain="database" path="budget_ai_finance.db-journal" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="budget_ai_finance.db" />
+        <include domain="database" path="budget_ai_finance.db-wal" />
+        <include domain="database" path="budget_ai_finance.db-journal" />
+    </device-transfer>
+</data-extraction-rules>

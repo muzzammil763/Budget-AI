@@ -183,8 +183,17 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   `finance_entries` stay until account deletion. Deploy the migration before
   shipping a client that writes the column.
 - Mobile OSes give apps no uninstall hook, so the app cannot prompt at
-  uninstall time; the sign-out warning and Budget Hub backup are the
-  safeguards.
+  uninstall time; the sign-out warning, Budget Hub backup, and Android Auto
+  Backup are the safeguards.
+- Android Auto Backup is on but limited to the finance database
+  (`budget_ai_finance.db` and its WAL/journal) by
+  `res/xml/finance_backup_rules.xml` (Android 6–11) and
+  `res/xml/finance_data_extraction_rules.xml` (Android 12+ cloud backup and
+  device transfer). Chat history, sessions, and settings are never backed up.
+  The finance database records its owner (`store_meta.owner_user_id`); when a
+  different account signs in after a restore, those entries are cleared
+  before they can be shown or uploaded, and finance sync never uploads
+  entries it has not confirmed as the signed-in account's.
 - Finance entries sync as plain rows in `finance_entries` (one column per
   field: type, amount, category, description, date, has_time, created_at, plus
   revision, tombstone, and timestamp metadata), protected per user by

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 6–11 Auto Backup: only the finance entries database (plus its
+     write-ahead log, so recent writes are included). Chat history, sign-in
+     sessions, and settings are never backed up. -->
+<full-backup-content>
+    <include domain="database" path="budget_ai_finance.db" />
+    <include domain="database" path="budget_ai_finance.db-wal" />
+    <include domain="database" path="budget_ai_finance.db-journal" />
+</full-backup-content>

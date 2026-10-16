@@ -40,7 +40,7 @@ const _privacySections = [
   ),
   _LegalSection('What stays on your device', [
     'Your chat conversations, attached images, monthly AI summaries, and app preferences such as notifications are stored only on your device and are never synced to our servers.',
-    'Unless you turn on Cloud Sync in Budget Hub, your expense and income entries are stored only on your device. You can save a backup file of them from Budget Hub and restore it later.',
+    'Unless you turn on Cloud Sync in Budget Hub, your expense and income entries are stored only on your device. You can save a backup file of them from Budget Hub and restore it later. On Android, they are also included in your own encrypted Google device backup, so they can return if you reinstall Budget AI or move to a new phone; only the account that created them can see them. You can turn this off in your phone\'s backup settings.',
     'Home and Lock Screen widgets read a copy of your entries stored on your device.',
   ]),
   _LegalSection('How AI features work', [
