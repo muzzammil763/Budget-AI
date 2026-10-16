@@ -6,19 +6,22 @@ import Mark from '../components/Mark.astro';
 import StoreButtons from '../components/StoreButtons.astro';
 import { site } from '../data/site';
 
-import chatLight from '../assets/screens/chat2_light.png';
+// Android captures (the app ships on Google Play first).
+import androidChat from '../assets/screens/android/01.png';
+import androidFinances from '../assets/screens/android/03.png';
+import androidInsights from '../assets/screens/android/04.png';
+import androidWidgets from '../assets/screens/android/05.png';
+import androidWidgetsToday from '../assets/screens/android/06.png';
+import androidCategories from '../assets/screens/android/07.png';
+import androidBubbles from '../assets/screens/android/08.png';
+import androidReceipt from '../assets/screens/android/09.png';
+import androidSummary from '../assets/screens/android/summary.png';
+// iPhone captures for screens without an Android capture yet.
 import financesLight from '../assets/screens/finances_light.png';
 import financesDark from '../assets/screens/finances_dark.png';
-import insightsDark from '../assets/screens/insights_chart_dark.png';
-import insightsLight from '../assets/screens/insights_chart_light.png';
-import summaryLight from '../assets/screens/summary_light.png';
 import voiceLight from '../assets/screens/voice_light.png';
-import receiptLight from '../assets/screens/receipt_light.png';
 import receiptPhoto from '../assets/screens/receipt_photo.png';
-import bubblesDark from '../assets/screens/bubbles_dark.png';
 import currencyLight from '../assets/screens/currency_light.png';
-import widgetsHome from '../assets/screens/widgets_home.png';
-import widgetsLock from '../assets/screens/widgets_lock.png';
 
 const trust = [
   { label: 'No ads or tracking', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM5 5l14 14' },
@@ -83,14 +86,14 @@ const faq = [
         <p class="fine">Free to download · No bank connection needed</p>
       </div>
       <div class="hero-stage reveal" style="--delay: 0.12s">
-        <Phone class="hp hp-left" src={financesLight} alt="Finances list with income and expenses" sizes="(max-width: 720px) 40vw, 240px" />
-        <Phone class="hp hp-right" src={insightsDark} alt="Insights chart in dark mode" sizes="(max-width: 720px) 40vw, 240px" />
-        <Phone class="hp hp-center" src={chatLight} alt="Chat logging expenses and showing a category table" eager sizes="(max-width: 720px) 52vw, 300px" />
-        <div class="float chip chip-a"><i class="dot expense"></i>Dinner · Dining</div>
+        <Phone class="hp hp-left" src={androidFinances} alt="Finances list with income and expenses" sizes="(max-width: 720px) 40vw, 240px" />
+        <Phone class="hp hp-right" src={androidInsights} alt="Insights with weekly and monthly spending" sizes="(max-width: 720px) 40vw, 240px" />
+        <Phone class="hp hp-center" src={androidChat} alt="Budget AI chat with suggested questions" eager sizes="(max-width: 720px) 52vw, 300px" />
+        <div class="float chip chip-a"><i class="dot expense"></i>Breakfast · Food</div>
         <div class="float stat">
           <span><i class="dot expense"></i> Spent in October</span>
-          <strong class="display">$576</strong>
-          <em>23 entries · 12 active days</em>
+          <strong class="display">325 USD</strong>
+          <em>10 entries · 4 active days</em>
         </div>
       </div>
     </div>
@@ -141,7 +144,7 @@ const faq = [
         <div class="photo">
           <Image src={receiptPhoto} alt="A grocery receipt" widths={[320, 480]} sizes="200px" format="webp" />
         </div>
-        <Phone src={receiptLight} alt="Chat adding a Whole Foods receipt" style="--w: clamp(200px, 24vw, 280px)" />
+        <Phone src={androidReceipt} alt="Chat logging a Whole Foods receipt" style="--w: clamp(200px, 24vw, 280px)" />
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Receipts</span>
@@ -157,11 +160,11 @@ const faq = [
 
     <div id="f-categories" class="container feature">
       <div class="feature-stage reveal">
-        <Phone src={chatLight} alt="Expenses sorted into categories" style="--w: clamp(210px, 26vw, 300px)" />
-        <div class="float chip c1">Dining</div>
-        <div class="float chip c2">Streaming</div>
-        <div class="float chip c3">Groceries</div>
-        <div class="float chip c4">Transport</div>
+        <Phone src={androidCategories} alt="Expenses sorted into categories" style="--w: clamp(210px, 26vw, 300px)" />
+        <div class="float chip c1">Breakfast</div>
+        <div class="float chip c2">Food</div>
+        <div class="float chip c3">Gym</div>
+        <div class="float chip c4">Fuel</div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Smart categories</span>
@@ -172,9 +175,9 @@ const faq = [
 
     <div id="f-finances" class="container feature flip">
       <div class="feature-stage reveal">
-        <Phone src={financesLight} alt="Monthly income and expense totals" style="--w: clamp(210px, 26vw, 300px)" />
-        <div class="float chip chip-in"><i class="dot income"></i>Income $5,200</div>
-        <div class="float chip chip-out"><i class="dot expense"></i>Spent $576</div>
+        <Phone src={androidFinances} alt="Monthly income and expense totals" style="--w: clamp(210px, 26vw, 300px)" />
+        <div class="float chip chip-in"><i class="dot income"></i>Income 500 USD</div>
+        <div class="float chip chip-out"><i class="dot expense"></i>Spent 325 USD</div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
         <span class="eyebrow">Finances</span>
@@ -185,11 +188,9 @@ const faq = [
 
     <div id="f-insights" class="container feature">
       <div class="feature-stage reveal">
-        <Phone src={insightsLight} alt="Spending chart and highlights" style="--w: clamp(210px, 26vw, 300px)" />
+        <Phone src={androidInsights} alt="Spending today, this week and this month" style="--w: clamp(210px, 26vw, 300px)" />
         <div class="float summary">
-          <div class="summary-crop">
-            <Image src={summaryLight} alt="AI monthly summary" widths={[640, 960]} sizes="340px" format="webp" />
-          </div>
+          <Image src={androidSummary} alt="AI monthly summary" widths={[480, 662]} sizes="380px" format="webp" />
         </div>
       </div>
       <div class="feature-copy reveal" style="--delay: 0.08s">
@@ -212,8 +213,8 @@ const faq = [
         </ul>
       </div>
       <div class="band-stage reveal" style="--delay: 0.1s">
-        <Phone class="w-back" src={widgetsLock} alt="Lock Screen widgets" style="--w: clamp(180px, 22vw, 250px)" />
-        <Phone class="w-front" src={widgetsHome} alt="Home Screen widgets" style="--w: clamp(200px, 25vw, 290px)" />
+        <Phone class="w-back" src={androidWidgetsToday} alt="Today and month widgets on the Home Screen" style="--w: clamp(180px, 22vw, 250px)" />
+        <Phone class="w-front" src={androidWidgets} alt="Recent expenses, totals and top categories widgets" style="--w: clamp(200px, 25vw, 290px)" />
       </div>
     </div>
   </section>
@@ -226,7 +227,7 @@ const faq = [
         <h2 class="display h2">Light or dark.</h2>
         <p class="lead">Budget AI follows your phone's appearance. Drag to compare.</p>
         <div class="personal">
-          <Phone src={bubblesDark} alt="Message bubble styles" style="--w: 150px" sizes="150px" />
+          <Phone src={androidBubbles} alt="Message bubble styles" style="--w: 150px" sizes="150px" />
           <Phone src={currencyLight} alt="Currency picker" style="--w: 150px" sizes="150px" />
         </div>
         <p class="fine">Make it yours with bubble styles and any currency.</p>
@@ -606,15 +607,10 @@ const faq = [
     padding: 0;
     animation: none;
   }
-  .summary-crop {
-    aspect-ratio: 1248 / 708;
-    overflow: hidden;
-  }
-  .summary-crop :global(img) {
-    width: 105.77%;
-    max-width: none;
-    margin-left: -2.88%;
-    margin-top: -169.87%;
+  .summary :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
   }
 
   /* Widgets band */

@@ -105,6 +105,7 @@ store-listing/                  Final store uploads: google-play/ (PLAY-CONSOLE-
                                 feature graphic, phone screenshots, subscription icons) and
                                 app-store/ (iPhone screenshots at every size)
 website/                        Astro marketing site + /privacy, /terms, /delete-account (Cloudflare Pages);
+                                screens in src/assets/screens/android (Play-first), iPhone captures where no Android one exists;
                                 legal text in website/src/data/legal.ts mirrors legal_screens.dart
                                 scroll guide: Companion.astro + data/companion.ts (bubble avoids screenshots)
 ```
