@@ -209,6 +209,27 @@ class LocalFinanceStore {
     )).map(Map<String, dynamic>.from).toList(growable: false);
   }
 
+  /// Entries that exist on this device but have not reached the cloud.
+  /// Deletions are not counted: losing an unsynced deletion loses no entry.
+  Future<int> activePendingCount() async {
+    final database = await _database();
+    if (database == null) {
+      return _memoryRows.values
+          .where(
+            (row) =>
+                row['sync_state'] == 'pending' && row['deleted_at'] == null,
+          )
+          .length;
+    }
+    final result = Sqflite.firstIntValue(
+      await database.rawQuery(
+        "SELECT COUNT(*) FROM finance_entries "
+        "WHERE sync_state = 'pending' AND deleted_at IS NULL",
+      ),
+    );
+    return result ?? 0;
+  }
+
   Future<void> markClean(Map<String, int> revisions) async {
     if (revisions.isEmpty) return;
     final database = await _database();

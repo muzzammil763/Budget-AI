@@ -20,7 +20,7 @@ export const privacySections: LegalSection[] = [
     paragraphs: ['Budget AI only collects what it needs to run your budget:'],
     bullets: [
       'Account: your email address, display name, and a securely hashed password, handled by our authentication provider.',
-      'Finances: the expense and income entries you add, including amount, category, description, and date.',
+      'Finances: only if you turn on Cloud Sync, the expense and income entries you add, including amount, category, description, and date. Cloud Sync is off by default.',
       'Preferences: your currency display and message bubble style, so they follow you to other devices.',
       "AI usage: the number of AI messages and tokens used each month, to apply your plan's limits.",
       'Subscriptions: if you buy Budget AI Premium, your plan, renewal status, and expiry date. Payments are handled by Google Play; we never see your card details.',
@@ -30,6 +30,7 @@ export const privacySections: LegalSection[] = [
     title: 'What stays on your device',
     paragraphs: [
       'Your chat conversations, attached images, monthly AI summaries, and app preferences such as notifications are stored only on your device and are never synced to our servers.',
+      'Unless you turn on Cloud Sync in Budget Hub, your expense and income entries are stored only on your device. You can save a backup file of them from Budget Hub and restore it later.',
       'Home and Lock Screen widgets read a copy of your entries stored on your device.',
     ],
   },
@@ -45,7 +46,7 @@ export const privacySections: LegalSection[] = [
   {
     title: 'How we use your data',
     paragraphs: [
-      'We use your data only to provide Budget AI: syncing your entries across devices, answering your questions, logging entries you ask for, and showing insights.',
+      'We use your data only to provide Budget AI: syncing your entries across devices when Cloud Sync is on, answering your questions, logging entries you ask for, and showing insights.',
     ],
     bullets: [
       'We do not show ads.',
@@ -78,7 +79,7 @@ export const privacySections: LegalSection[] = [
   {
     title: 'Your choices and rights',
     paragraphs: [
-      'You can view, edit, and delete any entry in Finances. You can delete your account at any time from Budget Hub → Danger Zone → Delete Account, which permanently removes your account and all synced data. Signing out removes your data from that device.',
+      'You can view, edit, and delete any entry in Finances. You can delete your account at any time from Budget Hub → Danger Zone → Delete Account, which permanently removes your account and all synced data. You can turn Cloud Sync off at any time; entries already synced stay in your account until you delete it. Signing out removes your data from that device, so entries that are not synced or backed up are lost.',
       'To request a copy of your data or ask any privacy question, email us.',
     ],
   },

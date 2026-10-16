@@ -1,3 +1,4 @@
+import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/onboarding/onboarding_screen.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
 import 'package:budget_ai/src/settings/settings_screen.dart';
@@ -131,6 +132,9 @@ void main() {
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -180));
     await tester.pump();
+    // The delete flow first counts entries to offer a backup; with none on
+    // this device it goes straight to the phrase confirmation.
+    await tester.runAsync(FinanceService.instance.getAll);
     await tester.tap(deleteAction);
     await tester.pump(const Duration(milliseconds: 500));
 

@@ -1,4 +1,5 @@
 import 'package:budget_ai/src/chat/chat_session_repository.dart';
+import 'package:budget_ai/src/finances/finance_backup_service.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/monthly_summary_service.dart';
 import 'package:budget_ai/src/helpers/android_background_chat_service.dart';
@@ -10,6 +11,7 @@ import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
+import 'package:budget_ai/src/sync/finance_sync_preference_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalPrivacyResetService {
@@ -34,6 +36,8 @@ class LocalPrivacyResetService {
     BubbleStyleSettingsService.instance.resetLocalState();
     PermissionPreferencesService.instance.resetLocalState();
     AiResponseSettingsService.instance.resetLocalState();
+    FinanceSyncPreferenceService.instance.resetLocalState();
+    FinanceBackupService.instance.resetLocalState();
     AiUsageService.instance.usage.value = null;
   }
 }

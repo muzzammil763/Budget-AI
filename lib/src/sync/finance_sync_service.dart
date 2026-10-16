@@ -4,14 +4,17 @@ import 'dart:convert';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/helpers/network_reachability_service.dart';
 import 'package:budget_ai/src/storage/local_finance_store.dart';
+import 'package:budget_ai/src/sync/finance_sync_preference_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 /// Two-way sync between the local SQLite finance store and the plain
-/// `finance_entries` table. Realtime and verified connectivity restoration
-/// only invalidate; every sync pushes pending local rows, then pulls the
-/// account's full remote state.
+/// `finance_entries` table, active only while the account has Cloud Sync on
+/// ([FinanceSyncPreferenceService]). Realtime and verified connectivity
+/// restoration only invalidate; every sync pushes pending local rows, then
+/// pulls the account's full remote state. With Cloud Sync off, local writes
+/// stay pending so turning it on later uploads them.
 class FinanceSyncService {
   FinanceSyncService._();
 
@@ -33,10 +36,12 @@ class FinanceSyncService {
   Timer? _retryTimer;
   String? _attachedUserId;
   bool _initialized = false;
-  bool _syncing = false;
+  Future<void>? _running;
   bool _syncRequested = false;
   int _retryAttempt = 0;
-  final ValueNotifier<String> status = ValueNotifier('Not enabled');
+  final ValueNotifier<String> status = ValueNotifier('Off');
+
+  bool get _enabled => FinanceSyncPreferenceService.instance.enabled.value;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -120,6 +125,9 @@ class FinanceSyncService {
       },
     );
     LocalFinanceStore.instance.pendingChanges.addListener(_scheduleSync);
+    FinanceSyncPreferenceService.instance.enabled.addListener(
+      _handlePreferenceChanged,
+    );
     NetworkReachabilityService.instance.status.addListener(
       _handleNetworkStatusChanged,
     );
@@ -137,7 +145,13 @@ class FinanceSyncService {
     unawaited(syncNow());
   }
 
+  void _handlePreferenceChanged() {
+    _resetRetry();
+    unawaited(_attachForUser(_client.auth.currentUser));
+  }
+
   Future<void> _attachForUser(User? user) async {
+    if (user != null && !_enabled) user = null;
     if (user?.id == _attachedUserId && _channel != null) {
       await syncNow();
       return;
@@ -148,8 +162,8 @@ class FinanceSyncService {
     }
     _attachedUserId = user?.id;
     if (user == null) {
-      status.value = 'Sign in to sync';
-      _retryTimer?.cancel();
+      status.value = _enabled ? 'Sign in to sync' : 'Off';
+      _resetRetry();
       return;
     }
     _channel = _client
@@ -178,10 +192,14 @@ class FinanceSyncService {
     await syncNow();
   }
 
-  Future<void> syncNow() async {
+  /// Requests a sync; the returned future completes once the running sync
+  /// loop (including this request) has finished.
+  Future<void> syncNow() {
     _syncRequested = true;
-    if (_syncing) return;
-    _syncing = true;
+    return _running ??= _runSyncLoop();
+  }
+
+  Future<void> _runSyncLoop() async {
     try {
       while (_syncRequested) {
         _syncRequested = false;
@@ -189,12 +207,26 @@ class FinanceSyncService {
         if (!succeeded) break;
       }
     } finally {
-      _syncing = false;
+      // Cleared in the same step the loop exits, so a request arriving
+      // afterwards always starts a new loop instead of joining this one.
+      _running = null;
     }
+  }
+
+  /// Uploads every pending local change now. Returns false when Cloud Sync is
+  /// off or some changes could not reach the server (e.g. offline).
+  Future<bool> uploadPendingNow() async {
+    if (!_enabled || _client.auth.currentUser == null) return false;
+    await syncNow();
+    return await LocalFinanceStore.instance.activePendingCount() == 0;
   }
 
   Future<bool> _syncOnce() async {
     final user = _client.auth.currentUser;
+    if (!_enabled) {
+      status.value = 'Off';
+      return true;
+    }
     if (user == null) {
       status.value = 'Sign in to sync';
       return true;
@@ -207,6 +239,12 @@ class FinanceSyncService {
       );
 
       final pending = await LocalFinanceStore.instance.pendingRows();
+      // Cloud Sync may have been turned off while the remote read was in
+      // flight; stop before uploading anything.
+      if (!_enabled) {
+        status.value = 'Off';
+        return true;
+      }
       if (pending.isNotEmpty) {
         await _pushPending(user, pending);
         remoteRows = await _readRemoteRows(user.id);
@@ -279,6 +317,7 @@ class FinanceSyncService {
   }
 
   void _scheduleRetry() {
+    if (!_enabled) return;
     if (_retryTimer?.isActive ?? false) return;
     final index = _retryAttempt.clamp(0, _retryDelays.length - 1);
     final delay = _retryDelays[index];

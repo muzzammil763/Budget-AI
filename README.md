@@ -1,8 +1,8 @@
 # Budget AI
 
 Budget AI is a Flutter personal finance assistant using OpenAI for chat, with
-Supabase authentication, offline-first SQLite finance tracking with Supabase
-synchronization, OpenAI voice input, and image chat.
+Supabase authentication, offline-first SQLite finance tracking with opt-in
+Supabase Cloud Sync and backup files, OpenAI voice input, and image chat.
 
 ## AI and voice flow
 
@@ -73,8 +73,9 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   changes send secure links that return through
   `budgetai://auth/reset-password`; sign-out lives on the Account screen.
 - After confirmation, sign-in leads straight to AI chat. Chat sessions remain
-  local-only; finance data is read and written through SQLite and synchronizes
-  as plain rows in the Supabase `finance_entries` table.
+  local-only; finance data is read and written through SQLite and, only when
+  the account has Cloud Sync on, synchronizes as plain rows in the Supabase
+  `finance_entries` table.
 - In Finances, a circular floating add button opens the shared form for manual entry creation. Tapping an existing
   entry opens the form for editing; save is available in both the AppBar and
   body, while delete stays in the body behind confirmation. There are no swipe
@@ -133,7 +134,15 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   suppresses future delivery and clears notifications already shown by the app.
 - Signing out clears the previous user's local finances, chat history,
   preferences, widget data, and legacy storage while preserving
-  the completed-onboarding flag.
+  the completed-onboarding flag. When that would erase entries with no cloud
+  copy (Cloud Sync off, or changes not uploaded yet), sign-out first shows
+  "Keep Your Entries Safe": Back Up Entries, Turn On Cloud Sync (or Sync Now)
+  & Sign Out, or Sign Out & Erase N entries. Delete Account offers a backup
+  first whenever the device has entries.
+- Budget Hub → Your Data: Cloud Sync toggle, Back Up Entries (saves
+  `BudgetAI-Backup-YYYY-MM-DD.json` wherever the user picks via the system
+  save dialog; the last backup date is shown), and Restore From Backup
+  (merges a backup by entry id; identical entries are skipped).
 - Budget Hub has an About & Legal section: About (version, features, support at
   budgetaitracker@gmail.com), Privacy Policy, and Terms & Conditions, styled like
   the rest of the app.
@@ -161,6 +170,18 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
 
 ## Synchronization
 
+- Finance Cloud Sync is opt-in per account (`users.finance_sync_enabled`,
+  default false; migration `20261016120000_add_finance_sync_opt_in.sql` turns
+  it on for every account that existed before). The choice syncs with the
+  other account settings, and a device only pushes the column once it knows
+  the account's value, so a fresh install never overwrites it. With sync off,
+  `FinanceSyncService` stays detached and local writes stay pending; turning
+  it on uploads them. Turning it off stops future uploads; rows already in
+  `finance_entries` stay until account deletion. Deploy the migration before
+  shipping a client that writes the column.
+- Mobile OSes give apps no uninstall hook, so the app cannot prompt at
+  uninstall time; the sign-out warning and Budget Hub backup are the
+  safeguards.
 - Finance entries sync as plain rows in `finance_entries` (one column per
   field: type, amount, category, description, date, has_time, created_at, plus
   revision, tombstone, and timestamp metadata), protected per user by

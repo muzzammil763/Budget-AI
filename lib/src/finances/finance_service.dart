@@ -851,12 +851,15 @@ class FinanceService {
 
   String buildExportJson(List<FinanceEntry> entries) {
     return const JsonEncoder.withIndent('  ').convert({
+      'app': 'Budget AI',
       'version': 1,
       'exported_at': DateTime.now().toIso8601String(),
       'finances': entries.map((e) => e.toJson()).toList(),
     });
   }
 
+  /// Merges a backup into the local entries by id and returns how many
+  /// entries were added or changed; identical entries are skipped.
   Future<int> importFromJson(String rawJson) async {
     await getAll(); // ensure cache loaded
     final decoded = jsonDecode(rawJson);
@@ -870,23 +873,27 @@ class FinanceService {
     }
 
     final incoming = rawList
-        .map((e) => FinanceEntry.fromJson(e as Map<String, dynamic>))
+        .map((e) => FinanceEntry.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
 
+    final entries = List<FinanceEntry>.from(_cache!);
     var affected = 0;
     for (final entry in incoming) {
-      final existingIndex = _cache!.indexWhere((e) => e.id == entry.id);
+      final existingIndex = entries.indexWhere((e) => e.id == entry.id);
       if (existingIndex >= 0) {
-        // Overwrite existing entry with new data
-        _cache![existingIndex] = entry;
-        affected++;
+        if (jsonEncode(entries[existingIndex].toJson()) ==
+            jsonEncode(entry.toJson())) {
+          continue;
+        }
+        entries[existingIndex] = entry;
       } else {
-        _cache!.add(entry);
-        affected++;
+        entries.add(entry);
       }
+      affected++;
     }
 
     if (affected > 0) {
+      _cache = entries;
       _cache!.sort((a, b) => b.date.compareTo(a.date));
       await _persist();
     }

@@ -7,6 +7,7 @@ import 'package:budget_ai/src/billing/paywall_screen.dart';
 import 'package:budget_ai/src/billing/premium_gate.dart';
 import 'package:budget_ai/src/billing/premium_hub_card.dart';
 import 'package:budget_ai/src/finances/finance_insights_screen.dart';
+import 'package:budget_ai/src/finances/finance_backup_service.dart';
 import 'package:budget_ai/src/finances/finance_service.dart';
 import 'package:budget_ai/src/finances/finances_screen.dart';
 import 'package:budget_ai/src/helpers/app_button.dart';
@@ -25,9 +26,12 @@ import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/settings/ai_usage_sheet.dart';
 import 'package:budget_ai/src/settings/currency_picker_screen.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
+import 'package:budget_ai/src/settings/finance_data_safety.dart';
 import 'package:budget_ai/src/settings/legal_screens.dart';
 import 'package:budget_ai/src/settings/permission_preferences_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
+import 'package:budget_ai/src/sync/finance_sync_preference_service.dart';
+import 'package:budget_ai/src/sync/finance_sync_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -300,6 +304,57 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
           ),
           const SizedBox(height: 12),
+          _sectionHeading(theme, eyebrow: 'YOUR DATA', title: 'Sync & Backup'),
+          const SizedBox(height: 8),
+          AnimatedBuilder(
+            animation: Listenable.merge([
+              FinanceSyncPreferenceService.instance.enabled,
+              FinanceSyncService.instance.status,
+            ]),
+            builder: (context, _) {
+              final enabled =
+                  FinanceSyncPreferenceService.instance.enabled.value;
+              return _toggleTile(
+                theme,
+                key: const ValueKey('settings-cloud-sync'),
+                icon: enabled
+                    ? CupertinoIcons.cloud_fill
+                    : CupertinoIcons.device_phone_portrait,
+                title: 'Cloud Sync',
+                subtitle: enabled
+                    ? 'Entries sync to your account · '
+                          '${FinanceSyncService.instance.status.value}'
+                    : 'Entries are saved only on this device',
+                value: enabled,
+                busy: false,
+                onChanged: (value) =>
+                    FinanceDataSafety.setCloudSync(context, value),
+              );
+            },
+          ),
+          ValueListenableBuilder<DateTime?>(
+            valueListenable: FinanceBackupService.instance.lastBackupAt,
+            builder: (context, lastBackup, _) => _navTile(
+              theme,
+              key: const ValueKey('settings-backup'),
+              icon: CupertinoIcons.arrow_down_doc,
+              title: 'Back Up Entries',
+              subtitle: lastBackup == null
+                  ? 'Save a backup file of all your entries'
+                  : 'Last backup: '
+                        '${FinanceDataSafety.formatBackupDate(lastBackup)}',
+              onTap: () => FinanceDataSafety.saveBackup(context),
+            ),
+          ),
+          _navTile(
+            theme,
+            key: const ValueKey('settings-restore'),
+            icon: CupertinoIcons.arrow_up_doc,
+            title: 'Restore From Backup',
+            subtitle: 'Bring back entries from a backup file',
+            onTap: () => FinanceDataSafety.restoreBackup(context),
+          ),
+          const SizedBox(height: 12),
           _sectionHeading(
             theme,
             eyebrow: 'APP BEHAVIOR',
@@ -446,7 +501,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             key: const ValueKey('settings-delete-account'),
             icon: CupertinoIcons.delete,
             title: _isDeletingAccount ? 'Deleting Account …' : 'Delete Account',
-            subtitle: 'Permanently delete your account and synced data',
+            subtitle: 'Permanently delete your account and all entries',
             onTap: _isDeletingAccount ? null : _deleteAccount,
           ),
         ],
@@ -734,6 +789,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Widget _toggleTile(
     ThemeData theme, {
+    Key? key,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -742,6 +798,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     required ValueChanged<bool> onChanged,
   }) {
     return Padding(
+      key: key,
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -884,21 +941,16 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   Future<void> _signOut() async {
-    final confirmed = await ResponsiveInfoSheet.confirm(
+    final signedOut = await FinanceDataSafety.confirmSignOut(
       context,
-      title: 'Sign Out?',
-      message:
-          'Your finance data stays on this device. You will need to sign in '
-          'again to use AI chat.',
-      icon: CupertinoIcons.square_arrow_right,
-      confirmLabel: 'Sign Out',
-      isRed: true,
-      onConfirm: AuthService.instance.signOut,
+      signOut: AuthService.instance.signOut,
     );
-    if (confirmed == true && mounted) Navigator.of(context).pop();
+    if (signedOut && mounted) Navigator.of(context).pop();
   }
 
   Future<void> _deleteAccount() async {
+    final proceed = await FinanceDataSafety.offerBackupBeforeDelete(context);
+    if (!proceed || !mounted) return;
     final theme = Theme.of(context);
     final firstConfirmation = await ResponsiveInfoSheet.show<bool>(
       context,

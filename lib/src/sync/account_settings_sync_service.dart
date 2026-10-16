@@ -5,6 +5,7 @@ import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/currency_settings_service.dart';
 import 'package:budget_ai/src/settings/user_name_settings_service.dart';
 import 'package:budget_ai/src/storage/local_settings_store.dart';
+import 'package:budget_ai/src/sync/finance_sync_preference_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -160,6 +161,29 @@ class AccountSettingsSyncService {
     }
   }
 
+  /// Pushes the current account settings right away, e.g. before sign-out
+  /// clears them. Returns false when the push could not reach the server.
+  Future<bool> pushNow() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return false;
+    try {
+      final settings = LocalSettingsStore.instance;
+      final localRows = await settings.accountRows();
+      await _push(user, localRows);
+      if (localRows.isNotEmpty) {
+        await settings.markAccountCleanThrough(
+          localRows
+              .map((row) => row['updated_at']! as int)
+              .reduce((left, right) => left > right ? left : right),
+        );
+      }
+      return true;
+    } catch (error) {
+      debugPrint('[AccountSettingsSyncService] Push deferred: $error');
+      return false;
+    }
+  }
+
   Future<void> _push(User user, List<Map<String, Object?>> localRows) async {
     var updatedAt = DateTime.now().toUtc();
     if (localRows.isNotEmpty) {
@@ -168,6 +192,8 @@ class AccountSettingsSyncService {
           .reduce((left, right) => left > right ? left : right);
       updatedAt = DateTime.fromMicrosecondsSinceEpoch(latest, isUtc: true);
     }
+    final financeSyncEnabled = await FinanceSyncPreferenceService.instance
+        .knownAccountValue();
     await _client.from('users').upsert({
       'user_id': user.id,
       'display_name': UserNameSettingsService.instance.current,
@@ -179,6 +205,9 @@ class AccountSettingsSyncService {
           BubbleStyleSettingsService.instance.syncedCustomStyles,
       'client_updated_at': updatedAt.toIso8601String(),
       'device_id': await _deviceId(),
+      // Omitted until this device knows the account's choice, so a fresh
+      // install never overwrites it with the local default.
+      'finance_sync_enabled': ?financeSyncEnabled,
     });
   }
 
@@ -201,6 +230,11 @@ class AccountSettingsSyncService {
           .map((value) => Map<String, dynamic>.from(value))
           .toList(growable: false),
     );
+    if (remote['finance_sync_enabled'] case final bool financeSyncEnabled) {
+      await FinanceSyncPreferenceService.instance.applySyncedValue(
+        financeSyncEnabled,
+      );
+    }
   }
 
   Future<String> _deviceId() async {
