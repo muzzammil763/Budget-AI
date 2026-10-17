@@ -118,7 +118,7 @@ function quotaMessage(code: string) {
     case "account_disabled":
       return "Your AI access has been blocked by an administrator.";
     case "premium_required":
-      return "You've used your free AI message this month. Upgrade to keep going.";
+      return "You've used this month's free AI messages. Upgrade to keep going.";
     case "plan_limit_reached":
       return "You've reached this month's AI limit for your plan.";
     case "message_round_limit":

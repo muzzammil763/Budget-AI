@@ -149,7 +149,7 @@ const authenticatedHandler = withSupabase(
       return jsonResponse(status, {
         code: access,
         message: access === "premium_required"
-          ? "You've used your free AI message this month. Upgrade to keep going."
+          ? "You've used this month's free AI messages. Upgrade to keep going."
           : access === "plan_limit_reached"
           ? "You've reached this month's AI limit for your plan."
           : "Voice messages are unavailable right now.",

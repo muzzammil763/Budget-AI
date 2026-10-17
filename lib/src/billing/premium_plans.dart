@@ -47,7 +47,7 @@ class PremiumPlanInfo {
     tier: PremiumTier.free,
     name: 'Free',
     aiName: 'Swift AI',
-    messages: 1,
+    messages: 5,
     fastReplies: 0,
     deepAnalysis: 0,
     fallbackMonthly: r'$0',
@@ -58,33 +58,33 @@ class PremiumPlanInfo {
     tier: PremiumTier.lite,
     name: 'Lite',
     aiName: 'Swift AI',
-    messages: 150,
+    messages: 100,
     fastReplies: 0,
     deepAnalysis: 0,
-    fallbackMonthly: r'$2.99',
-    fallbackYearly: r'$24.99',
+    fallbackMonthly: r'$1.99',
+    fallbackYearly: r'$19.99',
   );
 
   static const plus = PremiumPlanInfo(
     tier: PremiumTier.plus,
     name: 'Plus',
     aiName: 'Smart AI',
-    messages: 200,
-    fastReplies: 20,
+    messages: 150,
+    fastReplies: 15,
     deepAnalysis: 0,
-    fallbackMonthly: r'$7.99',
-    fallbackYearly: r'$79.99',
+    fallbackMonthly: r'$6.99',
+    fallbackYearly: r'$64.99',
   );
 
   static const pro = PremiumPlanInfo(
     tier: PremiumTier.pro,
     name: 'Pro',
     aiName: 'Smart AI',
-    messages: 250,
-    fastReplies: 30,
-    deepAnalysis: 50,
-    fallbackMonthly: r'$12.99',
-    fallbackYearly: r'$129.99',
+    messages: 160,
+    fastReplies: 20,
+    deepAnalysis: 30,
+    fallbackMonthly: r'$9.99',
+    fallbackYearly: r'$94.99',
   );
 
   static const paid = [lite, plus, pro];

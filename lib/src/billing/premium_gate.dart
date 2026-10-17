@@ -93,7 +93,7 @@ class PremiumGate {
     final onPrimary = AppTheme.readableOn(theme.colorScheme.primary);
     return ResponsiveInfoSheet.show<bool>(
       context,
-      title: isFree ? 'Free AI message used' : "This month's AI messages used",
+      title: isFree ? 'Free AI messages used' : "This month's AI messages used",
       headerIcon: Icon(
         isFree ? CupertinoIcons.lock_open : CupertinoIcons.hourglass,
         size: 30,
@@ -150,7 +150,7 @@ class _PremiumSheetContent extends StatelessWidget {
         ? ''
         : ' Your limit resets on $resetLabel.';
     final intro = isFree
-        ? "You've used this month's free AI message. Manual entries, charts, "
+        ? "You've used this month's free AI messages. Manual entries, charts, "
               'and widgets stay free forever.'
         : isTopPlan
         ? "You've used all of this month's AI messages on Pro.$resets"

@@ -136,7 +136,7 @@ export const termsSections: LegalSection[] = [
   {
     title: 'Premium subscriptions',
     paragraphs: [
-      "Manual entries, charts, and widgets are free, and every account includes one free AI message each month. Budget AI Premium (Lite, Plus, and Pro) adds more AI messages each month; the app shows each plan's limits and price before you buy.",
+      "Manual entries, charts, and widgets are free, and every account includes five free AI messages each month. Budget AI Premium (Lite, Plus, and Pro) adds more AI messages each month; the app shows each plan's limits and price before you buy.",
     ],
     bullets: [
       'Subscriptions are billed through Google Play monthly or yearly and renew automatically until you cancel.',

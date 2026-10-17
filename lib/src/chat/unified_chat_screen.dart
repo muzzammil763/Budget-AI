@@ -3630,7 +3630,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   /// Above the composer: the Deep analysis chip for the next message, or the
-  /// free-message notice once this month's free AI message is used.
+  /// free-message notice once this month's free AI messages are used.
   Widget _buildPremiumNotice(ThemeData theme) {
     return ValueListenableBuilder<AiUsageInfo?>(
       valueListenable: AiUsageService.instance.usage,
@@ -3652,7 +3652,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
           notice = _ComposerNotice(
             key: const ValueKey('free-message-notice'),
             icon: CupertinoIcons.lock_open,
-            text: 'That was your free AI message this month · Unlock Premium',
+            text: 'Free AI messages used this month · Unlock Premium',
             onTap: () => PaywallScreen.show(
               context,
               reason: PaywallReason.freeMessageUsed,

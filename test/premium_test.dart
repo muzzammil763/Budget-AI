@@ -58,7 +58,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Keep your'), findsOneWidget);
-    expect(find.textContaining(r'Get Plus · $7.99/month'), findsOneWidget);
+    expect(find.textContaining(r'Get Plus · $6.99/month'), findsOneWidget);
     // Only the selected plan opens its Monthly/Yearly options.
     expect(
       find.byKey(const ValueKey('paywall-option-plus-yearly')),
@@ -68,8 +68,9 @@ void main() {
       find.byKey(const ValueKey('paywall-option-pro-yearly')),
       findsNothing,
     );
-    expect(find.text('SAVE 17%'), findsOneWidget);
-    expect(find.text('Save 30% when you pay yearly'), findsOneWidget);
+    expect(find.text('SAVE 23%'), findsOneWidget);
+    expect(find.text('Save 16% when you pay yearly'), findsOneWidget);
+    expect(find.text('Save 21% when you pay yearly'), findsOneWidget);
     expect(find.text('Most popular'), findsOneWidget);
     for (final name in ['Free', 'Lite', 'Plus', 'Pro']) {
       expect(find.text(name), findsWidgets);
@@ -80,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('paywall-option-pro-yearly')));
     await tester.pumpAndSettle();
-    expect(find.textContaining(r'Get Pro · $129.99/year'), findsOneWidget);
+    expect(find.textContaining(r'Get Pro · $94.99/year'), findsOneWidget);
     await tester.pumpAndSettle();
   });
 
@@ -114,8 +115,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Free AI message used'), findsOneWidget);
-    expect(find.textContaining('Plus · 200 AI messages'), findsOneWidget);
+    expect(find.text('Free AI messages used'), findsOneWidget);
+    expect(find.textContaining('Plus · 150 AI messages'), findsOneWidget);
     final seePlans = find.byKey(const ValueKey('premium-sheet-see-plans'));
     await tester.ensureVisible(seePlans);
     await tester.pumpAndSettle();

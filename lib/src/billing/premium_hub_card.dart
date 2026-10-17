@@ -129,7 +129,8 @@ class PremiumHubCard extends StatelessWidget {
 
   static String _subtitle(AiUsageInfo? usage, PremiumPlanInfo plan) {
     if (plan.tier == PremiumTier.free) {
-      return '1 free AI message a month. Manual entries, charts, and widgets '
+      return '${plan.messages} free AI messages a month. Manual entries, '
+          'charts, and widgets '
           'are always free.';
     }
     final parts = ['${plan.messages} AI messages a month', plan.aiName];

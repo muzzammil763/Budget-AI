@@ -217,7 +217,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   String get _subtitle => switch (widget.reason) {
     PaywallReason.freeMessageUsed =>
-      "You've used this month's free AI message. Pick a plan and keep logging in seconds.",
+      "You've used this month's free AI messages. Pick a plan and keep logging in seconds.",
     PaywallReason.planLimitReached =>
       "You've reached this month's AI messages on your plan. Upgrade for more right now.",
     PaywallReason.browse =>
