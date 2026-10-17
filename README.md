@@ -279,7 +279,7 @@ the previous default limits (`legacy` plan).
 | Free | Swift AI | 5 | 60K | — | — | — |
 | Lite | Swift AI | 100 | 500K | — | — | $1.99/mo · $19.99/yr |
 | Plus | Smart AI | 150 | 750K | 15 | — | $6.99/mo · $64.99/yr |
-| Pro | Smart AI | 160 | 800K | 20 | 30 on Expert AI (within the 160) | $9.99/mo · $94.99/yr |
+| Pro | Smart AI | 200 | 1M | 20 | 40 on Expert AI (within the 200) | $11.99/mo · $109.99/yr |
 
 - A message is one user turn: its tool rounds, automatic continuations, voice
   transcription, and chat title share the client's `user_turn_id` and count

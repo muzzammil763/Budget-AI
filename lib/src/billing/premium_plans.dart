@@ -80,11 +80,11 @@ class PremiumPlanInfo {
     tier: PremiumTier.pro,
     name: 'Pro',
     aiName: 'Smart AI',
-    messages: 160,
+    messages: 200,
     fastReplies: 20,
-    deepAnalysis: 30,
-    fallbackMonthly: r'$9.99',
-    fallbackYearly: r'$94.99',
+    deepAnalysis: 40,
+    fallbackMonthly: r'$11.99',
+    fallbackYearly: r'$109.99',
   );
 
   static const paid = [lite, plus, pro];

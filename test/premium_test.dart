@@ -70,7 +70,7 @@ void main() {
     );
     expect(find.text('SAVE 23%'), findsOneWidget);
     expect(find.text('Save 16% when you pay yearly'), findsOneWidget);
-    expect(find.text('Save 21% when you pay yearly'), findsOneWidget);
+    expect(find.text('Save 24% when you pay yearly'), findsOneWidget);
     expect(find.text('Most popular'), findsOneWidget);
     for (final name in ['Free', 'Lite', 'Plus', 'Pro']) {
       expect(find.text(name), findsWidgets);
@@ -81,7 +81,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('paywall-option-pro-yearly')));
     await tester.pumpAndSettle();
-    expect(find.textContaining(r'Get Pro · $94.99/year'), findsOneWidget);
+    expect(find.textContaining(r'Get Pro · $109.99/year'), findsOneWidget);
     await tester.pumpAndSettle();
   });
 
