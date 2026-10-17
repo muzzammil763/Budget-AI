@@ -118,7 +118,7 @@ const _termsSections = [
       'Manual entries, charts, and widgets are free, and every account includes five free AI messages each month. Budget AI Premium (Lite, Plus, and Pro) adds more AI messages each month; the app shows each plan\'s limits and price before you buy.',
     ],
     bullets: [
-      'Subscriptions are billed through Google Play monthly or yearly and renew automatically until you cancel.',
+      'Subscriptions are billed through Google Play weekly, monthly, or yearly and renew automatically until you cancel.',
       'Cancel at least 24 hours before renewal in Google Play › Payments & subscriptions. You keep Premium until the end of the paid period.',
       'Upgrades start immediately with credit for unused time; downgrades start at your next renewal.',
       'Unused AI messages do not roll over. Limits reset on the first day of each month (UTC).',

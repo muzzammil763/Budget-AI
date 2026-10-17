@@ -406,7 +406,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ? 'Included with Plus and Pro'
                     : PremiumGate.paywallEnabled && usage != null
                     ? 'Faster replies · ${usage.fastRequestsUsed} of '
-                          '${usage.fastRequestsLimit} used this month'
+                          '${usage.fastRequestsLimit} used this ${usage.periodNoun}'
                     : 'Lower latency with higher OpenAI token pricing',
                 value: enabled && !locked,
                 busy: false,

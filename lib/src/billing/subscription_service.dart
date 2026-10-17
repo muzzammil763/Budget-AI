@@ -9,7 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Budget AI Premium tiers, from lowest to highest.
 enum PremiumTier { free, lite, plus, pro }
 
-enum PremiumPeriod { monthly, yearly }
+enum PremiumPeriod { weekly, monthly, yearly }
 
 /// One purchasable Play base plan, e.g. Plus · Yearly.
 class PremiumPlanOption {
@@ -120,7 +120,7 @@ class SubscriptionService {
     tier.value = tierFor(info);
   }
 
-  /// The six Play base plans from the current RevenueCat offering.
+  /// The nine Play base plans from the current RevenueCat offering.
   Future<List<PremiumPlanOption>> loadPlans() async {
     if (!_configured) return const [];
     final offerings = await Purchases.getOfferings();
@@ -133,15 +133,23 @@ class SubscriptionService {
     ];
   }
 
-  /// Buys [option]. Moving up a tier takes effect now with prorated credit;
-  /// moving down waits for the current period to end.
+  /// Buys [option]. Moving up a tier, or to a longer period on the same
+  /// tier, takes effect now with prorated credit; moving down waits for the
+  /// current period to end.
   Future<PremiumPurchaseOutcome> purchase(PremiumPlanOption option) async {
     if (!_configured) return PremiumPurchaseOutcome.failed;
-    final current = _activeSubscriptionId();
-    final changeInfo = current != null && current != option.subscriptionId
+    final current = _activePlan();
+    final changeInfo =
+        current != null &&
+            (current.subscriptionId != option.subscriptionId ||
+                current.period != option.period)
         ? StoreProductChangeInfo(
-            current,
-            replacementMode: option.tier.index > tier.value.index
+            current.subscriptionId,
+            replacementMode:
+                isUpgrade(
+                  from: (tier.value, current.period),
+                  to: (option.tier, option.period),
+                )
                 ? StoreReplacementMode.chargeProratedPrice
                 : StoreReplacementMode.deferred,
           )
@@ -173,15 +181,33 @@ class SubscriptionService {
     return tier.value;
   }
 
-  String? _activeSubscriptionId() {
+  /// The active Play subscription id and base plan period, if any.
+  ({String subscriptionId, PremiumPeriod? period})? _activePlan() {
     final active = customerInfo.value?.entitlements.active ?? const {};
     for (final key in _entitlements.keys) {
       final entitlement = active[key];
-      if (entitlement != null) {
-        return entitlement.productIdentifier.split(':').first;
-      }
+      if (entitlement == null) continue;
+      final product = [
+        entitlement.productIdentifier,
+        ?entitlement.productPlanIdentifier,
+      ].join(':');
+      return (
+        subscriptionId: entitlement.productIdentifier.split(':').first,
+        period: planFor(product, PackageType.unknown)?.$2,
+      );
     }
     return null;
+  }
+
+  /// A higher tier, or the same tier on a longer period, is an upgrade.
+  @visibleForTesting
+  static bool isUpgrade({
+    required (PremiumTier, PremiumPeriod?) from,
+    required (PremiumTier, PremiumPeriod) to,
+  }) {
+    if (to.$1 != from.$1) return to.$1.index > from.$1.index;
+    final fromPeriod = from.$2;
+    return fromPeriod == null || to.$2.index > fromPeriod.index;
   }
 
   /// Maps a Play product (`budget_ai_plus:yearly`) to its tier and period.
@@ -203,9 +229,12 @@ class SubscriptionService {
         ? PremiumPeriod.yearly
         : basePlan.contains('month')
         ? PremiumPeriod.monthly
+        : basePlan.contains('week')
+        ? PremiumPeriod.weekly
         : switch (packageType) {
             PackageType.annual => PremiumPeriod.yearly,
             PackageType.monthly => PremiumPeriod.monthly,
+            PackageType.weekly => PremiumPeriod.weekly,
             _ => null,
           };
     return period == null ? null : (tier, period);

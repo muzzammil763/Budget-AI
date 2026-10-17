@@ -120,7 +120,7 @@ function quotaMessage(code: string) {
     case "premium_required":
       return "You've used this month's free AI messages. Upgrade to keep going.";
     case "plan_limit_reached":
-      return "You've reached this month's AI limit for your plan.";
+      return "You've reached your plan's AI message limit.";
     case "message_round_limit":
       return "This reply needed too many steps. Try a simpler request.";
     default:

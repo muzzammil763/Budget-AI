@@ -16,7 +16,7 @@ import 'package:toastification/toastification.dart';
 enum PaywallReason { browse, freeMessageUsed, planLimitReached }
 
 /// Budget AI Premium: a hero with the benefits, Lite/Plus/Pro cards that each
-/// open Monthly and Yearly options, a Free-to-Pro comparison, and Google
+/// open Weekly, Monthly, and Yearly options, a Free-to-Pro comparison, and Google
 /// Play's renewal terms.
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({
@@ -94,18 +94,20 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return null;
   }
 
+  static String _fallbackPrice(PremiumPlanInfo plan, PremiumPeriod period) =>
+      switch (period) {
+        PremiumPeriod.weekly => plan.fallbackWeekly,
+        PremiumPeriod.monthly => plan.fallbackMonthly,
+        PremiumPeriod.yearly => plan.fallbackYearly,
+      };
+
   String _price(PremiumPlanInfo plan, PremiumPeriod period) =>
-      _option(plan.tier, period)?.price ??
-      (period == PremiumPeriod.yearly
-          ? plan.fallbackYearly
-          : plan.fallbackMonthly);
+      _option(plan.tier, period)?.price ?? _fallbackPrice(plan, period);
 
   double? _priceValue(PremiumPlanInfo plan, PremiumPeriod period) {
     final store = _option(plan.tier, period)?.package.storeProduct.price;
     if (store != null && store > 0) return store;
-    final fallback = period == PremiumPeriod.yearly
-        ? plan.fallbackYearly
-        : plan.fallbackMonthly;
+    final fallback = _fallbackPrice(plan, period);
     return double.tryParse(fallback.replaceAll(RegExp(r'[^0-9.]'), ''));
   }
 
@@ -231,9 +233,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
     final isCurrent = current == _selected && current != PremiumTier.free;
     final selectedPlan = PremiumPlanInfo.of(_selected);
     final busy = _purchasing || _restoring;
-    final isYearly = _period == PremiumPeriod.yearly;
-    final ctaPrice =
-        '${_price(selectedPlan, _period)}${isYearly ? '/year' : '/month'}';
+    final suffix = switch (_period) {
+      PremiumPeriod.weekly => '/week',
+      PremiumPeriod.monthly => '/month',
+      PremiumPeriod.yearly => '/year',
+    };
+    final ctaPrice = '${_price(selectedPlan, _period)}$suffix';
 
     return Scaffold(
       appBar: AppBar(
@@ -271,6 +276,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       selected: _selected == plan.tier,
                       isCurrent: current == plan.tier,
                       period: _period,
+                      weeklyPrice: _price(plan, PremiumPeriod.weekly),
                       monthlyPrice: _price(plan, PremiumPeriod.monthly),
                       yearlyPrice: _price(plan, PremiumPeriod.yearly),
                       yearlyPerMonth: _yearlyPerMonth(plan),
@@ -463,6 +469,7 @@ class _PlanCard extends StatelessWidget {
     required this.selected,
     required this.isCurrent,
     required this.period,
+    required this.weeklyPrice,
     required this.monthlyPrice,
     required this.yearlyPrice,
     required this.yearlyPerMonth,
@@ -475,6 +482,7 @@ class _PlanCard extends StatelessWidget {
   final bool selected;
   final bool isCurrent;
   final PremiumPeriod period;
+  final String weeklyPrice;
   final String monthlyPrice;
   final String yearlyPrice;
   final String? yearlyPerMonth;
@@ -604,6 +612,19 @@ class _PlanCard extends StatelessWidget {
                         children: [
                           _PeriodOption(
                             key: ValueKey(
+                              'paywall-option-${plan.tier.name}-weekly',
+                            ),
+                            accent: accent,
+                            selected: period == PremiumPeriod.weekly,
+                            title: 'Weekly',
+                            subtitle: _weeklySubtitle(plan),
+                            price: weeklyPrice,
+                            priceSuffix: '/wk',
+                            onTap: () => onPeriod(PremiumPeriod.weekly),
+                          ),
+                          const SizedBox(height: 8),
+                          _PeriodOption(
+                            key: ValueKey(
                               'paywall-option-${plan.tier.name}-monthly',
                             ),
                             accent: accent,
@@ -652,6 +673,16 @@ class _PlanCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A weekly base plan's own allowance, which resets every paid week.
+String _weeklySubtitle(PremiumPlanInfo plan) {
+  final parts = ['${plan.weeklyMessages} AI messages a week'];
+  if (plan.weeklyDeepAnalysis > 0) {
+    parts.add('${plan.weeklyDeepAnalysis} Deep');
+  }
+  if (plan.weeklyFastReplies > 0) parts.add('${plan.weeklyFastReplies} Fast');
+  return parts.join(' · ');
 }
 
 class _PeriodOption extends StatelessWidget {

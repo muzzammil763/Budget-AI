@@ -159,7 +159,7 @@ class _AiUsageContent extends StatelessWidget {
                 info.fastRequestsLimit,
               ),
               const SizedBox(height: 12),
-              _renewal(theme, info.renewsOn),
+              _renewal(theme, info.renewsOn, weekly: info.isWeekly),
             ],
           ],
         );
@@ -220,7 +220,11 @@ class _AiUsageContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                info.enabled ? 'Monthly quota used' : 'AI access disabled',
+                info.enabled
+                    ? (info.isWeekly
+                          ? 'Weekly quota used'
+                          : 'Monthly quota used')
+                    : 'AI access disabled',
                 style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
@@ -273,32 +277,35 @@ class _AiUsageContent extends StatelessWidget {
     ),
   );
 
-  Widget _renewal(ThemeData theme, DateTime date) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: theme.colorScheme.outline.withValues(alpha: 0.3),
-      ),
-    ),
-    child: Column(
-      children: [
-        Icon(CupertinoIcons.calendar, color: theme.colorScheme.primary),
-        const SizedBox(height: 7),
-        Text(
-          'Renews ${_date(date)}',
-          style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w800),
-        ),
-        Text(
-          'Monthly limits reset at 00:00 UTC',
-          style: AppTheme.bodySmall.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+  Widget _renewal(ThemeData theme, DateTime date, {bool weekly = false}) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
-      ],
-    ),
-  );
+        child: Column(
+          children: [
+            Icon(CupertinoIcons.calendar, color: theme.colorScheme.primary),
+            const SizedBox(height: 7),
+            Text(
+              'Renews ${_date(date)}',
+              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w800),
+            ),
+            Text(
+              weekly
+                  ? 'Weekly limits reset when your week renews'
+                  : 'Monthly limits reset at 00:00 UTC',
+              style: AppTheme.bodySmall.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
 
   String _count(int value) => value.toString().replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),

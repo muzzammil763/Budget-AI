@@ -9,7 +9,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Budget Hub's Premium card: the current plan, this month's AI messages,
+/// Budget Hub's Premium card: the current plan, this period's AI messages,
 /// and Upgrade or Manage subscription.
 class PremiumHubCard extends StatelessWidget {
   const PremiumHubCard({super.key});
@@ -133,7 +133,13 @@ class PremiumHubCard extends StatelessWidget {
           'charts, and widgets '
           'are always free.';
     }
-    final parts = ['${plan.messages} AI messages a month', plan.aiName];
+    final weekly = usage?.isWeekly ?? false;
+    final parts = [
+      weekly
+          ? '${plan.weeklyMessages} AI messages a week'
+          : '${plan.messages} AI messages a month',
+      plan.aiName,
+    ];
     if (plan.deepAnalysis > 0) {
       final left = usage == null
           ? plan.deepAnalysis

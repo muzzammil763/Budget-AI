@@ -73,6 +73,7 @@ class PremiumGate {
       isFree: isFree,
       isTopPlan: isTopPlan,
       renewsOn: info?.renewsOn,
+      period: info?.periodNoun ?? 'month',
     );
     if (seePlans != true || isTopPlan || !context.mounted) return false;
     return PaywallScreen.show(
@@ -88,12 +89,15 @@ class PremiumGate {
     required bool isFree,
     required bool isTopPlan,
     DateTime? renewsOn,
+    String period = 'month',
   }) {
     final theme = Theme.of(context);
     final onPrimary = AppTheme.readableOn(theme.colorScheme.primary);
     return ResponsiveInfoSheet.show<bool>(
       context,
-      title: isFree ? 'Free AI messages used' : "This month's AI messages used",
+      title: isFree
+          ? 'Free AI messages used'
+          : "This $period's AI messages used",
       headerIcon: Icon(
         isFree ? CupertinoIcons.lock_open : CupertinoIcons.hourglass,
         size: 30,
@@ -108,6 +112,7 @@ class PremiumGate {
           isFree: isFree,
           isTopPlan: isTopPlan,
           resetLabel: renewsOn == null ? null : resetDateLabel(renewsOn),
+          period: period,
         ),
       ],
     );
@@ -137,11 +142,15 @@ class _PremiumSheetContent extends StatelessWidget {
     required this.isFree,
     required this.isTopPlan,
     required this.resetLabel,
+    this.period = 'month',
   });
 
   final bool isFree;
   final bool isTopPlan;
   final String? resetLabel;
+
+  /// "week" for weekly plans, otherwise "month".
+  final String period;
 
   @override
   Widget build(BuildContext context) {
@@ -153,9 +162,9 @@ class _PremiumSheetContent extends StatelessWidget {
         ? "You've used this month's free AI messages. Manual entries, charts, "
               'and widgets stay free forever.'
         : isTopPlan
-        ? "You've used all of this month's AI messages on Pro.$resets"
-        : "You've used all of this month's AI messages on your plan. "
-              'Upgrade for more, or wait for the monthly reset.$resets';
+        ? "You've used all of this $period's AI messages on Pro.$resets"
+        : "You've used all of this $period's AI messages on your plan. "
+              'Upgrade for more, or wait for the ${period}ly reset.$resets';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),

@@ -28,6 +28,10 @@ class PremiumPlanInfo {
     required this.deepAnalysis,
     required this.fallbackMonthly,
     required this.fallbackYearly,
+    this.weeklyMessages = 0,
+    this.weeklyFastReplies = 0,
+    this.weeklyDeepAnalysis = 0,
+    this.fallbackWeekly = r'$0',
   });
 
   final PremiumTier tier;
@@ -39,7 +43,13 @@ class PremiumPlanInfo {
   final int fastReplies;
   final int deepAnalysis;
 
+  /// The weekly base plan's allowance, which resets every paid week.
+  final int weeklyMessages;
+  final int weeklyFastReplies;
+  final int weeklyDeepAnalysis;
+
   /// Shown only until Google Play's localized prices load.
+  final String fallbackWeekly;
   final String fallbackMonthly;
   final String fallbackYearly;
 
@@ -63,6 +73,8 @@ class PremiumPlanInfo {
     deepAnalysis: 0,
     fallbackMonthly: r'$1.99',
     fallbackYearly: r'$19.99',
+    weeklyMessages: 25,
+    fallbackWeekly: r'$0.99',
   );
 
   static const plus = PremiumPlanInfo(
@@ -74,6 +86,9 @@ class PremiumPlanInfo {
     deepAnalysis: 0,
     fallbackMonthly: r'$6.99',
     fallbackYearly: r'$64.99',
+    weeklyMessages: 40,
+    weeklyFastReplies: 4,
+    fallbackWeekly: r'$2.49',
   );
 
   static const pro = PremiumPlanInfo(
@@ -85,6 +100,10 @@ class PremiumPlanInfo {
     deepAnalysis: 40,
     fallbackMonthly: r'$11.99',
     fallbackYearly: r'$109.99',
+    weeklyMessages: 50,
+    weeklyFastReplies: 5,
+    weeklyDeepAnalysis: 10,
+    fallbackWeekly: r'$3.99',
   );
 
   static const paid = [lite, plus, pro];

@@ -22,6 +22,8 @@ type RevenueCatEntitlement = {
 
 type RevenueCatSubscription = {
   expires_date?: string | null;
+  /** The latest purchase or renewal, i.e. when the current period began. */
+  purchase_date?: string | null;
   grace_period_expires_date?: string | null;
   billing_issues_detected_at?: string | null;
   unsubscribe_detected_at?: string | null;
@@ -40,7 +42,9 @@ export type SubscriptionRow = {
   tier: Tier;
   status: "active" | "grace" | "cancelled" | "billing_issue";
   product_id: string | null;
-  period: "monthly" | "yearly" | null;
+  period: "weekly" | "monthly" | "yearly" | null;
+  /** Start of the current paid period; weekly allowances reset from it. */
+  period_started_at: string | null;
   expires_at: string | null;
   will_renew: boolean;
   store: string | null;
@@ -98,11 +102,14 @@ function isLive(date: string | null | undefined, now: number) {
   return Number.isFinite(time) && time > now;
 }
 
-function periodFrom(...identifiers: (string | null | undefined)[]) {
+function periodFrom(
+  ...identifiers: (string | null | undefined)[]
+): SubscriptionRow["period"] {
   for (const identifier of identifiers) {
     const plan = identifier?.split(":").pop()?.toLowerCase() ?? "";
     if (plan.includes("year") || plan.includes("annual")) return "yearly";
     if (plan.includes("month")) return "monthly";
+    if (plan.includes("week")) return "weekly";
   }
   return null;
 }
@@ -150,6 +157,7 @@ export function subscriptionFromSubscriber(
         subscription?.product_plan_identifier,
         productId,
       ),
+      period_started_at: subscription?.purchase_date ?? null,
       // During grace the store keeps access past the paid period.
       expires_at: status === "grace" && graceUntil ? graceUntil : expiresAt,
       will_renew: !cancelled,

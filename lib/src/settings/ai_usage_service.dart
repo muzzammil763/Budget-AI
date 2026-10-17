@@ -23,6 +23,7 @@ class AiUsageInfo {
     this.subscriptionPeriod,
     this.subscriptionExpiresAt,
     this.willRenew = false,
+    this.isWeekly = false,
     required this.renewsOn,
   });
 
@@ -46,8 +47,15 @@ class AiUsageInfo {
   final DateTime? subscriptionExpiresAt;
   final bool willRenew;
 
-  /// First day of next month (UTC) — when usage resets, since limits are
-  /// enforced per UTC calendar month on the backend.
+  /// Weekly subscribers count usage in their paid week, which resets on
+  /// [renewsOn], instead of the calendar month.
+  final bool isWeekly;
+
+  /// "week" or "month", for usage copy.
+  String get periodNoun => isWeekly ? 'week' : 'month';
+
+  /// When usage resets: the next paid week for weekly plans, otherwise the
+  /// first day of next month (UTC).
   final DateTime renewsOn;
 
   bool get isPaid =>
@@ -88,6 +96,7 @@ class AiUsageInfo {
     subscriptionPeriod: subscriptionPeriod,
     subscriptionExpiresAt: subscriptionExpiresAt,
     willRenew: willRenew,
+    isWeekly: isWeekly,
     renewsOn: renewsOn,
   );
 
@@ -114,12 +123,14 @@ class AiUsageInfo {
         row['expires_at'] as String? ?? '',
       ),
       willRenew: row['will_renew'] as bool? ?? false,
-      renewsOn: renewsOn,
+      isWeekly: row['usage_window'] == 'week',
+      renewsOn:
+          DateTime.tryParse(row['resets_at'] as String? ?? '') ?? renewsOn,
     );
   }
 }
 
-/// Reads the signed-in user's AI plan and this calendar month's usage from
+/// Reads the signed-in user's AI plan and this month's (or paid week's) usage from
 /// the `get_my_ai_plan` RPC. The server enforces the same numbers; the app
 /// only uses them for the paywall, Budget Hub, and the usage sheet.
 class AiUsageService {

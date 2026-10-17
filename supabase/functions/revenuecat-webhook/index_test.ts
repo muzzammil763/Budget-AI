@@ -87,3 +87,22 @@ Deno.test("only UUID app user ids are synced", () => {
     [id.toLowerCase()],
   );
 });
+
+Deno.test("weekly plans record when the paid week began", () => {
+  const started = "2026-10-12T09:30:00Z";
+  const row = subscriptionFromSubscriber({
+    entitlements: {
+      plus: {
+        expires_date: "2026-10-19T09:30:00Z",
+        product_identifier: "budget_ai_plus",
+        product_plan_identifier: "weekly",
+      },
+    },
+    subscriptions: {
+      "budget_ai_plus:weekly": { purchase_date: started },
+    },
+  }, now);
+  assertEquals(row?.tier, "plus");
+  assertEquals(row?.period, "weekly");
+  assertEquals(row?.period_started_at, started);
+});

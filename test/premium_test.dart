@@ -205,4 +205,71 @@ void main() {
       UserBubbleStyle.classic,
     );
   });
+
+  test('weekly base plans map, upgrade, and report their own window', () {
+    expect(
+      SubscriptionService.planFor('budget_ai_plus:weekly', PackageType.custom),
+      (PremiumTier.plus, PremiumPeriod.weekly),
+    );
+    expect(SubscriptionService.planFor('budget_ai_pro', PackageType.weekly), (
+      PremiumTier.pro,
+      PremiumPeriod.weekly,
+    ));
+    expect(
+      SubscriptionService.isUpgrade(
+        from: (PremiumTier.plus, PremiumPeriod.weekly),
+        to: (PremiumTier.plus, PremiumPeriod.monthly),
+      ),
+      isTrue,
+    );
+    expect(
+      SubscriptionService.isUpgrade(
+        from: (PremiumTier.plus, PremiumPeriod.yearly),
+        to: (PremiumTier.plus, PremiumPeriod.weekly),
+      ),
+      isFalse,
+    );
+    expect(
+      SubscriptionService.isUpgrade(
+        from: (PremiumTier.pro, PremiumPeriod.weekly),
+        to: (PremiumTier.plus, PremiumPeriod.yearly),
+      ),
+      isFalse,
+    );
+
+    final weekly = AiUsageInfo.fromPlanRow({
+      'plan_tier': 'plus',
+      'messages_used': 3,
+      'message_limit': 40,
+      'usage_window': 'week',
+      'resets_at': '2026-10-19T09:30:00+00:00',
+    }, DateTime.utc(2026, 11));
+    expect(weekly.isWeekly, isTrue);
+    expect(weekly.periodNoun, 'week');
+    expect(weekly.renewsOn, DateTime.utc(2026, 10, 19, 9, 30));
+
+    final monthly = AiUsageInfo.fromPlanRow({
+      'plan_tier': 'plus',
+    }, DateTime.utc(2026, 11));
+    expect(monthly.isWeekly, isFalse);
+    expect(monthly.renewsOn, DateTime.utc(2026, 11));
+  });
+
+  testWidgets('paywall offers a weekly option inside the selected plan', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light(), home: const PaywallScreen()),
+    );
+    await tester.pump();
+
+    final weekly = find.byKey(const ValueKey('paywall-option-plus-weekly'));
+    expect(weekly, findsOneWidget);
+    expect(find.text('40 AI messages a week · 4 Fast'), findsOneWidget);
+    await tester.tap(weekly);
+    await tester.pumpAndSettle();
+    expect(find.textContaining(r'Get Plus · $2.49/week'), findsOneWidget);
+  });
 }

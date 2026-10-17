@@ -281,6 +281,15 @@ the previous default limits (`legacy` plan).
 | Plus | Smart AI | 150 | 750K | 15 | — | $6.99/mo · $64.99/yr |
 | Pro | Smart AI | 200 | 1M | 20 | 40 on Expert AI (within the 200) | $11.99/mo · $109.99/yr |
 
+Each paid plan also has a weekly base plan whose allowance resets with every
+paid week (not on the 1st), so one week never buys a month of AI:
+
+| Weekly plan | Price | Messages / week | Tokens | Fast | Deep analysis |
+| --- | --- | --- | --- | --- | --- |
+| Lite | $0.99/wk | 25 | 125K | — | — |
+| Plus | $2.49/wk | 40 | 200K | 4 | — |
+| Pro | $3.99/wk | 50 | 250K | 5 | 10 |
+
 - A message is one user turn: its tool rounds, automatic continuations, voice
   transcription, and chat title share the client's `user_turn_id` and count
   once. A Monthly Summary is its own message.
@@ -294,9 +303,17 @@ the previous default limits (`legacy` plan).
   paywall (Pro shows the reset date instead); a 402 never shows a chat error; after the free message a composer notice offers Premium.
   Budget Hub shows a Premium card, and Fast Responses is locked on Free/Lite.
 - Play products `budget_ai_lite`, `budget_ai_plus`, `budget_ai_pro`, each with
-  `monthly` and `yearly` base plans, map to RevenueCat entitlements `lite`,
-  `plus`, `pro`. The RevenueCat app user ID is the Supabase user id. Upgrades
-  apply now with proration; downgrades wait for renewal.
+  `weekly`, `monthly`, and `yearly` base plans, map to RevenueCat entitlements
+  `lite`, `plus`, `pro`. The RevenueCat app user ID is the Supabase user id.
+  Upgrades (a higher tier, or a longer period on the same tier) apply now with
+  proration; downgrades wait for renewal.
+- Weekly subscriptions: the webhook stores `period = 'weekly'` and the current
+  period's `period_started_at` (RevenueCat `purchase_date`). The server counts
+  a weekly subscriber's messages, tokens, Fast, and Deep from `ai_requests`
+  since that start (`ai_weekly_window_start`, `ai_window_usage`) against the
+  `weekly_*` columns of `plan_limits`; `get_my_ai_plan` returns
+  `usage_window = 'week'` and `resets_at`. See migration
+  `20261017140000_add_weekly_plans.sql`.
 - Complimentary access (for example the Play reviewer account): insert a
   `user_subscriptions` row with `tier = 'pro'`, `status = 'active'`,
   `expires_at = null`, `store = 'complimentary'`. The webhook never revokes it.

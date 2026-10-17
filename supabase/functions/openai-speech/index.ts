@@ -151,7 +151,7 @@ const authenticatedHandler = withSupabase(
         message: access === "premium_required"
           ? "You've used this month's free AI messages. Upgrade to keep going."
           : access === "plan_limit_reached"
-          ? "You've reached this month's AI limit for your plan."
+          ? "You've reached your plan's AI message limit."
           : "Voice messages are unavailable right now.",
       });
     }
