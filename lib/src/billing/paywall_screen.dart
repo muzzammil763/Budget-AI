@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:budget_ai/src/billing/bubble_style_access.dart';
 import 'package:budget_ai/src/billing/premium_plans.dart';
 import 'package:budget_ai/src/billing/subscription_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
@@ -14,21 +15,6 @@ import 'package:toastification/toastification.dart';
 /// Why the paywall opened; it only changes the headline.
 enum PaywallReason { browse, freeMessageUsed, planLimitReached }
 
-/// Each tier's accent, matching its Google Play subscription icon.
-Color _tierAccent(PremiumTier tier) => switch (tier) {
-  PremiumTier.lite => const Color(0xFF448AFF),
-  PremiumTier.plus => const Color(0xFF8B5CF6),
-  PremiumTier.pro => const Color(0xFFF2A51A),
-  PremiumTier.free => const Color(0xFF448AFF),
-};
-
-Color _tierAccentDeep(PremiumTier tier) => switch (tier) {
-  PremiumTier.lite => const Color(0xFF2E5FB8),
-  PremiumTier.plus => const Color(0xFF6D3FE0),
-  PremiumTier.pro => const Color(0xFFD9820B),
-  PremiumTier.free => const Color(0xFF2E5FB8),
-};
-
 /// Budget AI Premium: a hero with the benefits, Lite/Plus/Pro cards that each
 /// open Monthly and Yearly options, a Free-to-Pro comparison, and Google
 /// Play's renewal terms.
@@ -36,10 +22,14 @@ class PaywallScreen extends StatefulWidget {
   const PaywallScreen({
     super.key,
     this.reason = PaywallReason.browse,
+    this.initialTier,
     this.subscriptions,
   });
 
   final PaywallReason reason;
+
+  /// The plan card selected on open, e.g. the plan that unlocks a feature.
+  final PremiumTier? initialTier;
 
   @visibleForTesting
   final SubscriptionService? subscriptions;
@@ -49,11 +39,12 @@ class PaywallScreen extends StatefulWidget {
   static Future<bool> show(
     BuildContext context, {
     PaywallReason reason = PaywallReason.browse,
+    PremiumTier? initialTier,
   }) async {
     final purchased = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => PaywallScreen(reason: reason),
+        builder: (_) => PaywallScreen(reason: reason, initialTier: initialTier),
       ),
     );
     return purchased ?? false;
@@ -76,7 +67,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   void initState() {
     super.initState();
-    if (_subscriptions.tier.value == PremiumTier.plus) {
+    final initial = widget.initialTier;
+    if (initial != null && initial != PremiumTier.free) {
+      _selected = initial;
+    } else if (_subscriptions.tier.value == PremiumTier.plus) {
       _selected = PremiumTier.pro;
     }
     unawaited(_loadPlans());
@@ -383,6 +377,7 @@ class _Hero extends StatelessWidget {
       (CupertinoIcons.mic_fill, 'Log by voice or a receipt photo'),
       (CupertinoIcons.chat_bubble_2_fill, 'Ask anything about your spending'),
       (CupertinoIcons.sparkles, 'Monthly summaries and smart insights'),
+      (CupertinoIcons.paintbrush_fill, 'Exclusive message bubble styles'),
     ];
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
@@ -491,12 +486,15 @@ class _PlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final accent = _tierAccent(plan.tier);
+    final accent = premiumTierAccent(plan.tier);
     final summary = [
       '${plan.messages} AI messages a month',
       plan.aiName,
       if (plan.deepAnalysis > 0) '${plan.deepAnalysis} Deep analysis',
       if (plan.fastReplies > 0) '${plan.fastReplies} Fast replies',
+      plan.tier == PremiumTier.pro
+          ? 'All bubble styles + custom'
+          : '${BubbleStyleAccess.presetCount(plan.tier)} bubble styles',
     ].join(' · ');
 
     return GestureDetector(
@@ -533,7 +531,7 @@ class _PlanCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                _TierBadge(tier: plan.tier, size: 48),
+                PremiumTierBadge(tier: plan.tier, size: 48),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -790,8 +788,8 @@ class _Badge extends StatelessWidget {
 
 /// The tier's mark, drawn like its Google Play subscription icon: the ring
 /// fills further and the sparkles multiply from Lite to Pro.
-class _TierBadge extends StatelessWidget {
-  const _TierBadge({required this.tier, required this.size});
+class PremiumTierBadge extends StatelessWidget {
+  const PremiumTierBadge({super.key, required this.tier, required this.size});
 
   final PremiumTier tier;
   final double size;
@@ -811,7 +809,7 @@ class _TierBadgePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.shortestSide;
-    final accent = _tierAccent(tier);
+    final accent = premiumTierAccent(tier);
     final rect = Offset.zero & size;
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, Radius.circular(s * 0.26)),
@@ -954,8 +952,8 @@ class _ShimmerButtonState extends State<_ShimmerButton>
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.isLoading;
-    final accent = _tierAccent(widget.tier);
-    final deep = _tierAccentDeep(widget.tier);
+    final accent = premiumTierAccent(widget.tier);
+    final deep = premiumTierAccentDeep(widget.tier);
     return Opacity(
       opacity: widget.onPressed == null && !widget.isLoading ? 0.55 : 1,
       child: AnimatedContainer(
@@ -1107,6 +1105,16 @@ class _ComparisonTable extends StatelessWidget {
         'Fast replies',
         [for (final p in plans) p.fastReplies > 0 ? '${p.fastReplies}' : '—'],
       ),
+      (
+        'Bubble styles',
+        [
+          for (final p in plans)
+            p.tier == PremiumTier.pro
+                ? 'All'
+                : '${BubbleStyleAccess.presetCount(p.tier)}',
+        ],
+      ),
+      ('Custom bubble styles', ['—', '—', '—', '✓']),
       ('Chat, voice & receipts', ['✓', '✓', '✓', '✓']),
       ('Manual entries, charts, widgets', ['✓', '✓', '✓', '✓']),
     ];

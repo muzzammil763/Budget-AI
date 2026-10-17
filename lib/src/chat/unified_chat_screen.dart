@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
+import 'package:budget_ai/src/billing/bubble_style_access.dart';
 import 'package:budget_ai/src/billing/paywall_screen.dart';
 import 'package:budget_ai/src/billing/premium_gate.dart';
 import 'package:budget_ai/src/chat/ai_report.dart';
@@ -4139,7 +4140,9 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
             : _messages.indexWhere((m) => identical(m, message)));
 
     if (message.isUser) {
-      final bubbleStyle = BubbleStyleSettingsService.instance.current;
+      final bubbleStyle = BubbleStyleAccess.effective(
+        BubbleStyleSettingsService.instance.current,
+      );
 
       Widget buildContent() {
         return Column(
@@ -4565,7 +4568,7 @@ class _UnifiedChatScreenState extends State<UnifiedChatScreen>
   }
 
   String? get _chatFontFamily => UserBubbleStyleSurface.chatFontFamily(
-    BubbleStyleSettingsService.instance.current,
+    BubbleStyleAccess.effective(BubbleStyleSettingsService.instance.current),
   );
 
   void _finishTypewriterForMessage(int messageIndex) {

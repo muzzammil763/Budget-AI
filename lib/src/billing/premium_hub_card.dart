@@ -29,7 +29,7 @@ class PremiumHubCard extends StatelessWidget {
       ]),
       builder: (context, _) {
         final usage = AiUsageService.instance.usage.value;
-        final tier = _tierOf(usage);
+        final tier = PremiumGate.tierOf(usage);
         final plan = PremiumPlanInfo.of(tier);
         final muted = theme.colorScheme.onSurfaceVariant;
         final isTop = tier == PremiumTier.pro;
@@ -125,19 +125,6 @@ class PremiumHubCard extends StatelessWidget {
         );
       },
     );
-  }
-
-  /// The server's plan wins; RevenueCat covers the seconds before the
-  /// purchase webhook lands.
-  static PremiumTier _tierOf(AiUsageInfo? usage) {
-    final serverTier = switch (usage?.plan) {
-      AiPlanTier.lite => PremiumTier.lite,
-      AiPlanTier.plus => PremiumTier.plus,
-      AiPlanTier.pro => PremiumTier.pro,
-      _ => PremiumTier.free,
-    };
-    final storeTier = SubscriptionService.instance.tier.value;
-    return storeTier.index > serverTier.index ? storeTier : serverTier;
   }
 
   static String _subtitle(AiUsageInfo? usage, PremiumPlanInfo plan) {

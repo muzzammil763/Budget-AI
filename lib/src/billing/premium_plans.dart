@@ -1,4 +1,20 @@
 import 'package:budget_ai/src/billing/subscription_service.dart';
+import 'package:flutter/painting.dart';
+
+/// Each tier's accent, matching its Google Play subscription icon.
+Color premiumTierAccent(PremiumTier tier) => switch (tier) {
+  PremiumTier.lite => const Color(0xFF448AFF),
+  PremiumTier.plus => const Color(0xFF8B5CF6),
+  PremiumTier.pro => const Color(0xFFF2A51A),
+  PremiumTier.free => const Color(0xFF448AFF),
+};
+
+Color premiumTierAccentDeep(PremiumTier tier) => switch (tier) {
+  PremiumTier.lite => const Color(0xFF2E5FB8),
+  PremiumTier.plus => const Color(0xFF6D3FE0),
+  PremiumTier.pro => const Color(0xFFD9820B),
+  PremiumTier.free => const Color(0xFF2E5FB8),
+};
 
 /// What each Budget AI plan includes, shown on the paywall and in Budget Hub.
 /// The server's `plan_limits` table enforces the same numbers.

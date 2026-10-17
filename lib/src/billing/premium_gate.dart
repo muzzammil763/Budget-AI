@@ -22,6 +22,19 @@ class PremiumGate {
   @visibleForTesting
   static bool? debugPaywallEnabled;
 
+  /// The server's plan wins; RevenueCat covers the seconds before the
+  /// purchase webhook lands.
+  static PremiumTier tierOf(AiUsageInfo? usage) {
+    final serverTier = switch (usage?.plan) {
+      AiPlanTier.lite => PremiumTier.lite,
+      AiPlanTier.plus => PremiumTier.plus,
+      AiPlanTier.pro => PremiumTier.pro,
+      _ => PremiumTier.free,
+    };
+    final storeTier = SubscriptionService.instance.tier.value;
+    return storeTier.index > serverTier.index ? storeTier : serverTier;
+  }
+
   /// True when the next AI message can start. Otherwise shows the Premium
   /// sheet (or the reset date on the top plan) and returns whether a
   /// purchase unlocked it.

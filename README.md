@@ -124,6 +124,13 @@ silently falls back to `gpt-5.6-luna`, so a bad value can never break chat.
   their list actions; the custom editor supports named styles, independent
   bubble/text/pattern colors, five shapes, five patterns, and a floating live
   preview that remains visible while editing.
+- On Android, bubble styles follow the Premium plan: Free has Classic and
+  Outline, Lite adds Ledger, Savings, and Cash flow, Plus adds Growth, Receipt,
+  and Night budget, and Pro adds Vault, Paper curl, Sketch frame, and custom
+  styles. Locked styles still show their full preview under FREE/LITE/PLUS/PRO
+  headers; tapping one opens the paywall on that plan, and the paywall's
+  comparison lists bubble styles per plan. A style from a lapsed plan stays
+  saved while chat shows Classic. iOS keeps every style.
 - Display name, currency, and message style use local-first SQLite
   storage, update the interface immediately, and synchronize in the background.
   Pending changes retry automatically when internet access returns. Onboarding

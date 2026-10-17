@@ -1,8 +1,13 @@
+import 'package:budget_ai/src/billing/bubble_style_access.dart';
 import 'package:budget_ai/src/billing/paywall_screen.dart';
 import 'package:budget_ai/src/billing/premium_gate.dart';
 import 'package:budget_ai/src/chat/chat_provider.dart';
+import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
 import 'package:budget_ai/src/billing/subscription_service.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
+import 'package:budget_ai/src/settings/bubble_style_screen.dart';
+import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/speech/openai_speech_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,5 +122,86 @@ void main() {
     await tester.tap(seePlans);
     await tester.pumpAndSettle();
     expect(find.byType(PaywallScreen), findsOneWidget);
+  });
+
+  test('bubble styles unlock by plan', () {
+    PremiumGate.debugPaywallEnabled = true;
+    addTearDown(() => PremiumGate.debugPaywallEnabled = null);
+    expect(BubbleStyleAccess.presetCount(PremiumTier.free), 2);
+    expect(BubbleStyleAccess.presetCount(PremiumTier.lite), 5);
+    expect(BubbleStyleAccess.presetCount(PremiumTier.plus), 8);
+    expect(BubbleStyleAccess.presetCount(PremiumTier.pro), 11);
+    expect(
+      BubbleStyleAccess.isUnlocked(UserBubbleStyle.outline, PremiumTier.free),
+      isTrue,
+    );
+    expect(
+      BubbleStyleAccess.isUnlocked(UserBubbleStyle.custom, PremiumTier.plus),
+      isFalse,
+    );
+
+    AiUsageService.instance.usage.value = AiUsageInfo(
+      enabled: true,
+      messagesUsed: 0,
+      messagesLimit: 1,
+      tokensUsed: 0,
+      tokensLimit: 1000,
+      plan: AiPlanTier.free,
+      renewsOn: DateTime.utc(2026, 11),
+    );
+    addTearDown(() => AiUsageService.instance.usage.value = null);
+    expect(
+      BubbleStyleAccess.effective(UserBubbleStyle.vault),
+      UserBubbleStyle.classic,
+    );
+    expect(
+      BubbleStyleAccess.effective(UserBubbleStyle.outline),
+      UserBubbleStyle.outline,
+    );
+    PremiumGate.debugPaywallEnabled = false;
+    expect(
+      BubbleStyleAccess.effective(UserBubbleStyle.vault),
+      UserBubbleStyle.vault,
+    );
+  });
+
+  testWidgets('locked bubble styles keep previews and open their plan', (
+    tester,
+  ) async {
+    PremiumGate.debugPaywallEnabled = true;
+    addTearDown(() => PremiumGate.debugPaywallEnabled = null);
+    AiUsageService.instance.usage.value = AiUsageInfo(
+      enabled: true,
+      messagesUsed: 0,
+      messagesLimit: 1,
+      tokensUsed: 0,
+      tokensLimit: 1000,
+      plan: AiPlanTier.free,
+      renewsOn: DateTime.utc(2026, 11),
+    );
+    addTearDown(() => AiUsageService.instance.usage.value = null);
+    await tester.binding.setSurfaceSize(const Size(400, 4000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light(), home: const BubbleStyleScreen()),
+    );
+    await tester.pump();
+
+    expect(find.text('FREE'), findsOneWidget);
+    expect(find.text('Unlock with Lite'), findsOneWidget);
+    expect(find.text('Unlock with Plus'), findsOneWidget);
+    expect(find.text('Unlock with Pro'), findsOneWidget);
+    // Every preset still draws its preview bubble, locked or not.
+    expect(find.byType(UserBubbleStyleSurface), findsNWidgets(11));
+
+    await tester.tap(find.byKey(const ValueKey('bubble-style-preset:growth')));
+    await tester.pumpAndSettle();
+    expect(find.byType(PaywallScreen), findsOneWidget);
+    expect(find.textContaining(r'Get Plus'), findsOneWidget);
+    expect(
+      BubbleStyleSettingsService.instance.current,
+      UserBubbleStyle.classic,
+    );
   });
 }

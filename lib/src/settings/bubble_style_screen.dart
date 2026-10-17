@@ -1,6 +1,12 @@
+import 'package:budget_ai/src/billing/bubble_style_access.dart';
+import 'package:budget_ai/src/billing/paywall_screen.dart';
+import 'package:budget_ai/src/billing/premium_gate.dart';
+import 'package:budget_ai/src/billing/premium_plans.dart';
+import 'package:budget_ai/src/billing/subscription_service.dart';
 import 'package:budget_ai/src/chat/expandable_user_message_text.dart';
 import 'package:budget_ai/src/chat/user_bubble_style_surface.dart';
 import 'package:budget_ai/src/helpers/app_theme.dart';
+import 'package:budget_ai/src/settings/ai_usage_service.dart';
 import 'package:budget_ai/src/settings/bubble_style_settings_service.dart';
 import 'package:budget_ai/src/settings/custom_bubble_style_edit_screen.dart';
 import 'package:flutter/cupertino.dart';
@@ -73,6 +79,11 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
     });
   }
 
+  Future<void> _unlock(PremiumTier tier) async {
+    HapticFeedback.selectionClick();
+    await PaywallScreen.show(context, initialTier: tier);
+  }
+
   Future<void> _selectPreset(UserBubbleStyle style) async {
     if (BubbleStyleSettingsService.instance.current == style) return;
     HapticFeedback.selectionClick();
@@ -130,49 +141,93 @@ class _BubbleStyleScreenContentState extends State<_BubbleStyleScreenContent> {
                     ),
                   ),
                 ),
-                ValueListenableBuilder<List<CustomBubbleStyle>>(
-                  valueListenable: service.customStyles,
-                  builder: (context, customStyles, _) {
+                AnimatedBuilder(
+                  animation: Listenable.merge([
+                    service.customStyles,
+                    service.style,
+                    AiUsageService.instance.usage,
+                    SubscriptionService.instance.tier,
+                  ]),
+                  builder: (context, _) {
+                    final tier = BubbleStyleAccess.currentTier;
                     final choices = [
                       for (final style in UserBubbleStyle.values)
                         if (style != UserBubbleStyle.custom)
                           _BubbleChoice.preset(style),
-                      for (final custom in customStyles)
+                      for (final custom in service.customStyles.value)
                         _BubbleChoice.custom(custom),
                     ];
-                    return ValueListenableBuilder<UserBubbleStyle>(
-                      valueListenable: service.style,
-                      builder: (context, selected, _) {
-                        final selectedId = selected == UserBubbleStyle.custom
-                            ? 'custom:${service.currentCustomStyle?.id}'
-                            : 'preset:${selected.name}';
-                        if (!_didScheduleInitialScroll) {
-                          _didScheduleInitialScroll = true;
-                          _scheduleReveal(selectedId);
-                        }
-                        return Column(
-                          children: [
-                            for (final choice in choices)
-                              Padding(
-                                key: _optionKey(choice.id),
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _BubbleStyleOption(
-                                  choice: choice,
-                                  selected: choice.id == selectedId,
-                                  onTap: choice.customStyle == null
-                                      ? () => _selectPreset(choice.style)
-                                      : () =>
-                                            _selectCustom(choice.customStyle!),
-                                  onEdit: choice.customStyle == null
-                                      ? null
-                                      : () => _openCustomEditor(
-                                          style: choice.customStyle,
-                                        ),
+                    // A style from a lapsed plan stays saved, but the picker
+                    // marks what chat really draws.
+                    final selected = BubbleStyleAccess.effective(
+                      service.current,
+                    );
+                    final selectedId = selected == UserBubbleStyle.custom
+                        ? 'custom:${service.currentCustomStyle?.id}'
+                        : 'preset:${selected.name}';
+                    if (!_didScheduleInitialScroll) {
+                      _didScheduleInitialScroll = true;
+                      _scheduleReveal(selectedId);
+                    }
+
+                    Widget option(_BubbleChoice choice) {
+                      final required = BubbleStyleAccess.requiredTier(
+                        choice.style,
+                      );
+                      final locked = !BubbleStyleAccess.isUnlocked(
+                        choice.style,
+                        tier,
+                      );
+                      return Padding(
+                        key: _optionKey(choice.id),
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _BubbleStyleOption(
+                          choice: choice,
+                          selected: choice.id == selectedId,
+                          lockedTier: locked ? required : null,
+                          onTap: locked
+                              ? () => _unlock(required)
+                              : choice.customStyle == null
+                              ? () => _selectPreset(choice.style)
+                              : () => _selectCustom(choice.customStyle!),
+                          onEdit: choice.customStyle == null || locked
+                              ? null
+                              : () => _openCustomEditor(
+                                  style: choice.customStyle,
                                 ),
-                              ),
+                        ),
+                      );
+                    }
+
+                    if (!PremiumGate.paywallEnabled) {
+                      return Column(
+                        children: [
+                          for (final choice in choices) option(choice),
+                        ],
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final section in PremiumTier.values)
+                          if (choices.any(
+                            (choice) =>
+                                BubbleStyleAccess.requiredTier(choice.style) ==
+                                section,
+                          )) ...[
+                            _TierSectionHeader(
+                              tier: section,
+                              unlocked: section.index <= tier.index,
+                              onUnlock: () => _unlock(section),
+                            ),
+                            for (final choice in choices)
+                              if (BubbleStyleAccess.requiredTier(
+                                    choice.style,
+                                  ) ==
+                                  section)
+                                option(choice),
                           ],
-                        );
-                      },
+                      ],
                     );
                   },
                 ),
@@ -217,18 +272,25 @@ class _BubbleStyleOption extends StatelessWidget {
     required this.choice,
     required this.selected,
     required this.onTap,
+    this.lockedTier,
     this.onEdit,
   });
 
   final _BubbleChoice choice;
   final bool selected;
+
+  /// The plan that unlocks this style, or null when it is available.
+  final PremiumTier? lockedTier;
   final VoidCallback onTap;
   final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final lockedTier = this.lockedTier;
+    final accent = lockedTier == null ? null : premiumTierAccent(lockedTier);
     return InkWell(
+      key: ValueKey('bubble-style-${choice.id}'),
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: AnimatedContainer(
@@ -240,7 +302,8 @@ class _BubbleStyleOption extends StatelessWidget {
           border: Border.all(
             color: selected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.25),
+                : accent?.withValues(alpha: 0.35) ??
+                      theme.colorScheme.outline.withValues(alpha: 0.25),
             width: 1.5,
           ),
         ),
@@ -249,15 +312,30 @@ class _BubbleStyleOption extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  selected
-                      ? CupertinoIcons.check_mark_circled_solid
-                      : CupertinoIcons.circle,
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outline,
-                  size: 30,
-                ),
+                if (accent != null)
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      CupertinoIcons.lock_fill,
+                      size: 15,
+                      color: accent,
+                    ),
+                  )
+                else
+                  Icon(
+                    selected
+                        ? CupertinoIcons.check_mark_circled_solid
+                        : CupertinoIcons.circle,
+                    color: selected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline,
+                    size: 30,
+                  ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -267,7 +345,9 @@ class _BubbleStyleOption extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (onEdit != null)
+                if (lockedTier != null)
+                  _UnlockChip(tier: lockedTier)
+                else if (onEdit != null)
                   IconButton(
                     tooltip: 'Edit ${choice.label}',
                     onPressed: onEdit,
@@ -296,6 +376,129 @@ class _BubbleStyleOption extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Groups the styles by the plan that includes them.
+class _TierSectionHeader extends StatelessWidget {
+  const _TierSectionHeader({
+    required this.tier,
+    required this.unlocked,
+    required this.onUnlock,
+  });
+
+  final PremiumTier tier;
+  final bool unlocked;
+  final VoidCallback onUnlock;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final accent = premiumTierAccent(tier);
+    final name = PremiumPlanInfo.of(tier).name;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+      child: Row(
+        children: [
+          if (tier == PremiumTier.free)
+            Icon(CupertinoIcons.chat_bubble_2_fill, size: 22, color: muted)
+          else
+            PremiumTierBadge(tier: tier, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              tier == PremiumTier.free ? 'FREE' : name.toUpperCase(),
+              style: AppTheme.bodySmall.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+                color: tier == PremiumTier.free ? muted : accent,
+              ),
+            ),
+          ),
+          if (unlocked)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.checkmark_seal_fill,
+                  size: 14,
+                  color: tier == PremiumTier.free ? muted : accent,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  tier == PremiumTier.free ? 'Included' : 'Unlocked',
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: muted,
+                  ),
+                ),
+              ],
+            )
+          else
+            InkWell(
+              key: ValueKey('bubble-style-unlock-${tier.name}'),
+              onTap: onUnlock,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  gradient: LinearGradient(
+                    colors: [accent, premiumTierAccentDeep(tier)],
+                  ),
+                ),
+                child: Text(
+                  'Unlock with $name',
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The plan name beside a locked style.
+class _UnlockChip extends StatelessWidget {
+  const _UnlockChip({required this.tier});
+
+  final PremiumTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = premiumTierAccent(tier);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.lock_fill, size: 11, color: accent),
+          const SizedBox(width: 4),
+          Text(
+            PremiumPlanInfo.of(tier).name,
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: accent,
+            ),
+          ),
+        ],
       ),
     );
   }
